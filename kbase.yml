@@ -2,13 +2,13 @@ module-name:
     SampleService
 
 module-description:
-    A KBase module
+    Handles creating, updating, retriving samples and linking data to samples.
 
 service-language:
     python
 
 module-version:
-    0.0.1
+    0.1.0-alpha1
 
 owners:
     [gaprice]
