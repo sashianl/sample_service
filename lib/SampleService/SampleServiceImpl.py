@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 #BEGIN_HEADER
-import logging
-import os
-
-from installed_clients.KBaseReportClient import KBaseReport
 #END_HEADER
 
 
@@ -35,10 +31,6 @@ Handles creating, updating, retriving samples and linking data to samples.
     # be found
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
-        self.callback_url = os.environ['SDK_CALLBACK_URL']
-        self.shared_folder = config['scratch']
-        logging.basicConfig(format='%(created)s %(levelname)s: %(message)s',
-                            level=logging.INFO)
         #END_CONSTRUCTOR
         pass
 
