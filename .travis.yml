@@ -16,6 +16,8 @@ install:
   - docker pull kbase/kb-sdk
   - docker run kbase/kb-sdk genscript > kb-sdk
   - export KBSDK=$(pwd)/kb-sdk
+  - chmod a+x $KBSDK
+  - $KBSDK version
 
 script:
   - $KBSDK validate
