@@ -14,9 +14,11 @@ install:
   - pip install pipenv coverage pytest-cov python-coveralls flake8
   - pipenv install --dev
   - docker pull kbase/kb-sdk
+  - cd ..
   - docker run kbase/kb-sdk genscript > kb-sdk
   - export KBSDK=$(pwd)/kb-sdk
   - chmod a+x $KBSDK
+  - cd -
   - $KBSDK version
 
 script:
