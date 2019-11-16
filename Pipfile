@@ -4,9 +4,14 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pytest = "*"
+pytest-cov = "*"
+mypy = "*"
+coveralls = "*"
 
 [packages]
 python-arango = "==5.0.0"
+jsonrpcbase = "*"
 
 [requires]
 python_version = "3.7"

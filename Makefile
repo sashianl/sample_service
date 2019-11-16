@@ -62,7 +62,8 @@ test:
 	bash $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 
 test-sdkless:
-	PYTHONPATH=$(LIB_DIR) pytest test/core/ -v
+	mypy $(LIB_DIR)/$(SERVICE_CAPS)/core
+	PYTHONPATH=$(LIB_DIR) pytest --verbose --cov $(TEST_DIR)/core/ $(TEST_DIR)/core/ 
 
 clean:
 	rm -rfv $(LBIN_DIR)
