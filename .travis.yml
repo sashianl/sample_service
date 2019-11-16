@@ -18,7 +18,7 @@ install:
   - export KBSDK=$(pwd)/kb-sdk
 
 script:
-  - KBSDK validate
+  - $KBSDK validate
   - make test-sdkless
   # TODO make tests for the full stack with local auth, ws
 
