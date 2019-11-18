@@ -76,6 +76,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         # ctx is the context object
         # return variables are: address
         #BEGIN create_sample
+        address = {'id': 'foo', 'version': 1}
         #END create_sample
 
         # At some point might do deeper type checking...
