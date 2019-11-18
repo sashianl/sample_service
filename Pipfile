@@ -8,6 +8,7 @@ pytest = "*"
 pytest-cov = "*"
 mypy = "*"
 coveralls = "*"
+pylint = "*"
 
 [packages]
 python-arango = "==5.0.0"
