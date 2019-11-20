@@ -8,11 +8,11 @@ pytest = "*"
 pytest-cov = "*"
 mypy = "*"
 coveralls = "*"
-pylint = "*"
+flake8 = "*"
 
 [packages]
 python-arango = "==5.0.0"
-jsonrpcbase = "*"
+jsonrpcbase = "==0.2.0"
 
 [requires]
 python_version = "3.7"

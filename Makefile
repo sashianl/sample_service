@@ -66,6 +66,7 @@ test:
 	bash $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 
 test-sdkless:
+	# TODO flake8 and bandit
 	mypy $(LIB_DIR)/$(SERVICE_CAPS)/core
 	PYTHONPATH=$(LIB_DIR) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS)/core/ $(TEST_DIR)/core/ 
 
