@@ -1,0 +1,18 @@
+# To run tests, copy this file to test.cfg and set the values below appropriately.
+
+[sampleservicetest]
+
+# path to the ArangoDB executable (arangod, *not* arangodb) to use for the tests.
+# In the downloaded tarball it is at /usr/sbin/arangod.
+test.arango.exe=/path/to/arangoddbexecutable
+
+# path to the ArangoDB javascript startup directory to use for the tests.
+# This is the same path as provided to --javascript.startup-directory for the arangod executable.
+# In the downloaded tarball it is at /usr/share/arangodb3/js/.
+test.arango.js=/path/to/arangodjs
+
+# path to a temporary directory to use for tests.
+test.temp.dir=/path/to/temp/dir/make/sure/this/is/safe
+
+# true to keep the temporary directory contents after running tests. 
+test.temp.dir.keep=false

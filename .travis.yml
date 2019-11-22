@@ -6,12 +6,22 @@ services:
   - docker
 
 env:
+    # TODO add more arango versions when they exist
+    # TODO could split tests so non-arango tests aren't run for every version
+    - ARANGODB_VER=3.5.1 ARANGODB_V=35
 
 before_install:
   - docker version
 
 install:
-  - pip install pipenv coverage pytest-cov python-coveralls flake8
+  - cd ..
+  - curl -O https://download.arangodb.com/arangodb$ARANGODB_V/Community/Linux/arangodb3-linux-$ARANGODB_VER.tar.gz
+  - tar -xf arangodb3-linux-$ARANGODB_VER.tar.gz 
+  - export ARANGO_EXE=$(pwd)/arangodb3-$ARANGODB_VER/usr/sbin/arangod
+  - export ARANGO_JS=$(pwd)/arangodb3-$ARANGODB_VER/usr/share/arangodb3/js/
+  - cd -
+
+  - pip install pipenv
   - pipenv install --dev
   - docker pull kbase/kb-sdk
   - cd ..
@@ -20,6 +30,14 @@ install:
   - chmod a+x $KBSDK
   - cd -
   - $KBSDK version
+
+  - cd test
+  - cp test.cfg.example test.cfg
+  - sed -i "s#^test.temp.dir=.*#test.temp.dir=temp_test_dir#" test.cfg
+  - sed -i "s#^test.arango.exe.*#test.arango.exe=$ARANGO_EXE#" test.cfg
+  - sed -i "s#^test.arango.js.*#test.arango.js=$ARANGO_JS#" test.cfg
+  - cat test.cfg
+  - cd -
 
 script:
   - $KBSDK validate

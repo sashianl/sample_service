@@ -14,10 +14,14 @@
 # Documentation
 * Document error codes
 * note RocksDB is required for Arango
+* minimum arango ver is 3.5.1
+* how to run both types of tests
 
 # Testing
 * Make kb-sdk test run in travis and test full stack.
 * flake8 and bandit on test-sdkless (generated code is poopy)
+* When https://github.com/python/mypy/issues/6385 is implemented, ditch all the stupid 
+  `__init__.py` files
 
 # Misc
 * https://github.com/kbaseIncubator/samples/pull/1/files
