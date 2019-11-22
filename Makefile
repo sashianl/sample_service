@@ -1,16 +1,21 @@
-SERVICE = sampleservice
 SERVICE_CAPS = SampleService
 SPEC_FILE = SampleService.spec
-URL = https://kbase.us/services/sampleservice
-DIR = $(shell pwd)
 LIB_DIR = lib
 SCRIPTS_DIR = scripts
 TEST_DIR = test
+TEST_CONFIG_FILE = test.cfg
+TEST_CONFIG_FILE_SDK = test-sdk.cfg
 LBIN_DIR = bin
 WORK_DIR = /kb/module/work/tmp
 EXECUTABLE_SCRIPT_NAME = run_$(SERVICE_CAPS)_async_job.sh
 STARTUP_SCRIPT_NAME = start_server.sh
 TEST_SCRIPT_NAME = run_tests.sh
+# see https://stackoverflow.com/a/23324703/643675
+MAKEFILE_DIR:=$(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
+
+PYPATH=$(MAKEFILE_DIR)/$(LIB_DIR):$(MAKEFILE_DIR)/$(TEST_DIR)
+TSTFL=$(MAKEFILE_DIR)/$(TEST_DIR)/$(TEST_CONFIG_FILE)
+TSTFL_SDK=$(MAKEFILE_DIR)/$(TEST_DIR)/$(TEST_CONFIG_FILE_SDK)
 
 .PHONY: test
 
@@ -55,7 +60,7 @@ build-test-script:
 	echo 'echo "...done removing temp files."' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 	echo 'export PYTHONPATH=$$script_dir/../$(LIB_DIR):$$PATH:$$PYTHONPATH' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 	echo 'cd $$script_dir/../$(TEST_DIR)' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
-	echo 'pytest  --verbose --cov=$$lib --cov-config=coveragerc_sdk --cov-report=html .' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
+	echo 'SAMPLESERV_TEST_FILE=$(TSTFL_SDK) pytest  --verbose --cov=$$lib --cov-config=coveragerc_sdk --cov-report=html .' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 	echo 'mv .coverage /kb/module/work/' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 	echo 'rm -r /kb/module/work/test_coverage' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 	echo 'mv htmlcov /kb/module/work/test_coverage' >> $(TEST_DIR)/$(TEST_SCRIPT_NAME)
@@ -67,8 +72,8 @@ test:
 
 test-sdkless:
 	# TODO flake8 and bandit
-	mypy $(LIB_DIR)/$(SERVICE_CAPS)/core
-	PYTHONPATH=$(LIB_DIR) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS)/core/ $(TEST_DIR)/core/ 
+	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS)/core/ $(TEST_DIR)/core/ 
 
 clean:
 	rm -rfv $(LBIN_DIR)

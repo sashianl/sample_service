@@ -8,7 +8,16 @@ MAINTAINER KBase Developer
 
 # RUN apt-get update
 
-RUN pip install pipenv coverage pytest-cov python-coveralls flake8
+ENV ARANGO_VER=3.5.1
+ENV ARANGO_VER_PRE=35
+
+RUN curl -O https://download.arangodb.com/arangodb$ARANGO_VER_PRE/Community/Linux/arangodb3-linux-$ARANGO_VER.tar.gz \
+    && tar -xf arangodb3-linux-$ARANGO_VER.tar.gz 
+
+ENV ARANGO_EXE=/arangodb3-$ARANGO_VER/usr/sbin/arangod
+ENV ARANGO_JS=/arangodb3-$ARANGO_VER/usr/share/arangodb3/js/
+
+RUN pip install pipenv
 
 # -----------------------------------------
 
@@ -17,6 +26,16 @@ RUN mkdir -p /kb/module/work
 RUN chmod -R a+rw /kb/module
 
 WORKDIR /kb/module
+
+# really need a test build and a prod build. Not sure that's possible via sdk.
+RUN pipenv install --system --deploy --ignore-pipfile --dev
+
+RUN cd test \
+    && cp test.cfg.example test-sdk.cfg \
+    && sed -i "s#^test.temp.dir=.*#test.temp.dir=temp_test_dir#" test-sdk.cfg \
+    && sed -i "s#^test.arango.exe.*#test.arango.exe=$ARANGO_EXE#" test-sdk.cfg \
+    && sed -i "s#^test.arango.js.*#test.arango.js=$ARANGO_JS#" test-sdk.cfg \
+    && cat test-sdk.cfg
 
 RUN make all
 
