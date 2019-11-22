@@ -36,7 +36,7 @@ install:
   - sed -i "s#^test.temp.dir=.*#test.temp.dir=temp_test_dir#" test.cfg
   - sed -i "s#^test.arango.exe.*#test.arango.exe=$ARANGO_EXE#" test.cfg
   - sed -i "s#^test.arango.js.*#test.arango.js=$ARANGO_JS#" test.cfg
-  - cat test-sdk.cfg
+  - cat test.cfg
   - cd -
 
 script:
