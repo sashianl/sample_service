@@ -4,7 +4,6 @@ Exceptions thrown by the Sample system.
 from enum import Enum
 
 
-# TODO docs
 # TODO test
 
 class ErrorType(Enum):
@@ -35,7 +34,7 @@ class ErrorType(Enum):
     ILLEGAL_PARAMETER =      (30001, "Illegal input parameter")  # noqa: E222 @IgnorePep8
     """ An input parameter had an illegal value. """
 
-    NO_SUCH_SAMPLE =           (50000, "No such sample")  # noqa: E222 @IgnorePep8
+    NO_SUCH_SAMPLE =         (50000, "No such sample")  # noqa: E222 @IgnorePep8
     """ The requested sample does not exist. """
 
     UNSUPPORTED_OP =         (60000, "Unsupported operation")  # noqa: E222 @IgnorePep8
@@ -112,7 +111,7 @@ class IllegalParameterError(SampleError):
 
 class NoSuchSampleError(NoDataException):
     """
-    An error thrown when a user does not exist.
+    An error thrown when a sample does not exist.
     """
 
     def __init__(self, message: str) -> None:
