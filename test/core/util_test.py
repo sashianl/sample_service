@@ -1,7 +1,5 @@
 from pytest import raises
-
 from core.test_utils import assert_exception_correct
-
 from SampleService.core.util import not_falsy
 
 
