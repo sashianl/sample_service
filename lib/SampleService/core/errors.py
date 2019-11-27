@@ -2,9 +2,8 @@
 Exceptions thrown by the Sample system.
 """
 from enum import Enum
+from typing import Optional
 
-
-# TODO test
 
 class ErrorType(Enum):
     """
@@ -47,15 +46,15 @@ class ErrorType(Enum):
 
 class SampleError(Exception):
     """
-    The super class of all ID mapping related errors.
+    The super class of all Sample related errors.
 
     :ivar error_type: the error type of this error.
     :ivar message: the message for this error.
     """
 
-    def __init__(self, error_type: ErrorType, message: str = None) -> None:
+    def __init__(self, error_type: ErrorType, message: Optional[str] = None) -> None:
         '''
-        Create an ID mapping error.
+        Create a Sample error.
 
         :param error_type: the error type of this error.
         :param message: an error message.
