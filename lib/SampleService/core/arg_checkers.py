@@ -6,8 +6,6 @@ import unicodedata
 from typing import Optional
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
-# TODO rename to arg_checkers
-
 
 def not_falsy(item, item_name: str):
     '''
@@ -52,7 +50,7 @@ def _no_control_characters(string: str, name: str) -> str:
     return string
 
 
-def check_string(string: str, name: str, max_len: int = None, optional: bool = False
+def check_string(string: Optional[str], name: str, max_len: int = None, optional: bool = False
                  ) -> Optional[str]:
     '''
     Check that a string meets a set of criteria:
