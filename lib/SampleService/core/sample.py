@@ -3,7 +3,7 @@ Contains classes related to samples.
 '''
 
 from uuid import UUID
-from SampleService.core.util import not_falsy
+from SampleService.core.arg_checkers import not_falsy
 
 # for now we'll assume people are nice and don't change attributes after init.
 # if that doesn't hold true, override __setattr__.

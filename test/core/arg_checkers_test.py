@@ -1,6 +1,6 @@
 from pytest import raises
 from core.test_utils import assert_exception_correct
-from SampleService.core.util import check_string, not_falsy
+from SampleService.core.arg_checkers import check_string, not_falsy
 from SampleService.core.errors import MissingParameterError, IllegalParameterError
 
 LONG_STRING = 'a' * 100

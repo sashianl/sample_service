@@ -4,7 +4,7 @@ import arango as _arango
 from uuid import UUID
 from arango.database import StandardDatabase
 from SampleService.core.sample import SampleWithID
-from SampleService.core.util import not_falsy as _not_falsy
+from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 
