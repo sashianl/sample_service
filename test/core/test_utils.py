@@ -68,8 +68,8 @@ def find_free_port() -> int:
 
 
 def assert_exception_correct(got: Exception, expected: Exception):
-    assert type(got) == type(expected)
     assert got.args == expected.args
+    assert type(got) == type(expected)
 
 
 def assert_ms_epoch_close_to_now(time_):
