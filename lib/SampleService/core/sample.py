@@ -16,6 +16,8 @@ _MAX_SAMPLE_NAME_LEN = 255
 class Sample:
     '''
     A sample containing biological replicates, technical replicates, and sub samples.
+    Do NOT mutate the instance variables post creation.
+    :ivar name: The name of the sample.
     '''
 
     def __init__(self, name: Optional[str] = None):
@@ -37,7 +39,9 @@ class Sample:
 
 class SampleWithID(Sample):
     '''
-    A sample including an ID.
+    A sample including an ID. Do NOT mutate the instance variables post creation.
+    :ivar id: The ID of the sample.
+    :ivar name: The name of the sample.
     '''
 
     def __init__(self, id_: UUID, name: Optional[str] = None):
