@@ -16,6 +16,7 @@
 * note RocksDB is required for Arango
 * minimum arango ver is 3.5.1
 * how to run both types of tests
+* document collections for server. Do not auto create as admins will want to specify shard count
 
 # Testing
 * Make kb-sdk test run in travis and test full stack.
