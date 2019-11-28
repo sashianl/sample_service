@@ -88,6 +88,14 @@ def test_save_sample_fail_duplicate(samplestorage):
     assert samplestorage.save_sample('user1', SampleWithID(id_, 'bar')) is False
 
 
+def test_save_sample_fail_duplicate_race_condition(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+
+    # this is a very bad and naughty thing to do
+    assert samplestorage._save_sample_pt2('user1', SampleWithID(id_, 'bar')) is False
+
+
 def test_get_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
         samplestorage.get_sample(None)
