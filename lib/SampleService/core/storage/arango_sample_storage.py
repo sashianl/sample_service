@@ -66,6 +66,13 @@ class ArangoSampleStorage:
         '''
         # TODO think about user name a bit. Make a class?
         _not_falsy(sample, 'sample')
+        if self._get_sample_doc(sample.id, exception=False):
+            return False  # bail early
+        return self._save_sample_pt2(user_name, sample)
+
+    # this method is separated so we can test the race condition case where a sample with the
+    # same ID is saved after the check above.
+    def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
 
         # create version uuid
         # save nodes
@@ -87,6 +94,7 @@ class ArangoSampleStorage:
             self._col_sample.insert(tosave, silent=True)
         except _arango.exceptions.DocumentInsertError as e:
             if e.error_code == 1210:  # unique constraint violation code
+                # TODO clean up any other created docs
                 return False
             else:  # this is a real pain to test.
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -114,13 +122,15 @@ class ArangoSampleStorage:
         doc = self._get_sample_doc(id_)
         return SampleWithID(UUID(doc[_FLD_ID]), doc[_FLD_NAME])
 
-    def _get_sample_doc(self, id_: UUID):
+    def _get_sample_doc(self, id_: UUID, exception: bool = True):
         try:
             doc = self._col_sample.get(str(_not_falsy(id_, 'id_')))
-        except _arango.exceptions.DocumentGetError as e:
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         if not doc:
-            raise _NoSuchSampleError(str(id_))
+            if exception:
+                raise _NoSuchSampleError(str(id_))
+            return None
         return doc
 
     def get_sample_acls(self, id_: UUID):
