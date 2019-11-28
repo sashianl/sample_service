@@ -26,6 +26,14 @@ class Sample:
         '''
         self.name = check_string(name, 'name', max_len=_MAX_SAMPLE_NAME_LEN, optional=True)
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return other.name == self.name
+        return NotImplemented
+
+    def __hash__(self):
+        return hash((self.name,))
+
 
 class SampleWithID(Sample):
     '''
@@ -35,9 +43,17 @@ class SampleWithID(Sample):
     def __init__(self, id_: UUID, name: Optional[str] = None):
         '''
         Create the sample.
-        :param id_': The ID of the sample.
+        :param id': The ID of the sample.
         :param name: The name of the sample. Cannot contain control characters or be longer than
             255 characters.
         '''
         super().__init__(name)
         self.id = not_falsy(id_, 'id_')
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return other.id == self.id and other.name == self.name
+        return NotImplemented
+
+    def __hash__(self):
+        return hash((self.id, self.name))

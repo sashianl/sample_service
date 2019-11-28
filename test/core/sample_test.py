@@ -43,3 +43,37 @@ def test_sample_build_fail():
         SampleWithID(None)
     assert_exception_correct(
         got.value, ValueError('id_ cannot be a value that evaluates to false'))
+
+
+def test_sample_eq():
+    assert Sample('yay') == Sample('yay')
+    assert Sample('yay') != Sample('yooo')
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+
+    assert SampleWithID(id1) == SampleWithID(id1)
+    assert SampleWithID(id1) != SampleWithID(id2)
+
+    assert SampleWithID(id1, 'yay') == SampleWithID(id1, 'yay')
+    assert SampleWithID(id1, 'yay') != SampleWithID(id1, 'yooo')
+
+    assert SampleWithID(id1, 'yay') != Sample('yay')
+    assert Sample('yay') != SampleWithID(id1, 'yay')
+
+
+def test_sample_hash():
+    # hashes will change from instance to instance of the python interpreter, and therefore
+    # tests can't be written that directly test the hash value. See
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+
+    assert hash(Sample('yay')) == hash(Sample('yay'))
+    assert hash(Sample('foo')) == hash(Sample('foo'))
+    assert hash(Sample('yay')) != hash(Sample('yo'))
+
+    assert hash(SampleWithID(id1, 'yay')) == hash(SampleWithID(id1, 'yay'))
+    assert hash(SampleWithID(id2, 'foo')) == hash(SampleWithID(id2, 'foo'))
+    assert hash(SampleWithID(id2, 'foo')) != hash(SampleWithID(id2, 'bar'))
+    assert hash(SampleWithID(id1, 'foo')) != hash(SampleWithID(id2, 'foo'))
