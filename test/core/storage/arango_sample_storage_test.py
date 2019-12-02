@@ -8,11 +8,12 @@ from SampleService.core.sample import SampleWithID
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
-from SampleService.core.storage.errors import SampleStorageError
+from SampleService.core.storage.errors import SampleStorageError, StorageInitException
 
 TEST_DB_NAME = 'test_sample_service'
 TEST_COL_SAMPLE = 'samples'
 TEST_COL_VERSION = 'versions'
+TEST_COL_VER_EDGE = 'ver_to_sample'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
@@ -39,30 +40,53 @@ def create_test_db(arango):
 
 @fixture
 def samplestorage(arango):
+    return samplestorage_method(arango)
+
+
+def samplestorage_method(arango):
     arango.clear_database(TEST_DB_NAME, drop_indexes=True)
     db = create_test_db(arango)
     db.create_collection(TEST_COL_SAMPLE)
     db.create_collection(TEST_COL_VERSION)
+    db.create_collection(TEST_COL_VER_EDGE, edge=True)
     return ArangoSampleStorage(
         arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD),
         TEST_COL_SAMPLE,
-        TEST_COL_VERSION)
+        TEST_COL_VERSION,
+        TEST_COL_VER_EDGE)
 
 
-def test_fail_startup(arango):
+def test_fail_startup_bad_args(arango):
+    samplestorage_method(arango)
     db = arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
-    with raises(Exception) as got:
-        ArangoSampleStorage(None, 'foo', 'bar')
-    assert_exception_correct(got.value, ValueError('db cannot be a value that evaluates to false'))
 
+    s = TEST_COL_SAMPLE
+    v = TEST_COL_VERSION
+    ve = TEST_COL_VER_EDGE
+    _fail_startup(None, s, v, ve, ValueError('db cannot be a value that evaluates to false'))
+    _fail_startup(db, '', v, ve, MissingParameterError('sample_collection'))
+    _fail_startup(db, s, '', ve, MissingParameterError('version_collection'))
+    _fail_startup(db, s, v, '', MissingParameterError('version_edge_collection'))
+
+
+def test_fail_startup_incorrect_collection_type(arango):
+    samplestorage_method(arango)
+    db = arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
+    db.create_collection('sampleedge', edge=True)
+
+    s = TEST_COL_SAMPLE
+    v = TEST_COL_VERSION
+    ve = TEST_COL_VER_EDGE
+    _fail_startup(
+        db, 'sampleedge', v, ve, StorageInitException('sampleedge is not a vertex collection'))
+    _fail_startup(db, s, ve, ve, StorageInitException('ver_to_sample is not a vertex collection'))
+    _fail_startup(db, s, v, v, StorageInitException('versions is not an edge collection'))
+
+
+def _fail_startup(db, colsample, colver, colveredge, expected):
     with raises(Exception) as got:
-        ArangoSampleStorage(db, '', 'bar')
-    assert_exception_correct(
-        got.value, MissingParameterError('sample_collection'))
-    with raises(Exception) as got:
-        ArangoSampleStorage(db, 'foo', '')
-    assert_exception_correct(
-        got.value, MissingParameterError('version_collection'))
+        ArangoSampleStorage(db, colsample, colver, colveredge)
+    assert_exception_correct(got.value, expected)
 
 
 def test_save_and_get_sample(samplestorage):
