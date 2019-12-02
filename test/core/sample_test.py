@@ -7,27 +7,39 @@ from SampleService.core.errors import IllegalParameterError
 
 def test_sample_build():
     s = Sample()
-
     assert s.name is None
 
     s = Sample('   \t   foo    ')
-
     assert s.name == 'foo'
 
     s = Sample('a' * 255)
-
     assert s.name == 'a' * 255
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     s = SampleWithID(id_)
-
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.name is None
+    assert s.version is None
 
     s = SampleWithID(id_, 'foo')
-
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.name == 'foo'
+    assert s.version is None
+
+    s = SampleWithID(id_, 'foo', 1)
+    assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert s.name == 'foo'
+    assert s.version == 1
+
+    s = SampleWithID(id_, 'foo', 8)
+    assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert s.name == 'foo'
+    assert s.version == 8
+
+    s = SampleWithID(id_, version=8)
+    assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert s.name is None
+    assert s.version == 8
 
 
 def test_sample_build_fail():
@@ -44,6 +56,11 @@ def test_sample_build_fail():
     assert_exception_correct(
         got.value, ValueError('id_ cannot be a value that evaluates to false'))
 
+    with raises(Exception) as got:
+        SampleWithID('a', version=0)
+    assert_exception_correct(
+        got.value, ValueError('version must be > 0'))
+
 
 def test_sample_eq():
     assert Sample('yay') == Sample('yay')
@@ -57,6 +74,9 @@ def test_sample_eq():
 
     assert SampleWithID(id1, 'yay') == SampleWithID(id1, 'yay')
     assert SampleWithID(id1, 'yay') != SampleWithID(id1, 'yooo')
+
+    assert SampleWithID(id1, 'yay', 6) == SampleWithID(id1, 'yay', 6)
+    assert SampleWithID(id1, 'yay', 6) != SampleWithID(id1, 'yooo', 7)
 
     assert SampleWithID(id1, 'yay') != Sample('yay')
     assert Sample('yay') != SampleWithID(id1, 'yay')
@@ -77,3 +97,5 @@ def test_sample_hash():
     assert hash(SampleWithID(id2, 'foo')) == hash(SampleWithID(id2, 'foo'))
     assert hash(SampleWithID(id2, 'foo')) != hash(SampleWithID(id2, 'bar'))
     assert hash(SampleWithID(id1, 'foo')) != hash(SampleWithID(id2, 'foo'))
+    assert hash(SampleWithID(id1, 'foo', 6)) == hash(SampleWithID(id1, 'foo', 6))
+    assert hash(SampleWithID(id1, 'foo', 6)) != hash(SampleWithID(id1, 'foo', 7))

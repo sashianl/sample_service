@@ -42,22 +42,32 @@ class SampleWithID(Sample):
     A sample including an ID. Do NOT mutate the instance variables post creation.
     :ivar id: The ID of the sample.
     :ivar name: The name of the sample.
+    :ivar version: The version of the sample. This may be None if the version has not yet been
+        determined.
     '''
 
-    def __init__(self, id_: UUID, name: Optional[str] = None):
+    def __init__(self, id_: UUID, name: Optional[str] = None, version: Optional[int] = None):
         '''
         Create the sample.
         :param id': The ID of the sample.
         :param name: The name of the sample. Cannot contain control characters or be longer than
             255 characters.
+        :param version: The version of the sample, or None if unknown.
         '''
+        # having None as a possible version doesn't sit well with me, but that means we need
+        # yet another class, so...
         super().__init__(name)
         self.id = not_falsy(id_, 'id_')
+        if version is not None and version < 1:
+            raise ValueError('version must be > 0')
+        self.version = version
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return other.id == self.id and other.name == self.name
+            return (other.id == self.id
+                    and other.name == self.name
+                    and other.version == self.version)
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.id, self.name))
+        return hash((self.id, self.name, self.version))

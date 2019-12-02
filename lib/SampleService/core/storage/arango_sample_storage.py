@@ -109,10 +109,11 @@ class ArangoSampleStorage:
                   _FLD_NAME: sample.name
                   # TODO description
                   }
-
         self._insert(self._col_version, verdoc)
+
         # this actually isn't tested by anything since we're not doing traversals yet, but
         # it will be
+        # save version edge
         veredgedoc = {_FLD_ARANGO_KEY: verdocid,
                       _FLD_ARANGO_FROM: f'{self._col_ver_edge.name}/{verdocid}',
                       _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
@@ -177,7 +178,6 @@ class ArangoSampleStorage:
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
         # TODO TEST version fail
-        # TODO return version in sample doc
         doc = self._get_sample_doc(id_)
         maxver_idx = len(doc[_FLD_VERSIONS])
         version = version if version else maxver_idx
@@ -185,7 +185,7 @@ class ArangoSampleStorage:
             raise _NoSuchSampleVersionError(f'{id_} ver {version}')
         verdoc = self._get_version_doc(id_, doc[_FLD_VERSIONS][version - 1])
         # TODO if verdoc version = _NO_VERSION do what?
-        return SampleWithID(UUID(doc[_FLD_ID]), verdoc[_FLD_NAME])
+        return SampleWithID(UUID(doc[_FLD_ID]), verdoc[_FLD_NAME], version)
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'
