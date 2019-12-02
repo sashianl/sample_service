@@ -18,6 +18,8 @@ from SampleService.core.storage.errors import StorageInitException as _StorageIn
 
 
 _FLD_ARANGO_KEY = '_key'
+_FLD_ARANGO_FROM = '_from'
+_FLD_ARANGO_TO = '_to'
 _FLD_ID = 'id'
 _FLD_UUID_VER = 'uuidver'
 _FLD_VER = 'ver'
@@ -107,8 +109,15 @@ class ArangoSampleStorage:
                   _FLD_NAME: sample.name
                   # TODO description
                   }
-        # TODO edge from verdoc to sample
-        self._insert(self._col_version, verdoc, silent=True)
+
+        self._insert(self._col_version, verdoc)
+        # this actually isn't tested by anything since we're not doing traversals yet, but
+        # it will be
+        veredgedoc = {_FLD_ARANGO_KEY: verdocid,
+                      _FLD_ARANGO_FROM: f'{self._col_ver_edge.name}/{verdocid}',
+                      _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
+                      }
+        self._insert(self._col_ver_edge, veredgedoc)
 
         # create sample document, adding uuid to version list
         tosave = {_FLD_ARANGO_KEY: str(sample.id),
@@ -122,7 +131,7 @@ class ArangoSampleStorage:
                               }
                   }
         try:
-            self._col_sample.insert(tosave, silent=True)
+            self._col_sample.insert(tosave)
         except _arango.exceptions.DocumentInsertError as e:
             if e.error_code == 1210:  # unique constraint violation code
                 # TODO clean up any other created docs
@@ -132,21 +141,21 @@ class ArangoSampleStorage:
         ver = 1
         # update nodes with int version
         # start at root of nodes, progress to leaves, last is version doc
-        self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: ver}, silent=True)
+        self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: ver})
 
         # TODO DBFIX PT1 add thread to check for missing versions & fix
         # TODO DBFIX PT2 or del if no version in root doc & > 1hr old
         return True
 
-    def _insert(self, col, doc, silent=False):
+    def _insert(self, col, doc):
         try:
-            col.insert(doc, silent=silent)
+            col.insert(doc, silent=True)
         except _arango.exceptions.DocumentInsertError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def _update(self, col, doc, silent=False):
+    def _update(self, col, doc):
         try:
-            col.update(doc, silent=silent)
+            col.update(doc, silent=True)
         except _arango.exceptions.DocumentUpdateError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
