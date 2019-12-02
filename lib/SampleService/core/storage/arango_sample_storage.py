@@ -14,6 +14,7 @@ from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
+from SampleService.core.storage.errors import StorageInitException as _StorageInitExecption
 
 
 _FLD_ARANGO_KEY = '_key'
@@ -52,17 +53,25 @@ class ArangoSampleStorage:
             self,
             db: StandardDatabase,
             sample_collection: str,
-            version_collection: str,):
+            version_collection: str,
+            version_edge_collection: str,):
         '''
         Create the wrapper.
         :param db: the ArangoDB database in which data will be stored.
         :param sample_collection: the name of the collection in which to store sample documents.
+        :param version_collection: the name of the collection in which to store sample version
+            documents.
+        :param version_edges_collection: the name of the collection in which edges from sample
+            versions to samples will be stored.
         '''
+        # Maybe make a configuration class...?
         # TODO create indexes for collections
         # TODO take workspace shadow object collection & check indexes exist, don't create
         _not_falsy(db, 'db')
-        self._col_sample = db.collection(_check_string(sample_collection, 'sample_collection'))
-        self._col_version = db.collection(_check_string(version_collection, 'version_collection'))
+        self._col_sample = _init_collection(db, sample_collection, 'sample_collection')
+        self._col_version = _init_collection(db, version_collection, 'version_collection')
+        self._col_ver_edge = _init_collection(
+            db, version_edge_collection, 'version_edge_collection', edge=True)
 
     # True = saved, false = sample exists
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
@@ -214,3 +223,12 @@ class ArangoSampleStorage:
         }
 
     # TODO change acls
+
+
+# if an edge is inserted into a non-edge collection _from and _to are silently dropped
+def _init_collection(database, collection, collection_name, edge=False):
+    c = database.collection(_check_string(collection, collection_name))
+    if not c.properties()['edge'] is edge:  # this is a http call
+        ctype = 'an edge' if edge else 'a vertex'
+        raise _StorageInitExecption(f'{collection} is not {ctype} collection')
+    return c
