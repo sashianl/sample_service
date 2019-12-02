@@ -94,7 +94,7 @@ def test_save_and_get_sample(samplestorage):
 
     assert samplestorage.save_sample('auser', SampleWithID(id_, 'foo')) is True
 
-    assert samplestorage.get_sample(id_) == SampleWithID(id_, 'foo')
+    assert samplestorage.get_sample(id_) == SampleWithID(id_, 'foo', 1)
 
     assert samplestorage.get_sample_acls(id_) == {
         'owner': 'auser', 'admin': [], 'write': [], 'read': []}
