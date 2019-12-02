@@ -5,17 +5,22 @@ An ArangoDB based storage system for the Sample service.
 # may need to extract an interface at some point, YAGNI for now.
 
 import arango as _arango
+import uuid as _uuid
 from uuid import UUID
 from arango.database import StandardDatabase
 from SampleService.core.sample import SampleWithID
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
+from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ID = 'id'
+_FLD_UUID_VER = 'uuidver'
+_FLD_VER = 'ver'
+_VAL_NO_VER = -1
 _FLD_NAME = 'name'
 
 _FLD_ACLS = 'acls'
@@ -31,6 +36,8 @@ _FLD_VERSIONS = 'vers'
 # TODO check indexes
 # TODO check schema
 
+# TODO document that collections are never created so that admins can set sharding
+
 # Notes for calling classes:
 # a sample doc could still be added after this, so we need to save and expect a duplicate
 # to occur, in which case we check perms and fail if no perms.
@@ -44,7 +51,8 @@ class ArangoSampleStorage:
     def __init__(
             self,
             db: StandardDatabase,
-            sample_collection: str):
+            sample_collection: str,
+            version_collection: str,):
         '''
         Create the wrapper.
         :param db: the ArangoDB database in which data will be stored.
@@ -52,13 +60,15 @@ class ArangoSampleStorage:
         '''
         # TODO create indexes for collections
         # TODO take workspace shadow object collection & check indexes exist, don't create
-        self._col_sample = _not_falsy(db, 'db').collection(
-           _check_string(sample_collection, 'sample_collection'))
+        _not_falsy(db, 'db')
+        self._col_sample = db.collection(_check_string(sample_collection, 'sample_collection'))
+        self._col_version = db.collection(_check_string(version_collection, 'version_collection'))
 
     # True = saved, false = sample exists
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
         Save a new sample.
+        Sample nodes MUST have unique IDs or the save will fail.
         :param user_name: The user that is creating the sample.
         :param sample: The sample to save.
         :returns: True if the sample saved successfully, False if the same ID already exists.
@@ -66,6 +76,7 @@ class ArangoSampleStorage:
         '''
         # TODO think about user name a bit. Make a class?
         _not_falsy(sample, 'sample')
+        _not_falsy(user_name, 'user_name')
         if self._get_sample_doc(sample.id, exception=False):
             return False  # bail early
         return self._save_sample_pt2(user_name, sample)
@@ -73,23 +84,34 @@ class ArangoSampleStorage:
     # this method is separated so we can test the race condition case where a sample with the
     # same ID is saved after the check above.
     def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
+        verid = _uuid.uuid4()
 
-        # create version uuid
-        # save nodes
-        # save version
+        # TODO explain why save works as it does
+        # TODO save nodes
+
+        # save version document
+        verdocid = self._get_version_id(sample.id, verid)
+        verdoc = {_FLD_ARANGO_KEY: verdocid,
+                  _FLD_ID: str(sample.id),
+                  _FLD_VER: _VAL_NO_VER,
+                  _FLD_UUID_VER: str(verid),
+                  _FLD_NAME: sample.name
+                  # TODO description
+                  }
+        # TODO edge from verdoc to sample
+        self._insert(self._col_version, verdoc, silent=True)
+
         # create sample document, adding uuid to version list
-        tosave = {_FLD_ACLS: {_FLD_OWNER: _not_falsy(user_name, 'user_name'),
+        tosave = {_FLD_ARANGO_KEY: str(sample.id),
+                  # yes, this is redundant. It'll match the ver & node collectons though
+                  _FLD_ID: str(sample.id),
+                  _FLD_VERSIONS: [str(verid)],
+                  _FLD_ACLS: {_FLD_OWNER: user_name,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
                               _FLD_READ: []
-                              },
-                  _FLD_ARANGO_KEY: str(sample.id),
-                  # yes, this is redundant. It'll match the ver & node collectons though
-                  _FLD_ID: str(sample.id),
-                  _FLD_NAME: sample.name,  # TODO move to version
-                  _FLD_VERSIONS: []  # TODO add version here
+                              }
                   }
-
         try:
             self._col_sample.insert(tosave, silent=True)
         except _arango.exceptions.DocumentInsertError as e:
@@ -98,10 +120,26 @@ class ArangoSampleStorage:
                 return False
             else:  # this is a real pain to test.
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
-        return True
-        # get int version from list index
-        # update version & nodes with int version
+        ver = 1
+        # update nodes with int version
         # start at root of nodes, progress to leaves, last is version doc
+        self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: ver}, silent=True)
+
+        # TODO DBFIX PT1 add thread to check for missing versions & fix
+        # TODO DBFIX PT2 or del if no version in root doc & > 1hr old
+        return True
+
+    def _insert(self, col, doc, silent=False):
+        try:
+            col.insert(doc, silent=silent)
+        except _arango.exceptions.DocumentInsertError as e:  # this is a real pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _update(self, col, doc, silent=False):
+        try:
+            col.update(doc, silent=silent)
+        except _arango.exceptions.DocumentUpdateError as e:  # this is a real pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def save_sample_version(self, sample: SampleWithID):
         # TODO DOCS
@@ -110,17 +148,39 @@ class ArangoSampleStorage:
         # TODO opticoncur pt2 ver + 1 for optimistic concurrency, so 0 for new object
         raise NotImplementedError
 
-    def get_sample(self, id_: UUID) -> SampleWithID:
+    def get_sample(self, id_: UUID, version: int = None) -> SampleWithID:
         '''
         Get a sample from the database.
         :param id_: the ID of the sample.
+        :param version: The version of the sample to retrieve. Defaults to the latest version.
         :returns: the sample.
         :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
-        # TODO version
+        # TODO TEST version fail
+        # TODO return version in sample doc
         doc = self._get_sample_doc(id_)
-        return SampleWithID(UUID(doc[_FLD_ID]), doc[_FLD_NAME])
+        maxver_idx = len(doc[_FLD_VERSIONS])
+        version = version if version else maxver_idx
+        if version > maxver_idx:
+            raise _NoSuchSampleVersionError(f'{id_} ver {version}')
+        verdoc = self._get_version_doc(id_, doc[_FLD_VERSIONS][version - 1])
+        # TODO if verdoc version = _NO_VERSION do what?
+        return SampleWithID(UUID(doc[_FLD_ID]), verdoc[_FLD_NAME])
+
+    def _get_version_id(self, id_: UUID, ver: UUID):
+        return f'{id_}_{ver}'
+
+    # assumes args are not None, and ver came from the sample doc in the db.
+    def _get_version_doc(self, id_: UUID, ver: UUID):
+        try:
+            doc = self._col_version.get(self._get_version_id(id_, ver))
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        if not doc:
+            raise _SampleStorageError(f'Corrupt DB: Missing version {ver} for sample {id_}')
+        return doc
 
     def _get_sample_doc(self, id_: UUID, exception: bool = True):
         try:
@@ -152,3 +212,5 @@ class ArangoSampleStorage:
             _FLD_WRITE: acls[_FLD_WRITE],
             _FLD_READ: acls[_FLD_READ],
         }
+
+    # TODO change acls

@@ -6,10 +6,13 @@ from core.test_utils import assert_exception_correct
 from core.arango_controller import ArangoController
 from SampleService.core.sample import SampleWithID
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError
+from SampleService.core.errors import NoSuchSampleVersionError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
+from SampleService.core.storage.errors import SampleStorageError
 
 TEST_DB_NAME = 'test_sample_service'
 TEST_COL_SAMPLE = 'samples'
+TEST_COL_VERSION = 'versions'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
@@ -39,21 +42,27 @@ def samplestorage(arango):
     arango.clear_database(TEST_DB_NAME, drop_indexes=True)
     db = create_test_db(arango)
     db.create_collection(TEST_COL_SAMPLE)
+    db.create_collection(TEST_COL_VERSION)
     return ArangoSampleStorage(
         arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD),
-        TEST_COL_SAMPLE)
+        TEST_COL_SAMPLE,
+        TEST_COL_VERSION)
 
 
 def test_fail_startup(arango):
     db = arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
     with raises(Exception) as got:
-        ArangoSampleStorage(None, 'foo')
+        ArangoSampleStorage(None, 'foo', 'bar')
     assert_exception_correct(got.value, ValueError('db cannot be a value that evaluates to false'))
 
     with raises(Exception) as got:
-        ArangoSampleStorage(db, '')
+        ArangoSampleStorage(db, '', 'bar')
     assert_exception_correct(
         got.value, MissingParameterError('sample_collection'))
+    with raises(Exception) as got:
+        ArangoSampleStorage(db, 'foo', '')
+    assert_exception_correct(
+        got.value, MissingParameterError('version_collection'))
 
 
 def test_save_and_get_sample(samplestorage):
@@ -111,6 +120,35 @@ def test_get_sample_fail_no_sample(samplestorage):
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdea'))
     assert_exception_correct(
         got.value, NoSuchSampleError('12345678-90ab-cdef-1234-567890abcdea'))
+
+
+def test_get_sample_fail_no_such_version(samplestorage):
+    # TODO test after saving multiple versions as well.
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+
+    with raises(Exception) as got:
+        samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
+    assert_exception_correct(
+        got.value, NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 2'))
+
+
+def test_get_sample_fail_no_version_doc(samplestorage):
+    # TODO test after saving multiple versions as well.
+    # This should be impossible in practice unless someone actively deletes records from the db.
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+
+    # this is very naughty
+    verdoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 1}
+    verdoc = samplestorage._col_version.find(verdoc_filters).next()
+    samplestorage._col_version.delete_match(verdoc_filters)
+
+    with raises(Exception) as got:
+        samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=1)
+    assert_exception_correct(
+        got.value, SampleStorageError(f'Corrupt DB: Missing version {verdoc["uuidver"]} ' +
+                                      'for sample 12345678-90ab-cdef-1234-567890abcdef'))
 
 
 def test_get_sample_acls_fail_bad_input(samplestorage):

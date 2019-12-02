@@ -36,6 +36,9 @@ class ErrorType(Enum):
     NO_SUCH_SAMPLE =         (50000, "No such sample")  # noqa: E222 @IgnorePep8
     """ The requested sample does not exist. """
 
+    NO_SUCH_SAMPLE_VERSION = (50010, "No such sample version")  # noqa: E222 @IgnorePep8
+    """ The requested sample version does not exist. """
+
     UNSUPPORTED_OP =         (60000, "Unsupported operation")  # noqa: E222 @IgnorePep8
     """ The requested operation is not supported. """
 
@@ -115,3 +118,12 @@ class NoSuchSampleError(NoDataException):
 
     def __init__(self, message: str) -> None:
         super().__init__(ErrorType.NO_SUCH_SAMPLE, message)
+
+
+class NoSuchSampleVersionError(NoDataException):
+    """
+    An error thrown when a sample version does not exist.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.NO_SUCH_SAMPLE_VERSION, message)
