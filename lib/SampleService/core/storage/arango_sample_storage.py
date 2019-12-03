@@ -9,6 +9,7 @@ import uuid as _uuid
 from uuid import UUID
 from arango.database import StandardDatabase
 from SampleService.core.sample import SampleWithID
+from SampleService.core.sample import SampleNode as _SampleNode
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
@@ -16,6 +17,7 @@ from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleV
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitException as _StorageInitExecption
 
+FAKE_NODE = _SampleNode('foo')  # TODO DELETE
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ARANGO_FROM = '_from'
@@ -79,7 +81,6 @@ class ArangoSampleStorage:
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
         Save a new sample.
-        Sample nodes MUST have unique IDs or the save will fail.
         :param user_name: The user that is creating the sample.
         :param sample: The sample to save.
         :returns: True if the sample saved successfully, False if the same ID already exists.
@@ -185,7 +186,7 @@ class ArangoSampleStorage:
             raise _NoSuchSampleVersionError(f'{id_} ver {version}')
         verdoc = self._get_version_doc(id_, doc[_FLD_VERSIONS][version - 1])
         # TODO if verdoc version = _NO_VERSION do what?
-        return SampleWithID(UUID(doc[_FLD_ID]), verdoc[_FLD_NAME], version)
+        return SampleWithID(UUID(doc[_FLD_ID]), [FAKE_NODE], verdoc[_FLD_NAME], version)
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'
