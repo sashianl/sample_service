@@ -4,11 +4,13 @@ from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
 from core.arango_controller import ArangoController
-from SampleService.core.sample import SampleWithID
+from SampleService.core.sample import SampleWithID, SampleNode
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitException
+
+FAKE_NODE = SampleNode('foo')  # TODO DELETE
 
 TEST_DB_NAME = 'test_sample_service'
 TEST_COL_SAMPLE = 'samples'
@@ -92,16 +94,16 @@ def _fail_startup(db, colsample, colver, colveredge, expected):
 def test_save_and_get_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
-    assert samplestorage.save_sample('auser', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('auser', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
-    assert samplestorage.get_sample(id_) == SampleWithID(id_, 'foo', 1)
+    assert samplestorage.get_sample(id_) == SampleWithID(id_, [FAKE_NODE], 'foo', 1)
 
     assert samplestorage.get_sample_acls(id_) == {
         'owner': 'auser', 'admin': [], 'write': [], 'read': []}
 
 
 def test_save_sample_fail_bad_input(samplestorage):
-    s = SampleWithID(uuid.UUID('1234567890abcdef1234567890abcdef'), 'foo')
+    s = SampleWithID(uuid.UUID('1234567890abcdef1234567890abcdef'), [FAKE_NODE], 'foo')
 
     with raises(Exception) as got:
         samplestorage.save_sample('', s)
@@ -116,17 +118,17 @@ def test_save_sample_fail_bad_input(samplestorage):
 
 def test_save_sample_fail_duplicate(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('user', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
-    assert samplestorage.save_sample('user1', SampleWithID(id_, 'bar')) is False
+    assert samplestorage.save_sample('user1', SampleWithID(id_, [FAKE_NODE], 'bar')) is False
 
 
 def test_save_sample_fail_duplicate_race_condition(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('user', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
     # this is a very bad and naughty thing to do
-    assert samplestorage._save_sample_pt2('user1', SampleWithID(id_, 'bar')) is False
+    assert samplestorage._save_sample_pt2('user1', SampleWithID(id_, [FAKE_NODE], 'bar')) is False
 
 
 def test_get_sample_fail_bad_input(samplestorage):
@@ -138,7 +140,7 @@ def test_get_sample_fail_bad_input(samplestorage):
 
 def test_get_sample_fail_no_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('user', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdea'))
@@ -149,7 +151,7 @@ def test_get_sample_fail_no_sample(samplestorage):
 def test_get_sample_fail_no_such_version(samplestorage):
     # TODO test after saving multiple versions as well.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('user', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
@@ -161,7 +163,7 @@ def test_get_sample_fail_no_version_doc(samplestorage):
     # TODO test after saving multiple versions as well.
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('user', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
     # this is very naughty
     verdoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 1}
@@ -184,7 +186,7 @@ def test_get_sample_acls_fail_bad_input(samplestorage):
 
 def test_get_sample_acls_fail_no_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SampleWithID(id_, 'foo')) is True
+    assert samplestorage.save_sample('user', SampleWithID(id_, [FAKE_NODE], 'foo')) is True
 
     with raises(Exception) as got:
         samplestorage.get_sample_acls(uuid.UUID('1234567890abcdef1234567890abcdea'))
