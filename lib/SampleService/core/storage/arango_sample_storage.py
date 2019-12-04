@@ -118,63 +118,17 @@ class ArangoSampleStorage:
     # this method is separated so we can test the race condition case where a sample with the
     # same ID is saved after the check above.
     def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
-        verid = _uuid.uuid4()
-        verdocid = self._get_version_id(sample.id, verid)
-
         # TODO explain why save works as it does
 
-        nodedocs: _List[dict] = []
-        nodeedgedocs: _List[dict] = []
-        for index, n in enumerate(sample.nodes):
-            key = self._get_node_id(sample.id, verid, n.name)
-            ndoc = {_FLD_ARANGO_KEY: key,
-                    _FLD_NODE_SAMPLE_ID: str(sample.id),
-                    _FLD_NODE_UUID_VER: str(verid),
-                    _FLD_NODE_VER: _VAL_NO_VER,
-                    _FLD_NODE_NAME: n.name,
-                    _FLD_NODE_TYPE: n.type.name,
-                    _FLD_NODE_PARENT: n.parent,
-                    _FLD_NODE_INDEX: index,
-                    }
-            if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
-                to = f'{self._col_version.name}/{verdocid}'
-            else:
-                parentid = self._get_node_id(sample.id, verid, _cast(str, n.parent))
-                to = f'{self._col_nodes.name}/{parentid}'
-            nedoc = {_FLD_ARANGO_KEY: key,
-                     _FLD_ARANGO_FROM: f'{self._col_nodes.name}/{key}',
-                     _FLD_ARANGO_TO: to
-                     }
-            nodedocs.append(ndoc)
-            nodeedgedocs.append(nedoc)
-        self._insert_many(self._col_nodes, nodedocs)  # TODO test documents are correct
-        # TODO this actually isn't tested by anything since we're not doing traversals yet, but
-        # it will be
-        self._insert_many(self._col_node_edge, nodeedgedocs)
+        versionid = _uuid.uuid4()
 
-        # save version document
-        verdoc = {_FLD_ARANGO_KEY: verdocid,
-                  _FLD_ID: str(sample.id),
-                  _FLD_VER: _VAL_NO_VER,
-                  _FLD_UUID_VER: str(verid),
-                  _FLD_NAME: sample.name
-                  # TODO description
-                  }
-        self._insert(self._col_version, verdoc)  # TODO test documents are correct
-
-        # TODO this actually isn't tested by anything since we're not doing traversals yet, but
-        # it will be
-        veredgedoc = {_FLD_ARANGO_KEY: verdocid,
-                      _FLD_ARANGO_FROM: f'{self._col_version.name}/{verdocid}',
-                      _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
-                      }
-        self._insert(self._col_ver_edge, veredgedoc)
+        self._save_version_and_node_docs(sample, versionid)
 
         # create sample document, adding uuid to version list
         tosave = {_FLD_ARANGO_KEY: str(sample.id),
                   # yes, this is redundant. It'll match the ver & node collectons though
                   _FLD_ID: str(sample.id),  # TODO test this is saved
-                  _FLD_VERSIONS: [str(verid)],
+                  _FLD_VERSIONS: [str(versionid)],
                   _FLD_ACLS: {_FLD_OWNER: user_name,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
@@ -192,17 +146,68 @@ class ArangoSampleStorage:
         ver = 1
         nodeupdates: _List[dict] = []
         for n in sample.nodes:
-            ndoc = {_FLD_ARANGO_KEY: self._get_node_id(sample.id, verid, n.name),
+            ndoc = {_FLD_ARANGO_KEY: self._get_node_id(sample.id, versionid, n.name),
                     _FLD_NODE_VER: ver,
                     }
             nodeupdates.append(ndoc)
         self._update_many(self._col_nodes, nodeupdates)
 
+        verdocid = self._get_version_id(sample.id, versionid)
         self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: ver})
 
         # TODO DBFIX PT1 add thread to check for missing versions & fix
         # TODO DBFIX PT2 or del if no version in root doc & > 1hr old
         return True
+
+    def _save_version_and_node_docs(self, sample: SampleWithID, versionid: UUID):
+        verdocid = self._get_version_id(sample.id, versionid)
+
+        nodedocs: _List[dict] = []
+        nodeedgedocs: _List[dict] = []
+        for index, n in enumerate(sample.nodes):
+            key = self._get_node_id(sample.id, versionid, n.name)
+            ndoc = {_FLD_ARANGO_KEY: key,
+                    _FLD_NODE_SAMPLE_ID: str(sample.id),
+                    _FLD_NODE_UUID_VER: str(versionid),
+                    _FLD_NODE_VER: _VAL_NO_VER,
+                    _FLD_NODE_NAME: n.name,
+                    _FLD_NODE_TYPE: n.type.name,
+                    _FLD_NODE_PARENT: n.parent,
+                    _FLD_NODE_INDEX: index,
+                    }
+            if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
+                to = f'{self._col_version.name}/{verdocid}'
+            else:
+                parentid = self._get_node_id(sample.id, versionid, _cast(str, n.parent))
+                to = f'{self._col_nodes.name}/{parentid}'
+            nedoc = {_FLD_ARANGO_KEY: key,
+                     _FLD_ARANGO_FROM: f'{self._col_nodes.name}/{key}',
+                     _FLD_ARANGO_TO: to
+                     }
+            nodedocs.append(ndoc)
+            nodeedgedocs.append(nedoc)
+        self._insert_many(self._col_nodes, nodedocs)  # TODO test documents are correct
+        # TODO this actually isn't tested by anything since we're not doing traversals yet, but
+        # it will be
+        self._insert_many(self._col_node_edge, nodeedgedocs)
+
+        # save version document
+        verdoc = {_FLD_ARANGO_KEY: verdocid,
+                  _FLD_ID: str(sample.id),
+                  _FLD_VER: _VAL_NO_VER,
+                  _FLD_UUID_VER: str(versionid),
+                  _FLD_NAME: sample.name
+                  # TODO description
+                  }
+        self._insert(self._col_version, verdoc)  # TODO test documents are correct
+
+        # TODO this actually isn't tested by anything since we're not doing traversals yet, but
+        # it will be
+        veredgedoc = {_FLD_ARANGO_KEY: verdocid,
+                      _FLD_ARANGO_FROM: f'{self._col_version.name}/{verdocid}',
+                      _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
+                      }
+        self._insert(self._col_ver_edge, veredgedoc)
 
     def _insert(self, col, doc):
         try:
