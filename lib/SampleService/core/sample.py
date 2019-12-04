@@ -2,7 +2,7 @@
 Contains classes related to samples.
 '''
 
-from enum import Enum as _Enum
+from enum import Enum as _Enum, unique as _unique
 from uuid import UUID
 from typing import Optional, List
 from typing import Set as _Set, cast as _cast
@@ -17,10 +17,10 @@ from SampleService.core.errors import IllegalParameterError, MissingParameterErr
 _MAX_SAMPLE_NAME_LEN = 255
 
 
+@_unique
 class SubSampleType(_Enum):
     '''
     The type of a SampleNode.
-    :ivar name: the name of the type.
     '''
 
     # do not change the enum constant variable names, they may be saved in DBs
