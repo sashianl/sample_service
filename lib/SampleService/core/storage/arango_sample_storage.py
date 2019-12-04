@@ -7,7 +7,7 @@ An ArangoDB based storage system for the Sample service.
 import arango as _arango
 import hashlib as _hashlib
 import uuid as _uuid
-from typing import List as _List
+from typing import List as _List, cast as _cast
 
 from uuid import UUID
 from arango.database import StandardDatabase
@@ -68,7 +68,8 @@ class ArangoSampleStorage:
             sample_collection: str,
             version_collection: str,
             version_edge_collection: str,
-            node_collection: str,):
+            node_collection: str,
+            node_edge_collection: str,):
         '''
         Create the wrapper.
         :param db: the ArangoDB database in which data will be stored.
@@ -79,6 +80,8 @@ class ArangoSampleStorage:
             versions to samples will be stored.
         :param node_collection: the name of the collection in which nodes for a sample version
             will be stored.
+        :param version_edges_collection: the name of the collection in which edges from sample
+            nodes to sample nodes (or versions in the case of root nodes) will be stored.
         '''
         # Maybe make a configuration class...?
         # TODO create indexes for collections
@@ -93,9 +96,10 @@ class ArangoSampleStorage:
             edge=True)
         self._col_nodes = _init_collection(
             db, node_collection, 'node collection', 'node_collection')
+        self._col_node_edge = _init_collection(
+            db, node_edge_collection, 'node edge collection', 'node_edge_collection', edge=True)
         # TODO index on uuid version for nodes
 
-    # True = saved, false = sample exists
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
         Save a new sample.
@@ -115,12 +119,15 @@ class ArangoSampleStorage:
     # same ID is saved after the check above.
     def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
         verid = _uuid.uuid4()
+        verdocid = self._get_version_id(sample.id, verid)
 
         # TODO explain why save works as it does
 
         nodedocs: _List[dict] = []
+        nodeedgedocs: _List[dict] = []
         for index, n in enumerate(sample.nodes):
-            ndoc = {_FLD_ARANGO_KEY: self._get_node_id(sample.id, verid, n.name),
+            key = self._get_node_id(sample.id, verid, n.name)
+            ndoc = {_FLD_ARANGO_KEY: key,
                     _FLD_NODE_SAMPLE_ID: str(sample.id),
                     _FLD_NODE_UUID_VER: str(verid),
                     _FLD_NODE_VER: _VAL_NO_VER,
@@ -129,12 +136,23 @@ class ArangoSampleStorage:
                     _FLD_NODE_PARENT: n.parent,
                     _FLD_NODE_INDEX: index,
                     }
+            if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
+                to = f'{self._col_version.name}/{verdocid}'
+            else:
+                parentid = self._get_node_id(sample.id, verid, _cast(str, n.parent))
+                to = f'{self._col_nodes.name}/{parentid}'
+            nedoc = {_FLD_ARANGO_KEY: key,
+                     _FLD_ARANGO_FROM: f'{self._col_nodes.name}/{key}',
+                     _FLD_ARANGO_TO: to
+                     }
             nodedocs.append(ndoc)
+            nodeedgedocs.append(nedoc)
         self._insert_many(self._col_nodes, nodedocs)  # TODO test documents are correct
-        # TODO edges from nodes to parents or version for root nodes
+        # TODO this actually isn't tested by anything since we're not doing traversals yet, but
+        # it will be
+        self._insert_many(self._col_node_edge, nodeedgedocs)
 
         # save version document
-        verdocid = self._get_version_id(sample.id, verid)
         verdoc = {_FLD_ARANGO_KEY: verdocid,
                   _FLD_ID: str(sample.id),
                   _FLD_VER: _VAL_NO_VER,
@@ -144,11 +162,10 @@ class ArangoSampleStorage:
                   }
         self._insert(self._col_version, verdoc)  # TODO test documents are correct
 
-        # this actually isn't tested by anything since we're not doing traversals yet, but
+        # TODO this actually isn't tested by anything since we're not doing traversals yet, but
         # it will be
-        # save version edge
         veredgedoc = {_FLD_ARANGO_KEY: verdocid,
-                      _FLD_ARANGO_FROM: f'{self._col_ver_edge.name}/{verdocid}',
+                      _FLD_ARANGO_FROM: f'{self._col_version.name}/{verdocid}',
                       _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
                       }
         self._insert(self._col_ver_edge, veredgedoc)
