@@ -104,7 +104,6 @@ class ArangoSampleStorage:
         :returns: True if the sample saved successfully, False if the same ID already exists.
         :raises SampleStorageError: if the sample fails to save.
         '''
-        # TODO make a max # of sample nodes
         # TODO think about user name a bit. Make a class?
         _not_falsy(sample, 'sample')
         _not_falsy(user_name, 'user_name')
