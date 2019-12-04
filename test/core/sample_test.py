@@ -159,6 +159,25 @@ def test_sample_build_fail():
     _sample_with_id_build_fail(id_, [sn], None, 0, ValueError('version must be > 0'))
 
 
+def test_sample_build_fail_sample_count():
+    nodes = [SampleNode('s' + str(i)) for i in range(10000)]
+
+    s = Sample(nodes)
+    assert s.nodes == tuple(nodes)
+    assert s.name is None
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    s = SampleWithID(id_, nodes)
+    assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert s.nodes == tuple(nodes)
+    assert s.name is None
+    assert s.version is None
+
+    nodes.append(SampleNode('s10000'))
+    _sample_build_fail(nodes, None, IllegalParameterError(
+                       'At most 10000 nodes are allowed per sample'))
+
+
 def _sample_build_fail(nodes, name, expected):
     with raises(Exception) as got:
         Sample(nodes, name)

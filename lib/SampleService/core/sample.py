@@ -15,6 +15,7 @@ from SampleService.core.errors import IllegalParameterError, MissingParameterErr
 
 
 _MAX_SAMPLE_NAME_LEN = 255
+_MAX_SAMPLE_NODES = 10000
 
 
 @_unique
@@ -103,6 +104,9 @@ class Sample:
         self.name = _check_string(name, 'name', max_len=_MAX_SAMPLE_NAME_LEN, optional=True)
         if not nodes:
             raise MissingParameterError('At least one node per sample is required')
+        if len(nodes) > _MAX_SAMPLE_NODES:
+            raise IllegalParameterError(
+                f'At most {_MAX_SAMPLE_NODES} nodes are allowed per sample')
         if nodes[0].type != SubSampleType.BIOLOGICAL_REPLICATE:
             raise IllegalParameterError(
                 f'The first node in a sample must be a {SubSampleType.BIOLOGICAL_REPLICATE.value}')

@@ -85,9 +85,8 @@ def test_fail_startup_incorrect_collection_type(arango):
     v = TEST_COL_VERSION
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
-    _fail_startup(
-        db, 'sampleedge', v, ve, n, StorageInitException(
-            'sample collection sampleedge is not a vertex collection'))
+    _fail_startup(db, 'sampleedge', v, ve, n, StorageInitException(
+        'sample collection sampleedge is not a vertex collection'))
     _fail_startup(db, s, ve, ve, n, StorageInitException(
                   'version collection ver_to_sample is not a vertex collection'))
     _fail_startup(db, s, v, v, n, StorageInitException(
