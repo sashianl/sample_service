@@ -17,6 +17,7 @@ TEST_COL_SAMPLE = 'samples'
 TEST_COL_VERSION = 'versions'
 TEST_COL_VER_EDGE = 'ver_to_sample'
 TEST_COL_NODES = 'nodes'
+TEST_COL_NODE_EDGE = 'node_edges'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
@@ -53,12 +54,14 @@ def samplestorage_method(arango):
     db.create_collection(TEST_COL_VERSION)
     db.create_collection(TEST_COL_VER_EDGE, edge=True)
     db.create_collection(TEST_COL_NODES)
+    db.create_collection(TEST_COL_NODE_EDGE, edge=True)
     return ArangoSampleStorage(
         arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD),
         TEST_COL_SAMPLE,
         TEST_COL_VERSION,
         TEST_COL_VER_EDGE,
-        TEST_COL_NODES)
+        TEST_COL_NODES,
+        TEST_COL_NODE_EDGE)
 
 
 def test_fail_startup_bad_args(arango):
@@ -69,11 +72,14 @@ def test_fail_startup_bad_args(arango):
     v = TEST_COL_VERSION
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
-    _fail_startup(None, s, v, ve, n, ValueError('db cannot be a value that evaluates to false'))
-    _fail_startup(db, '', v, ve, n, MissingParameterError('sample_collection'))
-    _fail_startup(db, s, '', ve, n, MissingParameterError('version_collection'))
-    _fail_startup(db, s, v, '', n, MissingParameterError('version_edge_collection'))
-    _fail_startup(db, s, v, ve, '', MissingParameterError('node_collection'))
+    ne = TEST_COL_NODE_EDGE
+    _fail_startup(None, s, v, ve, n, ne,
+                  ValueError('db cannot be a value that evaluates to false'))
+    _fail_startup(db, '', v, ve, n, ne, MissingParameterError('sample_collection'))
+    _fail_startup(db, s, '', ve, n, ne, MissingParameterError('version_collection'))
+    _fail_startup(db, s, v, '', n, ne, MissingParameterError('version_edge_collection'))
+    _fail_startup(db, s, v, ve, '', ne, MissingParameterError('node_collection'))
+    _fail_startup(db, s, v, ve, n, '', MissingParameterError('node_edge_collection'))
 
 
 def test_fail_startup_incorrect_collection_type(arango):
@@ -85,19 +91,22 @@ def test_fail_startup_incorrect_collection_type(arango):
     v = TEST_COL_VERSION
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
-    _fail_startup(db, 'sampleedge', v, ve, n, StorageInitException(
+    ne = TEST_COL_NODE_EDGE
+    _fail_startup(db, 'sampleedge', v, ve, n, ne, StorageInitException(
         'sample collection sampleedge is not a vertex collection'))
-    _fail_startup(db, s, ve, ve, n, StorageInitException(
+    _fail_startup(db, s, ve, ve, n, ne, StorageInitException(
                   'version collection ver_to_sample is not a vertex collection'))
-    _fail_startup(db, s, v, v, n, StorageInitException(
+    _fail_startup(db, s, v, v, n, ne, StorageInitException(
                   'version edge collection versions is not an edge collection'))
-    _fail_startup(db, s, v, ve, 'sampleedge', StorageInitException(
-                  'node collection sampleedge is not a vertex collection'))
+    _fail_startup(db, s, v, ve, ne, ne, StorageInitException(
+                  'node collection node_edges is not a vertex collection'))
+    _fail_startup(db, s, v, ve, n, n, StorageInitException(
+                  'node edge collection nodes is not an edge collection'))
 
 
-def _fail_startup(db, colsample, colver, colveredge, colnode, expected):
+def _fail_startup(db, colsample, colver, colveredge, colnode, colnodeedge, expected):
     with raises(Exception) as got:
-        ArangoSampleStorage(db, colsample, colver, colveredge, colnode)
+        ArangoSampleStorage(db, colsample, colver, colveredge, colnode, colnodeedge)
     assert_exception_correct(got.value, expected)
 
 
