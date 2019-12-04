@@ -174,7 +174,8 @@ def test_sample_build_fail_sample_count():
     assert s.version is None
 
     nodes.append(SampleNode('s10000'))
-    _sample_build_fail(nodes, None, IllegalParameterError('At most 10000 are allowed per sample'))
+    _sample_build_fail(nodes, None, IllegalParameterError(
+                       'At most 10000 nodes are allowed per sample'))
 
 
 def _sample_build_fail(nodes, name, expected):

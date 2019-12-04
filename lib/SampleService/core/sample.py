@@ -105,7 +105,8 @@ class Sample:
         if not nodes:
             raise MissingParameterError('At least one node per sample is required')
         if len(nodes) > _MAX_SAMPLE_NODES:
-            raise IllegalParameterError(f'At most {_MAX_SAMPLE_NODES} are allowed per sample')
+            raise IllegalParameterError(
+                f'At most {_MAX_SAMPLE_NODES} nodes are allowed per sample')
         if nodes[0].type != SubSampleType.BIOLOGICAL_REPLICATE:
             raise IllegalParameterError(
                 f'The first node in a sample must be a {SubSampleType.BIOLOGICAL_REPLICATE.value}')
