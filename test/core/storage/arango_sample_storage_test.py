@@ -173,7 +173,6 @@ def test_get_sample_fail_no_sample(samplestorage):
 
 
 def test_get_sample_fail_no_such_version(samplestorage):
-    # TODO test after saving multiple versions as well.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
 
@@ -182,9 +181,17 @@ def test_get_sample_fail_no_such_version(samplestorage):
     assert_exception_correct(
         got.value, NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 2'))
 
+    assert samplestorage.save_sample_version(SampleWithID(id_, [TEST_NODE], 'bar')) == 2
 
-def test_get_sample_fail_no_version_doc(samplestorage):
-    # TODO test after saving multiple versions as well.
+    assert samplestorage.get_sample(id_) == SampleWithID(id_, [TEST_NODE], 'bar', 2)
+
+    with raises(Exception) as got:
+        samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=3)
+    assert_exception_correct(
+        got.value, NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 3'))
+
+
+def test_get_sample_fail_no_version_doc_1_version(samplestorage):
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
@@ -201,8 +208,27 @@ def test_get_sample_fail_no_version_doc(samplestorage):
                                       'for sample 12345678-90ab-cdef-1234-567890abcdef'))
 
 
-def test_get_sample_fail_no_node_docs(samplestorage):
-    # TODO test after saving multiple versions as well.
+def test_get_sample_fail_no_version_doc_2_versions(samplestorage):
+    # This should be impossible in practice unless someone actively deletes records from the db.
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
+    assert samplestorage.save_sample_version(SampleWithID(id_, [TEST_NODE], 'bar')) == 2
+
+    # this is very naughty
+    verdoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 2}
+    verdoc = samplestorage._col_version.find(verdoc_filters).next()
+    samplestorage._col_version.delete_match(verdoc_filters)
+
+    assert samplestorage.get_sample(id_, version=1) == SampleWithID(id_, [TEST_NODE], 'foo', 1)
+
+    with raises(Exception) as got:
+        samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
+    assert_exception_correct(
+        got.value, SampleStorageError(f'Corrupt DB: Missing version {verdoc["uuidver"]} ' +
+                                      'for sample 12345678-90ab-cdef-1234-567890abcdef'))
+
+
+def test_get_sample_fail_no_node_docs_1_version(samplestorage):
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
@@ -218,6 +244,92 @@ def test_get_sample_fail_no_node_docs(samplestorage):
         got.value, SampleStorageError(
             f'Corrupt DB: Missing nodes for version {nodedoc["uuidver"]} of sample ' +
             '12345678-90ab-cdef-1234-567890abcdef'))
+
+
+def test_get_sample_fail_no_node_docs_2_versions(samplestorage):
+    # This should be impossible in practice unless someone actively deletes records from the db.
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
+    assert samplestorage.save_sample_version(SampleWithID(id_, [TEST_NODE], 'bar')) == 2
+
+    # this is very naughty
+    nodedoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 2}
+    nodedoc = samplestorage._col_nodes.find(nodedoc_filters).next()
+    samplestorage._col_nodes.delete_match(nodedoc_filters)
+
+    assert samplestorage.get_sample(id_, version=1) == SampleWithID(id_, [TEST_NODE], 'foo', 1)
+
+    with raises(Exception) as got:
+        samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
+    assert_exception_correct(
+        got.value, SampleStorageError(
+            f'Corrupt DB: Missing nodes for version {nodedoc["uuidver"]} of sample ' +
+            '12345678-90ab-cdef-1234-567890abcdef'))
+
+
+def test_save_and_get_sample_version(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
+
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    assert samplestorage.save_sample_version(SampleWithID(id_, [n1, n2, n3, n4], 'bar')) == 2
+    assert samplestorage.save_sample_version(SampleWithID(id_, [n1], 'whiz', version=6)) == 3
+
+    assert samplestorage.get_sample(id_, version=1) == SampleWithID(id_, [TEST_NODE], 'foo', 1)
+
+    assert samplestorage.get_sample(id_, version=2) == SampleWithID(
+        id_, [n1, n2, n3, n4], 'bar', 2)
+
+    expected = SampleWithID(id_, [n1], 'whiz', 3)
+    assert samplestorage.get_sample(id_) == expected
+    assert samplestorage.get_sample(id_, version=3) == expected
+
+
+def test_save_sample_version_fail_bad_input(samplestorage):
+    with raises(Exception) as got:
+        samplestorage.save_sample_version(None)
+    assert_exception_correct(got.value, ValueError(
+        'sample cannot be a value that evaluates to false'))
+
+
+def test_save_sample_version_fail_no_sample(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
+
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+    with raises(Exception) as got:
+        samplestorage.save_sample_version(SampleWithID(id2, [TEST_NODE], 'whiz'))
+    assert_exception_correct(got.value, NoSuchSampleError('12345678-90ab-cdef-1234-567890abcdea'))
+
+
+def test_sample_version_update(samplestorage):
+    # tests that the versions on node and version documents are updated correctly
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [SampleNode('baz')], 'foo')) is True
+
+    assert samplestorage.save_sample_version(SampleWithID(id_, [SampleNode('bat')], 'bar')) == 2
+
+    assert samplestorage.get_sample(id_, version=1) == SampleWithID(
+        id_, [SampleNode('baz')], 'foo', 1)
+
+    assert samplestorage.get_sample(id_) == SampleWithID(id_, [SampleNode('bat')], 'bar', 2)
+
+    idstr = '12345678-90ab-cdef-1234-567890abcdef'
+    vers = set()
+    # this is naughty
+    for n in samplestorage._col_version.find({'id': idstr}):
+        vers.add((n['name'], n['ver']))
+    assert vers == {('foo', 1), ('bar', 2)}
+
+    nodes = set()
+    # this is naughty
+    for n in samplestorage._col_nodes.find({'id': idstr}):
+        nodes.add((n['name'], n['ver']))
+    assert nodes == {('baz', 1), ('bat', 2)}
 
 
 def test_get_sample_acls_fail_bad_input(samplestorage):

@@ -87,6 +87,7 @@ class ArangoSampleStorage:
         # TODO create indexes for collections
         # TODO take workspace shadow object collection & check indexes exist, don't create
         _not_falsy(db, 'db')
+        self._db = db
         self._col_sample = _init_collection(
             db, sample_collection, 'sample collection', 'sample_collection')
         self._col_version = _init_collection(
@@ -102,7 +103,7 @@ class ArangoSampleStorage:
 
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
-        Save a new sample.
+        Save a new sample. The version in the sample object, if any, is ignored.
         :param user_name: The user that is creating the sample.
         :param sample: The sample to save.
         :returns: True if the sample saved successfully, False if the same ID already exists.
@@ -118,7 +119,7 @@ class ArangoSampleStorage:
     # this method is separated so we can test the race condition case where a sample with the
     # same ID is saved after the check above.
     def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
-        # TODO explain why save works as it does
+        # TODO explain why save works as it does, including versioning
 
         versionid = _uuid.uuid4()
 
@@ -143,21 +144,23 @@ class ArangoSampleStorage:
                 return False
             else:  # this is a real pain to test.
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
-        ver = 1
+        self._update_version_and_node_docs(sample, versionid, 1)
+
+        # TODO DBFIX PT1 add thread to check for missing versions & fix
+        # TODO DBFIX PT2 or del if no version in root doc & > 1hr old
+        return True
+
+    def _update_version_and_node_docs(self, sample: SampleWithID, versionid: UUID, version: int):
         nodeupdates: _List[dict] = []
         for n in sample.nodes:
             ndoc = {_FLD_ARANGO_KEY: self._get_node_id(sample.id, versionid, n.name),
-                    _FLD_NODE_VER: ver,
+                    _FLD_NODE_VER: version,
                     }
             nodeupdates.append(ndoc)
         self._update_many(self._col_nodes, nodeupdates)
 
         verdocid = self._get_version_id(sample.id, versionid)
-        self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: ver})
-
-        # TODO DBFIX PT1 add thread to check for missing versions & fix
-        # TODO DBFIX PT2 or del if no version in root doc & > 1hr old
-        return True
+        self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: version})
 
     def _save_version_and_node_docs(self, sample: SampleWithID, versionid: UUID):
         verdocid = self._get_version_id(sample.id, versionid)
@@ -233,12 +236,50 @@ class ArangoSampleStorage:
         except _arango.exceptions.DocumentUpdateError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def save_sample_version(self, sample: SampleWithID):
-        # TODO DOCS
+    def save_sample_version(self, sample: SampleWithID) -> int:
+        '''
+        Save a new version of a sample. The sample must already exist in the DB. Any version in
+        the provided sample object is ignored.
+
+        No permissions checking is performed.
+        :param sample: The new version of the sample.
+        :return: the version of the saved sample.
+        :raises SampleStorageError: if the sample fails to save.
+        '''
+        _not_falsy(sample, 'sample')
+        if not self._get_sample_doc(sample.id, exception=False):
+            raise _NoSuchSampleError(str(sample.id))  # bail early
+
+        versionid = _uuid.uuid4()
+
+        self._save_version_and_node_docs(sample, versionid)
+
+        aql = f'''
+            FOR s IN @@col
+                UPDATE @sampleid WITH {{{_FLD_VERSIONS}: PUSH(s.{_FLD_VERSIONS}, @verid)}} IN @@col
+                    RETURN NEW
+            '''
+
+        try:
+            # we checked that the doc existed above, so it must exist now.
+            # We assume here that you cannot delete samples from the DB. That's the plan as of now.
+            ret = self._db.aql.execute(
+                aql,
+                bind_vars={'@col': self._col_sample.name,
+                           'sampleid': str(sample.id),
+                           'verid': str(versionid)
+                           }
+                )
+            version = len(ret.next()[_FLD_VERSIONS])
+        except _arango.exceptions.AQLQueryExecuteError as e:
+            # TODO clean up any other created docs
+            # this is a real pain to test.
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
         # TODO opticoncur pt1 take a prior sample version, ensure that the new version is
         # TODO opticoncur pt2 ver + 1 for optimistic concurrency, so 0 for new object
-        raise NotImplementedError
+        self._update_version_and_node_docs(sample, versionid, version)
+        return version
 
     def get_sample(self, id_: UUID, version: int = None) -> SampleWithID:
         '''
@@ -250,7 +291,6 @@ class ArangoSampleStorage:
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
-        # TODO TEST version fail
         doc = self._get_sample_doc(id_)
         maxver_idx = len(doc[_FLD_VERSIONS])
         version = version if version else maxver_idx
@@ -298,6 +338,9 @@ class ArangoSampleStorage:
                 n[_FLD_NODE_NAME],
                 _SubSampleType[n[_FLD_NODE_TYPE]],
                 n[_FLD_NODE_PARENT])
+        # could check for keyerror here if nodes were deleted, but db is corrupt either way
+        # so YAGNI.
+        # Could add a node count to the version... but how about we just assume the db works
         nodes = [index_to_node[i] for i in range(len(index_to_node))]
         return nodes
 
