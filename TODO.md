@@ -3,13 +3,7 @@
 
 # Functionality
 * Admin flags on ops
-
-# Reliability
-* Transactions in clustered arango are
-  [not atomic](https://www.arangodb.com/docs/stable/transactions-limitations.html#atomicity).
-  Currently the arango error will be passed on if the transaction fails, but that may leave the db
-  in an inconsistent state.
-  * Improvement: trap the error and roll back. Or just don't use transactions
+* Search integration
 
 # Documentation
 * Document error codes
