@@ -7,7 +7,7 @@ An ArangoDB based storage system for the Sample service.
 import arango as _arango
 import hashlib as _hashlib
 import uuid as _uuid
-from typing import List as _List, cast as _cast
+from typing import List as _List, cast as _cast, Optional as _Optional
 
 from uuid import UUID
 from arango.database import StandardDatabase
@@ -139,8 +139,8 @@ class ArangoSampleStorage:
         try:
             self._col_sample.insert(tosave)
         except _arango.exceptions.DocumentInsertError as e:
+            # we'll let the reaper clean up any left over docs
             if e.error_code == 1210:  # unique constraint violation code
-                # TODO clean up any other created docs
                 return False
             else:  # this is a real pain to test.
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -272,7 +272,7 @@ class ArangoSampleStorage:
                 )
             version = len(ret.next()[_FLD_VERSIONS])
         except _arango.exceptions.AQLQueryExecuteError as e:
-            # TODO clean up any other created docs
+            # let the reaper clean up any left over docs
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
@@ -291,7 +291,7 @@ class ArangoSampleStorage:
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
-        doc = self._get_sample_doc(id_)
+        doc = _cast(dict, self._get_sample_doc(id_))
         maxver_idx = len(doc[_FLD_VERSIONS])
         version = version if version else maxver_idx
         if version > maxver_idx:
@@ -312,7 +312,7 @@ class ArangoSampleStorage:
         return f'{id_}_{ver}_{_hashlib.md5(node_id.encode("utf-8")).hexdigest()}'
 
     # assumes args are not None, and ver came from the sample doc in the db.
-    def _get_version_doc(self, id_: UUID, ver: UUID):
+    def _get_version_doc(self, id_: UUID, ver: UUID) -> dict:
         try:
             doc = self._col_version.get(self._get_version_id(id_, ver))
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
@@ -326,25 +326,25 @@ class ArangoSampleStorage:
         # across all versions of all samples
         try:
             nodedocs = self._col_nodes.find({_FLD_NODE_UUID_VER: str(ver)})
+            if not nodedocs:
+                raise _SampleStorageError(
+                    f'Corrupt DB: Missing nodes for version {ver} of sample {id_}')
+            index_to_node = {}
+            for n in nodedocs:
+                # TODO if nodedoc version = _NO_VERSION do what? Fix docs?
+                index_to_node[n[_FLD_NODE_INDEX]] = _SampleNode(
+                    n[_FLD_NODE_NAME],
+                    _SubSampleType[n[_FLD_NODE_TYPE]],
+                    n[_FLD_NODE_PARENT])
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
-        if not nodedocs:
-            raise _SampleStorageError(
-                f'Corrupt DB: Missing nodes for version {ver} of sample {id_}')
-        index_to_node = {}
-        for n in nodedocs:
-            # TODO if nodedoc version = _NO_VERSION do what? Fix docs?
-            index_to_node[n[_FLD_NODE_INDEX]] = _SampleNode(
-                n[_FLD_NODE_NAME],
-                _SubSampleType[n[_FLD_NODE_TYPE]],
-                n[_FLD_NODE_PARENT])
         # could check for keyerror here if nodes were deleted, but db is corrupt either way
         # so YAGNI.
         # Could add a node count to the version... but how about we just assume the db works
         nodes = [index_to_node[i] for i in range(len(index_to_node))]
         return nodes
 
-    def _get_sample_doc(self, id_: UUID, exception: bool = True):
+    def _get_sample_doc(self, id_: UUID, exception: bool = True) -> _Optional[dict]:
         try:
             doc = self._col_sample.get(str(_not_falsy(id_, 'id_')))
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
@@ -364,7 +364,7 @@ class ArangoSampleStorage:
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
         # return no class for now, might need later
-        doc = self._get_sample_doc(id_)
+        doc = _cast(dict, self._get_sample_doc(id_))
         acls = doc[_FLD_ACLS]
         # this is kind of redundant, but makes it easier to change the keys later
         # if we want to change the api
