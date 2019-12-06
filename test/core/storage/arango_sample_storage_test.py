@@ -5,7 +5,7 @@ from core import test_utils
 from core.test_utils import assert_exception_correct
 from core.arango_controller import ArangoController
 from SampleService.core.sample import SampleWithID, SampleNode, SubSampleType
-from SampleService.core.errors import MissingParameterError, NoSuchSampleError
+from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
 from SampleService.core.errors import NoSuchSampleVersionError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitException
@@ -290,10 +290,19 @@ def test_save_and_get_sample_version(samplestorage):
 
 
 def test_save_sample_version_fail_bad_input(samplestorage):
-    with raises(Exception) as got:
-        samplestorage.save_sample_version(None)
-    assert_exception_correct(got.value, ValueError(
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    s = SampleWithID(id_, [TEST_NODE], 'foo')
+
+    _save_sample_version_fail(samplestorage, None, None, ValueError(
         'sample cannot be a value that evaluates to false'))
+    _save_sample_version_fail(samplestorage, s, 0, ValueError(
+        'prior_version must be > 0'))
+
+
+def _save_sample_version_fail(samplestorage, sample, prior_version, expected):
+    with raises(Exception) as got:
+        samplestorage.save_sample_version(sample, prior_version)
+    assert_exception_correct(got.value, expected)
 
 
 def test_save_sample_version_fail_no_sample(samplestorage):
@@ -304,6 +313,25 @@ def test_save_sample_version_fail_no_sample(samplestorage):
     with raises(Exception) as got:
         samplestorage.save_sample_version(SampleWithID(id2, [TEST_NODE], 'whiz'))
     assert_exception_correct(got.value, NoSuchSampleError('12345678-90ab-cdef-1234-567890abcdea'))
+
+
+def test_save_sample_version_fail_prior_version(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], 'foo')) is True
+    assert samplestorage.save_sample_version(SampleWithID(id_, [SampleNode('bat')], 'bar')) == 2
+
+    with raises(Exception) as got:
+        samplestorage.save_sample_version(SampleWithID(id_, [TEST_NODE], 'whiz'), prior_version=1)
+    assert_exception_correct(got.value, ConcurrencyError(
+        'Version required for sample ' +
+        '12345678-90ab-cdef-1234-567890abcdef is 1, but current version is 2'))
+
+    # this is naughty, but need to check race condition
+    with raises(Exception) as got:
+        samplestorage._save_sample_version_pt2(SampleWithID(id_, [TEST_NODE], 'whiz'), 1)
+    assert_exception_correct(got.value, ConcurrencyError(
+        'Version required for sample ' +
+        '12345678-90ab-cdef-1234-567890abcdef is 1, but current version is 2'))
 
 
 def test_sample_version_update(samplestorage):

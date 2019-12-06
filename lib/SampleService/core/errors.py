@@ -33,6 +33,9 @@ class ErrorType(Enum):
     ILLEGAL_PARAMETER =      (30001, "Illegal input parameter")  # noqa: E222 @IgnorePep8
     """ An input parameter had an illegal value. """
 
+    SAMPLE_CONCURRENCY =     (40000, "Concurrency violation")  # noqa: E222 @IgnorePep8
+    """ A concurrency check failed and the operation could not continue. """
+
     NO_SUCH_SAMPLE =         (50000, "No such sample")  # noqa: E222 @IgnorePep8
     """ The requested sample does not exist. """
 
@@ -127,3 +130,12 @@ class NoSuchSampleVersionError(NoDataException):
 
     def __init__(self, message: str) -> None:
         super().__init__(ErrorType.NO_SUCH_SAMPLE_VERSION, message)
+
+
+class ConcurrencyError(SampleError):
+    """
+    An error thrown when a concurrency check fails.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.SAMPLE_CONCURRENCY, message)
