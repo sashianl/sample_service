@@ -46,9 +46,11 @@ _FLD_ADMIN = 'admin'
 
 _FLD_VERSIONS = 'vers'
 
+# Future programmers: This application is designed to be run in a sharded environment, so new
+# unique indexes CANNOT be added unless the shard key is switched from _key to the new field.
+
 # TODO transaction pt1 on startup, check for missing int vers on nodes & versions & fix (log).
 # TODO transaction pt2 delete any docs > 1 hr old w/ ver uuids not in uuid list for sample doc
-# TODO check indexes
 # TODO check schema
 
 # TODO document that collections are never created so that admins can set sharding
@@ -85,7 +87,6 @@ class ArangoSampleStorage:
             nodes to sample nodes (or versions in the case of root nodes) will be stored.
         '''
         # Maybe make a configuration class...?
-        # TODO create indexes for collections
         # TODO take workspace shadow object collection & check indexes exist, don't create
         _not_falsy(db, 'db')
         self._db = db
@@ -100,7 +101,14 @@ class ArangoSampleStorage:
             db, node_collection, 'node collection', 'node_collection')
         self._col_node_edge = _init_collection(
             db, node_edge_collection, 'node edge collection', 'node_edge_collection', edge=True)
-        # TODO index on uuid version for nodes
+        self._ensure_indexes()
+
+    def _ensure_indexes(self):
+        try:
+            self._col_nodes.add_persistent_index([_FLD_UUID_VER])
+        except _arango.exceptions.IndexCreateError as e:
+            # this is a real pain to test.
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
