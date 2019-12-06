@@ -15,6 +15,7 @@ from SampleService.core.sample import SampleWithID
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
@@ -236,19 +237,34 @@ class ArangoSampleStorage:
         except _arango.exceptions.DocumentUpdateError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def save_sample_version(self, sample: SampleWithID) -> int:
+    def save_sample_version(self, sample: SampleWithID, prior_version: int = None) -> int:
         '''
         Save a new version of a sample. The sample must already exist in the DB. Any version in
         the provided sample object is ignored.
 
         No permissions checking is performed.
         :param sample: The new version of the sample.
+        :param prior_version: If the sample version is not equal to this value, the save will fail.
         :return: the version of the saved sample.
         :raises SampleStorageError: if the sample fails to save.
+        :raises ConcurrencyError: if the sample's version is not equal to prior_version.
         '''
         _not_falsy(sample, 'sample')
-        if not self._get_sample_doc(sample.id, exception=False):
+        if prior_version is not None and prior_version < 1:
+            raise ValueError('prior_version must be > 0')
+        sampledoc = self._get_sample_doc(sample.id, exception=False)
+        if not sampledoc:
             raise _NoSuchSampleError(str(sample.id))  # bail early
+        version = len(sampledoc[_FLD_VERSIONS])
+        if prior_version and version != prior_version:
+            raise _ConcurrencyError(f'Version required for sample {sample.id} is ' +
+                                    f'{prior_version}, but current version is {version}')
+
+        return self._save_sample_version_pt2(sample, prior_version)
+
+    # this method is separated so we can test the race condition case where a sample version
+    # is incremented after the check above.
+    def _save_sample_version_pt2(self, sample, prior_version) -> int:
 
         versionid = _uuid.uuid4()
 
@@ -256,28 +272,41 @@ class ArangoSampleStorage:
 
         aql = f'''
             FOR s IN @@col
-                UPDATE @sampleid WITH {{{_FLD_VERSIONS}: PUSH(s.{_FLD_VERSIONS}, @verid)}} IN @@col
+                FILTER s.{_FLD_ARANGO_KEY} == @sampleid'''
+        if prior_version:
+            aql += f'''
+                FILTER LENGTH(s.{_FLD_VERSIONS}) == @version_count'''
+        aql += f'''
+                UPDATE s WITH {{{_FLD_VERSIONS}: PUSH(s.{_FLD_VERSIONS}, @verid)}} IN @@col
                     RETURN NEW
             '''
 
         try:
             # we checked that the doc existed above, so it must exist now.
             # We assume here that you cannot delete samples from the DB. That's the plan as of now.
-            ret = self._db.aql.execute(
-                aql,
-                bind_vars={'@col': self._col_sample.name,
-                           'sampleid': str(sample.id),
-                           'verid': str(versionid)
-                           }
-                )
-            version = len(ret.next()[_FLD_VERSIONS])
+            bind_vars = {'@col': self._col_sample.name,
+                         'sampleid': str(sample.id),
+                         'verid': str(versionid),
+                         }
+            if prior_version:
+                bind_vars['version_count'] = prior_version
+            cur = self._db.aql.execute(aql, bind_vars=bind_vars)
+            if not cur.empty():
+                version = len(cur.next()[_FLD_VERSIONS])
+            else:
+                sampledoc = _cast(dict, self._get_sample_doc(sample.id))
+                version = len(sampledoc[_FLD_VERSIONS])
+                # so theoretically there could be a race condition within the race condition such
+                # that the aql doesn't find the doc, then the version gets incremented, and the
+                # version is ok here. That'll take millisecond timing though and the result is
+                # one spurious error so we don't worry about it for now.
+                raise _ConcurrencyError(f'Version required for sample {sample.id} is ' +
+                                        f'{prior_version}, but current version is {version}')
         except _arango.exceptions.AQLQueryExecuteError as e:
             # let the reaper clean up any left over docs
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-        # TODO opticoncur pt1 take a prior sample version, ensure that the new version is
-        # TODO opticoncur pt2 ver + 1 for optimistic concurrency, so 0 for new object
         self._update_version_and_node_docs(sample, versionid, version)
         return version
 
