@@ -110,6 +110,19 @@ def _fail_startup(db, colsample, colver, colveredge, colnode, colnodeedge, expec
     assert_exception_correct(got.value, expected)
 
 
+def test_indexes_created(samplestorage):
+    # test that any non-standard indexes are created.
+    print(samplestorage._col_nodes.indexes())
+    indexes = samplestorage._col_nodes.indexes()
+    assert len(indexes) == 2
+    assert indexes[0]['fields'] == ['_key']
+    assert indexes[1]['fields'] == ['uuidver']
+    assert indexes[1]['deduplicate'] is True
+    assert indexes[1]['sparse'] is False
+    assert indexes[1]['type'] == 'persistent'
+    assert indexes[1]['unique'] is False
+
+
 def test_save_and_get_sample(samplestorage):
     n1 = SampleNode('root')
     n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
