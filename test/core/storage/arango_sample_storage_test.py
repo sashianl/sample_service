@@ -197,7 +197,7 @@ def test_get_sample_with_non_updated_version_doc(samplestorage):
 def test_get_sample_with_non_updated_node_doc(samplestorage):
     # simulates the case where a save failed part way through. The version UUID was added to the
     # sample doc but the node doc updates were not completed
-    # note that the version doc update *must* have been updated for this test to exercise the
+    # the version doc update *must* have been updated for this test to exercise the
     # node checking logic because a non-updated version doc will cause the nodes to be updated
     # immediately.
     n1 = SampleNode('root')
