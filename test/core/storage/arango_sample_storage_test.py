@@ -168,6 +168,57 @@ def test_save_sample_fail_duplicate_race_condition(samplestorage):
     assert samplestorage._save_sample_pt2('user1', SampleWithID(id_, [TEST_NODE], 'bar')) is False
 
 
+def test_get_sample_with_non_updated_version_doc(samplestorage):
+    # simulates the case where a save failed part way through. The version UUID was added to the
+    # sample doc but the node and version doc updates were not completed
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    assert samplestorage.save_sample('auser', SampleWithID(id_, [n1, n2, n3, n4], 'foo')) is True
+
+    # this is very naughty
+    # checked that these modifications actually work by viewing the db contents
+    samplestorage._col_version.update_match({}, {'ver': -1})
+    samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
+
+    assert samplestorage.get_sample(id_) == SampleWithID(id_, [n1, n2, n3, n4], 'foo', 1)
+
+    for v in samplestorage._col_version.all():
+        assert v['ver'] == 1
+
+    for v in samplestorage._col_nodes.all():
+        assert v['ver'] == 1
+
+
+def test_get_sample_with_non_updated_node_doc(samplestorage):
+    # simulates the case where a save failed part way through. The version UUID was added to the
+    # sample doc but the node doc updates were not completed
+    # note that the version doc update *must* have been updated for this test to exercise the
+    # node checking logic because a non-updated version doc will cause the nodes to be updated
+    # immediately.
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    assert samplestorage.save_sample('auser', SampleWithID(id_, [n1, n2, n3, n4], 'foo')) is True
+
+    # this is very naughty
+    # checked that these modifications actually work by viewing the db contents
+    samplestorage._col_nodes.update_match({'name': 'kid1'}, {'ver': -1})
+
+    assert samplestorage.get_sample(id_) == SampleWithID(id_, [n1, n2, n3, n4], 'foo', 1)
+
+    for v in samplestorage._col_nodes.all():
+        assert v['ver'] == 1
+
+
 def test_get_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
         samplestorage.get_sample(None)
