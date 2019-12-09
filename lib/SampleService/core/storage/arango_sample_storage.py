@@ -171,6 +171,16 @@ class ArangoSampleStorage:
         verdocid = self._get_version_id(sample.id, versionid)
         self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: version})
 
+    def _update_version_and_node_docs_with_find(self, id_: UUID, versionid: UUID, version: int):
+        try:
+            self._col_nodes.update_match({_FLD_UUID_VER: str(versionid)}, {_FLD_VER: version})
+        except _arango.exceptions.DocumentUpdateError as e:
+            # this is a real pain to test.
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+        verdocid = self._get_version_id(id_, versionid)
+        self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: version})
+
     def _save_version_and_node_docs(self, sample: SampleWithID, versionid: UUID):
         verdocid = self._get_version_id(sample.id, versionid)
 
@@ -329,14 +339,19 @@ class ArangoSampleStorage:
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
         doc = _cast(dict, self._get_sample_doc(id_))
-        maxver_idx = len(doc[_FLD_VERSIONS])
-        version = version if version else maxver_idx
-        if version > maxver_idx:
+        maxver = len(doc[_FLD_VERSIONS])
+        version = version if version else maxver
+        if version > maxver:
             raise _NoSuchSampleVersionError(f'{id_} ver {version}')
         verdoc = self._get_version_doc(id_, doc[_FLD_VERSIONS][version - 1])
-        nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]))
+        if verdoc[_FLD_VER] == _VAL_NO_VER:
+            # since the version id came from the sample doc, the implication
+            # is that the db or server lost connection before the version could be updated
+            # and the reaper hasn't caught it yet, so we go ahead and fix it.
+            self._update_version_and_node_docs_with_find(id_, verdoc[_FLD_UUID_VER], version)
 
-        # TODO if verdoc version = _NO_VERSION do what? Fix docs?
+        nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
+
         return SampleWithID(UUID(doc[_FLD_ID]), nodes, verdoc[_FLD_NAME], version)
 
     def _get_version_id(self, id_: UUID, ver: UUID):
@@ -358,7 +373,8 @@ class ArangoSampleStorage:
             raise _SampleStorageError(f'Corrupt DB: Missing version {ver} for sample {id_}')
         return doc
 
-    def _get_nodes(self, id_: UUID, ver: UUID) -> _List[_SampleNode]:
+    # assumes ver came from the sample doc in the db.
+    def _get_nodes(self, id_: UUID, ver: UUID, version: int) -> _List[_SampleNode]:
         # this class controls the version ID, and since it's a UUID we can assume it's unique
         # across all versions of all samples
         try:
@@ -368,7 +384,11 @@ class ArangoSampleStorage:
                     f'Corrupt DB: Missing nodes for version {ver} of sample {id_}')
             index_to_node = {}
             for n in nodedocs:
-                # TODO if nodedoc version = _NO_VERSION do what? Fix docs?
+                if n[_FLD_VER] == _VAL_NO_VER:
+                    # since it's assumed the version id came from the sample doc, the implication
+                    # is that the db or server lost connection before the version could be updated
+                    # and the reaper hasn't caught it yet, so we go ahead and fix it.
+                    self._update_version_and_node_docs_with_find(id_, ver, version)
                 index_to_node[n[_FLD_NODE_INDEX]] = _SampleNode(
                     n[_FLD_NODE_NAME],
                     _SubSampleType[n[_FLD_NODE_TYPE]],
