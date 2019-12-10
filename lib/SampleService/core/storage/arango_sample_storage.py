@@ -5,10 +5,10 @@ An ArangoDB based storage system for the Sample service.
 # may need to extract an interface at some point, YAGNI for now.
 
 import arango as _arango
-import datetime as _datetime
+import datetime
 import hashlib as _hashlib
 import uuid as _uuid
-from typing import List as _List, cast as _cast, Optional as _Optional
+from typing import List as _List, cast as _cast, Optional as _Optional, Callable
 
 from uuid import UUID
 from arango.database import StandardDatabase
@@ -74,7 +74,9 @@ class ArangoSampleStorage:
             version_collection: str,
             version_edge_collection: str,
             node_collection: str,
-            node_edge_collection: str,):
+            node_edge_collection: str,
+            now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
+                tz=datetime.timezone.utc)):
         '''
         Create the wrapper.
         :param db: the ArangoDB database in which data will be stored.
@@ -87,11 +89,14 @@ class ArangoSampleStorage:
             will be stored.
         :param version_edges_collection: the name of the collection in which edges from sample
             nodes to sample nodes (or versions in the case of root nodes) will be stored.
+        :param now: A callable that returns the current time. Primarily used for testing.
         '''
         # Maybe make a configuration class...?
         # TODO take workspace shadow object collection & check indexes exist, don't create
         _not_falsy(db, 'db')
+        _not_falsy(now, 'now')
         self._db = db
+        self._now = now
         self._col_sample = _init_collection(
             db, sample_collection, 'sample collection', 'sample_collection')
         self._col_version = _init_collection(
@@ -104,6 +109,8 @@ class ArangoSampleStorage:
         self._col_node_edge = _init_collection(
             db, node_edge_collection, 'node edge collection', 'node_edge_collection', edge=True)
         self._ensure_indexes()
+        self._deletion_delay = datetime.timedelta(hours=1)  # make configurable?
+        self._check_db_updated()
 
     def _ensure_indexes(self):
         try:
@@ -111,6 +118,53 @@ class ArangoSampleStorage:
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _check_db_updated(self):
+        self._check_col_updated(self._col_version)
+        self._check_col_updated(self._col_nodes)
+
+    def _check_col_updated(self, col):
+        # this should rarely find unupdated documents so don't worry too much about performance
+        try:
+            # TODO index ver field for nodes and versions
+            # TODO INdex uuid ver field for versions, ver edge, node edge
+            cur = col.find({_FLD_VER: _VAL_NO_VER})
+            for doc in cur:
+                id_ = UUID(doc[_FLD_ID])
+                uver = UUID(doc[_FLD_UUID_VER])
+                ts = self._timestamp_to_datetime(doc[_FLD_SAVE_TIME])
+                sampledoc = self._get_sample_doc(id_, exception=False)
+                if not sampledoc:
+                    # the sample document was never saved for this version doc
+                    self._delete_version_and_node_docs(uver, ts, self._deletion_delay)
+                else:
+                    version = self._get_int_version_from_sample_doc(sampledoc, str(uver))
+                    if version:
+                        self._update_version_and_node_docs_with_find(id_, uver, version)
+                    else:
+                        self._delete_version_and_node_docs(uver, ts, self._deletion_delay)
+        except _arango.exceptions.DocumentGetError as e:
+            # this is a real pain to test.
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _get_int_version_from_sample_doc(self, sampledoc, uuidverstr):
+        for i, v in enumerate(sampledoc[_FLD_VERSIONS]):
+            if v == uuidverstr:
+                return i + 1
+        return None
+
+    def _delete_version_and_node_docs(self, uuidver, savedate, deletion_delay):
+        if self._now() - savedate > self._deletion_delay:
+            try:
+                # TODO logging
+                # delete edge docs first to ensure we don't orphan them
+                self._col_ver_edge.delete_match({_FLD_UUID_VER: str(uuidver)})
+                self._col_version.delete_match({_FLD_UUID_VER: str(uuidver)})
+                self._col_node_edge.delete_match({_FLD_UUID_VER: str(uuidver)})
+                self._col_nodes.delete_match({_FLD_UUID_VER: str(uuidver)})
+            except _arango.exceptions.DocumentDeleteError as e:
+                # this is a real pain to test.
+                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
@@ -210,6 +264,7 @@ class ArangoSampleStorage:
                 parentid = self._get_node_id(sample.id, versionid, _cast(str, n.parent))
                 to = f'{self._col_nodes.name}/{parentid}'
             nedoc = {_FLD_ARANGO_KEY: key,
+                     _FLD_UUID_VER: str(versionid),
                      _FLD_ARANGO_FROM: f'{self._col_nodes.name}/{key}',
                      _FLD_ARANGO_TO: to
                      }
@@ -234,6 +289,7 @@ class ArangoSampleStorage:
         # TODO this actually isn't tested by anything since we're not doing traversals yet, but
         # it will be
         veredgedoc = {_FLD_ARANGO_KEY: verdocid,
+                      _FLD_UUID_VER: str(versionid),
                       _FLD_ARANGO_FROM: f'{self._col_version.name}/{verdocid}',
                       _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
                       }
@@ -362,10 +418,12 @@ class ArangoSampleStorage:
             self._update_version_and_node_docs_with_find(id_, verdoc[_FLD_UUID_VER], version)
 
         nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
-        dt = _datetime.datetime.fromtimestamp(
-            verdoc[_FLD_SAVE_TIME], tz=_datetime.timezone.utc)
+        dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
 
         return SampleWithID(UUID(doc[_FLD_ID]), nodes, dt, verdoc[_FLD_NAME], version)
+
+    def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'

@@ -66,6 +66,237 @@ def samplestorage_method(arango):
         TEST_COL_NODE_EDGE)
 
 
+def test_startup_with_unupdated_version_and_node_docs(samplestorage):
+    # this test simulates a server coming up after a dirty shutdown, where version and
+    # node doc integer versions have not been updated
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    assert samplestorage.save_sample(
+        'auser', SampleWithID(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+
+    # this is very naughty
+    # checked that these modifications actually work by viewing the db contents
+    samplestorage._col_version.update_match({}, {'ver': -1})
+    samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
+
+    # this is also very naughty
+    ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name)
+
+    assert samplestorage._col_version.count() == 1
+    assert samplestorage._col_ver_edge.count() == 1
+    assert samplestorage._col_nodes.count() == 4
+    assert samplestorage._col_node_edge.count() == 4
+
+    for v in samplestorage._col_version.all():
+        assert v['ver'] == 1
+
+    for v in samplestorage._col_nodes.all():
+        assert v['ver'] == 1
+
+
+def test_startup_with_unupdated_node_docs(samplestorage):
+    # this test simulates a server coming up after a dirty shutdown, where
+    # node doc integer versions have not been updated
+    # version doc cannot be modified such that ver = -1 or the version check will also correct the
+    # node docs, negating the point of this test
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    assert samplestorage.save_sample(
+        'auser', SampleWithID(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+
+    assert samplestorage.save_sample_version(
+        SampleWithID(id_, [n1, n2, n3, n4], dt(1), 'bar')) == 2
+
+    # this is very naughty
+    sample = samplestorage._col_sample.find({}).next()
+    uuidver2 = sample['vers'][1]
+
+    # checked that these modifications actually work by viewing the db contents
+    samplestorage._col_nodes.update_match({'uuidver': uuidver2, 'name': 'kid2'}, {'ver': -1})
+
+    # this is also very naughty
+    ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name)
+
+    assert samplestorage._col_version.count() == 2
+    assert samplestorage._col_ver_edge.count() == 2
+    assert samplestorage._col_nodes.count() == 8
+    assert samplestorage._col_node_edge.count() == 8
+
+    for v in samplestorage._col_version.all():
+        assert v['ver'] == 2 if v['uuidver'] == uuidver2 else 1
+
+    for v in samplestorage._col_nodes.all():
+        assert v['ver'] == 2 if v['uuidver'] == uuidver2 else 1
+
+
+def test_startup_with_no_sample_doc(samplestorage):
+    # this test simulates a server coming up after a dirty shutdown, where version and
+    # node docs were saved but the sample document was not while saving the first version of
+    # a sample
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+
+    assert samplestorage.save_sample(
+        'auser', SampleWithID(id1, [n1, n2, n3, n4], dt(1), 'foo')) is True
+
+    assert samplestorage.save_sample(
+        'auser', SampleWithID(id2, [n1, n2, n3, n4], dt(1000), 'foo')) is True
+
+    # this is very naughty
+    assert samplestorage._col_version.count() == 2
+    assert samplestorage._col_ver_edge.count() == 2
+    assert samplestorage._col_nodes.count() == 8
+    assert samplestorage._col_node_edge.count() == 8
+
+    samplestorage._col_sample.delete({'_key': str(id2)})
+    # if the sample document hasn't been saved, then none of the integer versions for the
+    # sample can have been updated to 1
+    samplestorage._col_version.update_match({'id': str(id2)}, {'ver': -1})
+    samplestorage._col_nodes.update_match({'id': str(id2)}, {'ver': -1})
+
+    # first test that bringing up the server before the 1hr deletion time limit doesn't change the
+    # db:
+    # this is also very naughty
+    ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name,
+        now=lambda: datetime.datetime.fromtimestamp(4600, tz=datetime.timezone.utc))
+
+    assert samplestorage._col_version.count() == 2
+    assert samplestorage._col_ver_edge.count() == 2
+    assert samplestorage._col_nodes.count() == 8
+    assert samplestorage._col_node_edge.count() == 8
+
+    # now test that bringing up the server after the limit deletes the docs:
+    ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name,
+        now=lambda: datetime.datetime.fromtimestamp(4601, tz=datetime.timezone.utc))
+
+    assert samplestorage._col_sample.count() == 1
+    assert samplestorage._col_version.count() == 1
+    assert samplestorage._col_ver_edge.count() == 1
+    assert samplestorage._col_nodes.count() == 4
+    assert samplestorage._col_node_edge.count() == 4
+
+    sample = samplestorage._col_sample.find({}).next()
+    assert sample['id'] == str(id1)
+    uuidver = sample['vers'][0]
+
+    assert len(list(samplestorage._col_version.find({'uuidver': uuidver}))) == 1
+    assert len(list(samplestorage._col_ver_edge.find({'uuidver': uuidver}))) == 1
+    assert len(list(samplestorage._col_nodes.find({'uuidver': uuidver}))) == 4
+    assert len(list(samplestorage._col_node_edge.find({'uuidver': uuidver}))) == 4
+
+
+def test_startup_with_no_version_in_sample_doc(samplestorage):
+    # this test simulates a server coming up after a dirty shutdown, where version and
+    # node docs were saved but the sample document was not updated while saving the second
+    # version of # a sample
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    assert samplestorage.save_sample(
+        'auser', SampleWithID(id1, [n1, n2, n3, n4], dt(1), 'foo')) is True
+
+    assert samplestorage.save_sample_version(
+        SampleWithID(id1, [n1, n2, n3, n4], dt(2000), 'foo')) == 2
+
+    # this is very naughty
+    assert samplestorage._col_sample.count() == 1
+    assert samplestorage._col_version.count() == 2
+    assert samplestorage._col_ver_edge.count() == 2
+    assert samplestorage._col_nodes.count() == 8
+    assert samplestorage._col_node_edge.count() == 8
+
+    sample = samplestorage._col_sample.find({}).next()
+    samplestorage._col_sample.update_match({}, {'vers': sample['vers'][:1]})
+    uuidver2 = sample['vers'][1]
+
+    # if the sample document hasn't been updated, then none of the integer versions for the
+    # sample can have been updated to 1
+    samplestorage._col_version.update_match({'uuidver': uuidver2}, {'ver': -1})
+    samplestorage._col_nodes.update_match({'uuidver': uuidver2}, {'ver': -1})
+
+    # first test that bringing up the server before the 1hr deletion time limit doesn't change the
+    # db:
+    # this is also very naughty
+    ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name,
+        now=lambda: datetime.datetime.fromtimestamp(5600, tz=datetime.timezone.utc))
+
+    assert samplestorage._col_version.count() == 2
+    assert samplestorage._col_ver_edge.count() == 2
+    assert samplestorage._col_nodes.count() == 8
+    assert samplestorage._col_node_edge.count() == 8
+
+    # now test that bringing up the server after the limit deletes the docs:
+    ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name,
+        now=lambda: datetime.datetime.fromtimestamp(5601, tz=datetime.timezone.utc))
+
+    assert samplestorage._col_version.count() == 1
+    assert samplestorage._col_ver_edge.count() == 1
+    assert samplestorage._col_nodes.count() == 4
+    assert samplestorage._col_node_edge.count() == 4
+
+    uuidver1 = sample['vers'][0]
+
+    assert len(list(samplestorage._col_version.find({'uuidver': uuidver1}))) == 1
+    assert len(list(samplestorage._col_ver_edge.find({'uuidver': uuidver1}))) == 1
+    assert len(list(samplestorage._col_nodes.find({'uuidver': uuidver1}))) == 4
+    assert len(list(samplestorage._col_node_edge.find({'uuidver': uuidver1}))) == 4
+
+
 def test_fail_startup_bad_args(arango):
     samplestorage_method(arango)
     db = arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
@@ -75,13 +306,19 @@ def test_fail_startup_bad_args(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
-    _fail_startup(None, s, v, ve, n, ne,
+
+    def nw():
+        datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
+
+    _fail_startup(None, s, v, ve, n, ne, nw,
                   ValueError('db cannot be a value that evaluates to false'))
-    _fail_startup(db, '', v, ve, n, ne, MissingParameterError('sample_collection'))
-    _fail_startup(db, s, '', ve, n, ne, MissingParameterError('version_collection'))
-    _fail_startup(db, s, v, '', n, ne, MissingParameterError('version_edge_collection'))
-    _fail_startup(db, s, v, ve, '', ne, MissingParameterError('node_collection'))
-    _fail_startup(db, s, v, ve, n, '', MissingParameterError('node_edge_collection'))
+    _fail_startup(db, '', v, ve, n, ne, nw, MissingParameterError('sample_collection'))
+    _fail_startup(db, s, '', ve, n, ne, nw, MissingParameterError('version_collection'))
+    _fail_startup(db, s, v, '', n, ne, nw, MissingParameterError('version_edge_collection'))
+    _fail_startup(db, s, v, ve, '', ne, nw, MissingParameterError('node_collection'))
+    _fail_startup(db, s, v, ve, n, '', nw, MissingParameterError('node_edge_collection'))
+    _fail_startup(db, s, v, ve, n, ne, None,
+                  ValueError('now cannot be a value that evaluates to false'))
 
 
 def test_fail_startup_incorrect_collection_type(arango):
@@ -94,21 +331,25 @@ def test_fail_startup_incorrect_collection_type(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
-    _fail_startup(db, 'sampleedge', v, ve, n, ne, StorageInitException(
+
+    def nw():
+        datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
+
+    _fail_startup(db, 'sampleedge', v, ve, n, ne, nw, StorageInitException(
         'sample collection sampleedge is not a vertex collection'))
-    _fail_startup(db, s, ve, ve, n, ne, StorageInitException(
+    _fail_startup(db, s, ve, ve, n, ne, nw, StorageInitException(
                   'version collection ver_to_sample is not a vertex collection'))
-    _fail_startup(db, s, v, v, n, ne, StorageInitException(
+    _fail_startup(db, s, v, v, n, ne, nw, StorageInitException(
                   'version edge collection versions is not an edge collection'))
-    _fail_startup(db, s, v, ve, ne, ne, StorageInitException(
+    _fail_startup(db, s, v, ve, ne, ne, nw, StorageInitException(
                   'node collection node_edges is not a vertex collection'))
-    _fail_startup(db, s, v, ve, n, n, StorageInitException(
+    _fail_startup(db, s, v, ve, n, n, nw, StorageInitException(
                   'node edge collection nodes is not an edge collection'))
 
 
-def _fail_startup(db, colsample, colver, colveredge, colnode, colnodeedge, expected):
+def _fail_startup(db, colsample, colver, colveredge, colnode, colnodeedge, now, expected):
     with raises(Exception) as got:
-        ArangoSampleStorage(db, colsample, colver, colveredge, colnode, colnodeedge)
+        ArangoSampleStorage(db, colsample, colver, colveredge, colnode, colnodeedge, now=now)
     assert_exception_correct(got.value, expected)
 
 
