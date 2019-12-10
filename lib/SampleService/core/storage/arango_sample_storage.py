@@ -114,7 +114,12 @@ class ArangoSampleStorage:
 
     def _ensure_indexes(self):
         try:
+            self._col_node_edge.add_persistent_index([_FLD_UUID_VER])
+            self._col_ver_edge.add_persistent_index([_FLD_UUID_VER])
+            self._col_version.add_persistent_index([_FLD_UUID_VER])
+            self._col_version.add_persistent_index([_FLD_VER])  # partial index would be useful
             self._col_nodes.add_persistent_index([_FLD_UUID_VER])
+            self._col_nodes.add_persistent_index([_FLD_VER])  # partial index would be useful
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -126,8 +131,6 @@ class ArangoSampleStorage:
     def _check_col_updated(self, col):
         # this should rarely find unupdated documents so don't worry too much about performance
         try:
-            # TODO index ver field for nodes and versions
-            # TODO INdex uuid ver field for versions, ver edge, node edge
             cur = col.find({_FLD_VER: _VAL_NO_VER})
             for doc in cur:
                 id_ = UUID(doc[_FLD_ID])
