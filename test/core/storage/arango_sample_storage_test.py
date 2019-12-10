@@ -355,15 +355,38 @@ def _fail_startup(db, colsample, colver, colveredge, colnode, colnodeedge, now, 
 
 def test_indexes_created(samplestorage):
     # test that any non-standard indexes are created.
-    print(samplestorage._col_nodes.indexes())
     indexes = samplestorage._col_nodes.indexes()
-    assert len(indexes) == 2
+    assert len(indexes) == 3
     assert indexes[0]['fields'] == ['_key']
-    assert indexes[1]['fields'] == ['uuidver']
-    assert indexes[1]['deduplicate'] is True
-    assert indexes[1]['sparse'] is False
-    assert indexes[1]['type'] == 'persistent'
-    assert indexes[1]['unique'] is False
+    _check_index(indexes[1], ['uuidver'])
+    _check_index(indexes[2], ['ver'])
+
+    indexes = samplestorage._col_version.indexes()
+    assert len(indexes) == 3
+    assert indexes[0]['fields'] == ['_key']
+    _check_index(indexes[1], ['uuidver'])
+    _check_index(indexes[2], ['ver'])
+
+    indexes = samplestorage._col_node_edge.indexes()
+    print(indexes)
+    assert len(indexes) == 3
+    assert indexes[0]['fields'] == ['_key']
+    assert indexes[1]['fields'] == ['_from', '_to']
+    _check_index(indexes[2], ['uuidver'])
+
+    indexes = samplestorage._col_ver_edge.indexes()
+    assert len(indexes) == 3
+    assert indexes[0]['fields'] == ['_key']
+    assert indexes[1]['fields'] == ['_from', '_to']
+    _check_index(indexes[2], ['uuidver'])
+
+
+def _check_index(index, fields):
+    assert index['fields'] == fields
+    assert index['deduplicate'] is True
+    assert index['sparse'] is False
+    assert index['type'] == 'persistent'
+    assert index['unique'] is False
 
 
 def dt(timestamp):
