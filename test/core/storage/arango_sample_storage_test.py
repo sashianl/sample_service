@@ -93,6 +93,11 @@ def test_startup_with_unupdated_version_and_node_docs(samplestorage):
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name)
 
+    assert samplestorage._col_version.count() == 1
+    assert samplestorage._col_ver_edge.count() == 1
+    assert samplestorage._col_nodes.count() == 4
+    assert samplestorage._col_node_edge.count() == 4
+
     for v in samplestorage._col_version.all():
         assert v['ver'] == 1
 
@@ -133,6 +138,11 @@ def test_startup_with_unupdated_node_docs(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name)
+
+    assert samplestorage._col_version.count() == 2
+    assert samplestorage._col_ver_edge.count() == 2
+    assert samplestorage._col_nodes.count() == 8
+    assert samplestorage._col_node_edge.count() == 8
 
     for v in samplestorage._col_version.all():
         assert v['ver'] == 2 if v['uuidver'] == uuidver2 else 1

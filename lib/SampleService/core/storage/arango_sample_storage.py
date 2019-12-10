@@ -138,7 +138,7 @@ class ArangoSampleStorage:
                     # the sample document was never saved for this version doc
                     self._delete_version_and_node_docs(uver, ts, self._deletion_delay)
                 else:
-                    version = self._get_int_version_from_sample_doc(sampledoc, uver)
+                    version = self._get_int_version_from_sample_doc(sampledoc, str(uver))
                     if version:
                         self._update_version_and_node_docs_with_find(id_, uver, version)
                     else:
@@ -147,9 +147,9 @@ class ArangoSampleStorage:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def _get_int_version_from_sample_doc(self, sampledoc, uuidver):
+    def _get_int_version_from_sample_doc(self, sampledoc, uuidverstr):
         for i, v in enumerate(sampledoc[_FLD_VERSIONS]):
-            if v == uuidver:
+            if v == uuidverstr:
                 return i + 1
         return None
 
