@@ -5,6 +5,7 @@ An ArangoDB based storage system for the Sample service.
 # may need to extract an interface at some point, YAGNI for now.
 
 import arango as _arango
+import datetime as _datetime
 import hashlib as _hashlib
 import uuid as _uuid
 from typing import List as _List, cast as _cast, Optional as _Optional
@@ -29,6 +30,7 @@ _FLD_UUID_VER = 'uuidver'
 _FLD_VER = 'ver'
 _VAL_NO_VER = -1
 _FLD_NAME = 'name'
+_FLD_SAVE_TIME = 'saved'
 
 _FLD_NODE_NAME = 'name'
 _FLD_NODE_TYPE = 'type'
@@ -113,6 +115,10 @@ class ArangoSampleStorage:
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
         Save a new sample. The version in the sample object, if any, is ignored.
+
+        The timestamp in the sample is expected to be accurate - the database may become corrupted
+        if this is not the case.
+
         :param user_name: The user that is creating the sample.
         :param sample: The sample to save.
         :returns: True if the sample saved successfully, False if the same ID already exists.
@@ -192,6 +198,7 @@ class ArangoSampleStorage:
                     _FLD_NODE_SAMPLE_ID: str(sample.id),
                     _FLD_NODE_UUID_VER: str(versionid),
                     _FLD_NODE_VER: _VAL_NO_VER,
+                    _FLD_SAVE_TIME: sample.savetime.timestamp(),
                     _FLD_NODE_NAME: n.name,
                     _FLD_NODE_TYPE: n.type.name,
                     _FLD_NODE_PARENT: n.parent,
@@ -218,6 +225,7 @@ class ArangoSampleStorage:
                   _FLD_ID: str(sample.id),
                   _FLD_VER: _VAL_NO_VER,
                   _FLD_UUID_VER: str(versionid),
+                  _FLD_SAVE_TIME: sample.savetime.timestamp(),
                   _FLD_NAME: sample.name
                   # TODO description
                   }
@@ -259,6 +267,9 @@ class ArangoSampleStorage:
         '''
         Save a new version of a sample. The sample must already exist in the DB. Any version in
         the provided sample object is ignored.
+
+        The timestamp in the sample is expected to be accurate - the database may become corrupted
+        if this is not the case.
 
         No permissions checking is performed.
         :param sample: The new version of the sample.
@@ -351,8 +362,10 @@ class ArangoSampleStorage:
             self._update_version_and_node_docs_with_find(id_, verdoc[_FLD_UUID_VER], version)
 
         nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
+        dt = _datetime.datetime.fromtimestamp(
+            verdoc[_FLD_SAVE_TIME], tz=_datetime.timezone.utc)
 
-        return SampleWithID(UUID(doc[_FLD_ID]), nodes, verdoc[_FLD_NAME], version)
+        return SampleWithID(UUID(doc[_FLD_ID]), nodes, dt, verdoc[_FLD_NAME], version)
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'

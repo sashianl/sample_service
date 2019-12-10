@@ -2,6 +2,7 @@
 Contains classes related to samples.
 '''
 
+import datetime
 from enum import Enum as _Enum, unique as _unique
 from uuid import UUID
 from typing import Optional, List
@@ -142,6 +143,7 @@ class SampleWithID(Sample):
     A sample including an ID. Do NOT mutate the instance variables post creation.
     :ivar id: The ID of the sample.
     :ivar nodes: The nodes in this sample.
+    :ivar savetime: The time the sample was saved.
     :ivar name: The name of the sample.
     :ivar version: The version of the sample. This may be None if the version has not yet been
         determined.
@@ -151,6 +153,7 @@ class SampleWithID(Sample):
             self,
             id_: UUID,
             nodes: List[SampleNode],
+            savetime: datetime.datetime,
             name: Optional[str] = None,
             version: Optional[int] = None):
         '''
@@ -158,6 +161,7 @@ class SampleWithID(Sample):
         :param id_: The ID of the sample.
         :param nodes: The tree nodes in the sample. BIOLOGICAL_REPLICATES must come first in
             the list, and parents must come before children in the list.
+        :param savetime: The time the sample was saved. Cannot be a naive datetime.
         :param name: The name of the sample. Cannot contain control characters or be longer than
             255 characters.
         :param version: The version of the sample, or None if unknown.
@@ -171,6 +175,13 @@ class SampleWithID(Sample):
         # yet another class, so...
         super().__init__(nodes, name)
         self.id = _not_falsy(id_, 'id_')
+        self.savetime = _not_falsy(savetime, 'savetime')
+        if savetime.tzinfo is None:
+            # see https://docs.python.org/3.3/library/datetime.html#datetime.timezone
+            # The docs say you should also check savetime.tzinfo.utcoffset(savetime) is not None,
+            # but initializing a datetime with a tzinfo subclass that returns None for that method
+            # causes the constructor to throw an error
+            raise ValueError('savetime cannot be a naive datetime')
         if version is not None and version < 1:
             raise ValueError('version must be > 0')
         self.version = version
@@ -179,12 +190,13 @@ class SampleWithID(Sample):
         if type(other) is type(self):
             return (other.id == self.id
                     and other.name == self.name
+                    and other.savetime == self.savetime
                     and other.version == self.version
                     and other.nodes == self.nodes)
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.id, self.name, self.version, self.nodes))
+        return hash((self.id, self.name, self.savetime, self.version, self.nodes))
 
 
 def _xor(bool1: bool, bool2: bool):

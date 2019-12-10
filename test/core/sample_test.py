@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from pytest import raises
 from core.test_utils import assert_exception_correct
@@ -81,6 +82,10 @@ def test_sample_node_hash():
     assert hash(SampleNode('foo', s, 'bar')) != hash(SampleNode('foo', s, 'bat'))
 
 
+def dt(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+
+
 def test_sample_build():
     sn = SampleNode('foo')
     sn2 = SampleNode('bat')
@@ -101,33 +106,38 @@ def test_sample_build():
     assert s.name == 'a' * 255
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    s = SampleWithID(id_, [sn])
+    s = SampleWithID(id_, [sn], dt(6))
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.nodes == (sndup,)
+    assert s.savetime == dt(6)
     assert s.name is None
     assert s.version is None
 
-    s = SampleWithID(id_, [sn], 'foo')
+    s = SampleWithID(id_, [sn], dt(6), 'foo')
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.nodes == (sndup,)
+    assert s.savetime == dt(6)
     assert s.name == 'foo'
     assert s.version is None
 
-    s = SampleWithID(id_, [sn], 'foo', 1)
+    s = SampleWithID(id_, [sn], dt(6), 'foo', 1)
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.nodes == (sndup,)
+    assert s.savetime == dt(6)
     assert s.name == 'foo'
     assert s.version == 1
 
-    s = SampleWithID(id_, [sn], 'foo', 8)
+    s = SampleWithID(id_, [sn], dt(6), 'foo', 8)
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.nodes == (sndup,)
+    assert s.savetime == dt(6)
     assert s.name == 'foo'
     assert s.version == 8
 
-    s = SampleWithID(id_, [sn], version=8)
+    s = SampleWithID(id_, [sn], dt(6), version=8)
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.nodes == (sndup,)
+    assert s.savetime == dt(6)
     assert s.name is None
     assert s.version == 8
 
@@ -141,6 +151,7 @@ def test_sample_build_fail():
     tn = SampleNode('bar', SubSampleType.TECHNICAL_REPLICATE, 'foo')
     sn2 = SampleNode('baz')
     dup = SampleNode('foo')
+    d = dt(8)
 
     _sample_build_fail(
         [sn], 'a' * 256, IllegalParameterError('name exceeds maximum length of 255'))
@@ -154,9 +165,13 @@ def test_sample_build_fail():
     _sample_build_fail([sn2, tn], 'a', IllegalParameterError(
                         'Parent foo of node bar does not appear in node list prior to node.'))
 
-    _sample_with_id_build_fail(None, [sn], None, None,
+    _sample_with_id_build_fail(None, [sn], d, None, None,
                                ValueError('id_ cannot be a value that evaluates to false'))
-    _sample_with_id_build_fail(id_, [sn], None, 0, ValueError('version must be > 0'))
+    _sample_with_id_build_fail(id_, [sn], None, None, None, ValueError(
+                               'savetime cannot be a value that evaluates to false'))
+    _sample_with_id_build_fail(id_, [sn], datetime.datetime.now(), None, None, ValueError(
+                               'savetime cannot be a naive datetime'))
+    _sample_with_id_build_fail(id_, [sn], d, None, 0, ValueError('version must be > 0'))
 
 
 def test_sample_build_fail_sample_count():
@@ -167,9 +182,10 @@ def test_sample_build_fail_sample_count():
     assert s.name is None
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    s = SampleWithID(id_, nodes)
+    s = SampleWithID(id_, nodes, dt(8))
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
     assert s.nodes == tuple(nodes)
+    assert s.savetime == dt(8)
     assert s.name is None
     assert s.version is None
 
@@ -185,13 +201,13 @@ def _sample_build_fail(nodes, name, expected):
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     with raises(Exception) as got:
-        SampleWithID(id_, nodes, name)
+        SampleWithID(id_, nodes, dt(8), name)
     assert_exception_correct(got.value, expected)
 
 
-def _sample_with_id_build_fail(id_, nodes, name, version, expected):
+def _sample_with_id_build_fail(id_, nodes, savetime, name, version, expected):
     with raises(Exception) as got:
-        SampleWithID(id_, nodes, name, version)
+        SampleWithID(id_, nodes, savetime, name, version)
         Sample(nodes, name)
     assert_exception_correct(got.value, expected)
 
@@ -206,19 +222,22 @@ def test_sample_eq():
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+    dt1 = dt(5)
+    dt2 = dt(8)
 
-    assert SampleWithID(id1, [sn]) == SampleWithID(id1, [sn])
-    assert SampleWithID(id1, [sn]) != SampleWithID(id2, [sn])
-    assert SampleWithID(id1, [sn]) != SampleWithID(id1, [sn2])
+    assert SampleWithID(id1, [sn], dt1) == SampleWithID(id1, [sn], dt(5))
+    assert SampleWithID(id1, [sn], dt1) != SampleWithID(id2, [sn], dt1)
+    assert SampleWithID(id1, [sn], dt1) != SampleWithID(id1, [sn2], dt1)
+    assert SampleWithID(id1, [sn], dt1) != SampleWithID(id1, [sn], dt2)
 
-    assert SampleWithID(id1, [sn], 'yay') == SampleWithID(id1, [sn], 'yay')
-    assert SampleWithID(id1, [sn], 'yay') != SampleWithID(id1, [sn], 'yooo')
+    assert SampleWithID(id1, [sn], dt1, 'yay') == SampleWithID(id1, [sn], dt1, 'yay')
+    assert SampleWithID(id1, [sn], dt1, 'yay') != SampleWithID(id1, [sn], dt1, 'yooo')
 
-    assert SampleWithID(id1, [sn], 'yay', 6) == SampleWithID(id1, [sn], 'yay', 6)
-    assert SampleWithID(id1, [sn], 'yay', 6) != SampleWithID(id1, [sn], 'yay', 7)
+    assert SampleWithID(id1, [sn], dt2, 'yay', 6) == SampleWithID(id1, [sn], dt2, 'yay', 6)
+    assert SampleWithID(id1, [sn], dt1, 'yay', 6) != SampleWithID(id1, [sn], dt1, 'yay', 7)
 
-    assert SampleWithID(id1, [sn], 'yay') != Sample([sn], 'yay')
-    assert Sample([sn], 'yay') != SampleWithID(id1, [sn], 'yay')
+    assert SampleWithID(id1, [sn], dt1, 'yay') != Sample([sn], 'yay')
+    assert Sample([sn], 'yay') != SampleWithID(id1, [sn], dt1, 'yay')
 
 
 def test_sample_hash():
@@ -230,16 +249,21 @@ def test_sample_hash():
     sn2 = SampleNode('bar')
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+    dt1 = dt(5)
+    dt2 = dt(8)
 
     assert hash(Sample([sn], 'yay')) == hash(Sample([sn], 'yay'))
     assert hash(Sample([sn], 'foo')) == hash(Sample([sn], 'foo'))
     assert hash(Sample([sn], 'yay')) != hash(Sample([sn2], 'yay'))
     assert hash(Sample([sn], 'yay')) != hash(Sample([sn], 'yo'))
 
-    assert hash(SampleWithID(id1, [sn], 'yay')) == hash(SampleWithID(id1, [sn], 'yay'))
-    assert hash(SampleWithID(id2, [sn], 'foo')) == hash(SampleWithID(id2, [sn], 'foo'))
-    assert hash(SampleWithID(id1, [sn], 'foo')) != hash(SampleWithID(id2, [sn], 'foo'))
-    assert hash(SampleWithID(id2, [sn], 'foo')) != hash(SampleWithID(id2, [sn2], 'foo'))
-    assert hash(SampleWithID(id2, [sn], 'foo')) != hash(SampleWithID(id2, [sn], 'bar'))
-    assert hash(SampleWithID(id1, [sn], 'foo', 6)) == hash(SampleWithID(id1, [sn], 'foo', 6))
-    assert hash(SampleWithID(id1, [sn], 'foo', 6)) != hash(SampleWithID(id1, [sn], 'foo', 7))
+    assert hash(SampleWithID(id1, [sn], dt1, 'yay')) == hash(SampleWithID(id1, [sn], dt(5), 'yay'))
+    assert hash(SampleWithID(id2, [sn], dt1, 'foo')) == hash(SampleWithID(id2, [sn], dt1, 'foo'))
+    assert hash(SampleWithID(id1, [sn], dt1, 'foo')) != hash(SampleWithID(id2, [sn], dt1, 'foo'))
+    assert hash(SampleWithID(id2, [sn], dt1, 'foo')) != hash(SampleWithID(id2, [sn2], dt1, 'foo'))
+    assert hash(SampleWithID(id2, [sn], dt1, 'foo')) != hash(SampleWithID(id2, [sn], dt2, 'foo'))
+    assert hash(SampleWithID(id2, [sn], dt1, 'foo')) != hash(SampleWithID(id2, [sn], dt1, 'bar'))
+    assert hash(SampleWithID(id1, [sn], dt1, 'foo', 6)) == hash(SampleWithID(
+                                                                id1, [sn], dt1, 'foo', 6))
+    assert hash(SampleWithID(id1, [sn], dt1, 'foo', 6)) != hash(SampleWithID(
+                                                                id1, [sn], dt1, 'foo', 7))
