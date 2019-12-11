@@ -1,4 +1,3 @@
-
 import datetime
 import uuid
 import time
@@ -21,6 +20,7 @@ TEST_COL_VERSION = 'versions'
 TEST_COL_VER_EDGE = 'ver_to_sample'
 TEST_COL_NODES = 'nodes'
 TEST_COL_NODE_EDGE = 'node_edges'
+TEST_COL_SCHEMA = 'schema'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
@@ -50,7 +50,7 @@ def samplestorage(arango):
     return samplestorage_method(arango)
 
 
-def samplestorage_method(arango):
+def clear_db_and_recreate(arango):
     arango.clear_database(TEST_DB_NAME, drop_indexes=True)
     db = create_test_db(arango)
     db.create_collection(TEST_COL_SAMPLE)
@@ -58,13 +58,101 @@ def samplestorage_method(arango):
     db.create_collection(TEST_COL_VER_EDGE, edge=True)
     db.create_collection(TEST_COL_NODES)
     db.create_collection(TEST_COL_NODE_EDGE, edge=True)
+    db.create_collection(TEST_COL_SCHEMA)
+    return db
+
+
+def samplestorage_method(arango):
+    clear_db_and_recreate(arango)
     return ArangoSampleStorage(
         arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD),
         TEST_COL_SAMPLE,
         TEST_COL_VERSION,
         TEST_COL_VER_EDGE,
         TEST_COL_NODES,
-        TEST_COL_NODE_EDGE)
+        TEST_COL_NODE_EDGE,
+        TEST_COL_SCHEMA)
+
+
+def nw():
+    datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
+
+
+def test_startup_and_check_config_doc(samplestorage):
+    # this is very naughty
+    assert samplestorage._col_schema.count() == 1
+    cfgdoc = samplestorage._col_schema.find({}).next()
+    print(cfgdoc)
+    assert cfgdoc['_key'] == 'schema'
+    assert cfgdoc['schemaver'] == 1
+    assert cfgdoc['inupdate'] is False
+
+    # check startup works with cfg object in place
+    # this is also very naughty
+    ss = ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name)
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    n = SampleNode('rootyroot')
+    assert ss.save_sample('auser', SampleWithID(id_, [n], dt(1), 'foo')) is True
+    assert ss.get_sample(id_) == SampleWithID(id_, [n], dt(1), 'foo', version=1)
+
+
+def test_startup_with_extra_config_doc(arango):
+    db = clear_db_and_recreate(arango)
+
+    scol = db.collection('schema')
+    scol.insert_many([{'_key': 'schema', 'schemaver': 1, 'inupdate': False},
+                      {'schema': 'schema', 'schemaver': 2, 'inupdate': False}])
+
+    s = TEST_COL_SAMPLE
+    v = TEST_COL_VERSION
+    ve = TEST_COL_VER_EDGE
+    n = TEST_COL_NODES
+    ne = TEST_COL_NODE_EDGE
+    sc = TEST_COL_SCHEMA
+
+    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitException(
+        'Multiple config objects found ' +
+        'in the database. This should not happen, something is very wrong.'))
+
+
+def test_startup_with_bad_schema_version(arango):
+    db = clear_db_and_recreate(arango)
+    col = db.collection(TEST_COL_SCHEMA)
+    col.insert({'_key': 'schema', 'schemaver': 4, 'inupdate': False})
+
+    s = TEST_COL_SAMPLE
+    v = TEST_COL_VERSION
+    ve = TEST_COL_VER_EDGE
+    n = TEST_COL_NODES
+    ne = TEST_COL_NODE_EDGE
+    sc = TEST_COL_SCHEMA
+
+    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitException(
+        'Incompatible database schema. Server is v1, DB is v4'))
+
+
+def test_startup_in_update(arango):
+    db = clear_db_and_recreate(arango)
+    col = db.collection(TEST_COL_SCHEMA)
+    col.insert({'_key': 'schema', 'schemaver': 1, 'inupdate': True})
+
+    s = TEST_COL_SAMPLE
+    v = TEST_COL_VERSION
+    ve = TEST_COL_VER_EDGE
+    n = TEST_COL_NODES
+    ne = TEST_COL_NODE_EDGE
+    sc = TEST_COL_SCHEMA
+
+    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitException(
+        'The database is in the middle of an update from v1 of the schema. Aborting startup.'))
 
 
 def test_startup_with_unupdated_version_and_node_docs(samplestorage):
@@ -92,7 +180,8 @@ def test_startup_with_unupdated_version_and_node_docs(samplestorage):
         samplestorage._col_version.name,
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
-        samplestorage._col_node_edge.name)
+        samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name)
 
     assert samplestorage._col_version.count() == 1
     assert samplestorage._col_ver_edge.count() == 1
@@ -138,7 +227,8 @@ def test_startup_with_unupdated_node_docs(samplestorage):
         samplestorage._col_version.name,
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
-        samplestorage._col_node_edge.name)
+        samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name)
 
     assert samplestorage._col_version.count() == 2
     assert samplestorage._col_ver_edge.count() == 2
@@ -192,6 +282,7 @@ def test_startup_with_no_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(4600, tz=datetime.timezone.utc))
 
     assert samplestorage._col_version.count() == 2
@@ -207,6 +298,7 @@ def test_startup_with_no_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(4601, tz=datetime.timezone.utc))
 
     assert samplestorage._col_sample.count() == 1
@@ -268,6 +360,7 @@ def test_startup_with_no_version_in_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(5600, tz=datetime.timezone.utc))
 
     assert samplestorage._col_version.count() == 2
@@ -283,6 +376,7 @@ def test_startup_with_no_version_in_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(5601, tz=datetime.timezone.utc))
 
     assert samplestorage._col_version.count() == 1
@@ -307,18 +401,20 @@ def test_fail_startup_bad_args(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    sc = TEST_COL_SCHEMA
 
     def nw():
         datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
-    _fail_startup(None, s, v, ve, n, ne, nw,
+    _fail_startup(None, s, v, ve, n, ne, sc, nw,
                   ValueError('db cannot be a value that evaluates to false'))
-    _fail_startup(db, '', v, ve, n, ne, nw, MissingParameterError('sample_collection'))
-    _fail_startup(db, s, '', ve, n, ne, nw, MissingParameterError('version_collection'))
-    _fail_startup(db, s, v, '', n, ne, nw, MissingParameterError('version_edge_collection'))
-    _fail_startup(db, s, v, ve, '', ne, nw, MissingParameterError('node_collection'))
-    _fail_startup(db, s, v, ve, n, '', nw, MissingParameterError('node_edge_collection'))
-    _fail_startup(db, s, v, ve, n, ne, None,
+    _fail_startup(db, '', v, ve, n, ne, sc, nw, MissingParameterError('sample_collection'))
+    _fail_startup(db, s, '', ve, n, ne, sc, nw, MissingParameterError('version_collection'))
+    _fail_startup(db, s, v, '', n, ne, sc, nw, MissingParameterError('version_edge_collection'))
+    _fail_startup(db, s, v, ve, '', ne, sc, nw, MissingParameterError('node_collection'))
+    _fail_startup(db, s, v, ve, n, '', sc, nw, MissingParameterError('node_edge_collection'))
+    _fail_startup(db, s, v, ve, n, ne, '', nw, MissingParameterError('schema_collection'))
+    _fail_startup(db, s, v, ve, n, ne, sc, None,
                   ValueError('now cannot be a value that evaluates to false'))
 
 
@@ -332,25 +428,39 @@ def test_fail_startup_incorrect_collection_type(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    sc = TEST_COL_SCHEMA
 
     def nw():
         datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
-    _fail_startup(db, 'sampleedge', v, ve, n, ne, nw, StorageInitException(
+    _fail_startup(db, 'sampleedge', v, ve, n, ne, sc, nw, StorageInitException(
         'sample collection sampleedge is not a vertex collection'))
-    _fail_startup(db, s, ve, ve, n, ne, nw, StorageInitException(
+    _fail_startup(db, s, ve, ve, n, ne, sc, nw, StorageInitException(
                   'version collection ver_to_sample is not a vertex collection'))
-    _fail_startup(db, s, v, v, n, ne, nw, StorageInitException(
+    _fail_startup(db, s, v, v, n, ne, sc, nw, StorageInitException(
                   'version edge collection versions is not an edge collection'))
-    _fail_startup(db, s, v, ve, ne, ne, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, ne, ne, sc, nw, StorageInitException(
                   'node collection node_edges is not a vertex collection'))
-    _fail_startup(db, s, v, ve, n, n, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, n, n, sc, nw, StorageInitException(
                   'node edge collection nodes is not an edge collection'))
+    _fail_startup(db, s, v, ve, n, ne, ne, nw, StorageInitException(
+                  'schema collection node_edges is not a vertex collection'))
 
 
-def _fail_startup(db, colsample, colver, colveredge, colnode, colnodeedge, now, expected):
+def _fail_startup(
+        db,
+        colsample,
+        colver,
+        colveredge,
+        colnode,
+        colnodeedge,
+        colschema,
+        now,
+        expected):
+
     with raises(Exception) as got:
-        ArangoSampleStorage(db, colsample, colver, colveredge, colnode, colnodeedge, now=now)
+        ArangoSampleStorage(
+            db, colsample, colver, colveredge, colnode, colnodeedge, colschema, now=now)
     assert_exception_correct(got.value, expected)
 
 
