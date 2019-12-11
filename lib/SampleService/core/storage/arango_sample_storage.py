@@ -11,6 +11,7 @@ import uuid as _uuid
 from typing import List as _List, cast as _cast, Optional as _Optional, Callable
 
 from uuid import UUID
+from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
 from SampleService.core.sample import SampleWithID
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
@@ -48,11 +49,11 @@ _FLD_ADMIN = 'admin'
 
 _FLD_VERSIONS = 'vers'
 
+_JOB_ID = 'consistencyjob'
+
 # Future programmers: This application is designed to be run in a sharded environment, so new
 # unique indexes CANNOT be added unless the shard key is switched from _key to the new field.
 
-# TODO transaction pt1 on startup, check for missing int vers on nodes & versions & fix (log).
-# TODO transaction pt2 delete any docs > 1 hr old w/ ver uuids not in uuid list for sample doc
 # TODO check schema
 
 # TODO document that collections are never created so that admins can set sharding
@@ -79,6 +80,9 @@ class ArangoSampleStorage:
                 tz=datetime.timezone.utc)):
         '''
         Create the wrapper.
+        Note that the database consistency checker will not start until the
+        start_consistency_checker() method is called.
+
         :param db: the ArangoDB database in which data will be stored.
         :param sample_collection: the name of the collection in which to store sample documents.
         :param version_collection: the name of the collection in which to store sample version
@@ -111,6 +115,7 @@ class ArangoSampleStorage:
         self._ensure_indexes()
         self._deletion_delay = datetime.timedelta(hours=1)  # make configurable?
         self._check_db_updated()
+        self._scheduler = self._build_scheduler()
 
     def _ensure_indexes(self):
         try:
@@ -169,6 +174,30 @@ class ArangoSampleStorage:
                 # this is a real pain to test.
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
+    def _build_scheduler(self):
+        schd = _BackgroundScheduler()
+        schd.add_job(self._check_db_updated, 'interval', seconds=1, id=_JOB_ID)
+        schd.start(paused=True)
+        return schd
+
+    def start_consistency_checker(self, interval_sec=60):
+        '''
+        Start the database consistency checker. In production use the consistency checker
+        should always be on.
+
+        :param interval_ms: How frequently to run the scheduler in seconds. Defaults to one minute.
+        '''
+        if interval_sec < 1:
+            raise ValueError('interval_sec must be > 0')
+        self._scheduler.reschedule_job(_JOB_ID, trigger='interval', seconds=interval_sec)
+        self._scheduler.resume()
+
+    def stop_consistency_checker(self):
+        '''
+        Stop the consistency checker.
+        '''
+        self._scheduler.pause()
+
     def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
         '''
         Save a new sample. The version in the sample object, if any, is ignored.
@@ -217,9 +246,6 @@ class ArangoSampleStorage:
             else:  # this is a real pain to test.
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         self._update_version_and_node_docs(sample, versionid, 1)
-
-        # TODO DBFIX PT1 add thread to check for missing versions & fix
-        # TODO DBFIX PT2 or del if no version in root doc & > 1hr old
         return True
 
     def _update_version_and_node_docs(self, sample: SampleWithID, versionid: UUID, version: int):
@@ -273,7 +299,7 @@ class ArangoSampleStorage:
                      }
             nodedocs.append(ndoc)
             nodeedgedocs.append(nedoc)
-        self._insert_many(self._col_nodes, nodedocs)  # TODO test documents are correct
+        self._insert_many(self._col_nodes, nodedocs)
         # TODO this actually isn't tested by anything since we're not doing traversals yet, but
         # it will be
         self._insert_many(self._col_node_edge, nodeedgedocs)
@@ -287,7 +313,7 @@ class ArangoSampleStorage:
                   _FLD_NAME: sample.name
                   # TODO description
                   }
-        self._insert(self._col_version, verdoc)  # TODO test documents are correct
+        self._insert(self._col_version, verdoc)
 
         # TODO this actually isn't tested by anything since we're not doing traversals yet, but
         # it will be
