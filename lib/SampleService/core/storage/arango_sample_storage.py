@@ -2,6 +2,64 @@
 An ArangoDB based storage system for the Sample service.
 '''
 
+
+#                          READ BEFORE CHANGING STUFF
+#
+# There are a number of specialized steps that take place in the
+# sample saving process and sample access process in order to ensure a consistent db state.
+#
+# The process is:
+# 1) save all the node documents with the integer version = -1 and a UUID version.
+# 2) save all the node edges.
+# 3) save the version document with the integer version = -1 and the same UUID version.
+# 4) save all the version edges.
+# 5) if a new sample:
+#        save the sample document with the UUID version in the ordered version list.
+#    else:
+#        add the UUID version to the end of the sample document's version list.
+# 6) Update the integer version on the node documents.
+# 7) Update the integer version on the version document.
+#
+# When accessing data, the data access methods should look for versions == -1 and correct the
+# database appropriately:
+#
+# * If the UUID version exists in the sample document version list,
+#   set the node and version documents for that UUID version to the index position + 1 of the UUID
+#   version in the sample document version list.
+#
+# * If not or if the sample document does not exist at all *AND* an amount time has
+#   passed such that it is reasonable that another process saving the sample has completed
+#   (hardcoded to 1h at the time of this writing), delete all the nodes and the version document
+#   with the corresponding UUID version.
+#
+# This process means that if a server or the database goes down in the middle of a write, it
+# is always possible to correct the database as long as one server is running.
+#
+# The server runs correction code on startup and every minute if start_consistency_checker is
+# called with default arguments.
+#
+# There are two choices for how to deal with node and version documents with an integer version
+# of -1 in new code:
+# 1) Fix it. This is what get_sample() does - take a look at that code for an example.
+# 2) Ignore any documents (and their respective edges) with a -1 version. Effectively, they
+#    currently don't exist in the db. In time, they'll be removed or updated to the correct
+#    version but the current process doesn't care.
+#
+#  DO NOT expose documents containing a -1 version outside the db API.
+#
+# Alternatives considered (not exhaustive):
+# * Just autoincrement the version in the sample document and then save the version and node docs.
+#   This is simpler, but since the autoincrement has to happen first, if the save fails there
+#   could be missing nodes or the version could be missing entirely, and so effectively a
+#   dangling pointer is created.
+# * Use transactions.
+#   Unfortunately transactions aren't atomic in a sharded cluster as of arango 3.5:
+#   https://www.arangodb.com/docs/stable/transactions-limitations.html#in-clusters
+#
+
+# Future programmers: This application is designed to be run in a sharded environment, so new
+# unique indexes CANNOT be added unless the shard key is switched from _key to the new field.
+
 # may need to extract an interface at some point, YAGNI for now.
 
 import arango as _arango
@@ -51,16 +109,7 @@ _FLD_VERSIONS = 'vers'
 
 _JOB_ID = 'consistencyjob'
 
-# Future programmers: This application is designed to be run in a sharded environment, so new
-# unique indexes CANNOT be added unless the shard key is switched from _key to the new field.
-
 # TODO check schema
-
-# TODO document that collections are never created so that admins can set sharding
-
-# Notes for calling classes:
-# a sample doc could still be added after this, so we need to save and expect a duplicate
-# to occur, in which case we check perms and fail if no perms.
 
 
 class ArangoSampleStorage:
