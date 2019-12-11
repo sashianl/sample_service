@@ -79,7 +79,7 @@ from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
-from SampleService.core.storage.errors import StorageInitException as _StorageInitExecption
+from SampleService.core.storage.errors import StorageInitException as _StorageInitException
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ARANGO_FROM = '_from'
@@ -109,7 +109,16 @@ _FLD_VERSIONS = 'vers'
 
 _JOB_ID = 'consistencyjob'
 
-# TODO check schema
+# schema version checking constants.
+
+# the current version of the database schema.
+_SCHEMA_VERSION = 1
+# the value for the schema key.
+_SCHEMA_VALUE = 'schema'
+# whether the schema is in the process of an update. Value is a boolean.
+_FLD_SCHEMA_UPDATE = 'inupdate'
+# the version of the schema. Value is _SCHEMA_VERSION.
+_FLD_SCHEMA_VERSION = 'schemaver'
 
 
 class ArangoSampleStorage:
@@ -125,6 +134,7 @@ class ArangoSampleStorage:
             version_edge_collection: str,
             node_collection: str,
             node_edge_collection: str,
+            schema_collection: str,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc)):
         '''
@@ -161,7 +171,10 @@ class ArangoSampleStorage:
             db, node_collection, 'node collection', 'node_collection')
         self._col_node_edge = _init_collection(
             db, node_edge_collection, 'node edge collection', 'node_edge_collection', edge=True)
+        self._col_schema = _init_collection(
+            db, schema_collection, 'schema collection', 'schema_collection')
         self._ensure_indexes()
+        self._check_schema()
         self._deletion_delay = datetime.timedelta(hours=1)  # make configurable?
         self._check_db_updated()
         self._scheduler = self._build_scheduler()
@@ -176,6 +189,36 @@ class ArangoSampleStorage:
             self._col_nodes.add_persistent_index([_FLD_VER])  # partial index would be useful
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _check_schema(self):
+        col = self._col_schema
+        try:
+            col.insert({_FLD_ARANGO_KEY: _SCHEMA_VALUE,
+                        _FLD_SCHEMA_UPDATE: False,
+                        _FLD_SCHEMA_VERSION: _SCHEMA_VERSION})
+        except _arango.exceptions.DocumentInsertError as e:
+            if e.error_code != 1210:  # unique constraint violation code
+                # this is a real pain to test
+                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        # ok, the schema version document is already there, this isn't the first time this
+        # database as been used. Now check the document is ok.
+        try:
+            if col.count() != 1:
+                raise _StorageInitException(
+                    'Multiple config objects found in the database. ' +
+                    'This should not happen, something is very wrong.')
+            cfgdoc = col.get(_SCHEMA_VALUE)
+            if cfgdoc[_FLD_SCHEMA_VERSION] != _SCHEMA_VERSION:
+                raise _StorageInitException(
+                    f'Incompatible database schema. Server is v{_SCHEMA_VERSION}, ' +
+                    f'DB is v{cfgdoc[_FLD_SCHEMA_VERSION]}')
+            if cfgdoc[_FLD_SCHEMA_UPDATE]:
+                raise _StorageInitException(
+                    'The database is in the middle of an update from ' +
+                    f'v{cfgdoc[_FLD_SCHEMA_VERSION]} of the schema. Aborting startup.')
+        except _arango.exceptions.ArangoServerError as e:
+            # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _check_db_updated(self):
@@ -589,5 +632,5 @@ def _init_collection(database, collection, collection_name, collection_variable_
     c = database.collection(_check_string(collection, collection_variable_name))
     if not c.properties()['edge'] is edge:  # this is a http call
         ctype = 'an edge' if edge else 'a vertex'
-        raise _StorageInitExecption(f'{collection_name} {collection} is not {ctype} collection')
+        raise _StorageInitException(f'{collection_name} {collection} is not {ctype} collection')
     return c
