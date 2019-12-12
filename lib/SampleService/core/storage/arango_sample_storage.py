@@ -71,6 +71,7 @@ from typing import List as _List, cast as _cast, Optional as _Optional, Callable
 from uuid import UUID
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
+from SampleService.core.acls import SampleACL
 from SampleService.core.sample import SampleWithID
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
@@ -604,7 +605,7 @@ class ArangoSampleStorage:
             return None
         return doc
 
-    def get_sample_acls(self, id_: UUID):
+    def get_sample_acls(self, id_: UUID) -> SampleACL:
         '''
         Get a sample's acls from the database.
         :param id_: the ID of the sample.
@@ -615,14 +616,7 @@ class ArangoSampleStorage:
         # return no class for now, might need later
         doc = _cast(dict, self._get_sample_doc(id_))
         acls = doc[_FLD_ACLS]
-        # this is kind of redundant, but makes it easier to change the keys later
-        # if we want to change the api
-        return {
-            _FLD_OWNER: acls[_FLD_OWNER],
-            _FLD_ADMIN: acls[_FLD_ADMIN],
-            _FLD_WRITE: acls[_FLD_WRITE],
-            _FLD_READ: acls[_FLD_READ],
-        }
+        return SampleACL(acls[_FLD_OWNER], acls[_FLD_ADMIN], acls[_FLD_WRITE], acls[_FLD_READ])
 
     # TODO change acls
 
