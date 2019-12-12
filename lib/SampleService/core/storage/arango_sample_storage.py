@@ -255,6 +255,7 @@ class ArangoSampleStorage:
 
     def _delete_version_and_node_docs(self, uuidver, savedate, deletion_delay):
         if self._now() - savedate > self._deletion_delay:
+            print('deleting docs', self._now(), savedate, self._deletion_delay)
             try:
                 # TODO logging
                 # delete edge docs first to ensure we don't orphan them
@@ -312,7 +313,6 @@ class ArangoSampleStorage:
     # this method is separated so we can test the race condition case where a sample with the
     # same ID is saved after the check above.
     def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
-        # TODO explain why save works as it does, including versioning
 
         versionid = _uuid.uuid4()
 
