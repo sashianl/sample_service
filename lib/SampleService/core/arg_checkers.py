@@ -3,7 +3,7 @@ Contains various miscellaneous utilies such as argument checkers.
 '''
 
 import unicodedata
-from typing import Optional
+from typing import Optional, Iterable, Any
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 
@@ -18,6 +18,23 @@ def not_falsy(item, item_name: str):
     if not item:
         raise ValueError(f'{item_name} cannot be a value that evaluates to false')
     return item
+
+
+def not_falsy_in_iterable(iterable: Iterable[Any], name: str) -> Iterable[Any]:
+    '''
+    Check that an iterable is not None and contains no falsy items. Empty iterables are accepted.
+
+    :param iterable: the iterable to check.
+    :param name: the name of the iterable to be used in error messages.
+    :returns: the iterable.
+    :raises ValueError: if the iterable is None or contains falsy items.
+    '''
+    # probably need to allow for 0 as a n option
+    if iterable is None:
+        raise ValueError(f'{name} cannot be None')
+    for i, item in enumerate(iterable):
+        not_falsy(item, f'Index {i} of iterable {name}')
+    return iterable
 
 
 def _contains_control_characters(string: str) -> bool:
