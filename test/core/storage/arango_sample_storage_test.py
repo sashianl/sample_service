@@ -906,3 +906,38 @@ def test_get_sample_acls_fail_no_sample(samplestorage):
         samplestorage.get_sample_acls(uuid.UUID('1234567890abcdef1234567890abcdea'))
     assert_exception_correct(
         got.value, NoSuchSampleError('12345678-90ab-cdef-1234-567890abcdea'))
+
+
+def test_replace_sample_acls(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        'newuser', ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
+
+    assert samplestorage.get_sample_acls(id_) == SampleACL(
+        'newuser', ['foo', 'bar'], ['baz', 'bat'], ['whoo'])
+
+
+def test_replace_sample_acls_fail_bad_args(samplestorage):
+    with raises(Exception) as got:
+        samplestorage.replace_sample_acls(None, SampleACL('a'))
+    assert_exception_correct(got.value, ValueError(
+        'id_ cannot be a value that evaluates to false'))
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    with raises(Exception) as got:
+        samplestorage.replace_sample_acls(id_, None)
+    assert_exception_correct(got.value, ValueError(
+        'acls cannot be a value that evaluates to false'))
+
+
+def test_replace_sample_acls_fail_no_sample(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id1, [TEST_NODE], dt(1), 'foo')) is True
+
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
+
+    with raises(Exception) as got:
+        samplestorage.replace_sample_acls(id2, SampleACL('foo'))
+    assert_exception_correct(got.value, NoSuchSampleError(str(id2)))

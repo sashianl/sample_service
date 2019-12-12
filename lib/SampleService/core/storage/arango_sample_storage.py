@@ -618,7 +618,30 @@ class ArangoSampleStorage:
         acls = doc[_FLD_ACLS]
         return SampleACL(acls[_FLD_OWNER], acls[_FLD_ADMIN], acls[_FLD_WRITE], acls[_FLD_READ])
 
-    # TODO change acls
+    def replace_sample_acls(self, id_: UUID, acls: SampleACL):
+        '''
+        Completely replace a sample's ACLs.
+
+        :param id_: the sample's ID.
+        :param acls: the new ACLs.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        '''
+        doc = {_FLD_ARANGO_KEY: str(_not_falsy(id_, 'id_')),
+               _FLD_ACLS: {_FLD_OWNER: _not_falsy(acls, 'acls').owner,
+                           _FLD_ADMIN: acls.admin,
+                           _FLD_WRITE: acls.write,
+                           _FLD_READ: acls.read}
+               }
+        try:
+            self._col_sample.update(doc, silent=True)
+        except _arango.exceptions.DocumentUpdateError as e:
+            if e.error_code == 1202:  # doc not found code
+                raise _NoSuchSampleError(str(id_))
+            # this is a real pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    # TODO change acls with more granularity
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped
