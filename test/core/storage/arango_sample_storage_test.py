@@ -565,6 +565,12 @@ def test_consistency_checker_run(samplestorage):
 
     assert samplestorage._col_nodes.find({'uuidver': uuidver2, 'name': 'kid2'}).next()['ver'] == 2
 
+    # leaving the checker running can occasionally interfere with other tests, deleting documents
+    # that are in the middle of the save process. Stop the checker and wait until the job must've
+    # run.
+    samplestorage.stop_consistency_checker()
+    time.sleep(1)
+
 
 def dt(timestamp):
     return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
