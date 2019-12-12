@@ -6,6 +6,7 @@ from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
 from core.arango_controller import ArangoController
+from SampleService.core.acls import SampleACL
 from SampleService.core.sample import SampleWithID, SampleNode, SubSampleType
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
 from SampleService.core.errors import NoSuchSampleVersionError
@@ -589,8 +590,7 @@ def test_save_and_get_sample(samplestorage):
 
     assert samplestorage.get_sample(id_) == SampleWithID(id_, [n1, n2, n3, n4], dt(8), 'foo', 1)
 
-    assert samplestorage.get_sample_acls(id_) == {
-        'owner': 'auser', 'admin': [], 'write': [], 'read': []}
+    assert samplestorage.get_sample_acls(id_) == SampleACL('auser')
 
 
 def test_save_sample_fail_bad_input(samplestorage):
