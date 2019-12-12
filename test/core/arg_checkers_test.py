@@ -1,6 +1,6 @@
 from pytest import raises
 from core.test_utils import assert_exception_correct
-from SampleService.core.arg_checkers import check_string, not_falsy
+from SampleService.core.arg_checkers import check_string, not_falsy, not_falsy_in_iterable
 from SampleService.core.errors import MissingParameterError, IllegalParameterError
 
 LONG_STRING = 'a' * 100
@@ -17,6 +17,31 @@ def test_falsy_fail():
             not_falsy(f, 'my name')
         assert_exception_correct(
             got.value, ValueError('my name cannot be a value that evaluates to false'))
+
+
+def test_falsy_in_iterable_true():
+    for t in [[], [1, 'a'], [True], [{'foo'}]]:
+        assert not_falsy_in_iterable(t, 'foo') is t
+
+
+def test_falsy_in_iterable_no_iterable():
+    with raises(Exception) as got:
+        not_falsy_in_iterable(None, 'whee')
+    assert_exception_correct(got.value, ValueError('whee cannot be None'))
+
+
+def test_falsy_in_iterable_false_insides():
+    for item, pos in [[['', 'bar'], 0],
+                      [['foo', 0], 1],
+                      [[True, True, False, True], 2],
+                      [[[]], 0],
+                      [[dict()], 0],
+                      [[{}], 0]
+                      ]:
+        with raises(Exception) as got:
+            not_falsy_in_iterable(item, 'my name')
+        assert_exception_correct(got.value, ValueError(
+            f'Index {pos} of iterable my name cannot be a value that evaluates to false'))
 
 
 def test_check_string():
