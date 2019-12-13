@@ -32,10 +32,15 @@ def _init_fail(storage, now, uuid_gen, expected):
 
 
 def test_save_sample():
+    _save_sample_with_name(None)
+    _save_sample_with_name('bar')
+
+
+def _save_sample_with_name(name):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     s = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
-    assert s.save_sample(Sample([SampleNode('foo')]), 'auser') == (UUID(
+    assert s.save_sample(Sample([SampleNode('foo')], name), 'auser') == (UUID(
         '1234567890abcdef1234567890abcdef'), 1)
 
     assert storage.save_sample.call_args_list == [
@@ -43,6 +48,7 @@ def test_save_sample():
           SampleWithID(UUID('1234567890abcdef1234567890abcdef'),
                        [SampleNode('foo')],
                        datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
+                       name
                        )
           ), {})]
 
