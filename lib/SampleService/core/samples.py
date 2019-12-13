@@ -82,8 +82,14 @@ class Samples:
             ver = 1
         return (id_, ver)
 
-    def _check_perms(self, id_: UUID, user: str, access: _SampleAccessType):
-        acls = self._storage.get_sample_acls(id_)
+    def _check_perms(
+            self,
+            id_: UUID,
+            user: str,
+            access: _SampleAccessType,
+            acls: SampleACL = None):
+        if not acls:
+            acls = self._storage.get_sample_acls(id_)
         if self._get_access_level(acls, user) < access:
             errmsg = f'User {user} {self._unauth_errmap[access]} sample {id_}'
             raise _UnauthorizedError(errmsg)
@@ -103,3 +109,39 @@ class Samples:
         if user in acls.read:
             return _SampleAccessType.READ
         return _SampleAccessType.NONE
+
+    def get_sample(self, id_: UUID, user: str, version: int = None) -> SampleWithID:
+        '''
+        Get a sample.
+        :param id_: the ID of the sample.
+        :param user: the username of the user getting the sample.
+        :param version: The version of the sample to retrieve. Defaults to the latest version.
+        :returns: the sample.
+        :raises IllegalParameterError: if version is supplied and is < 1
+        :raises UnauthorizedError: if the user does not have read permission for the sample.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        '''
+        # TODO get sample via a workspace object linking to it, SampleSet or linked object
+        if version is not None and version < 1:
+            raise _IllegalParameterError('Version must be > 0')
+        self._check_perms(_not_falsy(id_, 'id_'), _not_falsy(user, 'user'), _SampleAccessType.READ)
+        return self._storage.get_sample(id_, version)
+
+    def get_sample_acls(self, id_: UUID, user: str) -> SampleACL:
+        '''
+        Get a sample's acls.
+        :param id_: the ID of the sample.
+        :param user: the username of the user getting the acls.
+        :returns: the sample acls.
+        :raises UnauthorizedError: if the user does not have read permission for the sample.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        '''
+        _not_falsy(user, 'user')
+        acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
+        self._check_perms(id_, user, _SampleAccessType.READ, acls)
+        return acls
+
+# TODO set acl
