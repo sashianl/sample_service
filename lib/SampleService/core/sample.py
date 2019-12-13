@@ -81,6 +81,9 @@ class SampleNode:
         return hash((self.name, self.type, self.parent))
 
 
+# PrimitiveType = Union[str, int, float, bool]
+
+
 class Sample:
     '''
     A sample containing biological replicates, technical replicates, and sub samples.
@@ -89,7 +92,12 @@ class Sample:
     :ivar name: The name of the sample.
     '''
 
-    def __init__(self, nodes: List[SampleNode], name: Optional[str] = None):
+    def __init__(
+            self,
+            nodes: List[SampleNode],
+            name: Optional[str] = None,
+            # validated_metadata: Dict[str, (PrimitiveType, str)]
+            ):
         '''
         Create the the sample.
         :param nodes: The tree nodes in the sample. BIOLOGICAL_REPLICATES must come first in

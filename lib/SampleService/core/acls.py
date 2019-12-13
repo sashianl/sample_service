@@ -2,9 +2,22 @@
 Classes and methods for working with sample ACLs.
 '''
 
+from enum import IntEnum
+
 from typing import List
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
+
+
+class SampleAccessType(IntEnum):
+    '''
+    The different levels of sample access.
+    '''
+    NONE = 1
+    READ = 2,
+    WRITE = 3,
+    ADMIN = 4,
+    OWNER = 5
 
 
 class SampleACL:

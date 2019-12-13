@@ -1,9 +1,13 @@
 # Design
 * What are samples called? SampleReplicates?
+* Do we need replicate groups?
+  * Case where samples are functionally subsamples but cannot be produced from the same sample
+    as the experimental techniques don't allow it.
 
 # Functionality
 * Admin flags on ops
 * Search integration
+* Logging
 
 # Documentation
 * Document error codes

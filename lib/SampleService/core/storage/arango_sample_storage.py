@@ -153,8 +153,9 @@ class ArangoSampleStorage:
             will be stored.
         :param version_edges_collection: the name of the collection in which edges from sample
             nodes to sample nodes (or versions in the case of root nodes) will be stored.
-        :param now: A callable that returns the current time. Primarily used for testing.
         '''
+        # Don't publicize these params
+        # :param now: A callable that returns the current time. Primarily used for testing.
         # Maybe make a configuration class...?
         # TODO take workspace shadow object collection & check indexes exist, don't create
         _not_falsy(db, 'db')

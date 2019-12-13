@@ -76,7 +76,7 @@ def samplestorage_method(arango):
 
 
 def nw():
-    datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
+    return datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
 
 def test_startup_and_check_config_doc(samplestorage):

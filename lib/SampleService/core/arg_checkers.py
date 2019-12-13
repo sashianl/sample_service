@@ -3,11 +3,13 @@ Contains various miscellaneous utilies such as argument checkers.
 '''
 
 import unicodedata
-from typing import Optional, Iterable, Any
+from typing import Optional, Iterable, TypeVar
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
+T = TypeVar('T')
 
-def not_falsy(item, item_name: str):
+
+def not_falsy(item: T, item_name: str) -> T:
     '''
     Check if a value is falsy and throw and exception if so.
     :param item: the item to check for falsiness.
@@ -20,7 +22,7 @@ def not_falsy(item, item_name: str):
     return item
 
 
-def not_falsy_in_iterable(iterable: Iterable[Any], name: str) -> Iterable[Any]:
+def not_falsy_in_iterable(iterable: Iterable[T], name: str) -> Iterable[T]:
     '''
     Check that an iterable is not None and contains no falsy items. Empty iterables are accepted.
 
