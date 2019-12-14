@@ -129,3 +129,127 @@ def _save_sample_fail(samples, sample, user, id_, prior_version, expected):
     with raises(Exception) as got:
         samples.save_sample(sample, user, id_, prior_version)
     assert_exception_correct(got.value, expected)
+
+
+def test_get_sample():
+    # sample versions other than 4 don't really make sense but the mock doesn't care
+    _get_sample('someuser', None)
+    _get_sample('otheruser', None)
+    _get_sample('anotheruser', None)
+    _get_sample('x', None)
+
+
+def _get_sample(user, version):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(
+        'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
+
+    storage.get_sample.return_value = SampleWithID(
+        UUID('1234567890abcdef1234567890abcdea'),
+        [SampleNode('foo')],
+        datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
+        'bar',
+        4)
+
+    assert samples.get_sample(
+        UUID('1234567890abcdef1234567890abcdea'), user, version) == SampleWithID(
+            UUID('1234567890abcdef1234567890abcdea'),
+            [SampleNode('foo')],
+            datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
+            'bar',
+            4)
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcdea'),), {})]
+
+    assert storage.get_sample.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcdea'), version), {})]
+
+
+def test_get_sample_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcdef')
+
+    _get_sample_fail(samples, None, 'foo', 1, ValueError(
+        'id_ cannot be a value that evaluates to false'))
+    _get_sample_fail(samples, id_, '', 1, ValueError(
+        'user cannot be a value that evaluates to false'))
+    _get_sample_fail(samples, id_, 'a', 0, IllegalParameterError('Version must be > 0'))
+
+
+def test_get_sample_fail_unauthorized():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(
+        'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
+
+    _get_sample_fail(
+        samples, UUID('1234567890abcdef1234567890abcdef'), 'y', 3,
+        UnauthorizedError('User y cannot read sample 12345678-90ab-cdef-1234-567890abcdef'))
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcdef'),), {})]
+
+
+def _get_sample_fail(samples, id_, user, version, expected):
+    with raises(Exception) as got:
+        samples.get_sample(id_, user, version)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_sample_acls():
+    _get_sample_acls('someuser')
+    _get_sample_acls('otheruser')
+    _get_sample_acls('anotheruser')
+    _get_sample_acls('x')
+
+
+def _get_sample_acls(user):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    storage.get_sample_acls.return_value = SampleACL(
+        'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
+
+    assert samples.get_sample_acls(id_, user) == SampleACL(
+        'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])\
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),), {})]
+
+
+def test_get_sample_acls_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcdef')
+
+    _get_sample_acls_fail(samples, None, 'foo', ValueError(
+        'id_ cannot be a value that evaluates to false'))
+    _get_sample_acls_fail(samples, id_, '', ValueError(
+        'user cannot be a value that evaluates to false'))
+
+
+def test_get_sample_acls_fail_unauthorized():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(
+        'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
+
+    _get_sample_acls_fail(
+        samples, UUID('1234567890abcdef1234567890abcdea'), 'y',
+        UnauthorizedError('User y cannot read sample 12345678-90ab-cdef-1234-567890abcdea'))
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcdea'),), {})]
+
+
+def _get_sample_acls_fail(samples, id_, user, expected):
+    with raises(Exception) as got:
+        samples.get_sample_acls(id_, user)
+    assert_exception_correct(got.value, expected)

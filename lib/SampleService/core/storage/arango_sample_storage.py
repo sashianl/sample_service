@@ -610,7 +610,7 @@ class ArangoSampleStorage:
         '''
         Get a sample's acls from the database.
         :param id_: the ID of the sample.
-        :returns: the sample acls as a dict.
+        :returns: the sample acls.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
