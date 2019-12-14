@@ -95,7 +95,7 @@ class Samples:
             raise _UnauthorizedError(errmsg)
 
     _unauth_errmap = {_SampleAccessType.OWNER: 'does not own',
-                      _SampleAccessType.ADMIN: 'cannot adminstrate',
+                      _SampleAccessType.ADMIN: 'cannot administrate',
                       _SampleAccessType.WRITE: 'cannot write to',
                       _SampleAccessType.READ: 'cannot read'}
 
@@ -144,4 +144,24 @@ class Samples:
         self._check_perms(id_, user, _SampleAccessType.READ, acls)
         return acls
 
-# TODO set acl
+    def replace_sample_acls(self, id_: UUID, user: str, new_acls: SampleACL) -> None:
+        '''
+        Completely replace a sample's ACLs. The owner cannot be changed.
+
+        :param id_: the sample's ID.
+        :param user: the user changing the ACLs.
+        :param new_acls: the new ACLs.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises UnauthorizedError: if the user does not have admin permission for the sample or
+            the request attempts to change the owner.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        '''
+        _not_falsy(user, 'user')
+        _not_falsy(new_acls, 'new_acls')
+        acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
+        self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
+        if new_acls.owner != acls.owner:
+            raise _UnauthorizedError('The sample owner currently cannot be changed.')
+        self._storage.replace_sample_acls(id_, new_acls)
+
+    # TODO change owner. Probably needs a request/accept flow.
