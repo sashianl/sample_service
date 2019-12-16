@@ -1,6 +1,18 @@
 # -*- coding: utf-8 -*-
 #BEGIN_HEADER
 # TODO TESTS
+import arango as _arango
+
+from SampleService.core.samples import Samples as _Samples
+from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
+    as _ArangoSampleStorage
+from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.errors import MissingParameterError as _MissingParameterError
+from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
+from SampleService.core.sample import SampleNode as _SampleNode, Sample as _Sample
+from SampleService.core.sample import SubSampleType as _SubSampleType
+
+from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
 #END_HEADER
 
 
@@ -23,7 +35,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     ######################################### noqa
     VERSION = "0.1.0-alpha1"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "ab5442e49f1447457426d07dad1b076c29d9cdf7"
+    GIT_COMMIT_HASH = "1419d46f854f994ce12461311cbad707daaf5791"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -32,10 +44,36 @@ Handles creating, updating, retriving samples and linking data to samples.
     # be found
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
-        
+        arango_url = _check_string(config['arango-url'], 'config param arango-url')
+        arango_db = _check_string(config['arango-db'], 'config param arango-db')
+        arango_user = _check_string(config['arango-user'], 'config param arango-user')
+        arango_pwd = _check_string(config['arango-pwd'], 'config param arango-pwd')
+
+        col_sample = _check_string(config['sample-collection'], 'config param sample-collection')
+        col_version = _check_string(
+            config['version-collection'], 'config param version-collection')
+        col_ver_edge = _check_string(
+            config['version-edge-collection'], 'config param version-edge-collection')
+        col_node = _check_string(config['node-collection'], 'config param node-collection')
+        col_node_edge = _check_string(
+            config['node-edge-collection'], 'config param node-edge-collection')
+        col_schema = _check_string(config['schema-collection'], 'config param schema-collection')
+
+        arangoclient = _arango.ArangoClient(hosts=arango_url)
+        arango_db = arangoclient.db(
+            arango_db, username=arango_user, password=arango_pwd, verify=True)
+        storage = _ArangoSampleStorage(
+            arango_db,
+            col_sample,
+            col_version,
+            col_ver_edge,
+            col_node,
+            col_node_edge,
+            col_schema,
+        )
+        self._samples = _Samples(storage)
         #END_CONSTRUCTOR
         pass
-
 
     def create_sample(self, ctx, params):
         """
@@ -102,7 +140,26 @@ Handles creating, updating, retriving samples and linking data to samples.
         # ctx is the context object
         # return variables are: address
         #BEGIN create_sample
-        address = {'id': 'foo', 'version': 1}
+        # TODO move this stuff into helper class that can be tested independently
+        if type(params.get('sample')) != dict:
+            raise _IllegalParameterError('sample must be a mapping')
+        s = params['sample']
+        if type(s.get('nodes')) != list:
+            raise _MissingParameterError('sample nodes must be a list')
+        nodes = []
+        for n in s['nodes']:
+            # TODO error handling for bad types, bad subsampletype
+            # TODO improve error messages
+            type_ = _SubSampleType[n.get('type')]
+            nodes.add(_SampleNode(n.get('id'), type_, parent=n.get('parent')))
+        id_ = _get_id_from_object(s)
+
+        pv = s.get('prior_version')
+        if pv is not None and type(pv) != int:
+            raise _IllegalParameterError('prior_version must be an integer if supplied')
+        s = _Sample(nodes, s.get('name'))  # TODO error handling
+        ret = self._samples.save_sample(s, ctx['user'], id_, pv)
+        address = {'id': ret[0], 'version': ret[1]}
         #END create_sample
 
         # At some point might do deeper type checking...
@@ -169,6 +226,17 @@ Handles creating, updating, retriving samples and linking data to samples.
         # ctx is the context object
         # return variables are: sample
         #BEGIN get_sample
+        id_ = _get_id_from_object(params)
+        ver = params.get('version')
+        if ver is not None and type(ver) != int or ver < 1:
+            raise _IllegalParameterError(f'Illegal version argument: {ver}')
+        s = self._samples.get_sample(id_, ctx['user'], ver)
+        nodes = [{'id': n.name, 'type': n.type.value, 'parent': n.parent} for n in s.nodes]
+        sample = {'id': str(s.id),
+                  'name': s.name,
+                  'node_tree': nodes,
+                  'save_date': s.savetime.timestamp(),  # TODO to epoch seconds
+                  'version': s.version}
         #END get_sample
 
         # At some point might do deeper type checking...
@@ -177,6 +245,7 @@ Handles creating, updating, retriving samples and linking data to samples.
                              'sample is not type dict as required.')
         # return the results
         return [sample]
+
     def status(self, ctx):
         #BEGIN_STATUS
         returnVal = {'state': "OK",

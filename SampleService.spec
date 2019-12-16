@@ -9,14 +9,7 @@ module SampleService {
     /* A timestamp in epoch milliseconds. */
     typedef int timestamp;
 
-    /* A key in a metadata key/value pair. Less than 1000 unicode characters. */
-    typedef string metadata_key;
-
-    /* A key for a value associated with a piece of metadata. Less than 1000 unicode characters.
-        Examples: units, value, species   
-     */
-    typedef string metadata_value_key;
-    
+   
     /* A SampleNode ID. Must be unique within a Sample and be less than 255 characters.
      */
     typedef string node_id;
@@ -36,6 +29,14 @@ module SampleService {
 
     /* The version of a sample. Always > 0. */
     typedef int version;
+
+    /* A key in a metadata key/value pair. Less than 1000 unicode characters. */
+    typedef string metadata_key;
+
+    /* A key for a value associated with a piece of metadata. Less than 1000 unicode characters.
+        Examples: units, value, species   
+     */
+    typedef string metadata_value_key;
 
     /* Metadata attached to a sample.
         The UnspecifiedObject map values MUST be a primitive type - either int, float, or string.
