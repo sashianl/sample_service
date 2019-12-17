@@ -166,7 +166,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         for n in s['node_tree']:
             # TODO error handling for bad types, bad subsampletype
             # TODO improve error messages
-            type_ = _SubSampleType[n.get('type')]
+            type_ = _SubSampleType(n.get('type'))
             nodes.add(_SampleNode(n.get('id'), type_, parent=n.get('parent')))
         id_ = _get_id_from_object(s)
 
