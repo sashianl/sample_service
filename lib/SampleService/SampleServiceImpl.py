@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 #BEGIN_HEADER
 # TODO TESTS
+
+# TODO add version method
 import arango as _arango
 
 from SampleService.core.samples import Samples as _Samples
@@ -76,7 +78,6 @@ Handles creating, updating, retriving samples and linking data to samples.
         arangoclient = _arango.ArangoClient(hosts=arango_url)
         arango_db = arangoclient.db(
             arango_db, username=arango_user, password=arango_pwd, verify=True)
-        print(arango_db.collections())
         storage = _ArangoSampleStorage(
             arango_db,
             col_sample,
@@ -159,10 +160,10 @@ Handles creating, updating, retriving samples and linking data to samples.
         if type(params.get('sample')) != dict:
             raise _IllegalParameterError('sample must be a mapping')
         s = params['sample']
-        if type(s.get('nodes')) != list:
-            raise _MissingParameterError('sample nodes must be a list')
+        if type(s.get('node_tree')) != list:
+            raise _MissingParameterError('sample node tree must be a list')
         nodes = []
-        for n in s['nodes']:
+        for n in s['nodes_tree']:
             # TODO error handling for bad types, bad subsampletype
             # TODO improve error messages
             type_ = _SubSampleType[n.get('type')]
