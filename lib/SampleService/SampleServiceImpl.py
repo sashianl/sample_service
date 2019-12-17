@@ -76,6 +76,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         arangoclient = _arango.ArangoClient(hosts=arango_url)
         arango_db = arangoclient.db(
             arango_db, username=arango_user, password=arango_pwd, verify=True)
+        print(arango_db.collections())
         storage = _ArangoSampleStorage(
             arango_db,
             col_sample,
