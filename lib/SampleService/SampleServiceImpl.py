@@ -59,6 +59,20 @@ Handles creating, updating, retriving samples and linking data to samples.
             config['node-edge-collection'], 'config param node-edge-collection')
         col_schema = _check_string(config['schema-collection'], 'config param schema-collection')
 
+        print(f'''
+            Starting server with config:
+                arango-url: {arango_url}
+                arango-db: {arango_db}
+                arango-user: {arango_user}
+                arango-pwd: [REDACTED FOR YOUR SAFETY AND COMFORT]
+                sample-collection: {col_sample}
+                version-collection: {col_version}
+                version-edge-collection: {col_ver_edge}
+                node-collection: {col_node}
+                node-edge-collection: {col_node_edge}
+                schema-collection: {col_schema}
+        ''')
+
         arangoclient = _arango.ArangoClient(hosts=arango_url)
         arango_db = arangoclient.db(
             arango_db, username=arango_user, password=arango_pwd, verify=True)
