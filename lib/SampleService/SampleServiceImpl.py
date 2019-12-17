@@ -174,7 +174,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         if pv is not None and type(pv) != int:
             raise _IllegalParameterError('prior_version must be an integer if supplied')
         s = _Sample(nodes, s.get('name'))  # TODO error handling
-        ret = self._samples.save_sample(s, ctx['user'], id_, pv)
+        ret = self._samples.save_sample(s, ctx['user_id'], id_, pv)
         address = {'id': ret[0], 'version': ret[1]}
         #END create_sample
 
@@ -246,7 +246,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         ver = params.get('version')
         if ver is not None and type(ver) != int or ver < 1:
             raise _IllegalParameterError(f'Illegal version argument: {ver}')
-        s = self._samples.get_sample(id_, ctx['user'], ver)
+        s = self._samples.get_sample(id_, ctx['user_id'], ver)
         nodes = [{'id': n.name, 'type': n.type.value, 'parent': n.parent} for n in s.nodes]
         sample = {'id': str(s.id),
                   'name': s.name,
