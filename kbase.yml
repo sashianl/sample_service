@@ -13,3 +13,5 @@ module-version:
 owners:
     [gaprice]
 
+service-config:
+    dynamic-service: true
