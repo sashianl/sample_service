@@ -163,7 +163,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         if type(s.get('node_tree')) != list:
             raise _MissingParameterError('sample node tree must be a list')
         nodes = []
-        for n in s['nodes_tree']:
+        for n in s['node_tree']:
             # TODO error handling for bad types, bad subsampletype
             # TODO improve error messages
             type_ = _SubSampleType[n.get('type')]
