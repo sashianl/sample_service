@@ -175,7 +175,7 @@ Handles creating, updating, retriving samples and linking data to samples.
             raise _IllegalParameterError('prior_version must be an integer if supplied')
         s = _Sample(nodes, s.get('name'))  # TODO error handling
         ret = self._samples.save_sample(s, ctx['user_id'], id_, pv)
-        address = {'id': ret[0], 'version': ret[1]}
+        address = {'id': str(ret[0]), 'version': ret[1]}
         #END create_sample
 
         # At some point might do deeper type checking...
