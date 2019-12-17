@@ -244,7 +244,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         #BEGIN get_sample
         id_ = _get_id_from_object(params)
         ver = params.get('version')
-        if ver is not None and type(ver) != int or ver < 1:
+        if ver is not None and (type(ver) != int or ver < 1):
             raise _IllegalParameterError(f'Illegal version argument: {ver}')
         s = self._samples.get_sample(id_, ctx['user_id'], ver)
         nodes = [{'id': n.name, 'type': n.type.value, 'parent': n.parent} for n in s.nodes]
