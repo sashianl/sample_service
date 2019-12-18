@@ -167,7 +167,13 @@ Handles creating, updating, retriving samples and linking data to samples.
             # TODO error handling for bad types, bad subsampletype
             # TODO improve error messages
             type_ = _SubSampleType(n.get('type'))
-            nodes.append(_SampleNode(n.get('id'), type_, parent=n.get('parent')))
+            nodes.append(_SampleNode(
+                n.get('id'),
+                type_,
+                n.get('parent'),
+                # TODO type checking etc
+                n.get('meta_controlled'),
+                n.get('meta_user')))
         id_ = _get_id_from_object(s)
 
         pv = s.get('prior_version')
@@ -247,7 +253,12 @@ Handles creating, updating, retriving samples and linking data to samples.
         if ver is not None and (type(ver) != int or ver < 1):
             raise _IllegalParameterError(f'Illegal version argument: {ver}')
         s = self._samples.get_sample(id_, ctx['user_id'], ver)
-        nodes = [{'id': n.name, 'type': n.type.value, 'parent': n.parent} for n in s.nodes]
+        nodes = [{'id': n.name,
+                  'type': n.type.value,
+                  'parent': n.parent,
+                  'meta_controlled': n.controlled_metadata,
+                  'meta_user': n.uncontrolled_metadata}
+                 for n in s.nodes]
         sample = {'id': str(s.id),
                   'name': s.name,
                   'node_tree': nodes,
