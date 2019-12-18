@@ -9,7 +9,6 @@ module SampleService {
     /* A timestamp in epoch milliseconds. */
     typedef int timestamp;
 
-   
     /* A SampleNode ID. Must be unique within a Sample and be less than 255 characters.
      */
     typedef string node_id;
