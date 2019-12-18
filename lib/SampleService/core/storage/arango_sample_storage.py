@@ -66,7 +66,8 @@ import arango as _arango
 import datetime
 import hashlib as _hashlib
 import uuid as _uuid
-from typing import List as _List, cast as _cast, Optional as _Optional, Callable
+from typing import List as _List, cast as _cast, Optional as _Optional, Callable, Union as _Union
+from typing import Dict as _Dict, Any as _Any
 
 from uuid import UUID
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
@@ -99,6 +100,11 @@ _FLD_NODE_SAMPLE_ID = 'id'
 _FLD_NODE_VER = 'ver'
 _FLD_NODE_UUID_VER = 'uuidver'
 _FLD_NODE_INDEX = 'index'
+_FLD_NODE_CONTROLLED_METADATA = 'cmeta'
+_FLD_NODE_UNCONTROLLED_METADATA = 'ucmeta'
+_FLD_NODE_META_KEY = 'k'
+_FLD_NODE_META_VALUE = 'v'
+
 
 _FLD_ACLS = 'acls'
 _FLD_OWNER = 'owner'
@@ -120,6 +126,8 @@ _SCHEMA_VALUE = 'schema'
 _FLD_SCHEMA_UPDATE = 'inupdate'
 # the version of the schema. Value is _SCHEMA_VERSION.
 _FLD_SCHEMA_VERSION = 'schemaver'
+
+_PrimitiveType = _Union[str, int, float, bool]
 
 
 class ArangoSampleStorage:
@@ -380,6 +388,8 @@ class ArangoSampleStorage:
                     _FLD_NODE_TYPE: n.type.name,
                     _FLD_NODE_PARENT: n.parent,
                     _FLD_NODE_INDEX: index,
+                    _FLD_NODE_CONTROLLED_METADATA: self._meta_to_list(n.controlled_metadata),
+                    _FLD_NODE_UNCONTROLLED_METADATA: self._meta_to_list(n.uncontrolled_metadata),
                     }
             if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
                 to = f'{self._col_version.name}/{verdocid}'
@@ -417,6 +427,23 @@ class ArangoSampleStorage:
                       _FLD_ARANGO_TO: f'{self._col_sample.name}/{sample.id}',
                       }
         self._insert(self._col_ver_edge, veredgedoc)
+
+    def _meta_to_list(self, m: _Dict[str, _Dict[str, _PrimitiveType]]) -> _List[_Dict[str, _Any]]:
+        ret = []
+        for k in m:
+            ret.append({_FLD_NODE_META_KEY: k,
+                        _FLD_NODE_META_VALUE: [{_FLD_NODE_META_KEY: ik,
+                                                _FLD_NODE_META_VALUE: m[k][ik]}
+                                               for ik in m[k]]
+                        })
+        return ret
+
+    def _list_to_meta(self, d: _List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
+        ret = {}
+        for m in d:
+            ret[m[_FLD_NODE_META_KEY]] = {im[_FLD_NODE_META_KEY]: im[_FLD_NODE_META_VALUE]
+                                          for im in m[_FLD_NODE_META_VALUE]}
+        return ret
 
     def _insert(self, col, doc):
         try:
@@ -586,7 +613,10 @@ class ArangoSampleStorage:
                 index_to_node[n[_FLD_NODE_INDEX]] = _SampleNode(
                     n[_FLD_NODE_NAME],
                     _SubSampleType[n[_FLD_NODE_TYPE]],
-                    n[_FLD_NODE_PARENT])
+                    n[_FLD_NODE_PARENT],
+                    self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
+                    self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
+                    )
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         # could check for keyerror here if nodes were deleted, but db is corrupt either way

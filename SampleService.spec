@@ -39,7 +39,8 @@ module SampleService {
     typedef string metadata_value_key;
 
     /* Metadata attached to a sample.
-        The UnspecifiedObject map values MUST be a primitive type - either int, float, or string.
+        The UnspecifiedObject map values MUST be a primitive type - either int, float, or string
+        or equivalent typedefs.
      */
     typedef mapping<metadata_key, mapping<metadata_value_key, UnspecifiedObject>> metadata;
 
