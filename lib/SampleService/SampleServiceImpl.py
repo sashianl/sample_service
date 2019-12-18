@@ -40,6 +40,11 @@ Handles creating, updating, retriving samples and linking data to samples.
     GIT_COMMIT_HASH = "1419d46f854f994ce12461311cbad707daaf5791"
 
     #BEGIN_CLASS_HEADER
+    def _unfreeze_meta(self, m):
+        ret = {}
+        for k in m:
+            ret[k] = {ik: m[k][ik] for ik in m[k]}
+        return ret
     #END_CLASS_HEADER
 
     # config contains contents of config file in a hash or None if it couldn't
@@ -256,8 +261,9 @@ Handles creating, updating, retriving samples and linking data to samples.
         nodes = [{'id': n.name,
                   'type': n.type.value,
                   'parent': n.parent,
-                  'meta_controlled': n.controlled_metadata,
-                  'meta_user': n.uncontrolled_metadata}
+                  'meta_controlled': self._unfreeze_meta(n.controlled_metadata),
+                  'meta_user': self._unfreeze_meta(n.uncontrolled_metadata)
+                  }
                  for n in s.nodes]
         sample = {'id': str(s.id),
                   'name': s.name,
