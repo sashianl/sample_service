@@ -4,8 +4,9 @@ Contains classes related to samples.
 
 import datetime
 from enum import Enum as _Enum, unique as _unique
+import maps as _maps
 from uuid import UUID
-from typing import Optional, List
+from typing import Optional, List, Dict, Union, TypeVar as _TypeVar
 from typing import Set as _Set, cast as _cast
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
@@ -35,25 +36,43 @@ class SubSampleType(_Enum):
     ''' A subsample that is not a biological or technical replicate.'''
 
 
+PrimitiveType = Union[str, int, float, bool]
+_T = _TypeVar('_T')
+_V = _TypeVar('_V')
+
+
+def _fz(d: Dict[_T, _V]) -> Dict[_T, _V]:
+    return _maps.FrozenMap.recurse(d)
+
+
 class SampleNode:
     '''
     A node in the sample tree.
     :ivar name: The name of the sample node.
     :ivar type: The type of this sample nde.
     :ivar parent: The parent SampleNode of this node.
+    :ivar controlled_metadata: Sample metadata that has been checked against a controlled
+        vocabulary.
+    :ivar controlled_metadata: Unrestricted sample metadata.
     '''
 
     def __init__(
             self,
             name: str,
             type_: SubSampleType = SubSampleType.BIOLOGICAL_REPLICATE,
-            parent: Optional[str] = None):
+            parent: Optional[str] = None,
+            controlled_metadata: Dict[str, Dict[str, PrimitiveType]] = None,
+            uncontrolled_metadata: Dict[str, Dict[str, PrimitiveType]] = None
+            ):
         '''
         Create a sample node.
         :param name: The name of the sample node.
         :param type_: The type of this sample nde.
         :param parent: The parent SampleNode of this node. BIOLOGICAL_REPLICATEs, and only
             BIOLOGICAL_REPLICATEs, cannot have parents.
+        :param controlled_metadata: Sample metadata that has been checked against a controlled
+            vocabulary.
+        :param controlled_metadata: Unrestricted sample metadata.
         :raises MissingParameterError: if the name is None or whitespace only.
         :raises IllegalParameterError: if the name or parent is too long or contains illegal
             characters or the parent is missing and the node type is not BIOLOGICAL_REPLICATE.
@@ -62,26 +81,30 @@ class SampleNode:
         self.name = _cast(str, _check_string(name, 'subsample name', max_len=_MAX_SAMPLE_NAME_LEN))
         self.type = _not_falsy(type_, 'type')
         self.parent = _check_string(parent, 'parent', max_len=_MAX_SAMPLE_NAME_LEN, optional=True)
+        # TODO key/value/size checking, maybe make a class
+        self.controlled_metadata = _fz(controlled_metadata if controlled_metadata else {})
+        self.uncontrolled_metadata = _fz(uncontrolled_metadata if uncontrolled_metadata else {})
         isbiorep = type_ == SubSampleType.BIOLOGICAL_REPLICATE
         if not _xor(bool(parent), isbiorep):
             raise IllegalParameterError(
                 f'Node {self.name} is of type {type_.value} and therefore ' +
                 f'{"cannot" if isbiorep else "must"} have a parent')
 
-        # TODO metadata, description
+        # TODO description
 
     def __eq__(self, other):
         if type(other) is type(self):
             return (other.name == self.name
                     and other.type == self.type
-                    and other.parent == self.parent)
+                    and other.parent == self.parent
+                    and other.controlled_metadata == self.controlled_metadata
+                    and other.uncontrolled_metadata == self.uncontrolled_metadata
+                    )
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.name, self.type, self.parent))
-
-
-# PrimitiveType = Union[str, int, float, bool]
+        return hash((self.name, self.type, self.parent, self.controlled_metadata,
+                     self.uncontrolled_metadata))
 
 
 class Sample:
@@ -96,7 +119,6 @@ class Sample:
             self,
             nodes: List[SampleNode],
             name: Optional[str] = None,
-            # validated_metadata: Dict[str, (PrimitiveType, str)]
             ):
         '''
         Create the the sample.
