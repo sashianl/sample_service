@@ -2,7 +2,6 @@
 #BEGIN_HEADER
 # TODO TESTS
 
-# TODO add version method
 import arango as _arango
 
 from SampleService.core.samples import Samples as _Samples
@@ -15,6 +14,8 @@ from SampleService.core.sample import SampleNode as _SampleNode, Sample as _Samp
 from SampleService.core.sample import SubSampleType as _SubSampleType
 
 from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import datetime_to_epochmilliseconds \
+    as datetime_to_epochmilliseconds
 #END_HEADER
 
 
@@ -268,7 +269,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         sample = {'id': str(s.id),
                   'name': s.name,
                   'node_tree': nodes,
-                  'save_date': s.savetime.timestamp(),  # TODO to epoch seconds
+                  'save_date': datetime_to_epochmilliseconds(s.savetime),
                   'version': s.version}
         #END get_sample
 
