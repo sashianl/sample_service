@@ -15,8 +15,9 @@ before_install:
 
 install:
   # mongo is only a test dependency, no point in matrixing it
+  - export MONGODB_VER=mongodb-linux-x86_64-3.6.16
   - cd ..
-  - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.6.16.tgz
+  - wget http://fastdl.mongodb.org/linux/$MONGODB_VER.tgz
   - tar xfz $MONGODB_VER.tgz
   - export MONGOD=`pwd`/$MONGODB_VER/bin/mongod
   - cd -
