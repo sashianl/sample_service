@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, Tuple
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.sample import Sample, SampleNode as _SampleNode
+from SampleService.core.sample import Sample, SampleNode as _SampleNode, SampleWithID
 from SampleService.core.sample import SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
@@ -129,9 +129,39 @@ def get_version_from_object(params: Dict[str, Any]) -> Optional[int]:
 
     :param params: The unmarshalled JSON recieved from the API as part of the API call.
     :returns: the version or None if no version was provided
+    :raises IllegalParameterError: if the version is not an integer or < 1.
     '''
     _check_params(params)
     ver = params.get('version')
     if ver is not None and (type(ver) != int or ver < 1):
         raise _IllegalParameterError(f'Illegal version argument: {ver}')
     return ver
+
+
+def sample_to_dict(sample: SampleWithID) -> Dict[str, Any]:
+    '''
+    Convert a sample to a JSONable structure to return to the SDK API.
+
+    :param sample: The sample to convert.
+    :return: The sample as a dict.
+    '''
+    nodes = [{'id': n.name,
+              'type': n.type.value,
+              'parent': n.parent,
+              'meta_controlled': _unfreeze_meta(n.controlled_metadata),
+              'meta_user': _unfreeze_meta(n.uncontrolled_metadata)
+              }
+             for n in _not_falsy(sample, 'sample').nodes]
+    return {'id': str(sample.id),
+            'name': sample.name,
+            'node_tree': nodes,
+            'save_date': datetime_to_epochmilliseconds(sample.savetime),
+            'version': sample.version
+            }
+
+
+def _unfreeze_meta(m):
+    ret = {}
+    for k in m:
+        ret[k] = {ik: m[k][ik] for ik in m[k]}
+    return ret

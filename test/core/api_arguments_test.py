@@ -2,10 +2,12 @@ import datetime
 
 from pytest import raises
 from uuid import UUID
+import json
+
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
-from SampleService.core.api_arguments import get_version_from_object
+from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
 from SampleService.core.api_arguments import create_sample_params
-from SampleService.core.sample import Sample, SampleNode, SubSampleType
+from SampleService.core.sample import Sample, SampleNode, SubSampleType, SampleWithID
 from SampleService.core.errors import IllegalParameterError
 
 from core.test_utils import assert_exception_correct
@@ -218,3 +220,77 @@ def get_version_from_object_fail(params, expected):
     with raises(Exception) as got:
         get_version_from_object(params)
     assert_exception_correct(got.value, expected)
+
+
+def test_sample_to_dict_minimal():
+
+    expected = {'node_tree': [{'id': 'foo',
+                               'type': 'BioReplicate',
+                               'meta_controlled': {},
+                               'meta_user': {},
+                               'parent': None
+                               }],
+                'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
+                'save_date': 87897,
+                'name': None,
+                'version': None,
+                }
+
+    id_ = UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
+
+    s = sample_to_dict(SampleWithID(id_, [SampleNode('foo')], dt(87.8971)))
+
+    assert s == expected
+
+    # ensure that the result is jsonable. The data structure includes frozen maps which are not
+    json.dumps(s)
+
+
+def test_sample_to_dict_maximal():
+    # TODO plus failing tests
+    expected = {'node_tree': [{'id': 'foo',
+                               'type': 'BioReplicate',
+                               'meta_controlled': {},
+                               'meta_user': {},
+                               'parent': None
+                               },
+                              {'id': 'bar',
+                               'type': 'TechReplicate',
+                               'meta_controlled': {'a': {'b': 'c', 'm': 6.7}},
+                               'meta_user': {'d': {'e': True}, 'g': {'h': 1}},
+                               'parent': 'foo'
+                               }],
+                'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
+                'save_date': 87897,
+                'name': 'myname',
+                'version': 23,
+                }
+
+    id_ = UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
+
+    s = sample_to_dict(
+        SampleWithID(
+            id_,
+            [SampleNode('foo'),
+             SampleNode(
+                 'bar',
+                 SubSampleType.TECHNICAL_REPLICATE,
+                 'foo',
+                 {'a': {'b': 'c', 'm': 6.7}},
+                 {'d': {'e': True}, 'g': {'h': 1}})
+             ],
+            dt(87.8971),
+            'myname',
+            23))
+
+    assert s == expected
+
+    # ensure that the result is jsonable. The data structure includes frozen maps which are not
+    json.dumps(s)
+
+
+def test_sample_to_dict_fail():
+    with raises(Exception) as got:
+        sample_to_dict(None)
+    assert_exception_correct(
+        got.value, ValueError('sample cannot be a value that evaluates to false'))

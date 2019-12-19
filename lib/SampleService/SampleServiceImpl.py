@@ -10,10 +10,9 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
 
 from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
 from SampleService.core.api_arguments import get_version_from_object as _get_version_from_object
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
-from SampleService.core.api_arguments import datetime_to_epochmilliseconds \
-    as datetime_to_epochmilliseconds
 #END_HEADER
 
 
@@ -39,11 +38,6 @@ Handles creating, updating, retriving samples and linking data to samples.
     GIT_COMMIT_HASH = "1419d46f854f994ce12461311cbad707daaf5791"
 
     #BEGIN_CLASS_HEADER
-    def _unfreeze_meta(self, m):
-        ret = {}
-        for k in m:
-            ret[k] = {ik: m[k][ik] for ik in m[k]}
-        return ret
     #END_CLASS_HEADER
 
     # config contains contents of config file in a hash or None if it couldn't
@@ -232,19 +226,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         id_ = _get_id_from_object(params)
         ver = _get_version_from_object(params)
         s = self._samples.get_sample(id_, ctx['user_id'], ver)
-        # TODO move to api helpers class
-        nodes = [{'id': n.name,
-                  'type': n.type.value,
-                  'parent': n.parent,
-                  'meta_controlled': self._unfreeze_meta(n.controlled_metadata),
-                  'meta_user': self._unfreeze_meta(n.uncontrolled_metadata)
-                  }
-                 for n in s.nodes]
-        sample = {'id': str(s.id),
-                  'name': s.name,
-                  'node_tree': nodes,
-                  'save_date': datetime_to_epochmilliseconds(s.savetime),
-                  'version': s.version}
+        sample = _sample_to_dict(s)
         #END get_sample
 
         # At some point might do deeper type checking...
