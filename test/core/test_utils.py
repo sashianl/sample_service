@@ -10,6 +10,8 @@ import time
 
 ARANGO_EXE = 'test.arango.exe'
 ARANGO_JS = 'test.arango.js'
+MONGO_EXE = 'test.mongo.exe'
+MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
 TEST_TEMP_DIR = 'test.temp.dir'
 KEEP_TEMP_DIR = 'test.temp.dir.keep'
 
@@ -26,6 +28,14 @@ def get_arango_exe() -> Path:
 
 def get_arango_js() -> Path:
     return Path(os.path.abspath(_get_test_property(ARANGO_JS)))
+
+
+def get_mongo_exe() -> Path:
+    return Path(os.path.abspath(_get_test_property(MONGO_EXE)))
+
+
+def get_use_wired_tiger() -> bool:
+    return _get_test_property(MONGO_USE_WIRED_TIGER) == 'true'
 
 
 def get_temp_dir() -> Path:

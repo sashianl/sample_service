@@ -429,6 +429,12 @@ class ArangoSampleStorage:
                       }
         self._insert(self._col_ver_edge, veredgedoc)
 
+    # TODO may need to make a meta collection. See below.
+    # Can only use equality comparisons on arrays:
+    # https://www.arangodb.com/docs/stable/indexing-index-basics.html#indexing-array-values
+    # Maybe need a doc for each metadata value, which implies going through the whole
+    # save / version update routine the other docs go through
+    # But that means you can't query for metadata on traversals
     def _meta_to_list(self, m: _Dict[str, _Dict[str, _PrimitiveType]]) -> _List[_Dict[str, _Any]]:
         ret = []
         for k in m:
