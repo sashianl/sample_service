@@ -6,8 +6,9 @@ import datetime
 from enum import Enum as _Enum, unique as _unique
 import maps as _maps
 from uuid import UUID
-from typing import Optional, List, Dict, Union, TypeVar as _TypeVar
+from typing import Optional, List, Dict, TypeVar as _TypeVar
 from typing import Set as _Set, cast as _cast
+from SampleService.core.core_types import PrimitiveType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
@@ -36,7 +37,6 @@ class SubSampleType(_Enum):
     ''' A subsample that is not a biological or technical replicate.'''
 
 
-PrimitiveType = Union[str, int, float, bool]
 _T = _TypeVar('_T')
 _V = _TypeVar('_V')
 
@@ -61,8 +61,8 @@ class SampleNode:
             name: str,
             type_: SubSampleType = SubSampleType.BIOLOGICAL_REPLICATE,
             parent: Optional[str] = None,
-            controlled_metadata: Dict[str, Dict[str, PrimitiveType]] = None,
-            uncontrolled_metadata: Dict[str, Dict[str, PrimitiveType]] = None
+            controlled_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None,
+            uncontrolled_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None
             ):
         '''
         Create a sample node.

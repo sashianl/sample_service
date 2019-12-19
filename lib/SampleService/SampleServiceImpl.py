@@ -8,12 +8,10 @@ from SampleService.core.samples import Samples as _Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
-from SampleService.core.errors import MissingParameterError as _MissingParameterError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
-from SampleService.core.sample import SampleNode as _SampleNode, Sample as _Sample
-from SampleService.core.sample import SubSampleType as _SubSampleType
 
 from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import create_sample_params as _create_sample_params
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds \
     as datetime_to_epochmilliseconds
 #END_HEADER
@@ -162,30 +160,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         # ctx is the context object
         # return variables are: address
         #BEGIN create_sample
-        # TODO move this stuff into helper class that can be tested independently
-        if type(params.get('sample')) != dict:
-            raise _IllegalParameterError('sample must be a mapping')
-        s = params['sample']
-        if type(s.get('node_tree')) != list:
-            raise _MissingParameterError('sample node tree must be a list')
-        nodes = []
-        for n in s['node_tree']:
-            # TODO error handling for bad types, bad subsampletype
-            # TODO improve error messages
-            type_ = _SubSampleType(n.get('type'))
-            nodes.append(_SampleNode(
-                n.get('id'),
-                type_,
-                n.get('parent'),
-                # TODO type checking etc
-                n.get('meta_controlled'),
-                n.get('meta_user')))
-        id_ = _get_id_from_object(s)
-
-        pv = s.get('prior_version')
-        if pv is not None and type(pv) != int:
-            raise _IllegalParameterError('prior_version must be an integer if supplied')
-        s = _Sample(nodes, s.get('name'))  # TODO error handling
+        s, id_, pv = _create_sample_params(params)
         ret = self._samples.save_sample(s, ctx['user_id'], id_, pv)
         address = {'id': str(ret[0]), 'version': ret[1]}
         #END create_sample
