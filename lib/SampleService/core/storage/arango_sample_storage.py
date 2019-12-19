@@ -66,13 +66,14 @@ import arango as _arango
 import datetime
 import hashlib as _hashlib
 import uuid as _uuid
-from typing import List as _List, cast as _cast, Optional as _Optional, Callable, Union as _Union
+from typing import List as _List, cast as _cast, Optional as _Optional, Callable
 from typing import Dict as _Dict, Any as _Any
 
 from uuid import UUID
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
 from SampleService.core.acls import SampleACL
+from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.sample import SampleWithID
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
@@ -126,8 +127,6 @@ _SCHEMA_VALUE = 'schema'
 _FLD_SCHEMA_UPDATE = 'inupdate'
 # the version of the schema. Value is _SCHEMA_VERSION.
 _FLD_SCHEMA_VERSION = 'schemaver'
-
-_PrimitiveType = _Union[str, int, float, bool]
 
 
 class ArangoSampleStorage:

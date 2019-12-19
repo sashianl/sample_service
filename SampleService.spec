@@ -63,7 +63,7 @@ module SampleService {
         id - the ID of the sample.
         node_tree - the tree(s) of sample nodes in the sample. The the roots of all trees must
             be BioReplicate nodes. All the BioReplicate nodes must be at the start of the list,
-            and all child nodes must occur before their parents in the list.
+            and all child nodes must occur after their parents in the list.
         name - the name of the sample. Must be less than 255 characters.
         save_date - the date the sample version was saved.
         version - the version of the sample.
