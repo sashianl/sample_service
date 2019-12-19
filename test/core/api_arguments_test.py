@@ -247,7 +247,6 @@ def test_sample_to_dict_minimal():
 
 
 def test_sample_to_dict_maximal():
-    # TODO plus failing tests
     expected = {'node_tree': [{'id': 'foo',
                                'type': 'BioReplicate',
                                'meta_controlled': {},
