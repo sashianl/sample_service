@@ -11,6 +11,12 @@ test.arango.exe=/path/to/arangoddbexecutable
 # In the downloaded tarball it is at /usr/share/arangodb3/js/.
 test.arango.js=/path/to/arangodjs
 
+# path to the MongoDB executable to use for the tests.
+test.mongo.exe=/path/to/mongodexecutable
+
+# true to use wired tiger for MongoDB, anything else for false.
+test.mongo.wired_tiger=true
+
 # path to a temporary directory to use for tests.
 test.temp.dir=/path/to/temp/dir/make/sure/this/is/safe
 

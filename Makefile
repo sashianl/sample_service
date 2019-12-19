@@ -76,8 +76,9 @@ test:
 
 test-sdkless:
 	# TODO flake8 and bandit
+	# TODO check tests run with kb-sdk test - will need to install mongo and update config
 	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core
-	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS)/core/ $(TEST_DIR)/core/ 
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) $(TEST_DIR)
 
 clean:
 	rm -rfv $(LBIN_DIR)

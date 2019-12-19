@@ -9,6 +9,8 @@ pytest-cov = "*"
 mypy = "*"
 coveralls = "*"
 flake8 = "*"
+pymongo = "*"
+semver = "*"
 
 [packages]
 python-arango = "==5.0.0"
