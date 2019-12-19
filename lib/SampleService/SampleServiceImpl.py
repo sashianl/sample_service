@@ -8,9 +8,9 @@ from SampleService.core.samples import Samples as _Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
-from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 
 from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import get_version_from_object as _get_version_from_object
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds \
     as datetime_to_epochmilliseconds
@@ -230,10 +230,9 @@ Handles creating, updating, retriving samples and linking data to samples.
         # return variables are: sample
         #BEGIN get_sample
         id_ = _get_id_from_object(params)
-        ver = params.get('version')
-        if ver is not None and (type(ver) != int or ver < 1):
-            raise _IllegalParameterError(f'Illegal version argument: {ver}')
+        ver = _get_version_from_object(params)
         s = self._samples.get_sample(id_, ctx['user_id'], ver)
+        # TODO move to api helpers class
         nodes = [{'id': n.name,
                   'type': n.type.value,
                   'parent': n.parent,

@@ -58,9 +58,9 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
     :returns: A tuple of the sample to save, the UUID of the sample for which a new version should
         be created or None if an entirely new sample should be created, and the previous version
         of the sample expected when saving a new version.
+    :raises IllegalParameterError: if any of the arguments are illegal.
     '''
-    if params is None:
-        raise ValueError('params may not be None')
+    _check_params(params)
     if type(params.get('sample')) != dict:
         raise _IllegalParameterError('params must contain sample key that maps to a structure')
     s = params['sample']
@@ -116,3 +116,22 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
                     f"Node at index {index}'s {name} entry does " +
                     f"not have a primitive type as the value at {k1}/{k2}")
     return m
+
+
+def _check_params(params):
+    if params is None:
+        raise ValueError('params cannot be None')
+
+
+def get_version_from_object(params: Dict[str, Any]) -> Optional[int]:
+    '''
+    Given a dict, get a sample version from the dict if it exists, using the key 'version'.
+
+    :param params: The unmarshalled JSON recieved from the API as part of the API call.
+    :returns: the version or None if no version was provided
+    '''
+    _check_params(params)
+    ver = params.get('version')
+    if ver is not None and (type(ver) != int or ver < 1):
+        raise _IllegalParameterError(f'Illegal version argument: {ver}')
+    return ver

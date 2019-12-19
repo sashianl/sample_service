@@ -3,6 +3,7 @@ import datetime
 from pytest import raises
 from uuid import UUID
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
+from SampleService.core.api_arguments import get_version_from_object
 from SampleService.core.api_arguments import create_sample_params
 from SampleService.core.sample import Sample, SampleNode, SubSampleType
 from SampleService.core.errors import IllegalParameterError
@@ -107,7 +108,7 @@ def test_create_sample_params_maximal():
 
 def test_create_sample_params_fail_bad_input():
     create_sample_params_fail(
-        None, ValueError('params may not be None'))
+        None, ValueError('params cannot be None'))
     create_sample_params_fail(
         {}, IllegalParameterError('params must contain sample key that maps to a structure'))
     create_sample_params_fail(
@@ -177,8 +178,6 @@ def test_create_sample_params_fail_bad_input():
          'prior_version': 'six'},
         IllegalParameterError('prior_version must be an integer if supplied'))
 
-    
-
 
 def create_sample_params_meta_fail(m, expected):
     create_sample_params_fail(
@@ -195,4 +194,27 @@ def create_sample_params_meta_fail(m, expected):
 def create_sample_params_fail(params, expected):
     with raises(Exception) as got:
         create_sample_params(params)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_version_from_object():
+    assert get_version_from_object({}) is None
+    assert get_version_from_object({'version': None}) is None
+    assert get_version_from_object({'version': 3}) == 3
+    assert get_version_from_object({'version': 1}) == 1
+
+
+def test_get_version_from_object_fail_bad_args():
+    get_version_from_object_fail(None, ValueError('params cannot be None'))
+    get_version_from_object_fail(
+        {'version': 'whee'}, IllegalParameterError('Illegal version argument: whee'))
+    get_version_from_object_fail(
+        {'version': 0}, IllegalParameterError('Illegal version argument: 0'))
+    get_version_from_object_fail(
+        {'version': -3}, IllegalParameterError('Illegal version argument: -3'))
+
+
+def get_version_from_object_fail(params, expected):
+    with raises(Exception) as got:
+        get_version_from_object(params)
     assert_exception_correct(got.value, expected)
