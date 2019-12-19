@@ -66,10 +66,11 @@ import arango as _arango
 import datetime
 import hashlib as _hashlib
 import uuid as _uuid
+from uuid import UUID
+from collections import defaultdict
 from typing import List as _List, cast as _cast, Optional as _Optional, Callable
 from typing import Dict as _Dict, Any as _Any
 
-from uuid import UUID
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
 from SampleService.core.acls import SampleACL
@@ -103,6 +104,7 @@ _FLD_NODE_UUID_VER = 'uuidver'
 _FLD_NODE_INDEX = 'index'
 _FLD_NODE_CONTROLLED_METADATA = 'cmeta'
 _FLD_NODE_UNCONTROLLED_METADATA = 'ucmeta'
+_FLD_NODE_META_OUTER_KEY = 'ok'
 _FLD_NODE_META_KEY = 'k'
 _FLD_NODE_META_VALUE = 'v'
 
@@ -430,19 +432,18 @@ class ArangoSampleStorage:
     def _meta_to_list(self, m: _Dict[str, _Dict[str, _PrimitiveType]]) -> _List[_Dict[str, _Any]]:
         ret = []
         for k in m:
-            ret.append({_FLD_NODE_META_KEY: k,
-                        _FLD_NODE_META_VALUE: [{_FLD_NODE_META_KEY: ik,
-                                                _FLD_NODE_META_VALUE: m[k][ik]}
-                                               for ik in m[k]]
-                        })
+            ret.extend([{_FLD_NODE_META_OUTER_KEY: k,
+                         _FLD_NODE_META_KEY: ik,
+                         _FLD_NODE_META_VALUE: m[k][ik]}
+                        for ik in m[k]]
+                       )
         return ret
 
-    def _list_to_meta(self, d: _List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
-        ret = {}
-        for m in d:
-            ret[m[_FLD_NODE_META_KEY]] = {im[_FLD_NODE_META_KEY]: im[_FLD_NODE_META_VALUE]
-                                          for im in m[_FLD_NODE_META_VALUE]}
-        return ret
+    def _list_to_meta(self, l: _List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
+        ret: _Dict[str, _Dict[str, _PrimitiveType]] = defaultdict(dict)
+        for m in l:
+            ret[m[_FLD_NODE_META_OUTER_KEY]][m[_FLD_NODE_META_KEY]] = m[_FLD_NODE_META_VALUE]
+        return dict(ret)  # some libs don't play nice with default dict, in particular maps
 
     def _insert(self, col, doc):
         try:

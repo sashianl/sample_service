@@ -2,7 +2,6 @@
 Contains helper functions for translating between the SDK API and the core Samples code.
 '''
 
-# TODO TEST
 
 from uuid import UUID
 from typing import Dict, Any, Optional, Tuple
