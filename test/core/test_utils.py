@@ -12,6 +12,7 @@ ARANGO_EXE = 'test.arango.exe'
 ARANGO_JS = 'test.arango.js'
 MONGO_EXE = 'test.mongo.exe'
 MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
+JARS_DIR = 'test.jars.dir'
 TEST_TEMP_DIR = 'test.temp.dir'
 KEEP_TEMP_DIR = 'test.temp.dir.keep'
 
@@ -36,6 +37,10 @@ def get_mongo_exe() -> Path:
 
 def get_use_wired_tiger() -> bool:
     return _get_test_property(MONGO_USE_WIRED_TIGER) == 'true'
+
+
+def get_jars_dir() -> Path:
+    return Path(os.path.abspath(_get_test_property(JARS_DIR)))
 
 
 def get_temp_dir() -> Path:

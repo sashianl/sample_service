@@ -15,6 +15,9 @@ before_install:
 
 install:
   # mongo is only a test dependency, no point in matrixing it
+  - which java
+  - java -version
+
   - export MONGODB_VER=mongodb-linux-x86_64-3.6.16
   - cd ..
   - wget http://fastdl.mongodb.org/linux/$MONGODB_VER.tgz
@@ -29,6 +32,11 @@ install:
   - export ARANGO_JS=$(pwd)/arangodb3-$ARANGODB_VER/usr/share/arangodb3/js/
   - cd -
 
+  - cd ..
+  - git clone https://github.com/kbase/jars
+  - export JARS=$(pwd)/jars/lib/jars
+  - cd -
+
   - pip install pipenv
   - pipenv install --dev
   - docker pull kbase/kb-sdk
@@ -41,6 +49,7 @@ install:
 
   - cd test
   - cp test.cfg.example test.cfg
+  - sed -i "s#^test.jars.dir=.*#test.jars.dir=$JARS#" test.cfg
   - sed -i "s#^test.temp.dir=.*#test.temp.dir=temp_test_dir#" test.cfg
   - sed -i "s#^test.arango.exe.*#test.arango.exe=$ARANGO_EXE#" test.cfg
   - sed -i "s#^test.arango.js.*#test.arango.js=$ARANGO_JS#" test.cfg
