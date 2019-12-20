@@ -32,7 +32,7 @@ install:
   - cd ..
   - git clone https://github.com/kbase/jars
   - export JARS=$(pwd)/jars/lib/jars
-  - cd ..
+  - cd -
 
   - pip install pipenv
   - pipenv install --dev
