@@ -2,6 +2,10 @@
 
 [sampleservicetest]
 
+# path to the KBase jars (https://github.com/kbase/jars) directory,
+# e.g. [path to parent folder]/jars/lib/jars
+test.jars.dir=/path/to/jars/dir
+
 # path to the ArangoDB executable (arangod, *not* arangodb) to use for the tests.
 # In the downloaded tarball it is at /usr/sbin/arangod.
 test.arango.exe=/path/to/arangoddbexecutable
