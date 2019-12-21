@@ -16,6 +16,8 @@ from core.arango_controller import ArangoController  # TODO move up a level
 from mongo_controller import MongoController
 from auth_controller import AuthController
 
+VER = '0.1.0-alpha1'
+
 _AUTH_DB = 'test_auth_db'
 
 TEST_DB_NAME = 'test_sample_service'
@@ -155,6 +157,18 @@ def sample_port(service, arango):
     yield service
 
 
-def test_fake(sample_port):
-    # whines about not accepting GET
-    assert 'Expecting value: line 1' in requests.get('http://localhost:' + sample_port).text
+def test_status(sample_port):
+    res = requests.post('http://localhost:' + sample_port, json={
+        'method': 'SampleService.status',
+        'params': [],
+        'version': 1.1,
+        'id': 1   # don't do this. This is bad practice
+    })
+    assert res.status_code == 200
+    s = res.json()
+    # print(s)
+    assert len(s['result']) == 1  # results are always in a list
+    assert s['result'][0]['state'] == 'OK'
+    assert s['result'][0]['message'] == ""
+    assert s['result'][0]['version'] == VER
+    # ignore git url and hash, can change
