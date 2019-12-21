@@ -1,30 +1,55 @@
+# These tests cover the integration of the entire system and do not go into details - that's
+# what unit tests are for. As such, typically each method will get a single happy path test and
+# a single unhappy path test unless otherwise warranted.
+
+import os
 import shutil
 import tempfile
+import requests
+import time
 from configparser import ConfigParser
 from pytest import fixture
+from threading import Thread
 
 from core import test_utils
+from core.arango_controller import ArangoController  # TODO move up a level
 from mongo_controller import MongoController
 from auth_controller import AuthController
 
+VER = '0.1.0-alpha1'
+
 _AUTH_DB = 'test_auth_db'
 
+TEST_DB_NAME = 'test_sample_service'
+TEST_COL_SAMPLE = 'samples'
+TEST_COL_VERSION = 'versions'
+TEST_COL_VER_EDGE = 'ver_to_sample'
+TEST_COL_NODES = 'nodes'
+TEST_COL_NODE_EDGE = 'node_edges'
+TEST_COL_SCHEMA = 'schema'
+TEST_USER = 'user1'
+TEST_PWD = 'password1'
 
-def create_deploy_cfg(mongo_port):
+
+def create_deploy_cfg(auth_port, arango_port):
     cfg = ConfigParser()
     ss = 'SampleService'
     cfg.add_section(ss)
-    cfg[ss]['arango-url'] = 'foo'
-    cfg[ss]['arango-db'] = 'foo'
-    cfg[ss]['arango-user'] = 'foo'
-    cfg[ss]['arango-pwd'] = 'foo'
 
-    cfg[ss]['sample-collection'] = 'foo'
-    cfg[ss]['version-collection'] = 'foo'
-    cfg[ss]['version-edge-collection'] = 'foo'
-    cfg[ss]['node-collection'] = 'foo'
-    cfg[ss]['node-edge-collection'] = 'foo'
-    cfg[ss]['schema-collection'] = 'foo'
+    cfg[ss]['auth-service-url'] = f'http://localhost:{auth_port}'
+    cfg[ss]['auth-service-url-allow-insecure'] = 'true'
+
+    cfg[ss]['arango-url'] = f'http://localhost:{arango_port}'
+    cfg[ss]['arango-db'] = TEST_DB_NAME
+    cfg[ss]['arango-user'] = TEST_USER
+    cfg[ss]['arango-pwd'] = TEST_PWD
+
+    cfg[ss]['sample-collection'] = TEST_COL_SAMPLE
+    cfg[ss]['version-collection'] = TEST_COL_VERSION
+    cfg[ss]['version-edge-collection'] = TEST_COL_VER_EDGE
+    cfg[ss]['node-collection'] = TEST_COL_NODES
+    cfg[ss]['node-edge-collection'] = TEST_COL_NODE_EDGE
+    cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
 
     _, path = tempfile.mkstemp('.cfg', 'deploy-', dir=test_utils.get_temp_dir(), text=True)
 
@@ -73,5 +98,77 @@ def auth(mongo):
     auth.destroy(del_temp)
 
 
-def test_fake(auth):
-    pass
+@fixture(scope='module')
+def arango():
+    arangoexe = test_utils.get_arango_exe()
+    arangojs = test_utils.get_arango_js()
+    tempdir = test_utils.get_temp_dir()
+    arango = ArangoController(arangoexe, arangojs, tempdir)
+    create_test_db(arango)
+    print('running arango on port {} in dir {}'.format(arango.port, arango.temp_dir))
+    yield arango
+
+    del_temp = test_utils.get_delete_temp_files()
+    print('shutting down arango, delete_temp_files={}'.format(del_temp))
+    arango.destroy(del_temp)
+
+
+def create_test_db(arango):
+    systemdb = arango.client.db(verify=True)  # default access to _system db
+    systemdb.create_database(TEST_DB_NAME, [{'username': TEST_USER, 'password': TEST_PWD}])
+    return arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
+
+
+def clear_db_and_recreate(arango):
+    arango.clear_database(TEST_DB_NAME, drop_indexes=True)
+    db = create_test_db(arango)
+    db.create_collection(TEST_COL_SAMPLE)
+    db.create_collection(TEST_COL_VERSION)
+    db.create_collection(TEST_COL_VER_EDGE, edge=True)
+    db.create_collection(TEST_COL_NODES)
+    db.create_collection(TEST_COL_NODE_EDGE, edge=True)
+    db.create_collection(TEST_COL_SCHEMA)
+    return db
+
+
+@fixture(scope='module')
+def service(auth, arango):
+    portint = test_utils.find_free_port()
+    clear_db_and_recreate(arango)
+    # this is completely stupid. The state is calculated on import so there's no way to
+    # test the state creation normally.
+    cfgpath = create_deploy_cfg(auth.port, arango.port)
+    os.environ['KB_DEPLOYMENT_CONFIG'] = cfgpath
+    from SampleService import SampleServiceServer
+    Thread(target=SampleServiceServer.start_server, kwargs={'port': portint}, daemon=True).start()
+    time.sleep(0.05)
+    port = str(portint)
+    print('running sample service at localhost:' + port)
+    yield port
+
+    # shutdown the server
+    # SampleServiceServer.stop_server()  <-- this causes an error. the start & stop methods are
+    # bugged. _proc is only set if newprocess=True
+
+
+@fixture
+def sample_port(service, arango):
+    clear_db_and_recreate(arango)
+    yield service
+
+
+def test_status(sample_port):
+    res = requests.post('http://localhost:' + sample_port, json={
+        'method': 'SampleService.status',
+        'params': [],
+        'version': 1.1,
+        'id': 1   # don't do this. This is bad practice
+    })
+    assert res.status_code == 200
+    s = res.json()
+    # print(s)
+    assert len(s['result']) == 1  # results are always in a list
+    assert s['result'][0]['state'] == 'OK'
+    assert s['result'][0]['message'] == ""
+    assert s['result'][0]['version'] == VER
+    # ignore git url and hash, can change

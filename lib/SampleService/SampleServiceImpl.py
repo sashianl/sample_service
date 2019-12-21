@@ -44,6 +44,8 @@ Handles creating, updating, retriving samples and linking data to samples.
     # be found
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
+        if not config:
+            raise ValueError('config is empty, cannot start service')
         arango_url = _check_string(config['arango-url'], 'config param arango-url')
         arango_db = _check_string(config['arango-db'], 'config param arango-db')
         arango_user = _check_string(config['arango-user'], 'config param arango-user')
