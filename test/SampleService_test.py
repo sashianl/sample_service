@@ -12,7 +12,7 @@ from pytest import fixture
 from threading import Thread
 
 from core import test_utils
-from core.arango_controller import ArangoController  # TODO move up a level
+from arango_controller import ArangoController
 from mongo_controller import MongoController
 from auth_controller import AuthController
 

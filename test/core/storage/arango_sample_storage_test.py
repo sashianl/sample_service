@@ -5,7 +5,7 @@ import time
 from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
-from core.arango_controller import ArangoController
+from arango_controller import ArangoController
 from SampleService.core.acls import SampleACL
 from SampleService.core.sample import SampleWithID, SampleNode, SubSampleType
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
