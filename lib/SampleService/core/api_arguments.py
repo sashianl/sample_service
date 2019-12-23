@@ -149,7 +149,9 @@ def get_sample_address_from_object(params: Dict[str, Any]) -> Tuple[UUID, Option
 
     :param params: The unmarshalled JSON recieved from the API as part of the API call.
     :returns: A tuple containing the ID and the version or None if no version was provided.
-    :raises IllegalParameterError: if the version is not an integer or < 1.
+    :raises MissingParameterError: If the ID is missing.
+    :raises IllegalParameterError: if the ID is malformed or if the version is not an
+        integer or < 1.
     '''
     return (_cast(UUID, get_id_from_object(params, required=True)),
             get_version_from_object(params))
