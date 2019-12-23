@@ -6,8 +6,10 @@ import json
 
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
 from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
+from SampleService.core.api_arguments import acls_to_dict
 from SampleService.core.api_arguments import create_sample_params, get_sample_address_from_object
 from SampleService.core.sample import Sample, SampleNode, SubSampleType, SampleWithID
+from SampleService.core.acls import SampleACL
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 from core.test_utils import assert_exception_correct
@@ -337,3 +339,33 @@ def test_sample_to_dict_fail():
         sample_to_dict(None)
     assert_exception_correct(
         got.value, ValueError('sample cannot be a value that evaluates to false'))
+
+
+def test_acls_to_dict_minimal():
+    assert acls_to_dict(SampleACL('user')) == {
+        'owner': 'user',
+        'admin': (),
+        'write': (),
+        'read': ()
+    }
+
+
+def test_acls_to_dict_maximal():
+    assert acls_to_dict(
+        SampleACL(
+            'user',
+            ['foo', 'bar'],
+            ['baz'],
+            ['hello', "I'm", 'a', 'robot'])) == {
+        'owner': 'user',
+        'admin': ('foo', 'bar'),
+        'write': ('baz',),
+        'read': ('hello', "I'm", 'a', 'robot')
+    }
+
+
+def test_acls_to_dict_fail():
+    with raises(Exception) as got:
+        acls_to_dict(None)
+    assert_exception_correct(
+        got.value, ValueError('acls cannot be a value that evaluates to false'))

@@ -10,6 +10,7 @@ import datetime
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.sample import Sample, SampleNode as _SampleNode, SampleWithID
 from SampleService.core.sample import SubSampleType as _SubSampleType
+from SampleService.core.acls import SampleACL as SampleACL
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
@@ -184,3 +185,17 @@ def _unfreeze_meta(m):
     for k in m:
         ret[k] = {ik: m[k][ik] for ik in m[k]}
     return ret
+
+
+def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
+    '''
+    Convert sample ACLs to a JSONable structure to return to the SDK API.
+
+    :param acls: The ACLs to convert.
+    :return: the ACLs as a dict.
+    '''
+    return {'owner': _not_falsy(acls, 'acls').owner,
+            'admin': acls.admin,
+            'write': acls.write,
+            'read': acls.read,
+            }
