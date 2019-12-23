@@ -303,7 +303,6 @@ def test_create_sample_fail_no_nodes(sample_port):
         }]
     })
     # print(ret.text)
-    # print(ret.text)
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
         f'Sample service error code 30001 Illegal input parameter: sample node tree ' +
