@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 #BEGIN_HEADER
-# TODO TESTS
 
 import arango as _arango
 
@@ -46,20 +45,22 @@ Handles creating, updating, retriving samples and linking data to samples.
         #BEGIN_CONSTRUCTOR
         if not config:
             raise ValueError('config is empty, cannot start service')
-        arango_url = _check_string(config['arango-url'], 'config param arango-url')
-        arango_db = _check_string(config['arango-db'], 'config param arango-db')
-        arango_user = _check_string(config['arango-user'], 'config param arango-user')
-        arango_pwd = _check_string(config['arango-pwd'], 'config param arango-pwd')
+        arango_url = _check_string(config.get('arango-url'), 'config param arango-url')
+        arango_db = _check_string(config.get('arango-db'), 'config param arango-db')
+        arango_user = _check_string(config.get('arango-user'), 'config param arango-user')
+        arango_pwd = _check_string(config.get('arango-pwd'), 'config param arango-pwd')
 
-        col_sample = _check_string(config['sample-collection'], 'config param sample-collection')
+        col_sample = _check_string(config.get('sample-collection'),
+                                   'config param sample-collection')
         col_version = _check_string(
-            config['version-collection'], 'config param version-collection')
+            config.get('version-collection'), 'config param version-collection')
         col_ver_edge = _check_string(
-            config['version-edge-collection'], 'config param version-edge-collection')
-        col_node = _check_string(config['node-collection'], 'config param node-collection')
+            config.get('version-edge-collection'), 'config param version-edge-collection')
+        col_node = _check_string(config.get('node-collection'), 'config param node-collection')
         col_node_edge = _check_string(
-            config['node-edge-collection'], 'config param node-edge-collection')
-        col_schema = _check_string(config['schema-collection'], 'config param schema-collection')
+            config.get('node-edge-collection'), 'config param node-edge-collection')
+        col_schema = _check_string(config.get('schema-collection'),
+                                   'config param schema-collection')
 
         print(f'''
             Starting server with config:
