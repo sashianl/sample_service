@@ -17,7 +17,6 @@
 * document collections for server. Do not auto create as admins will want to specify shard count
 
 # Testing
-* Make kb-sdk test run in travis and test full stack.
 * flake8 and bandit on test-sdkless (generated code is poopy)
 * When https://github.com/python/mypy/issues/6385 is implemented, ditch all the stupid 
   `__init__.py` files
@@ -26,3 +25,7 @@
 * https://github.com/kbaseIncubator/samples/pull/1/files
 * The ~10 documents that have been written about this
 * compile html spec
+
+# Obsolete
+* Make kb-sdk test run in travis
+  * full stack is tested without it so nevermind
