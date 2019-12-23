@@ -9,9 +9,9 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
 
-from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import (get_sample_address_from_object as
+                                              _get_sample_address_from_object)
 from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
-from SampleService.core.api_arguments import get_version_from_object as _get_version_from_object
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
 #END_HEADER
 
@@ -225,8 +225,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         # ctx is the context object
         # return variables are: sample
         #BEGIN get_sample
-        id_ = _get_id_from_object(params)
-        ver = _get_version_from_object(params)
+        id_, ver = _get_sample_address_from_object(params)
         s = self._samples.get_sample(id_, ctx['user_id'], ver)
         sample = _sample_to_dict(s)
         #END get_sample
