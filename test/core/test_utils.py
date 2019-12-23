@@ -1,4 +1,5 @@
 import os
+import requests
 import socket
 from contextlib import closing
 from pathlib import Path
@@ -107,3 +108,22 @@ class TerstFermerttr(Formatter):
 
 class TestException(Exception):
     __test__ = False
+
+
+def create_auth_user(auth_url, username, displayname):
+    ret = requests.post(
+        auth_url + '/testmode/api/V2/testmodeonly/user',
+        headers={'accept': 'application/json'},
+        json={'user': username, 'display': displayname})
+    if not ret.ok:
+        ret.raise_for_status()
+
+
+def create_auth_login_token(auth_url, username):
+    ret = requests.post(
+        auth_url + '/testmode/api/V2/testmodeonly/token',
+        headers={'accept': 'application/json'},
+        json={'user': username, 'type': 'Login'})
+    if not ret.ok:
+        ret.raise_for_status()
+    return ret.json()['token']
