@@ -32,6 +32,12 @@ TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
 
+USER1 = 'user1'
+TOKEN1 = None
+USER2 = 'user2'
+TOKEN2 = None
+
+
 def create_deploy_cfg(auth_port, arango_port):
     cfg = ConfigParser()
     ss = 'SampleService'
@@ -59,10 +65,6 @@ def create_deploy_cfg(auth_port, arango_port):
         cfg.write(handle)
 
     return path
-
-
-USER1 = 'user1'
-TOKEN1 = None
 
 
 @fixture(scope='module')
@@ -93,6 +95,7 @@ def mongo(temp_file):
 @fixture(scope='module')
 def auth(mongo):
     global TOKEN1
+    global TOKEN2
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
     auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
@@ -100,6 +103,8 @@ def auth(mongo):
     url = f'http://localhost:{auth.port}'
     test_utils.create_auth_user(url, USER1, 'display1')
     TOKEN1 = test_utils.create_auth_login_token(url, USER1)
+    test_utils.create_auth_user(url, USER2, 'display2')
+    TOKEN2 = test_utils.create_auth_login_token(url, USER2)
 
     yield auth
 
@@ -167,6 +172,9 @@ def sample_port(service, arango):
     yield service
 
 
+# TODO TEST INIT
+
+
 def test_status(sample_port):
     res = requests.post('http://localhost:' + sample_port, json={
         'method': 'SampleService.status',
@@ -184,15 +192,15 @@ def test_status(sample_port):
     # ignore git url and hash, can change
 
 
-def get_authorized_headers():
-    return {'authorization': TOKEN1, 'accept': 'application/json'}
+def get_authorized_headers(token):
+    return {'authorization': token, 'accept': 'application/json'}
 
 
 def test_create_and_get_sample_with_version(sample_port):
     url = f'http://localhost:{sample_port}'
 
     # verison 1
-    ret = requests.post(url, headers=get_authorized_headers(), json={
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.create_sample',
         'version': '1.1',
         'id': '67',
@@ -213,7 +221,7 @@ def test_create_and_get_sample_with_version(sample_port):
     id_ = ret.json()['result'][0]['id']
 
     # version 2
-    ret = requests.post(url, headers=get_authorized_headers(), json={
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.create_sample',
         'version': '1.1',
         'id': '68',
@@ -235,7 +243,7 @@ def test_create_and_get_sample_with_version(sample_port):
     assert ret.json()['result'][0]['version'] == 2
 
     # get version 1
-    ret = requests.post(url, headers=get_authorized_headers(), json={
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.get_sample',
         'version': '1.1',
         'id': '42',
@@ -258,10 +266,10 @@ def test_create_and_get_sample_with_version(sample_port):
     }
 
     # get version 2
-    ret = requests.post(url, headers=get_authorized_headers(), json={
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.get_sample',
         'version': '1.1',
-        'id': '42',
+        'id': '43',
         'params': [{'id': id_}]
     })
     # print(ret.text)
@@ -279,3 +287,45 @@ def test_create_and_get_sample_with_version(sample_port):
                        'meta_controlled': {'foo': {'bar': 'bat'}},
                        'meta_user': {'a': {'b': 'd'}}}]
     }
+
+
+def test_create_sample_fail_permissions(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'id': id_,
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+
+    # print(ret.text)
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 20000 Unauthorized: User user2 cannot write to sample {id_}')
