@@ -4,7 +4,7 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
@@ -12,22 +12,27 @@ from SampleService.core.sample import Sample, SampleNode as _SampleNode, SampleW
 from SampleService.core.sample import SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
+from SampleService.core.errors import MissingParameterError as _MissingParameterError
 
 ID = 'id'
 ''' The ID of a sample. '''
 
 
-def get_id_from_object(obj: Dict[str, Any]) -> Optional[UUID]:
+def get_id_from_object(obj: Dict[str, Any], required=False) -> Optional[UUID]:
     '''
     Given a dict, get a sample ID from the dict if it exists, using the key 'id'.
 
     If None or an empty dict is passed to the method, None is returned.
 
-    :params obj: The dict wherein the ID can be found.
+    :param obj: The dict wherein the ID can be found.
+    :param required: If no ID is present, throw an exception.
     :returns: The ID, if it exists, or None.
+    :raises MissingParameterError: If the ID is required but not present.
     :raises IllegalParameterError: If the ID is provided but is invalid.
     '''
     id_ = None
+    if required and (not obj or not obj.get(ID)):
+        raise _MissingParameterError('Sample ID')
     if obj and obj.get(ID):
         if type(obj[ID]) != str:
             raise _IllegalParameterError(f'Sample ID {obj[ID]} must be a UUID string')
@@ -127,7 +132,7 @@ def get_version_from_object(params: Dict[str, Any]) -> Optional[int]:
     Given a dict, get a sample version from the dict if it exists, using the key 'version'.
 
     :param params: The unmarshalled JSON recieved from the API as part of the API call.
-    :returns: the version or None if no version was provided
+    :returns: the version or None if no version was provided.
     :raises IllegalParameterError: if the version is not an integer or < 1.
     '''
     _check_params(params)
@@ -135,6 +140,19 @@ def get_version_from_object(params: Dict[str, Any]) -> Optional[int]:
     if ver is not None and (type(ver) != int or ver < 1):
         raise _IllegalParameterError(f'Illegal version argument: {ver}')
     return ver
+
+
+def get_sample_address_from_object(params: Dict[str, Any]) -> Tuple[UUID, Optional[int]]:
+    '''
+    Given a dict, get a sample ID and version from the dict. The sample ID is required but
+    the version is not. The keys 'id' and 'version' are used.
+
+    :param params: The unmarshalled JSON recieved from the API as part of the API call.
+    :returns: A tuple containing the ID and the version or None if no version was provided.
+    :raises IllegalParameterError: if the version is not an integer or < 1.
+    '''
+    return (_cast(UUID, get_id_from_object(params, required=True)),
+            get_version_from_object(params))
 
 
 def sample_to_dict(sample: SampleWithID) -> Dict[str, Any]:
