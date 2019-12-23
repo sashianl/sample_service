@@ -12,7 +12,7 @@ from pytest import fixture
 from threading import Thread
 
 from core import test_utils
-from core.arango_controller import ArangoController  # TODO move up a level
+from arango_controller import ArangoController
 from mongo_controller import MongoController
 from auth_controller import AuthController
 
@@ -59,6 +59,10 @@ def create_deploy_cfg(auth_port, arango_port):
     return path
 
 
+USER1 = 'user1'
+TOKEN1 = None
+
+
 @fixture(scope='module')
 def temp_file():
     tempdir = test_utils.get_temp_dir()
@@ -86,10 +90,14 @@ def mongo(temp_file):
 
 @fixture(scope='module')
 def auth(mongo):
+    global TOKEN1
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
     auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
     print(f'running KBase Auth2 {auth.version} on port {auth.port} in dir {auth.temp_dir}')
+    url = f'http://localhost:{auth.port}'
+    test_utils.create_auth_user(url, USER1, 'display1')
+    TOKEN1 = test_utils.create_auth_login_token(url, USER1)
 
     yield auth
 
@@ -172,3 +180,7 @@ def test_status(sample_port):
     assert s['result'][0]['message'] == ""
     assert s['result'][0]['version'] == VER
     # ignore git url and hash, can change
+
+
+def test_create_sample(sample_port):
+    print(TOKEN1)
