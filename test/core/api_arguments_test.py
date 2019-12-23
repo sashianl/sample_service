@@ -6,30 +6,39 @@ import json
 
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
 from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
-from SampleService.core.api_arguments import create_sample_params
+from SampleService.core.api_arguments import create_sample_params, get_sample_address_from_object
 from SampleService.core.sample import Sample, SampleNode, SubSampleType, SampleWithID
-from SampleService.core.errors import IllegalParameterError
+from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 from core.test_utils import assert_exception_correct
 
 
 def test_get_id_from_object():
-    assert get_id_from_object(None) is None
-    assert get_id_from_object({}) is None
-    assert get_id_from_object({'id': None}) is None
-    assert get_id_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}) == UUID(
+    assert get_id_from_object(None, False) is None
+    assert get_id_from_object({}, False) is None
+    assert get_id_from_object({'id': None}, False) is None
+    assert get_id_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}, False) == UUID(
+        'f5bd78c3-823e-40b2-9f93-20e78680e41e')
+    assert get_id_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}, True) == UUID(
         'f5bd78c3-823e-40b2-9f93-20e78680e41e')
 
 
 def test_get_id_from_object_fail_bad_args():
-    get_id_from_object_fail({'id': 6}, IllegalParameterError('Sample ID 6 must be a UUID string'))
-    get_id_from_object_fail({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'}, IllegalParameterError(
-        'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
+    get_id_from_object_fail({'id': 6}, True, IllegalParameterError(
+        'Sample ID 6 must be a UUID string'))
+    get_id_from_object_fail({
+        'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'},
+        False,
+        IllegalParameterError(
+            'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
+    get_id_from_object_fail(None, True, MissingParameterError('Sample ID'))
+    get_id_from_object_fail({}, True, MissingParameterError('Sample ID'))
+    get_id_from_object_fail({'id': None}, True, MissingParameterError('Sample ID'))
 
 
-def get_id_from_object_fail(d, expected):
+def get_id_from_object_fail(d, required, expected):
     with raises(Exception) as got:
-        get_id_from_object(d)
+        get_id_from_object(d, required)
     assert_exception_correct(got.value, expected)
 
 
@@ -219,6 +228,41 @@ def test_get_version_from_object_fail_bad_args():
 def get_version_from_object_fail(params, expected):
     with raises(Exception) as got:
         get_version_from_object(params)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_sample_address_from_object():
+    assert get_sample_address_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}) == (
+        UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e'), None)
+    assert get_sample_address_from_object({
+        'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
+        'version': 1}) == (
+        UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e'), 1)
+
+
+def test_get_sample_address_from_object_fail_bad_args():
+    get_sample_address_from_object_fail(None, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail({}, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail({'id': None}, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail({'id': 6}, IllegalParameterError(
+        'Sample ID 6 must be a UUID string'))
+    get_sample_address_from_object_fail({
+        'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'},
+        IllegalParameterError(
+            'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
+
+    id_ = 'f5bd78c3-823e-40b2-9f93-20e78680e41e'
+    get_version_from_object_fail(
+        {'id': id_, 'version': 'whee'}, IllegalParameterError('Illegal version argument: whee'))
+    get_version_from_object_fail(
+        {'id': id_, 'version': 0}, IllegalParameterError('Illegal version argument: 0'))
+    get_version_from_object_fail(
+        {'id': id_, 'version': -3}, IllegalParameterError('Illegal version argument: -3'))
+
+
+def get_sample_address_from_object_fail(params, expected):
+    with raises(Exception) as got:
+        get_sample_address_from_object(params)
     assert_exception_correct(got.value, expected)
 
 
