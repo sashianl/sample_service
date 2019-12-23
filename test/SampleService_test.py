@@ -12,6 +12,7 @@ from pytest import fixture
 from threading import Thread
 
 from core import test_utils
+from core.test_utils import assert_ms_epoch_close_to_now
 from arango_controller import ArangoController
 from mongo_controller import MongoController
 from auth_controller import AuthController
@@ -36,7 +37,8 @@ def create_deploy_cfg(auth_port, arango_port):
     ss = 'SampleService'
     cfg.add_section(ss)
 
-    cfg[ss]['auth-service-url'] = f'http://localhost:{auth_port}'
+    cfg[ss]['auth-service-url'] = (f'http://localhost:{auth_port}/testmode/' +
+                                   'api/legacy/KBase/Sessions/Login')
     cfg[ss]['auth-service-url-allow-insecure'] = 'true'
 
     cfg[ss]['arango-url'] = f'http://localhost:{arango_port}'
@@ -182,5 +184,98 @@ def test_status(sample_port):
     # ignore git url and hash, can change
 
 
-def test_create_sample(sample_port):
-    print(TOKEN1)
+def get_authorized_headers():
+    return {'authorization': TOKEN1, 'accept': 'application/json'}
+
+
+def test_create_and_get_sample_with_version(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    # verison 1
+    ret = requests.post(url, headers=get_authorized_headers(), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'baz'}},
+                                      'meta_user': {'a': {'b': 'c'}}
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    # version 2
+    ret = requests.post(url, headers=get_authorized_headers(), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '68',
+        'params': [{
+            'sample': {'name': 'mysample2',
+                       'id': id_,
+                       'node_tree': [{'id': 'root2',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'bat'}},
+                                      'meta_user': {'a': {'b': 'd'}}
+                                      }
+                                     ]
+                       },
+            'prior_version': 1
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 2
+
+    # get version 1
+    ret = requests.post(url, headers=get_authorized_headers(), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    j = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(j['save_date'])
+    del j['save_date']
+    assert j == {
+        'id': id_,
+        'version': 1,
+        'name': 'mysample',
+        'node_tree': [{'id': 'root',
+                       'parent': None,
+                       'type': 'BioReplicate',
+                       'meta_controlled': {'foo': {'bar': 'baz'}},
+                       'meta_user': {'a': {'b': 'c'}}}]
+    }
+
+    # get version 2
+    ret = requests.post(url, headers=get_authorized_headers(), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    j = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(j['save_date'])
+    del j['save_date']
+    assert j == {
+        'id': id_,
+        'version': 2,
+        'name': 'mysample2',
+        'node_tree': [{'id': 'root2',
+                       'parent': None,
+                       'type': 'BioReplicate',
+                       'meta_controlled': {'foo': {'bar': 'bat'}},
+                       'meta_user': {'a': {'b': 'd'}}}]
+    }
