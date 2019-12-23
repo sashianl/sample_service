@@ -8,11 +8,14 @@ import tempfile
 import requests
 import time
 from configparser import ConfigParser
-from pytest import fixture
+from pytest import fixture, raises
 from threading import Thread
 
+from SampleService.SampleServiceImpl import SampleService
+from SampleService.core.errors import MissingParameterError
+
 from core import test_utils
-from core.test_utils import assert_ms_epoch_close_to_now
+from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct
 from arango_controller import ArangoController
 from mongo_controller import MongoController
 from auth_controller import AuthController
@@ -172,7 +175,38 @@ def sample_port(service, arango):
     yield service
 
 
-# TODO TEST INIT
+def test_init_fail():
+    # init success is tested via starting the server
+    init_fail(None, ValueError('config is empty, cannot start service'))
+    cfg = {}
+    init_fail(cfg, ValueError('config is empty, cannot start service'))
+    cfg['arango-url'] = None
+    init_fail(cfg, MissingParameterError('config param arango-url'))
+    cfg['arango-url'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param arango-db'))
+    cfg['arango-db'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param arango-user'))
+    cfg['arango-user'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param arango-pwd'))
+    cfg['arango-pwd'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param sample-collection'))
+    cfg['sample-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param version-collection'))
+    cfg['version-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param version-edge-collection'))
+    cfg['version-edge-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param node-collection'))
+    cfg['node-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param node-edge-collection'))
+    cfg['node-edge-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param schema-collection'))
+
+
+def init_fail(config, expected):
+    with raises(Exception) as got:
+        SampleService(config)
+    print(repr(got.value))
+    assert_exception_correct(got.value, expected)
 
 
 def test_status(sample_port):
