@@ -311,26 +311,6 @@ def _replace_sample_acls_fail_unauthorized(user):
         ((UUID('1234567890abcdef1234567890abcde0'),), {})]
 
 
-def test_replace_sample_acls_fail_change_owner():
-    _replace_sample_acls_fail_change_owner('someuser')
-    _replace_sample_acls_fail_change_owner('otheruser')
-
-
-def _replace_sample_acls_fail_change_owner(user):
-    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
-    id_ = UUID('1234567890abcdef1234567890abcde0')
-
-    storage.get_sample_acls.return_value = SampleACL(
-        'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
-
-    _replace_sample_acls_fail(samples, id_, user, SampleACL('foo'), UnauthorizedError(
-        'The sample owner currently cannot be changed.'))
-
-    assert storage.get_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcde0'),), {})]
-
-
 def _replace_sample_acls_fail(samples, id_, user, acls, expected):
     with raises(Exception) as got:
         samples.replace_sample_acls(id_, user, acls)
