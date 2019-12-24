@@ -6,7 +6,7 @@ from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.sample import SampleWithID, SampleNode, SubSampleType
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
 from SampleService.core.errors import NoSuchSampleVersionError
@@ -920,16 +920,16 @@ def test_replace_sample_acls(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], dt(1), 'foo')) is True
 
-    samplestorage.replace_sample_acls(id_, SampleACL(
-        'newuser', ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
+    samplestorage.replace_sample_acls(id_, SampleACLOwnerless(
+        ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
 
     assert samplestorage.get_sample_acls(id_) == SampleACL(
-        'newuser', ['foo', 'bar'], ['baz', 'bat'], ['whoo'])
+        'user', ['foo', 'bar'], ['baz', 'bat'], ['whoo'])
 
 
 def test_replace_sample_acls_fail_bad_args(samplestorage):
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(None, SampleACL('a'))
+        samplestorage.replace_sample_acls(None, SampleACLOwnerless())
     assert_exception_correct(got.value, ValueError(
         'id_ cannot be a value that evaluates to false'))
 

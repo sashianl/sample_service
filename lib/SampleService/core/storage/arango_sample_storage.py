@@ -73,7 +73,7 @@ from typing import Dict as _Dict, Any as _Any
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.sample import SampleWithID
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
@@ -655,7 +655,7 @@ class ArangoSampleStorage:
         acls = doc[_FLD_ACLS]
         return SampleACL(acls[_FLD_OWNER], acls[_FLD_ADMIN], acls[_FLD_WRITE], acls[_FLD_READ])
 
-    def replace_sample_acls(self, id_: UUID, acls: SampleACL):
+    def replace_sample_acls(self, id_: UUID, acls: SampleACLOwnerless):
         '''
         Completely replace a sample's ACLs.
 
@@ -665,8 +665,7 @@ class ArangoSampleStorage:
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
         doc = {_FLD_ARANGO_KEY: str(_not_falsy(id_, 'id_')),
-               _FLD_ACLS: {_FLD_OWNER: _not_falsy(acls, 'acls').owner,
-                           _FLD_ADMIN: acls.admin,
+               _FLD_ACLS: {_FLD_ADMIN: _not_falsy(acls, 'acls').admin,
                            _FLD_WRITE: acls.write,
                            _FLD_READ: acls.read}
                }

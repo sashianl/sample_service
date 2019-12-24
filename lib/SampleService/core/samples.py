@@ -10,7 +10,7 @@ from typing import Optional, Callable, Tuple
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.sample import Sample, SampleWithID
@@ -18,6 +18,7 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 
 
 # TODO save user that created version
+# TODO remove own acls.
 
 class Samples:
     '''
@@ -146,7 +147,7 @@ class Samples:
         self._check_perms(id_, user, _SampleAccessType.READ, acls)
         return acls
 
-    def replace_sample_acls(self, id_: UUID, user: str, new_acls: SampleACL) -> None:
+    def replace_sample_acls(self, id_: UUID, user: str, new_acls: SampleACLOwnerless) -> None:
         '''
         Completely replace a sample's ACLs. The owner cannot be changed.
 
@@ -162,8 +163,7 @@ class Samples:
         _not_falsy(new_acls, 'new_acls')
         acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
         self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
-        if new_acls.owner != acls.owner:
-            raise _UnauthorizedError('The sample owner currently cannot be changed.')
+        # TODO check users are valid
         self._storage.replace_sample_acls(id_, new_acls)
 
     # TODO change owner. Probably needs a request/accept flow.
