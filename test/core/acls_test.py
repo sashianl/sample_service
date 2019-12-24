@@ -45,7 +45,7 @@ def test_eq_ownerless():
     assert 'foo' != SampleACLOwnerless('foo')
 
 
-def test_hash():
+def test_hash_ownerless():
     # hashes will change from instance to instance of the python interpreter, and therefore
     # tests can't be written that directly test the hash value. See
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
