@@ -6,10 +6,10 @@ import json
 
 from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
 from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
-from SampleService.core.api_arguments import acls_to_dict
+from SampleService.core.api_arguments import acls_to_dict, acls_from_dict
 from SampleService.core.api_arguments import create_sample_params, get_sample_address_from_object
 from SampleService.core.sample import Sample, SampleNode, SubSampleType, SampleWithID
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 from core.test_utils import assert_exception_correct
@@ -369,3 +369,37 @@ def test_acls_to_dict_fail():
         acls_to_dict(None)
     assert_exception_correct(
         got.value, ValueError('acls cannot be a value that evaluates to false'))
+
+
+def test_acls_from_dict():
+    assert acls_from_dict({'acls': {}}) == SampleACLOwnerless()
+    assert acls_from_dict({'acls': {
+        'read': [],
+        'admin': ['whee', 'whoo']}}) == SampleACLOwnerless(['whee', 'whoo'])
+    assert acls_from_dict({'acls': {
+        'read': ['a', 'b'],
+        'write': ['x'],
+        'admin': ['whee', 'whoo']}}) == SampleACLOwnerless(['whee', 'whoo'], ['x'], ['a', 'b'])
+
+
+def test_acls_from_dict_fail_bad_args():
+    _acls_from_dict_fail(None, ValueError('d cannot be a value that evaluates to false'))
+    _acls_from_dict_fail({}, ValueError('d cannot be a value that evaluates to false'))
+    _acls_from_dict_fail({'acls': 'foo'}, IllegalParameterError('Input ACLs must be a mapping'))
+    _acls_from_dict_fail_acl_check('read')
+    _acls_from_dict_fail_acl_check('write')
+    _acls_from_dict_fail_acl_check('admin')
+
+
+def _acls_from_dict_fail_acl_check(acltype):
+    _acls_from_dict_fail({'acls': {acltype: {}}},
+                         IllegalParameterError(f'{acltype} ACL must be a list'))
+    _acls_from_dict_fail(
+        {'acls': {acltype: ['one', 2, 'three']}},
+        IllegalParameterError(f'Index 1 of {acltype} ACL does not contain a string'))
+
+
+def _acls_from_dict_fail(d, expected):
+    with raises(Exception) as got:
+        acls_from_dict(d)
+    assert_exception_correct(got.value, expected)
