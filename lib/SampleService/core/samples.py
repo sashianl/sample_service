@@ -17,6 +17,8 @@ from SampleService.core.sample import Sample, SampleWithID
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 
 
+# TODO save user that created version
+
 class Samples:
     '''
     Class implementing sample manipulation operations.

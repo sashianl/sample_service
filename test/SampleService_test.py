@@ -452,3 +452,108 @@ def test_get_sample_fail_permissions(sample_port):
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
         f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+
+
+def test_get_acls(sample_port):
+    # TODO test with more complete acls when setting acls is possible. Check w/ read etc.
+
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0] == {
+        'owner': USER1,
+        'admin': [],
+        'write': [],
+        'read': []
+    }
+
+
+def test_get_acls_fail_no_id(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'ids': id_}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        'Sample service error code 30000 Missing input parameter: Sample ID')
+
+
+def test_get_acls_fail_permissions(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+        'method': 'SampleService.get_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')

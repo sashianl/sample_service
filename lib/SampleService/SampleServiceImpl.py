@@ -10,6 +10,8 @@ from SampleService.core.arg_checkers import check_string as _check_string
 
 from SampleService.core.api_arguments import (get_sample_address_from_object as
                                               _get_sample_address_from_object)
+from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import acls_to_dict as _acls_to_dict
 from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
 #END_HEADER
@@ -34,7 +36,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     ######################################### noqa
     VERSION = "0.1.0-alpha1"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "1419d46f854f994ce12461311cbad707daaf5791"
+    GIT_COMMIT_HASH = "4f5e48f5dc7967b71081dbf1b94703f1080e44dc"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -108,7 +110,7 @@ Handles creating, updating, retriving samples and linking data to samples.
            replicates. id - the ID of the sample. node_tree - the tree(s) of
            sample nodes in the sample. The the roots of all trees must be
            BioReplicate nodes. All the BioReplicate nodes must be at the
-           start of the list, and all child nodes must occur before their
+           start of the list, and all child nodes must occur after their
            parents in the list. name - the name of the sample. Must be less
            than 255 characters. save_date - the date the sample version was
            saved. version - the version of the sample.) -> structure:
@@ -130,21 +132,22 @@ Handles creating, updating, retriving samples and linking data to samples.
            sub sample that is not a technical replicate.), parameter
            "meta_controlled" of type "metadata" (Metadata attached to a
            sample. The UnspecifiedObject map values MUST be a primitive type
-           - either int, float, or string.) -> mapping from type
+           - either int, float, string, or equivalent typedefs.) -> mapping
+           from type "metadata_key" (A key in a metadata key/value pair. Less
+           than 1000 unicode characters.) to mapping from type
+           "metadata_value_key" (A key for a value associated with a piece of
+           metadata. Less than 1000 unicode characters. Examples: units,
+           value, species) to unspecified object, parameter "meta_user" of
+           type "metadata" (Metadata attached to a sample. The
+           UnspecifiedObject map values MUST be a primitive type - either
+           int, float, string, or equivalent typedefs.) -> mapping from type
            "metadata_key" (A key in a metadata key/value pair. Less than 1000
            unicode characters.) to mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "meta_user" of type "metadata"
-           (Metadata attached to a sample. The UnspecifiedObject map values
-           MUST be a primitive type - either int, float, or string.) ->
-           mapping from type "metadata_key" (A key in a metadata key/value
-           pair. Less than 1000 unicode characters.) to mapping from type
-           "metadata_value_key" (A key for a value associated with a piece of
-           metadata. Less than 1000 unicode characters. Examples: units,
-           value, species) to unspecified object, parameter "name" of type
-           "sample_name" (A sample name. Must be less than 255 characters.),
-           parameter "save_date" of type "timestamp" (A timestamp in epoch
+           unspecified object, parameter "name" of type "sample_name" (A
+           sample name. Must be less than 255 characters.), parameter
+           "save_date" of type "timestamp" (A timestamp in epoch
            milliseconds.), parameter "version" of type "version" (The version
            of a sample. Always > 0.), parameter "prior_version" of Long
         :returns: instance of type "SampleAddress" (A Sample ID and version.
@@ -173,7 +176,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         """
         Get a sample. If the version is omitted the most recent sample is returned.
         :param params: instance of type "GetSampleParams" (GetSample
-           parameters id - the ID of the sample to retrieve. version - the
+           parameters. id - the ID of the sample to retrieve. version - the
            version of the sample to retrieve, or the most recent sample if
            omitted.) -> structure: parameter "id" of type "sample_id" (A
            Sample ID. Must be globally unique. Always assigned by the Sample
@@ -183,7 +186,7 @@ Handles creating, updating, retriving samples and linking data to samples.
            of subsamples and replicates. id - the ID of the sample. node_tree
            - the tree(s) of sample nodes in the sample. The the roots of all
            trees must be BioReplicate nodes. All the BioReplicate nodes must
-           be at the start of the list, and all child nodes must occur before
+           be at the start of the list, and all child nodes must occur after
            their parents in the list. name - the name of the sample. Must be
            less than 255 characters. save_date - the date the sample version
            was saved. version - the version of the sample.) -> structure:
@@ -205,21 +208,22 @@ Handles creating, updating, retriving samples and linking data to samples.
            sub sample that is not a technical replicate.), parameter
            "meta_controlled" of type "metadata" (Metadata attached to a
            sample. The UnspecifiedObject map values MUST be a primitive type
-           - either int, float, or string.) -> mapping from type
+           - either int, float, string, or equivalent typedefs.) -> mapping
+           from type "metadata_key" (A key in a metadata key/value pair. Less
+           than 1000 unicode characters.) to mapping from type
+           "metadata_value_key" (A key for a value associated with a piece of
+           metadata. Less than 1000 unicode characters. Examples: units,
+           value, species) to unspecified object, parameter "meta_user" of
+           type "metadata" (Metadata attached to a sample. The
+           UnspecifiedObject map values MUST be a primitive type - either
+           int, float, string, or equivalent typedefs.) -> mapping from type
            "metadata_key" (A key in a metadata key/value pair. Less than 1000
            unicode characters.) to mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "meta_user" of type "metadata"
-           (Metadata attached to a sample. The UnspecifiedObject map values
-           MUST be a primitive type - either int, float, or string.) ->
-           mapping from type "metadata_key" (A key in a metadata key/value
-           pair. Less than 1000 unicode characters.) to mapping from type
-           "metadata_value_key" (A key for a value associated with a piece of
-           metadata. Less than 1000 unicode characters. Examples: units,
-           value, species) to unspecified object, parameter "name" of type
-           "sample_name" (A sample name. Must be less than 255 characters.),
-           parameter "save_date" of type "timestamp" (A timestamp in epoch
+           unspecified object, parameter "name" of type "sample_name" (A
+           sample name. Must be less than 255 characters.), parameter
+           "save_date" of type "timestamp" (A timestamp in epoch
            milliseconds.), parameter "version" of type "version" (The version
            of a sample. Always > 0.)
         """
@@ -237,6 +241,39 @@ Handles creating, updating, retriving samples and linking data to samples.
                              'sample is not type dict as required.')
         # return the results
         return [sample]
+
+    def get_sample_acls(self, ctx, params):
+        """
+        Get a sample's ACLs.
+        :param params: instance of type "GetSampleACLsParams" (GetSampleACLs
+           parameters.) -> structure: parameter "id" of type "sample_id" (A
+           Sample ID. Must be globally unique. Always assigned by the Sample
+           service.)
+        :returns: instance of type "SampleACLs" (Access control lists for a
+           sample. Access levels include the priviledges of the lower access
+           levels. owner - the user that created and owns the sample. admin -
+           users that can administrate (e.g. alter ACLs) the sample. write -
+           users that can write (e.g. create a new version) to the sample.
+           read - users that can view the sample.) -> structure: parameter
+           "owner" of type "user" (A user's username.), parameter "admin" of
+           list of type "user" (A user's username.), parameter "write" of
+           list of type "user" (A user's username.), parameter "read" of list
+           of type "user" (A user's username.)
+        """
+        # ctx is the context object
+        # return variables are: acls
+        #BEGIN get_sample_acls
+        id_ = _get_id_from_object(params, required=True)
+        acls_ret = self._samples.get_sample_acls(id_, ctx['user_id'])
+        acls = _acls_to_dict(acls_ret)
+        #END get_sample_acls
+
+        # At some point might do deeper type checking...
+        if not isinstance(acls, dict):
+            raise ValueError('Method get_sample_acls return value ' +
+                             'acls is not type dict as required.')
+        # return the results
+        return [acls]
 
     def status(self, ctx):
         #BEGIN_STATUS

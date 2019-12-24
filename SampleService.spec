@@ -9,6 +9,9 @@ module SampleService {
     /* A timestamp in epoch milliseconds. */
     typedef int timestamp;
 
+    /* A user's username. */
+    typedef string user;
+
     /* A SampleNode ID. Must be unique within a Sample and be less than 255 characters.
      */
     typedef string node_id;
@@ -38,7 +41,7 @@ module SampleService {
     typedef string metadata_value_key;
 
     /* Metadata attached to a sample.
-        The UnspecifiedObject map values MUST be a primitive type - either int, float, or string
+        The UnspecifiedObject map values MUST be a primitive type - either int, float, string,
         or equivalent typedefs.
      */
     typedef mapping<metadata_key, mapping<metadata_value_key, UnspecifiedObject>> metadata;
@@ -76,6 +79,21 @@ module SampleService {
         version version;
     } Sample;
 
+    /* Access control lists for a sample. Access levels include the priviledges of the lower
+        access levels.
+
+        owner - the user that created and owns the sample.
+        admin - users that can administrate (e.g. alter ACLs) the sample.
+        write - users that can write (e.g. create a new version) to the sample.
+        read - users that can view the sample.
+     */
+    typedef structure {
+        user owner;
+        list<user> admin;
+        list<user> write;
+        list<user> read;
+    } SampleACLs;
+
     /* A Sample ID and version.
         id - the ID of the sample.
         version - the version of the sample.
@@ -106,7 +124,7 @@ module SampleService {
     funcdef create_sample(CreateSampleParams params) returns(SampleAddress address)
         authentication required;
 
-    /* GetSample parameters
+    /* GetSample parameters.
         id - the ID of the sample to retrieve.
         version - the version of the sample to retrieve, or the most recent sample if omitted.
      */
@@ -117,4 +135,13 @@ module SampleService {
 
     /* Get a sample. If the version is omitted the most recent sample is returned. */
     funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication required;
+
+    /* GetSampleACLs parameters. */
+    typedef structure {
+        sample_id id;
+    } GetSampleACLsParams;
+
+    /* Get a sample's ACLs. */
+    funcdef get_sample_acls(GetSampleACLsParams params) returns (SampleACLs acls)
+        authentication required;
 };
