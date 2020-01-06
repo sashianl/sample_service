@@ -699,7 +699,8 @@ def test_replace_acls_fail_bad_acls(sample_port):
     })
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
-        'Sample service error code 30001 Illegal input parameter: Input ACLs must be a mapping')
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'ACLs must be supplied in the acls key and must be a mapping')
 
 
 def test_replace_acls_fail_permissions(sample_port):

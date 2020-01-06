@@ -207,16 +207,12 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
 
     :param params: The dict containing the ACLS.
     :returns: the ACLs.
-    :raises MissingParameterError: if any of the required arguments are missing.
     :raises IllegalParameterError: if any of the arguments are illegal.
     '''
     _not_falsy(d, 'd')
-    if not d.get('acls'):
-        # TODO should fail here if None or not a dict
-        return SampleACLOwnerless()
+    if d.get('acls') is None or type(d['acls']) != dict:
+        raise _IllegalParameterError('ACLs must be supplied in the acls key and must be a mapping')
     acls = d['acls']
-    if not type(acls) == dict:
-        raise _IllegalParameterError('Input ACLs must be a mapping')
     _check_acl(acls, 'admin')
     _check_acl(acls, 'write')
     _check_acl(acls, 'read')
