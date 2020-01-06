@@ -11,6 +11,7 @@ from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.api_arguments import (get_sample_address_from_object as
                                               _get_sample_address_from_object)
 from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
+from SampleService.core.api_arguments import acls_from_dict as _acls_from_dict
 from SampleService.core.api_arguments import acls_to_dict as _acls_to_dict
 from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
@@ -36,7 +37,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     ######################################### noqa
     VERSION = "0.1.0-alpha1"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "4f5e48f5dc7967b71081dbf1b94703f1080e44dc"
+    GIT_COMMIT_HASH = "c1a7b2bfd5b4e92c5200921bfdcef49c444c6b11"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -175,7 +176,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     def get_sample(self, ctx, params):
         """
         Get a sample. If the version is omitted the most recent sample is returned.
-        :param params: instance of type "GetSampleParams" (GetSample
+        :param params: instance of type "GetSampleParams" (get_sample
            parameters. id - the ID of the sample to retrieve. version - the
            version of the sample to retrieve, or the most recent sample if
            omitted.) -> structure: parameter "id" of type "sample_id" (A
@@ -245,10 +246,10 @@ Handles creating, updating, retriving samples and linking data to samples.
     def get_sample_acls(self, ctx, params):
         """
         Get a sample's ACLs.
-        :param params: instance of type "GetSampleACLsParams" (GetSampleACLs
-           parameters.) -> structure: parameter "id" of type "sample_id" (A
-           Sample ID. Must be globally unique. Always assigned by the Sample
-           service.)
+        :param params: instance of type "GetSampleACLsParams"
+           (get_sample_acls parameters.) -> structure: parameter "id" of type
+           "sample_id" (A Sample ID. Must be globally unique. Always assigned
+           by the Sample service.)
         :returns: instance of type "SampleACLs" (Access control lists for a
            sample. Access levels include the priviledges of the lower access
            levels. owner - the user that created and owns the sample. admin -
@@ -274,6 +275,35 @@ Handles creating, updating, retriving samples and linking data to samples.
                              'acls is not type dict as required.')
         # return the results
         return [acls]
+
+    def replace_sample_acls(self, ctx, params):
+        """
+        Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
+        ACLs and gone forever.
+        The sample owner cannot be changed via this method.
+        :param params: instance of type "ReplaceSampleACLsParams"
+           (replace_sample_acls parameters. id - the ID of the sample to
+           modify. acls - the ACLs to set on the sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "acls"
+           of type "SampleACLs" (Access control lists for a sample. Access
+           levels include the priviledges of the lower access levels. owner -
+           the user that created and owns the sample. admin - users that can
+           administrate (e.g. alter ACLs) the sample. write - users that can
+           write (e.g. create a new version) to the sample. read - users that
+           can view the sample.) -> structure: parameter "owner" of type
+           "user" (A user's username.), parameter "admin" of list of type
+           "user" (A user's username.), parameter "write" of list of type
+           "user" (A user's username.), parameter "read" of list of type
+           "user" (A user's username.)
+        """
+        # ctx is the context object
+        #BEGIN replace_sample_acls
+        id_ = _get_id_from_object(params, required=True)
+        acls = _acls_from_dict(params)
+        self._samples.replace_sample_acls(id_, ctx['user_id'], acls)
+        #END replace_sample_acls
+        pass
 
     def status(self, ctx):
         #BEGIN_STATUS

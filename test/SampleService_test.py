@@ -39,6 +39,13 @@ USER1 = 'user1'
 TOKEN1 = None
 USER2 = 'user2'
 TOKEN2 = None
+USER3 = 'user3'
+TOKEN3 = None
+USER4 = 'user4'
+TOKEN4 = None
+USER_NO_TOKEN1 = 'usernt1'
+USER_NO_TOKEN2 = 'usernt2'
+USER_NO_TOKEN3 = 'usernt3'
 
 
 def create_deploy_cfg(auth_port, arango_port):
@@ -99,15 +106,26 @@ def mongo(temp_file):
 def auth(mongo):
     global TOKEN1
     global TOKEN2
+    global TOKEN3
+    global TOKEN4
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
     auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
     print(f'running KBase Auth2 {auth.version} on port {auth.port} in dir {auth.temp_dir}')
     url = f'http://localhost:{auth.port}'
+
     test_utils.create_auth_user(url, USER1, 'display1')
     TOKEN1 = test_utils.create_auth_login_token(url, USER1)
     test_utils.create_auth_user(url, USER2, 'display2')
     TOKEN2 = test_utils.create_auth_login_token(url, USER2)
+    test_utils.create_auth_user(url, USER3, 'display3')
+    TOKEN3 = test_utils.create_auth_login_token(url, USER3)
+    test_utils.create_auth_user(url, USER4, 'display4')
+    TOKEN4 = test_utils.create_auth_login_token(url, USER4)
+
+    test_utils.create_auth_user(url, USER_NO_TOKEN1, 'displaynt1')
+    test_utils.create_auth_user(url, USER_NO_TOKEN2, 'displaynt2')
+    test_utils.create_auth_user(url, USER_NO_TOKEN3, 'displaynt3')
 
     yield auth
 
@@ -364,6 +382,8 @@ def test_create_sample_fail_permissions(sample_port):
     assert ret.json()['result'][0]['version'] == 1
     id_ = ret.json()['result'][0]['id']
 
+    _replace_acls(url, id_, TOKEN1, {'read': [USER2]})
+
     ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
         'method': 'SampleService.create_sample',
         'version': '1.1',
@@ -454,9 +474,7 @@ def test_get_sample_fail_permissions(sample_port):
         f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
 
 
-def test_get_acls(sample_port):
-    # TODO test with more complete acls when setting acls is possible. Check w/ read etc.
-
+def test_get_and_replace_acls(sample_port):
     url = f'http://localhost:{sample_port}'
 
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
@@ -477,20 +495,109 @@ def test_get_acls(sample_port):
     assert ret.json()['result'][0]['version'] == 1
     id_ = ret.json()['result'][0]['id']
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
-        'method': 'SampleService.get_sample_acls',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id_}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
-    assert ret.json()['result'][0] == {
+    _assert_acl_contents(url, id_, TOKEN1, {
         'owner': USER1,
         'admin': [],
         'write': [],
         'read': []
-    }
+    })
+
+    _replace_acls(url, id_, TOKEN1, {
+        'admin': [USER2],
+        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
+        'read': [USER_NO_TOKEN3, USER4]
+    })
+
+    # test that people in the acls can read
+    for token in [TOKEN2, TOKEN3, TOKEN4]:
+        _assert_acl_contents(url, id_, token, {
+            'owner': USER1,
+            'admin': [USER2],
+            'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
+            'read': [USER_NO_TOKEN3, USER4]
+        })
+
+        ret = requests.post(url, headers=get_authorized_headers(token), json={
+            'method': 'SampleService.get_sample',
+            'version': '1.1',
+            'id': '42',
+            'params': [{'id': id_}]
+        })
+        # print(ret.text)
+        assert ret.ok is True
+        j = ret.json()['result'][0]
+        del j['save_date']
+        assert j == {
+            'id': id_,
+            'version': 1,
+            'name': 'mysample',
+            'node_tree': [{
+                'id': 'root',
+                'type': 'BioReplicate',
+                'parent': None,
+                'meta_controlled': {},
+                'meta_user': {}}]
+        }
+
+    # test admins and writers can write
+    for token, version in ((TOKEN2, 2), (TOKEN3, 3)):
+        ret = requests.post(url, headers=get_authorized_headers(token), json={
+            'method': 'SampleService.create_sample',
+            'version': '1.1',
+            'id': '68',
+            'params': [{
+                'sample': {'name': 'mysample2',
+                           'id': id_,
+                           'node_tree': [{'id': 'root2',
+                                          'type': 'BioReplicate',
+                                          }
+                                         ]
+                           }
+            }]
+        })
+        # print(ret.text)
+        assert ret.ok is True
+        assert ret.json()['result'][0]['version'] == version
+
+    # test that an admin can replace ACLs
+    _replace_acls(url, id_, TOKEN2, {
+        'admin': [USER_NO_TOKEN2],
+        'write': [],
+        'read': [USER2]
+    })
+
+    _assert_acl_contents(url, id_, TOKEN1, {
+        'owner': USER1,
+        'admin': [USER_NO_TOKEN2],
+        'write': [],
+        'read': [USER2]
+    })
+
+    # TODO check users are only in one acl
+    # TODO check owner is not in acl, and when saving has not changed since fetch
+
+
+def _replace_acls(url, id_, token, acls):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.replace_sample_acls',
+        'version': '1.1',
+        'id': '67',
+        'params': [{'id': id_, 'acls': acls}]
+    })
+    assert ret.ok is True
+    assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
+
+
+def _assert_acl_contents(url, id_, token, expected):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_sample_acls',
+        'version': '1.1',
+        'id': '47',
+        'params': [{'id': id_}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0] == expected
 
 
 def test_get_acls_fail_no_id(sample_port):
@@ -530,7 +637,21 @@ def test_get_acls_fail_permissions(sample_port):
 
     url = f'http://localhost:{sample_port}'
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+        'method': 'SampleService.get_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+
+
+def _create_generic_sample(url, token):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.create_sample',
         'version': '1.1',
         'id': '67',
@@ -546,14 +667,61 @@ def test_get_acls_fail_permissions(sample_port):
     # print(ret.text)
     assert ret.ok is True
     assert ret.json()['result'][0]['version'] == 1
-    id_ = ret.json()['result'][0]['id']
+    return ret.json()['result'][0]['id']
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
-        'method': 'SampleService.get_sample_acls',
+
+def test_replace_acls_fail_no_id(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.replace_sample_acls',
         'version': '1.1',
         'id': '42',
-        'params': [{'id': id_}]
+        'params': [{'ids': id_}]
     })
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
-        f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+        'Sample service error code 30000 Missing input parameter: Sample ID')
+
+
+def test_replace_acls_fail_bad_acls(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.replace_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'acls': ['foo']}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        'Sample service error code 30001 Illegal input parameter: Input ACLs must be a mapping')
+
+
+def test_replace_acls_fail_permissions(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _replace_acls(url, id_, TOKEN1, {
+        'admin': [USER2],
+        'write': [USER3],
+        'read': [USER4]
+    })
+
+    for user, token in ((USER3, TOKEN3), (USER4, TOKEN4)):
+        ret = requests.post(url, headers=get_authorized_headers(token), json={
+            'method': 'SampleService.replace_sample_acls',
+            'version': '1.1',
+            'id': '42',
+            'params': [{'id': id_, 'acls': {}}]
+        })
+        assert ret.status_code == 500
+        assert ret.json()['error']['message'] == (
+            f'Sample service error code 20000 Unauthorized: User {user} cannot ' +
+            f'administrate sample {id_}')
