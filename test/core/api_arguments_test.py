@@ -385,7 +385,9 @@ def test_acls_from_dict():
 def test_acls_from_dict_fail_bad_args():
     _acls_from_dict_fail(None, ValueError('d cannot be a value that evaluates to false'))
     _acls_from_dict_fail({}, ValueError('d cannot be a value that evaluates to false'))
-    _acls_from_dict_fail({'acls': 'foo'}, IllegalParameterError('Input ACLs must be a mapping'))
+    m = 'ACLs must be supplied in the acls key and must be a mapping'
+    _acls_from_dict_fail({'acls': None}, IllegalParameterError(m))
+    _acls_from_dict_fail({'acls': 'foo'}, IllegalParameterError(m))
     _acls_from_dict_fail_acl_check('read')
     _acls_from_dict_fail_acl_check('write')
     _acls_from_dict_fail_acl_check('admin')
