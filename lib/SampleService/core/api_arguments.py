@@ -203,7 +203,7 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
 
 def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     '''
-    Given a dict, create a SampleACL object from the contents of the acls key.
+    Given a dict, create a SampleACLOwnerless object from the contents of the acls key.
 
     :param params: The dict containing the ACLS.
     :returns: the ACLs.
@@ -212,6 +212,7 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     '''
     _not_falsy(d, 'd')
     if not d.get('acls'):
+        # TODO should fail here if None or not a dict
         return SampleACLOwnerless()
     acls = d['acls']
     if not type(acls) == dict:

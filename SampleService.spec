@@ -79,7 +79,7 @@ module SampleService {
         version version;
     } Sample;
 
-    /* Access control lists for a sample. Access levels include the priviledges of the lower
+    /* Access control lists for a sample. Access levels include the privileges of the lower
         access levels.
 
         owner - the user that created and owns the sample.
@@ -124,7 +124,7 @@ module SampleService {
     funcdef create_sample(CreateSampleParams params) returns(SampleAddress address)
         authentication required;
 
-    /* GetSample parameters.
+    /* get_sample parameters.
         id - the ID of the sample to retrieve.
         version - the version of the sample to retrieve, or the most recent sample if omitted.
      */
@@ -136,7 +136,7 @@ module SampleService {
     /* Get a sample. If the version is omitted the most recent sample is returned. */
     funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication required;
 
-    /* GetSampleACLs parameters. */
+    /* get_sample_acls parameters. */
     typedef structure {
         sample_id id;
     } GetSampleACLsParams;
@@ -144,4 +144,22 @@ module SampleService {
     /* Get a sample's ACLs. */
     funcdef get_sample_acls(GetSampleACLsParams params) returns (SampleACLs acls)
         authentication required;
+
+    /* replace_sample_acls parameters.
+
+        id - the ID of the sample to modify.
+        acls - the ACLs to set on the sample.
+     */
+    typedef structure {
+        sample_id id;
+        SampleACLs acls;
+    } ReplaceSampleACLsParams;
+
+    /* Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
+        ACLs, even if empty, and gone forever.
+
+        The sample owner cannot be changed via this method.
+     */
+     funcdef replace_sample_acls(ReplaceSampleACLsParams params) returns() authentication required;
+
 };
