@@ -163,7 +163,9 @@ class Samples:
         _not_falsy(new_acls, 'new_acls')
         acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
         self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
-        # TODO check users are valid
+        # TODO ACL check users are valid
+        # TODO ACL handle owner changed exception
+        new_acls = SampleACL(acls.owner, new_acls.admin, new_acls.write, new_acls.read)
         self._storage.replace_sample_acls(id_, new_acls)
 
     # TODO change owner. Probably needs a request/accept flow.

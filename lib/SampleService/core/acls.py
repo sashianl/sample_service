@@ -4,7 +4,7 @@ Classes and methods for working with sample ACLs.
 
 from enum import IntEnum
 
-from typing import List
+from typing import Sequence
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
 
@@ -32,9 +32,9 @@ class SampleACLOwnerless:
 
     def __init__(
             self,
-            admin: List[str] = None,
-            write: List[str] = None,
-            read: List[str] = None):
+            admin: Sequence[str] = None,
+            write: Sequence[str] = None,
+            read: Sequence[str] = None):
         '''
         Create the ACLs.
 
@@ -59,7 +59,7 @@ class SampleACLOwnerless:
 
 class SampleACL(SampleACLOwnerless):
     '''
-    An Access Control List for a sample, consisting of user names for various privileges.
+    An Access Control Sequence for a sample, consisting of user names for various privileges.
 
     :ivar owner: the owner username.
     :ivar admin: the list of admin usernames.
@@ -70,9 +70,9 @@ class SampleACL(SampleACLOwnerless):
     def __init__(
             self,
             owner: str,
-            admin: List[str] = None,
-            write: List[str] = None,
-            read: List[str] = None):
+            admin: Sequence[str] = None,
+            write: Sequence[str] = None,
+            read: Sequence[str] = None):
         '''
         Create the ACLs.
 

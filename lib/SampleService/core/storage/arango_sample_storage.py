@@ -73,7 +73,7 @@ from typing import Dict as _Dict, Any as _Any
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
-from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.acls import SampleACL
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.sample import SampleWithID
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
@@ -84,6 +84,7 @@ from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitException as _StorageInitException
+from SampleService.core.storage.errors import OwnerChangedException as _OwnerChangedException
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ARANGO_FROM = '_from'
@@ -167,10 +168,8 @@ class ArangoSampleStorage:
         # :param now: A callable that returns the current time. Primarily used for testing.
         # Maybe make a configuration class...?
         # TODO take workspace shadow object collection & check indexes exist, don't create
-        _not_falsy(db, 'db')
-        _not_falsy(now, 'now')
-        self._db = db
-        self._now = now
+        self._db = _not_falsy(db, 'db')
+        self._now = _not_falsy(now, 'now')
         self._col_sample = _init_collection(
             db, sample_collection, 'sample collection', 'sample_collection')
         self._col_version = _init_collection(
@@ -655,26 +654,48 @@ class ArangoSampleStorage:
         acls = doc[_FLD_ACLS]
         return SampleACL(acls[_FLD_OWNER], acls[_FLD_ADMIN], acls[_FLD_WRITE], acls[_FLD_READ])
 
-    def replace_sample_acls(self, id_: UUID, acls: SampleACLOwnerless):
+    def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
         Completely replace a sample's ACLs.
+
+        The owner may not be changed via this method, but is required to ensure the owner has
+        not changed since the acls were retrieved from the database. If the current owner is not
+        the same as the owner in the SampleACLs, the save will fail. This prevents race conditions
+        from resulting in a user existing in both the owner acl and another acl.
 
         :param id_: the sample's ID.
         :param acls: the new ACLs.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
+        :raises OwnerChangedException: if the owner in the database is not the same as the owner
+            in the provided ACLs.
         '''
-        doc = {_FLD_ARANGO_KEY: str(_not_falsy(id_, 'id_')),
-               _FLD_ACLS: {_FLD_ADMIN: _not_falsy(acls, 'acls').admin,
-                           _FLD_WRITE: acls.write,
-                           _FLD_READ: acls.read}
-               }
+        _not_falsy(id_, 'id_')
+        _not_falsy(acls, 'acls')
+
+        # could return a subset of s to save bandwith
+        aql = f'''
+            FOR s in @@col
+                FILTER s.{_FLD_ARANGO_KEY} == @id
+                FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
+                UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls)}} IN @@col
+                RETURN s
+            '''
+        bind_vars = {'@col': self._col_sample.name,
+                     'id': str(id_),
+                     'owner': acls.owner,
+                     'acls': {_FLD_ADMIN: acls.admin,
+                              _FLD_WRITE: acls.write,
+                              _FLD_READ: acls.read
+                              }
+                     }
         try:
-            self._col_sample.update(doc, silent=True)
-        except _arango.exceptions.DocumentUpdateError as e:
-            if e.error_code == 1202:  # doc not found code
-                raise _NoSuchSampleError(str(id_))
-            # this is a real pain to test
+            cur = self._db.aql.execute(aql, bind_vars=bind_vars, count=True)
+            if not cur.count():
+                # assume cur.count() is never > 1 as we're filtering on _key
+                self._get_sample_doc(id_)  # will raise exception if document does not exist
+                raise _OwnerChangedException()
+        except _arango.exceptions.AQLQueryExecuteError as e:
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     # TODO change acls with more granularity
