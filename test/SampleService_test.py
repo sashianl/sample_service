@@ -573,8 +573,8 @@ def test_get_and_replace_acls(sample_port):
         'read': [USER2]
     })
 
-    # TODO check users are only in one acl
-    # TODO check owner is not in acl, and when saving has not changed since fetch
+    # TODO ACL check users are only in one acl
+    # TODO ACL check owner is not in acl
 
 
 def _replace_acls(url, id_, token, acls):

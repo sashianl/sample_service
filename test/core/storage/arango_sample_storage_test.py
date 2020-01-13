@@ -6,12 +6,13 @@ from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
-from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.acls import SampleACL
 from SampleService.core.sample import SampleWithID, SampleNode, SubSampleType
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
 from SampleService.core.errors import NoSuchSampleVersionError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitException
+from SampleService.core.storage.errors import OwnerChangedException
 
 TEST_NODE = SampleNode('foo')
 
@@ -920,16 +921,20 @@ def test_replace_sample_acls(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], dt(1), 'foo')) is True
 
-    samplestorage.replace_sample_acls(id_, SampleACLOwnerless(
-        ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        'user', ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
 
     assert samplestorage.get_sample_acls(id_) == SampleACL(
         'user', ['foo', 'bar'], ['baz', 'bat'], ['whoo'])
 
+    samplestorage.replace_sample_acls(id_, SampleACL('user', write=['baz']))
+
+    assert samplestorage.get_sample_acls(id_) == SampleACL('user', write=['baz'])
+
 
 def test_replace_sample_acls_fail_bad_args(samplestorage):
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(None, SampleACLOwnerless())
+        samplestorage.replace_sample_acls(None, SampleACL('user'))
     assert_exception_correct(got.value, ValueError(
         'id_ cannot be a value that evaluates to false'))
 
@@ -947,5 +952,23 @@ def test_replace_sample_acls_fail_no_sample(samplestorage):
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
 
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(id2, SampleACL('foo'))
+        samplestorage.replace_sample_acls(id2, SampleACL('user'))
     assert_exception_correct(got.value, NoSuchSampleError(str(id2)))
+
+
+def test_replace_sample_acls_fail_owner_changed(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample('user', SampleWithID(id_, [TEST_NODE], dt(1), 'foo')) is True
+
+    # this is naughty
+    samplestorage._db.aql.execute(
+        '''
+        FOR s IN @@col
+            UPDATE s WITH {acls: MERGE(s.acls, @acls)} IN @@col
+            RETURN s
+        ''',
+        bind_vars={'@col': 'samples', 'acls': {'owner': 'user2'}})
+
+    with raises(Exception) as got:
+        samplestorage.replace_sample_acls(id_, SampleACL('user', write=['foo']))
+    assert_exception_correct(got.value, OwnerChangedException())
