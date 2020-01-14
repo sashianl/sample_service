@@ -9,6 +9,7 @@ from SampleService.core.acls import SampleACL
 from SampleService.core.errors import IllegalParameterError, UnauthorizedError
 from SampleService.core.sample import Sample, SampleNode, SampleWithID
 from SampleService.core.samples import Samples
+from SampleService.core.storage.errors import OwnerChangedError
 from core.test_utils import assert_exception_correct
 
 
@@ -275,6 +276,86 @@ def _replace_sample_acls(user):
 
     assert storage.replace_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser')), {})]
+
+
+def test_replace_sample_acls_with_owner_change():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    storage.get_sample_acls.side_effect = [
+        SampleACL(
+            'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x']),
+        SampleACL(
+            'someuser2', ['otheruser', 'y'],)
+        ]
+
+    storage.replace_sample_acls.side_effect = [OwnerChangedError, None]
+
+    samples.replace_sample_acls(id_, 'otheruser', SampleACL('someuser'))
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),), {}),
+        ((UUID('1234567890abcdef1234567890abcde0'),), {})
+        ]
+
+    assert storage.replace_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser')), {}),
+        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser2')), {})
+        ]
+
+
+def test_replace_sample_acls_with_owner_change_fail_lost_perms():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    storage.get_sample_acls.side_effect = [
+        SampleACL(
+            'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x']),
+        SampleACL(
+            'someuser2', ['otheruser2', 'y'],)
+        ]
+
+    storage.replace_sample_acls.side_effect = [OwnerChangedError, None]
+
+    _replace_sample_acls_fail(
+        samples, id_, 'otheruser', SampleACL('someuser'),
+        UnauthorizedError(f'User otheruser cannot administrate sample {id_}'))
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),), {}),
+        ((UUID('1234567890abcdef1234567890abcde0'),), {})
+        ]
+
+    assert storage.replace_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser')), {})
+        ]
+
+
+def test_replace_sample_acls_with_owner_change_fail_5_times():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    storage.get_sample_acls.side_effect = [
+        SampleACL(f'someuser{x}', ['otheruser']) for x in range(5)
+    ]
+
+    storage.replace_sample_acls.side_effect = OwnerChangedError
+
+    _replace_sample_acls_fail(
+        samples, id_, 'otheruser', SampleACL('someuser'),
+        ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}'))
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),), {}) for _ in range(5)
+        ]
+
+    assert storage.replace_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),
+            SampleACL(f'someuser{x}')), {}) for x in range(5)
+        ]
 
 
 def test_replace_sample_acls_fail_bad_input():

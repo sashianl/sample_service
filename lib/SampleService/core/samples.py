@@ -15,6 +15,7 @@ from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.sample import Sample, SampleWithID
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
+from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 
 
 # TODO save user that created version
@@ -161,11 +162,18 @@ class Samples:
         '''
         _not_falsy(user, 'user')
         _not_falsy(new_acls, 'new_acls')
-        acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
-        self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
+        count = 0
         # TODO ACL check users are valid
-        # TODO ACL handle owner changed exception
-        new_acls = SampleACL(acls.owner, new_acls.admin, new_acls.write, new_acls.read)
-        self._storage.replace_sample_acls(id_, new_acls)
+        while count >= 0:
+            if count >= 5:
+                raise ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}')
+            acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
+            self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
+            new_acls = SampleACL(acls.owner, new_acls.admin, new_acls.write, new_acls.read)
+            try:
+                self._storage.replace_sample_acls(id_, new_acls)
+                count = -1
+            except _OwnerChangedError:
+                count += 1
 
     # TODO change owner. Probably needs a request/accept flow.
