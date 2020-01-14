@@ -2,6 +2,8 @@
 # what unit tests are for. As such, typically each method will get a single happy path test and
 # a single unhappy path test unless otherwise warranted.
 
+# Tests of the auth user lookup code is at the bottom of the file.
+
 import os
 import shutil
 import tempfile
@@ -13,6 +15,7 @@ from threading import Thread
 
 from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import MissingParameterError
+from SampleService.core.user_lookup import KBaseUserLookup, AuthenticationError
 
 from core import test_utils
 from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct
@@ -759,3 +762,79 @@ def test_replace_acls_fail_owner_in_another_acl(sample_port):
     assert ret.json()['error']['message'] == (
         'Sample service error code 30001 Illegal input parameter: ' +
         'The owner cannot be in any other ACL')
+
+
+# ###########################
+# Auth user lookup tests
+# ###########################
+
+# for some reason having sample_port along with auth in the test fn args prevents a tear down
+# error, not quite sure why
+
+def test_user_lookup_build_fail_bad_args():
+    _user_lookup_build_fail(
+        '', 'foo', ValueError('auth_url cannot be a value that evaluates to false'))
+    _user_lookup_build_fail(
+        'http://foo.com', '', ValueError('auth_token cannot be a value that evaluates to false'))
+
+
+def test_user_lookup_build_fail_bad_token(sample_port, auth):
+    _user_lookup_build_fail(
+        f'http://localhost:{auth.port}/testmode',
+        'tokentokentoken!',
+        AuthenticationError('KBase auth server reported token is invalid.'))
+
+
+def test_user_lookup_build_fail_bad_auth_url(sample_port, auth):
+    _user_lookup_build_fail(
+        f'http://localhost:{auth.port}/testmode/foo',
+        TOKEN1,
+        IOError('Error from KBase auth server: HTTP 404 Not Found'))
+
+
+def test_user_lookup_build_fail_not_auth_url():
+    _user_lookup_build_fail(
+        f'https://ci.kbase.us/services',
+        TOKEN1,
+        IOError('Non-JSON response from KBase auth server, status code: 404'))
+
+
+def _user_lookup_build_fail(url, token, expected):
+    with raises(Exception) as got:
+        KBaseUserLookup(url, token)
+    assert_exception_correct(got.value, expected)
+
+
+def test_user_lookup(sample_port, auth):
+    ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode', TOKEN1)
+    assert ul.are_valid_users([]) == []
+    assert ul.are_valid_users([USER1, USER2, USER3]) == []
+
+
+def test_user_lookup_bad_users(sample_port, auth):
+    ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
+    assert ul.are_valid_users(
+        ['nouserhere', USER1, USER2, 'whooptydoo', USER3]) == ['nouserhere', 'whooptydoo']
+
+
+def test_user_lookup_fail_bad_args(sample_port, auth):
+    ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
+    _user_lookup_fail(ul, None, ValueError('usernames cannot be None'))
+    _user_lookup_fail(ul, ['foo', 'bar', ''], ValueError(
+        'Index 2 of iterable usernames cannot be a value that evaluates to false'))
+
+
+def test_user_lookup_fail_bad_username(sample_port, auth):
+    ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
+    # maybe possibly this error should be shortened
+    # definitely clear the user name is illegal though, there's no question about that
+    _user_lookup_fail(ul, ['1'], AuthenticationError(
+        'The KBase auth server is being very assertive about one of the usernames being ' +
+        'illegal: 30010 Illegal user name: Illegal user name [1]: 30010 Illegal user name: ' +
+        'Username must start with a letter'))
+
+
+def _user_lookup_fail(userlookup, users, expected):
+    with raises(Exception) as got:
+        userlookup.are_valid_users(users)
+    assert_exception_correct(got.value, expected)
