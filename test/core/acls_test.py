@@ -2,6 +2,7 @@ from pytest import raises
 
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from core.test_utils import assert_exception_correct
+from SampleService.core.errors import IllegalParameterError
 
 
 def test_build_ownerless():
@@ -10,7 +11,9 @@ def test_build_ownerless():
     assert a.write == ()
     assert a.read == ()
 
-    a = SampleACLOwnerless(['baz', 'bat'], read=['wheee'], write=['wugga', 'a', 'b'])
+    # test duplicates are removed and order maintained
+    a = SampleACLOwnerless(
+        ['baz', 'bat', 'baz'], read=['wheee', 'wheee'], write=['wugga', 'a', 'b', 'a'])
     assert a.admin == ('baz', 'bat')
     assert a.write == ('wugga', 'a', 'b')
     assert a.read == ('wheee',)
@@ -23,6 +26,14 @@ def test_build_fail_ownerless():
         'Index 0 of iterable write cannot be a value that evaluates to false'))
     _build_fail_ownerless(None, None, ['a', 'b', ''], ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
+
+    # test that you cannot have a user in 2 acls
+    _build_fail_ownerless(['a', 'z'], ['a', 'c'], ['w', 'b'], IllegalParameterError(
+        'User a appears in two ACLs'))
+    _build_fail_ownerless(['a', 'z'], ['b', 'c'], ['w', 'a'], IllegalParameterError(
+        'User a appears in two ACLs'))
+    _build_fail_ownerless(['x', 'z'], ['b', 'c', 'w'], ['w', 'a'], IllegalParameterError(
+        'User w appears in two ACLs'))
 
 
 def _build_fail_ownerless(admin, write, read, expected):
@@ -67,7 +78,8 @@ def test_build():
     assert a.write == ()
     assert a.read == ()
 
-    a = SampleACL('foo', ['baz', 'bat'], read=['wheee'], write=['wugga', 'a', 'b'])
+    a = SampleACL(
+        'foo', ['baz', 'bat', 'baz'], read=['wheee', 'wheee'], write=['wugga', 'a', 'b', 'wugga'])
     assert a.owner == 'foo'
     assert a.admin == ('baz', 'bat')
     assert a.write == ('wugga', 'a', 'b')
@@ -83,6 +95,22 @@ def test_build_fail():
         'Index 0 of iterable write cannot be a value that evaluates to false'))
     _build_fail('foo', None, None, ['a', 'b', ''], ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
+
+    # test that you cannot have an owner in another ACL
+    _build_fail('foo', ['c', 'd', 'foo'], None, ['a', 'b', 'x'], IllegalParameterError(
+        'The owner cannot be in any other ACL'))
+    _build_fail('foo', None, ['a', 'b', 'foo'], ['x'], IllegalParameterError(
+        'The owner cannot be in any other ACL'))
+    _build_fail('foo', ['y'], None, ['a', 'b', 'foo'], IllegalParameterError(
+        'The owner cannot be in any other ACL'))
+
+    # test that you cannot have a user in 2 acls
+    _build_fail('foo', ['a', 'z'], ['a', 'c'], ['w', 'b'], IllegalParameterError(
+        'User a appears in two ACLs'))
+    _build_fail('foo', ['a', 'z'], ['b', 'c'], ['w', 'a'], IllegalParameterError(
+        'User a appears in two ACLs'))
+    _build_fail('foo', ['x', 'z'], ['b', 'c', 'w'], ['w', 'a'], IllegalParameterError(
+        'User w appears in two ACLs'))
 
 
 def _build_fail(owner, admin, write, read, expected):
