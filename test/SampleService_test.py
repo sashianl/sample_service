@@ -573,9 +573,6 @@ def test_get_and_replace_acls(sample_port):
         'read': [USER2]
     })
 
-    # TODO ACL check users are only in one acl
-    # TODO ACL check owner is not in acl
-
 
 def _replace_acls(url, id_, token, acls):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
