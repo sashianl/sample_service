@@ -6,8 +6,12 @@
 
 # Functionality
 * Admin flags on ops
+* List / find samples, possibly with...
 * Search integration
 * Logging
+* Metadata validation
+* Link data to samples
+* Workspace @sample integration
 
 # Documentation
 * Document error codes

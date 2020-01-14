@@ -723,3 +723,39 @@ def test_replace_acls_fail_permissions(sample_port):
         assert ret.json()['error']['message'] == (
             f'Sample service error code 20000 Unauthorized: User {user} cannot ' +
             f'administrate sample {id_}')
+
+
+def test_replace_acls_fail_user_in_2_acls(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.replace_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'acls': {'write': [USER2, USER3], 'read': [USER2]}}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        'Sample service error code 30001 Illegal input parameter: ' +
+        f'User {USER2} appears in two ACLs')
+
+
+def test_replace_acls_fail_owner_in_another_acl(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.replace_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'acls': {'write': [USER1]}}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'The owner cannot be in any other ACL')
