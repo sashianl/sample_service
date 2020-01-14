@@ -83,8 +83,8 @@ from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
-from SampleService.core.storage.errors import StorageInitException as _StorageInitException
-from SampleService.core.storage.errors import OwnerChangedException as _OwnerChangedException
+from SampleService.core.storage.errors import StorageInitError as _StorageInitError
+from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ARANGO_FROM = '_from'
@@ -215,16 +215,16 @@ class ArangoSampleStorage:
         # database as been used. Now check the document is ok.
         try:
             if col.count() != 1:
-                raise _StorageInitException(
+                raise _StorageInitError(
                     'Multiple config objects found in the database. ' +
                     'This should not happen, something is very wrong.')
             cfgdoc = col.get(_SCHEMA_VALUE)
             if cfgdoc[_FLD_SCHEMA_VERSION] != _SCHEMA_VERSION:
-                raise _StorageInitException(
+                raise _StorageInitError(
                     f'Incompatible database schema. Server is v{_SCHEMA_VERSION}, ' +
                     f'DB is v{cfgdoc[_FLD_SCHEMA_VERSION]}')
             if cfgdoc[_FLD_SCHEMA_UPDATE]:
-                raise _StorageInitException(
+                raise _StorageInitError(
                     'The database is in the middle of an update from ' +
                     f'v{cfgdoc[_FLD_SCHEMA_VERSION]} of the schema. Aborting startup.')
         except _arango.exceptions.ArangoServerError as e:
@@ -694,8 +694,8 @@ class ArangoSampleStorage:
             if not cur.count():
                 # assume cur.count() is never > 1 as we're filtering on _key
                 self._get_sample_doc(id_)  # will raise exception if document does not exist
-                raise _OwnerChangedException()
-        except _arango.exceptions.AQLQueryExecuteError as e:
+                raise _OwnerChangedError()
+        except _arango.exceptions.AQLQueryExecuteError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     # TODO change acls with more granularity
@@ -706,5 +706,5 @@ def _init_collection(database, collection, collection_name, collection_variable_
     c = database.collection(_check_string(collection, collection_variable_name))
     if not c.properties()['edge'] is edge:  # this is a http call
         ctype = 'an edge' if edge else 'a vertex'
-        raise _StorageInitException(f'{collection_name} {collection} is not {ctype} collection')
+        raise _StorageInitError(f'{collection_name} {collection} is not {ctype} collection')
     return c

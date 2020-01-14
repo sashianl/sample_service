@@ -11,8 +11,8 @@ from SampleService.core.sample import SampleWithID, SampleNode, SubSampleType
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
 from SampleService.core.errors import NoSuchSampleVersionError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
-from SampleService.core.storage.errors import SampleStorageError, StorageInitException
-from SampleService.core.storage.errors import OwnerChangedException
+from SampleService.core.storage.errors import SampleStorageError, StorageInitError
+from SampleService.core.storage.errors import OwnerChangedError
 
 TEST_NODE = SampleNode('foo')
 
@@ -120,7 +120,7 @@ def test_startup_with_extra_config_doc(arango):
     ne = TEST_COL_NODE_EDGE
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitError(
         'Multiple config objects found ' +
         'in the database. This should not happen, something is very wrong.'))
 
@@ -137,7 +137,7 @@ def test_startup_with_bad_schema_version(arango):
     ne = TEST_COL_NODE_EDGE
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitError(
         'Incompatible database schema. Server is v1, DB is v4'))
 
 
@@ -153,7 +153,7 @@ def test_startup_in_update(arango):
     ne = TEST_COL_NODE_EDGE
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitError(
         'The database is in the middle of an update from v1 of the schema. Aborting startup.'))
 
 
@@ -435,17 +435,17 @@ def test_fail_startup_incorrect_collection_type(arango):
     def nw():
         datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
-    _fail_startup(db, 'sampleedge', v, ve, n, ne, sc, nw, StorageInitException(
+    _fail_startup(db, 'sampleedge', v, ve, n, ne, sc, nw, StorageInitError(
         'sample collection sampleedge is not a vertex collection'))
-    _fail_startup(db, s, ve, ve, n, ne, sc, nw, StorageInitException(
+    _fail_startup(db, s, ve, ve, n, ne, sc, nw, StorageInitError(
                   'version collection ver_to_sample is not a vertex collection'))
-    _fail_startup(db, s, v, v, n, ne, sc, nw, StorageInitException(
+    _fail_startup(db, s, v, v, n, ne, sc, nw, StorageInitError(
                   'version edge collection versions is not an edge collection'))
-    _fail_startup(db, s, v, ve, ne, ne, sc, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, ne, ne, sc, nw, StorageInitError(
                   'node collection node_edges is not a vertex collection'))
-    _fail_startup(db, s, v, ve, n, n, sc, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, n, n, sc, nw, StorageInitError(
                   'node edge collection nodes is not an edge collection'))
-    _fail_startup(db, s, v, ve, n, ne, ne, nw, StorageInitException(
+    _fail_startup(db, s, v, ve, n, ne, ne, nw, StorageInitError(
                   'schema collection node_edges is not a vertex collection'))
 
 
@@ -971,4 +971,4 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
 
     with raises(Exception) as got:
         samplestorage.replace_sample_acls(id_, SampleACL('user', write=['foo']))
-    assert_exception_correct(got.value, OwnerChangedException())
+    assert_exception_correct(got.value, OwnerChangedError())
