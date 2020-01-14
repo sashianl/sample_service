@@ -51,7 +51,6 @@ class SampleACLOwnerless:
             _not_falsy_in_iterable([] if write is None else write, 'write')))
         self.read = tuple(dict.fromkeys(
             _not_falsy_in_iterable([] if read is None else read, 'read')))
-        # TODO test with integration test
         for u in self.admin:
             if u in self.write or u in self.read:
                 raise _IllegalParameterError(f'User {u} appears in two ACLs')
@@ -99,7 +98,6 @@ class SampleACL(SampleACLOwnerless):
         self.owner = _not_falsy(owner, 'owner')
         super().__init__(admin, write, read)
         all_ = (self.admin, self.write, self.read)
-        # TODO test with integration test
         for i in range(len(all_)):
             if self.owner in all_[i]:
                 raise _IllegalParameterError('The owner cannot be in any other ACL')
