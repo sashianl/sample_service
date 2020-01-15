@@ -7,7 +7,7 @@ from unittest.mock import create_autospec
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL
 from SampleService.core.errors import IllegalParameterError, UnauthorizedError, NoSuchUserError
-from SampleService.core.sample import Sample, SampleNode, SampleWithID
+from SampleService.core.sample import Sample, SampleNode, SavedSample
 from SampleService.core.samples import Samples
 from SampleService.core.storage.errors import OwnerChangedError
 from SampleService.core.user_lookup import KBaseUserLookup
@@ -53,11 +53,11 @@ def _save_sample_with_name(name):
 
     assert storage.save_sample.call_args_list == [
         (('auser',
-          SampleWithID(UUID('1234567890abcdef1234567890abcdef'),
-                       [SampleNode('foo')],
-                       datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
-                       name
-                       )
+          SavedSample(UUID('1234567890abcdef1234567890abcdef'),
+                      [SampleNode('foo')],
+                      datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
+                      name
+                      )
           ), {})]
 
 
@@ -88,11 +88,11 @@ def _save_sample_version_per_user(user, name, prior_version):
         ((UUID('1234567890abcdef1234567890abcdea'),), {})]
 
     assert storage.save_sample_version.call_args_list == [
-        ((SampleWithID(UUID('1234567890abcdef1234567890abcdea'),
-                       [SampleNode('foo')],
-                       datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
-                       name
-                       ),
+        ((SavedSample(UUID('1234567890abcdef1234567890abcdea'),
+                      [SampleNode('foo')],
+                      datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
+                      name
+                      ),
           prior_version), {})]
 
 
@@ -162,7 +162,7 @@ def _get_sample(user, version):
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
-    storage.get_sample.return_value = SampleWithID(
+    storage.get_sample.return_value = SavedSample(
         UUID('1234567890abcdef1234567890abcdea'),
         [SampleNode('foo')],
         datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
@@ -170,7 +170,7 @@ def _get_sample(user, version):
         4)
 
     assert samples.get_sample(
-        UUID('1234567890abcdef1234567890abcdea'), user, version) == SampleWithID(
+        UUID('1234567890abcdef1234567890abcdea'), user, version) == SavedSample(
             UUID('1234567890abcdef1234567890abcdea'),
             [SampleNode('foo')],
             datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),

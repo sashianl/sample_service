@@ -14,7 +14,7 @@ from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
-from SampleService.core.sample import Sample, SampleWithID
+from SampleService.core.sample import Sample, SavedSample
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
@@ -82,11 +82,11 @@ class Samples:
             if prior_version is not None and prior_version < 1:
                 raise _IllegalParameterError('Prior version must be > 0')
             self._check_perms(id_, user, _SampleAccessType.WRITE)
-            swid = SampleWithID(id_, list(sample.nodes), self._now(), sample.name)
+            swid = SavedSample(id_, list(sample.nodes), self._now(), sample.name)
             ver = self._storage.save_sample_version(swid, prior_version)
         else:
             id_ = self._uuid_gen()
-            swid = SampleWithID(id_, list(sample.nodes), self._now(), sample.name)
+            swid = SavedSample(id_, list(sample.nodes), self._now(), sample.name)
             # don't bother checking output since we created uuid
             self._storage.save_sample(user, swid)
             ver = 1
@@ -120,7 +120,7 @@ class Samples:
             return _SampleAccessType.READ
         return _SampleAccessType.NONE
 
-    def get_sample(self, id_: UUID, user: str, version: int = None) -> SampleWithID:
+    def get_sample(self, id_: UUID, user: str, version: int = None) -> SavedSample:
         '''
         Get a sample.
         :param id_: the ID of the sample.
