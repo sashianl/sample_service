@@ -170,7 +170,6 @@ class Samples:
         _not_falsy(id_, 'id_')
         _not_falsy(user, 'user')
         _not_falsy(new_acls, 'new_acls')
-        count = 0
         try:
             bad_users = self._user_lookup.are_valid_users(
                 _cast(_List[str], []) + list(new_acls.admin) +
@@ -181,9 +180,10 @@ class Samples:
             raise _NoSuchUserError(e.args[0]) from e
         except _user_lookup_mod.InvalidTokenError:
             raise ValueError('user lookup token for KBase auth server is invalid, cannot continue')
-
         if bad_users:
             raise _NoSuchUserError(', '.join(bad_users[:5]))
+
+        count = 0
         while count >= 0:
             if count >= 5:
                 raise ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}')

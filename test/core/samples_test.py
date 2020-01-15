@@ -424,21 +424,55 @@ def test_replace_sample_acls_fail_bad_input():
         'new_acls cannot be a value that evaluates to false'))
 
 
-def test_replace_sample_acls_fail_nonexistent_user():
+def test_replace_sample_acls_fail_nonexistent_user_4_users():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga']
+    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga', 'w']
 
-    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z'])
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w'])
 
-    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga'))
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w'))
 
     assert lu.are_valid_users.call_args_list == [
-        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z'],), {})]
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w'],), {})]
+
+
+def test_replace_sample_acls_fail_nonexistent_user_5_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga', 'w', 'c']
+
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w', 'c'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w', 'c'],), {})]
+
+
+def test_replace_sample_acls_fail_nonexistent_user_6_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga', 'w', 'c', 'whee']
+
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w', 'c', 'whee'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w', 'c', 'whee'],), {})]
 
 
 def test_replace_sample_acls_fail_invalid_user():
