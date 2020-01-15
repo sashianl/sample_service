@@ -15,6 +15,7 @@ from SampleService.core.api_arguments import acls_from_dict as _acls_from_dict
 from SampleService.core.api_arguments import acls_to_dict as _acls_to_dict
 from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
+from SampleService.core.user_lookup import KBaseUserLookup as _KBaseUserLookup
 #END_HEADER
 
 
@@ -65,6 +66,9 @@ Handles creating, updating, retriving samples and linking data to samples.
         col_schema = _check_string(config.get('schema-collection'),
                                    'config param schema-collection')
 
+        auth_root_url = _check_string(config.get('auth-root-url'), 'config param auth-root-url')
+        auth_token = _check_string(config.get('auth-token'), 'config param auth-token')
+
         print(f'''
             Starting server with config:
                 arango-url: {arango_url}
@@ -91,7 +95,8 @@ Handles creating, updating, retriving samples and linking data to samples.
             col_node_edge,
             col_schema,
         )
-        self._samples = _Samples(storage)
+        user_lookup = _KBaseUserLookup(auth_root_url, auth_token)
+        self._samples = _Samples(storage, user_lookup)
         #END_CONSTRUCTOR
         pass
 

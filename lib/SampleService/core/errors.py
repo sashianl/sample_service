@@ -36,10 +36,13 @@ class ErrorType(Enum):
     SAMPLE_CONCURRENCY =     (40000, "Concurrency violation")  # noqa: E222 @IgnorePep8
     """ A concurrency check failed and the operation could not continue. """
 
-    NO_SUCH_SAMPLE =         (50000, "No such sample")  # noqa: E222 @IgnorePep8
+    NO_SUCH_USER =           (50000, "No such user")  # noqa: E222 @IgnorePep8
+    """ The requested user does not exist. """
+
+    NO_SUCH_SAMPLE =         (50010, "No such sample")  # noqa: E222 @IgnorePep8
     """ The requested sample does not exist. """
 
-    NO_SUCH_SAMPLE_VERSION = (50010, "No such sample version")  # noqa: E222 @IgnorePep8
+    NO_SUCH_SAMPLE_VERSION = (50020, "No such sample version")  # noqa: E222 @IgnorePep8
     """ The requested sample version does not exist. """
 
     UNSUPPORTED_OP =         (60000, "Unsupported operation")  # noqa: E222 @IgnorePep8
@@ -85,6 +88,15 @@ class NoDataException(SampleError):
 
     def __init__(self, error_type: ErrorType, message: str) -> None:
         super().__init__(error_type, message)
+
+
+class NoSuchUserError(NoDataException):
+    """
+    An error thrown when a user does not exist.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.NO_SUCH_USER, message)
 
 
 class UnauthorizedError(SampleError):
