@@ -168,10 +168,12 @@ class Sample:
         return hash((self.name, self.nodes))
 
 
-class SampleWithID(Sample):
+class SavedSample(Sample):
     '''
-    A sample including an ID. Do NOT mutate the instance variables post creation.
+    A sample that has been, or is about to be, saved to persistent storage and therefore has
+    a unique ID and a user associated with it. Do NOT mutate the instance variables post creation.
     :ivar id: The ID of the sample.
+    :ivar user: The user who saved or is saving the sample.
     :ivar nodes: The nodes in this sample.
     :ivar savetime: The time the sample was saved.
     :ivar name: The name of the sample.
@@ -182,6 +184,7 @@ class SampleWithID(Sample):
     def __init__(
             self,
             id_: UUID,
+            # user: str,
             nodes: List[SampleNode],
             savetime: datetime.datetime,
             name: Optional[str] = None,
@@ -189,6 +192,7 @@ class SampleWithID(Sample):
         '''
         Create the sample.
         :param id_: The ID of the sample.
+        :param user: The user who saved the sample.
         :param nodes: The tree nodes in the sample. BIOLOGICAL_REPLICATES must come first in
             the list, and parents must come before children in the list.
         :param savetime: The time the sample was saved. Cannot be a naive datetime.
@@ -205,6 +209,7 @@ class SampleWithID(Sample):
         # yet another class, so...
         super().__init__(nodes, name)
         self.id = _not_falsy(id_, 'id_')
+        # self.user = _not_falsy(user, 'user')
         self.savetime = _not_falsy(savetime, 'savetime')
         if savetime.tzinfo is None:
             # see https://docs.python.org/3.3/library/datetime.html#datetime.timezone

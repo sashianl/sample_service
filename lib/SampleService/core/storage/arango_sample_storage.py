@@ -75,7 +75,7 @@ from apscheduler.schedulers.background import BackgroundScheduler as _Background
 from arango.database import StandardDatabase
 from SampleService.core.acls import SampleACL
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
-from SampleService.core.sample import SampleWithID
+from SampleService.core.sample import SavedSample
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
@@ -301,7 +301,7 @@ class ArangoSampleStorage:
         '''
         self._scheduler.pause()
 
-    def save_sample(self, user_name: str, sample: SampleWithID) -> bool:
+    def save_sample(self, user_name: str, sample: SavedSample) -> bool:
         '''
         Save a new sample. The version in the sample object, if any, is ignored.
 
@@ -322,7 +322,7 @@ class ArangoSampleStorage:
 
     # this method is separated so we can test the race condition case where a sample with the
     # same ID is saved after the check above.
-    def _save_sample_pt2(self, user_name: str, sample: SampleWithID) -> bool:
+    def _save_sample_pt2(self, user_name: str, sample: SavedSample) -> bool:
 
         versionid = _uuid.uuid4()
 
@@ -350,7 +350,7 @@ class ArangoSampleStorage:
         self._update_version_and_node_docs(sample, versionid, 1)
         return True
 
-    def _update_version_and_node_docs(self, sample: SampleWithID, versionid: UUID, version: int):
+    def _update_version_and_node_docs(self, sample: SavedSample, versionid: UUID, version: int):
         nodeupdates: _List[dict] = []
         for n in sample.nodes:
             ndoc = {_FLD_ARANGO_KEY: self._get_node_id(sample.id, versionid, n.name),
@@ -372,7 +372,7 @@ class ArangoSampleStorage:
         verdocid = self._get_version_id(id_, versionid)
         self._update(self._col_version, {_FLD_ARANGO_KEY: verdocid, _FLD_VER: version})
 
-    def _save_version_and_node_docs(self, sample: SampleWithID, versionid: UUID):
+    def _save_version_and_node_docs(self, sample: SavedSample, versionid: UUID):
         verdocid = self._get_version_id(sample.id, versionid)
 
         nodedocs: _List[dict] = []
@@ -474,7 +474,7 @@ class ArangoSampleStorage:
         except _arango.exceptions.DocumentUpdateError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def save_sample_version(self, sample: SampleWithID, prior_version: int = None) -> int:
+    def save_sample_version(self, sample: SavedSample, prior_version: int = None) -> int:
         '''
         Save a new version of a sample. The sample must already exist in the DB. Any version in
         the provided sample object is ignored.
@@ -550,7 +550,7 @@ class ArangoSampleStorage:
         self._update_version_and_node_docs(sample, versionid, version)
         return version
 
-    def get_sample(self, id_: UUID, version: int = None) -> SampleWithID:
+    def get_sample(self, id_: UUID, version: int = None) -> SavedSample:
         '''
         Get a sample from the database.
         :param id_: the ID of the sample.
@@ -575,7 +575,7 @@ class ArangoSampleStorage:
         nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
         dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
 
-        return SampleWithID(UUID(doc[_FLD_ID]), nodes, dt, verdoc[_FLD_NAME], version)
+        return SavedSample(UUID(doc[_FLD_ID]), nodes, dt, verdoc[_FLD_NAME], version)
 
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)

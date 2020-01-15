@@ -8,7 +8,7 @@ from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_
 from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
 from SampleService.core.api_arguments import acls_to_dict, acls_from_dict
 from SampleService.core.api_arguments import create_sample_params, get_sample_address_from_object
-from SampleService.core.sample import Sample, SampleNode, SubSampleType, SampleWithID
+from SampleService.core.sample import Sample, SampleNode, SubSampleType, SavedSample
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
@@ -284,7 +284,7 @@ def test_sample_to_dict_minimal():
 
     id_ = UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
 
-    s = sample_to_dict(SampleWithID(id_, [SampleNode('foo')], dt(87.8971)))
+    s = sample_to_dict(SavedSample(id_, [SampleNode('foo')], dt(87.8971)))
 
     assert s == expected
 
@@ -314,7 +314,7 @@ def test_sample_to_dict_maximal():
     id_ = UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
 
     s = sample_to_dict(
-        SampleWithID(
+        SavedSample(
             id_,
             [SampleNode('foo'),
              SampleNode(

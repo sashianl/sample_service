@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, Tuple, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.sample import Sample, SampleNode as _SampleNode, SampleWithID
+from SampleService.core.sample import Sample, SampleNode as _SampleNode, SavedSample
 from SampleService.core.sample import SubSampleType as _SubSampleType
 from SampleService.core.acls import SampleACLOwnerless, SampleACL
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
@@ -158,7 +158,7 @@ def get_sample_address_from_object(params: Dict[str, Any]) -> Tuple[UUID, Option
             get_version_from_object(params))
 
 
-def sample_to_dict(sample: SampleWithID) -> Dict[str, Any]:
+def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
     '''
     Convert a sample to a JSONable structure to return to the SDK API.
 
