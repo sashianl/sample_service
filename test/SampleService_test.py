@@ -15,7 +15,7 @@ from threading import Thread
 
 from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import MissingParameterError
-from SampleService.core.user_lookup import KBaseUserLookup, AuthenticationError
+from SampleService.core.user_lookup import KBaseUserLookup, InvalidTokenError, InvalidUserError
 
 from core import test_utils
 from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct
@@ -37,6 +37,8 @@ TEST_COL_SCHEMA = 'schema'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
+USER_SERVICE = 'serviceuser'
+TOKEN_SERVICE = None
 
 USER1 = 'user1'
 TOKEN1 = None
@@ -46,6 +48,7 @@ USER3 = 'user3'
 TOKEN3 = None
 USER4 = 'user4'
 TOKEN4 = None
+
 USER_NO_TOKEN1 = 'usernt1'
 USER_NO_TOKEN2 = 'usernt2'
 USER_NO_TOKEN3 = 'usernt3'
@@ -59,6 +62,9 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['auth-service-url'] = (f'http://localhost:{auth_port}/testmode/' +
                                    'api/legacy/KBase/Sessions/Login')
     cfg[ss]['auth-service-url-allow-insecure'] = 'true'
+
+    cfg[ss]['auth-root-url'] = f'http://localhost:{auth_port}/testmode'
+    cfg[ss]['auth-token'] = TOKEN_SERVICE
 
     cfg[ss]['arango-url'] = f'http://localhost:{arango_port}'
     cfg[ss]['arango-db'] = TEST_DB_NAME
@@ -107,6 +113,7 @@ def mongo(temp_file):
 
 @fixture(scope='module')
 def auth(mongo):
+    global TOKEN_SERVICE
     global TOKEN1
     global TOKEN2
     global TOKEN3
@@ -116,6 +123,9 @@ def auth(mongo):
     auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
     print(f'running KBase Auth2 {auth.version} on port {auth.port} in dir {auth.temp_dir}')
     url = f'http://localhost:{auth.port}'
+
+    test_utils.create_auth_user(url, USER_SERVICE, 'serv')
+    TOKEN_SERVICE = test_utils.create_auth_login_token(url, USER_SERVICE)
 
     test_utils.create_auth_user(url, USER1, 'display1')
     TOKEN1 = test_utils.create_auth_login_token(url, USER1)
@@ -221,6 +231,10 @@ def test_init_fail():
     init_fail(cfg, MissingParameterError('config param node-edge-collection'))
     cfg['node-edge-collection'] = 'crap'
     init_fail(cfg, MissingParameterError('config param schema-collection'))
+    cfg['schema-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param auth-root-url'))
+    cfg['auth-root-url'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param auth-token'))
 
 
 def init_fail(config, expected):
@@ -728,6 +742,29 @@ def test_replace_acls_fail_permissions(sample_port):
             f'administrate sample {id_}')
 
 
+def test_replace_acls_fail_bad_user(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.replace_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_,
+                    'acls': {
+                        'admin': [USER2, 'a'],
+                        'write': [USER3],
+                        'read': [USER4, 'philbin_j_montgomery_iii']
+                        }
+                    }]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 50000 No such user: a, philbin_j_montgomery_iii')
+
+
 def test_replace_acls_fail_user_in_2_acls(sample_port):
 
     url = f'http://localhost:{sample_port}'
@@ -782,7 +819,7 @@ def test_user_lookup_build_fail_bad_token(sample_port, auth):
     _user_lookup_build_fail(
         f'http://localhost:{auth.port}/testmode',
         'tokentokentoken!',
-        AuthenticationError('KBase auth server reported token is invalid.'))
+        InvalidTokenError('KBase auth server reported token is invalid.'))
 
 
 def test_user_lookup_build_fail_bad_auth_url(sample_port, auth):
@@ -828,7 +865,7 @@ def test_user_lookup_fail_bad_username(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
     # maybe possibly this error should be shortened
     # definitely clear the user name is illegal though, there's no question about that
-    _user_lookup_fail(ul, ['1'], AuthenticationError(
+    _user_lookup_fail(ul, ['1'], InvalidUserError(
         'The KBase auth server is being very assertive about one of the usernames being ' +
         'illegal: 30010 Illegal user name: Illegal user name [1]: 30010 Illegal user name: ' +
         'Username must start with a letter'))

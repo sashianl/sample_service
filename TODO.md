@@ -12,6 +12,9 @@
 * Metadata validation
 * Link data to samples
 * Workspace @sample integration
+* ACLs:
+  * cache known good users
+  * remove self from acls (read/write)
 
 # Documentation
 * Document error codes

@@ -19,7 +19,7 @@ class KBaseUserLookup:
         Create the client.
         :param auth_url: The root url of the authentication service.
         :param auth_token: A valid token for the authentication service.
-        :raises AuthenticationError: if the token is invalid
+        :raises InvalidTokenError: if the token is invalid
         '''
         self._url = _not_falsy(auth_url, 'auth_url')
         if not self._url.endswith('/'):
@@ -59,9 +59,9 @@ class KBaseUserLookup:
             # assume that if we get json then at least this is the auth server and we can
             # rely on the error structure.
             if j['error'].get('appcode') == 10020:  # Invalid token
-                raise AuthenticationError('KBase auth server reported token is invalid.')
+                raise InvalidTokenError('KBase auth server reported token is invalid.')
             if j['error'].get('appcode') == 30010:  # Invalid username
-                raise AuthenticationError(
+                raise InvalidUserError(
                     'The KBase auth server is being very assertive about ' +
                     'one of the usernames being illegal: ' + j['error']['message'])
             # don't really see any other error codes we need to worry about - maybe disabled?
@@ -75,8 +75,8 @@ class KBaseUserLookup:
         :param users: the users to check.
         :returns: A list of users that have valid usernames but do not exist in the authentication
             service.
-        :raises AuthenticationError: if the token has expired or any of the user
-            names are invalid user names.
+        :raises InvalidTokenError: if the token has expired
+        :raises InvalidUserError: if any of the user names are invalid user names.
         '''
         if usernames is None:
             raise ValueError('usernames cannot be None')
@@ -94,3 +94,11 @@ class KBaseUserLookup:
 
 class AuthenticationError(Exception):
     ''' An error thrown from the authentication service. '''
+
+
+class InvalidTokenError(AuthenticationError):
+    ''' An error thrown when a token is invalid. '''
+
+
+class InvalidUserError(AuthenticationError):
+    ''' An error thrown when a user name is invalid. '''

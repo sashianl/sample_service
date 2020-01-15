@@ -6,10 +6,12 @@ from unittest.mock import create_autospec
 
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL
-from SampleService.core.errors import IllegalParameterError, UnauthorizedError
+from SampleService.core.errors import IllegalParameterError, UnauthorizedError, NoSuchUserError
 from SampleService.core.sample import Sample, SampleNode, SampleWithID
 from SampleService.core.samples import Samples
 from SampleService.core.storage.errors import OwnerChangedError
+from SampleService.core.user_lookup import KBaseUserLookup
+from SampleService.core import user_lookup
 from core.test_utils import assert_exception_correct
 
 
@@ -19,16 +21,20 @@ def nw():
 
 def test_init_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     ug = lambda: UUID('1234567890abcdef1234567890abcdef')  # noqa E731
 
-    _init_fail(None, nw, ug, ValueError('storage cannot be a value that evaluates to false'))
-    _init_fail(storage, None, ug, ValueError('now cannot be a value that evaluates to false'))
-    _init_fail(storage, nw, None, ValueError('uuid_gen cannot be a value that evaluates to false'))
+    _init_fail(None, lu, nw, ug, ValueError('storage cannot be a value that evaluates to false'))
+    _init_fail(storage, None, nw, ug, ValueError(
+        'user_lookup cannot be a value that evaluates to false'))
+    _init_fail(storage, lu, None, ug, ValueError('now cannot be a value that evaluates to false'))
+    _init_fail(storage, lu, nw, None, ValueError(
+        'uuid_gen cannot be a value that evaluates to false'))
 
 
-def _init_fail(storage, now, uuid_gen, expected):
+def _init_fail(storage, lookup, now, uuid_gen, expected):
     with raises(Exception) as got:
-        Samples(storage, now, uuid_gen)
+        Samples(storage, lookup, now, uuid_gen)
     assert_exception_correct(got.value, expected)
 
 
@@ -39,7 +45,8 @@ def test_save_sample():
 
 def _save_sample_with_name(name):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    s = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    s = Samples(storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     assert s.save_sample(Sample([SampleNode('foo')], name), 'auser') == (UUID(
         '1234567890abcdef1234567890abcdef'), 1)
@@ -63,7 +70,8 @@ def test_save_sample_version():
 
 def _save_sample_version_per_user(user, name, prior_version):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    s = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    s = Samples(storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.'])
@@ -90,7 +98,10 @@ def _save_sample_version_per_user(user, name, prior_version):
 
 def test_save_sample_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
     s = Sample([SampleNode('foo')])
     id_ = UUID('1234567890abcdef1234567890abcdef')
 
@@ -109,7 +120,9 @@ def test_save_sample_fail_unauthorized():
 
 def _save_sample_fail_unauthorized(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
@@ -142,7 +155,9 @@ def test_get_sample():
 
 def _get_sample(user, version):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
@@ -171,7 +186,9 @@ def _get_sample(user, version):
 
 def test_get_sample_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcdef')
 
     _get_sample_fail(samples, None, 'foo', 1, ValueError(
@@ -183,7 +200,9 @@ def test_get_sample_fail_bad_args():
 
 def test_get_sample_fail_unauthorized():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
@@ -211,7 +230,9 @@ def test_get_sample_acls():
 
 def _get_sample_acls(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
     storage.get_sample_acls.return_value = SampleACL(
@@ -226,7 +247,9 @@ def _get_sample_acls(user):
 
 def test_get_sample_acls_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcdef')
 
     _get_sample_acls_fail(samples, None, 'foo', ValueError(
@@ -237,7 +260,9 @@ def test_get_sample_acls_fail_bad_args():
 
 def test_get_sample_acls_fail_unauthorized():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
@@ -263,25 +288,37 @@ def test_replace_sample_acls():
 
 def _replace_sample_acls(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = []
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser', 'y'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
-    samples.replace_sample_acls(id_, user, SampleACL('someuser'))
+    samples.replace_sample_acls(id_, user, SampleACL(
+        'someuser', ['x', 'y'], ['z', 'a'], ['b', 'c']))
+
+    assert lu.are_valid_users.call_args_list == [((['x', 'y', 'z', 'a', 'b', 'c'],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {})]
 
     assert storage.replace_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser')), {})]
+        ((UUID('1234567890abcdef1234567890abcde0'),
+          SampleACL('someuser', ['x', 'y'], ['z', 'a'], ['b', 'c'])), {})]
 
 
 def test_replace_sample_acls_with_owner_change():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = []
 
     storage.get_sample_acls.side_effect = [
         SampleACL(
@@ -292,7 +329,9 @@ def test_replace_sample_acls_with_owner_change():
 
     storage.replace_sample_acls.side_effect = [OwnerChangedError, None]
 
-    samples.replace_sample_acls(id_, 'otheruser', SampleACL('someuser'))
+    samples.replace_sample_acls(id_, 'otheruser', SampleACL('someuser', ['a']))
+
+    assert lu.are_valid_users.call_args_list == [((['a'],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {}),
@@ -300,15 +339,19 @@ def test_replace_sample_acls_with_owner_change():
         ]
 
     assert storage.replace_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser')), {}),
-        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser2')), {})
+        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser', ['a'])), {}),
+        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser2', ['a'])), {})
         ]
 
 
 def test_replace_sample_acls_with_owner_change_fail_lost_perms():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = []
 
     storage.get_sample_acls.side_effect = [
         SampleACL(
@@ -320,8 +363,10 @@ def test_replace_sample_acls_with_owner_change_fail_lost_perms():
     storage.replace_sample_acls.side_effect = [OwnerChangedError, None]
 
     _replace_sample_acls_fail(
-        samples, id_, 'otheruser', SampleACL('someuser'),
+        samples, id_, 'otheruser', SampleACL('someuser', write=['b']),
         UnauthorizedError(f'User otheruser cannot administrate sample {id_}'))
+
+    assert lu.are_valid_users.call_args_list == [((['b'],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {}),
@@ -329,14 +374,18 @@ def test_replace_sample_acls_with_owner_change_fail_lost_perms():
         ]
 
     assert storage.replace_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser')), {})
+        ((UUID('1234567890abcdef1234567890abcde0'), SampleACL('someuser', write=['b'])), {})
         ]
 
 
 def test_replace_sample_acls_with_owner_change_fail_5_times():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = []
 
     storage.get_sample_acls.side_effect = [
         SampleACL(f'someuser{x}', ['otheruser']) for x in range(5)
@@ -345,8 +394,10 @@ def test_replace_sample_acls_with_owner_change_fail_5_times():
     storage.replace_sample_acls.side_effect = OwnerChangedError
 
     _replace_sample_acls_fail(
-        samples, id_, 'otheruser', SampleACL('someuser'),
+        samples, id_, 'otheruser', SampleACL('someuser', read=['c']),
         ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}'))
+
+    assert lu.are_valid_users.call_args_list == [((['c'],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {}) for _ in range(5)
@@ -354,13 +405,15 @@ def test_replace_sample_acls_with_owner_change_fail_5_times():
 
     assert storage.replace_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),
-            SampleACL(f'someuser{x}')), {}) for x in range(5)
+            SampleACL(f'someuser{x}', read=['c']),), {}) for x in range(5)
         ]
 
 
 def test_replace_sample_acls_fail_bad_input():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
     _replace_sample_acls_fail(samples, None, 'y', SampleACL('foo'), ValueError(
@@ -371,6 +424,92 @@ def test_replace_sample_acls_fail_bad_input():
         'new_acls cannot be a value that evaluates to false'))
 
 
+def test_replace_sample_acls_fail_nonexistent_user_4_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga', 'w']
+
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w'],), {})]
+
+
+def test_replace_sample_acls_fail_nonexistent_user_5_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga', 'w', 'c']
+
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w', 'c'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w', 'c'],), {})]
+
+
+def test_replace_sample_acls_fail_nonexistent_user_6_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = ['whoo', 'yay', 'bugga', 'w', 'c', 'whee']
+
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w', 'c', 'whee'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w', 'c', 'whee'],), {})]
+
+
+def test_replace_sample_acls_fail_invalid_user():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.side_effect = user_lookup.InvalidUserError('o shit waddup')
+
+    acls = SampleACL('foo', ['o shit waddup', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('o shit waddup'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['o shit waddup', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z'],), {})]
+
+
+def test_replace_sample_acls_fail_invalid_token():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.side_effect = user_lookup.InvalidTokenError('you big dummy')
+
+    acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z'])
+
+    _replace_sample_acls_fail(samples, id_, 'foo', acls, ValueError(
+        'user lookup token for KBase auth server is invalid, cannot continue'))
+
+    assert lu.are_valid_users.call_args_list == [
+        ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z'],), {})]
+
+
 def test_replace_sample_acls_fail_unauthorized():
     _replace_sample_acls_fail_unauthorized('anotheruser')
     _replace_sample_acls_fail_unauthorized('x')
@@ -379,14 +518,20 @@ def test_replace_sample_acls_fail_unauthorized():
 
 def _replace_sample_acls_fail_unauthorized(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    samples = Samples(storage, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.are_valid_users.return_value = []
 
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
     _replace_sample_acls_fail(samples, id_, user, SampleACL('foo'), UnauthorizedError(
         f'User {user} cannot administrate sample 12345678-90ab-cdef-1234-567890abcde0'))
+
+    assert lu.are_valid_users.call_args_list == [(([],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {})]

@@ -6,14 +6,17 @@ import datetime
 import uuid as _uuid
 from uuid import UUID
 
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable, Tuple, cast as _cast, List as _List
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
+from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
 from SampleService.core.sample import Sample, SampleWithID
+from SampleService.core.user_lookup import KBaseUserLookup
+from SampleService.core import user_lookup as _user_lookup_mod
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 
@@ -29,6 +32,7 @@ class Samples:
     def __init__(
             self,
             storage: ArangoSampleStorage,
+            user_lookup: KBaseUserLookup,  # make an interface? YAGNI
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -36,12 +40,14 @@ class Samples:
         Create the class.
 
         :param storage: the storage system to use.
+        :param user_lookup: a service to verify usernames are valid and exist.
         '''
         # don't publicize these params
         # :param now: A callable that returns the current time. Primarily used for testing.
         # :param uuid_gen: A callable that returns a random UUID. Primarily used for testing.
         # extract an interface from ASS if needed.
         self._storage = _not_falsy(storage, 'storage')
+        self._user_lookup = _not_falsy(user_lookup, 'user_lookup')
         self._now = _not_falsy(now, 'now')
         self._uuid_gen = _not_falsy(uuid_gen, 'uuid_gen')
 
@@ -155,19 +161,33 @@ class Samples:
         :param id_: the sample's ID.
         :param user: the user changing the ACLs.
         :param new_acls: the new ACLs.
+        :raises NoSuchUserError: if any of the users in the ACLs do not exist.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises UnauthorizedError: if the user does not have admin permission for the sample or
             the request attempts to change the owner.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
+        _not_falsy(id_, 'id_')
         _not_falsy(user, 'user')
         _not_falsy(new_acls, 'new_acls')
+        try:
+            bad_users = self._user_lookup.are_valid_users(
+                _cast(_List[str], []) + list(new_acls.admin) +
+                list(new_acls.write) + list(new_acls.read))
+            # let authentication errors propagate, not much to do
+            # could add retries to the client
+        except _user_lookup_mod.InvalidUserError as e:
+            raise _NoSuchUserError(e.args[0]) from e
+        except _user_lookup_mod.InvalidTokenError:
+            raise ValueError('user lookup token for KBase auth server is invalid, cannot continue')
+        if bad_users:
+            raise _NoSuchUserError(', '.join(bad_users[:5]))
+
         count = 0
-        # TODO ACL check users are valid
         while count >= 0:
             if count >= 5:
                 raise ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}')
-            acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
+            acls = self._storage.get_sample_acls(id_)
             self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
             new_acls = SampleACL(acls.owner, new_acls.admin, new_acls.write, new_acls.read)
             try:
