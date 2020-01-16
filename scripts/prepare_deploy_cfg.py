@@ -38,12 +38,15 @@ if __name__ == "__main__":
         for key in os.environ:
             if key.startswith('KBASE_SECURE_CONFIG_PARAM_'):
                 param_name = key[len('KBASE_SECURE_CONFIG_PARAM_'):]
+                print('found secure param ' + param_name)
                 props += param_name + " = " + os.environ.get(key) + "\n"
         config.readfp(StringIO(props))
     else:
         raise ValueError('Neither ' + sys.argv[2] + ' file nor KBASE_ENDPOINT env-variable found')
     props = dict(config.items("global"))
+    print(props)
     output = t.render(props)
+    print(output)
     with open(sys.argv[1] + ".orig", 'w') as f:
         f.write(text)
     with open(sys.argv[1], 'w') as f:
