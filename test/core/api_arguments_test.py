@@ -277,6 +277,7 @@ def test_sample_to_dict_minimal():
                                'parent': None
                                }],
                 'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
+                'user': 'user2',
                 'save_date': 87897,
                 'name': None,
                 'version': None,
@@ -284,7 +285,7 @@ def test_sample_to_dict_minimal():
 
     id_ = UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
 
-    s = sample_to_dict(SavedSample(id_, [SampleNode('foo')], dt(87.8971)))
+    s = sample_to_dict(SavedSample(id_, 'user2', [SampleNode('foo')], dt(87.8971)))
 
     assert s == expected
 
@@ -306,6 +307,7 @@ def test_sample_to_dict_maximal():
                                'parent': 'foo'
                                }],
                 'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
+                'user': 'user3',
                 'save_date': 87897,
                 'name': 'myname',
                 'version': 23,
@@ -316,6 +318,7 @@ def test_sample_to_dict_maximal():
     s = sample_to_dict(
         SavedSample(
             id_,
+            'user3',
             [SampleNode('foo'),
              SampleNode(
                  'bar',

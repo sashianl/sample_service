@@ -64,6 +64,7 @@ module SampleService {
 
     /* A Sample, consisting of a tree of subsamples and replicates.
         id - the ID of the sample.
+        user - the user that saved the sample.
         node_tree - the tree(s) of sample nodes in the sample. The the roots of all trees must
             be BioReplicate nodes. All the BioReplicate nodes must be at the start of the list,
             and all child nodes must occur after their parents in the list.
@@ -73,6 +74,7 @@ module SampleService {
      */
     typedef structure {
         sample_id id;
+        user user;
         list<SampleNode> node_tree;
         sample_name name;
         timestamp save_date;
@@ -108,7 +110,7 @@ module SampleService {
         If Sample.id is null, a new Sample is created along with a new ID.
         Otherwise, a new version of Sample.id is created. If Sample.id does not exist, an error
           is returned.
-        Any incoming version or timestamp in the incoming sample is ignored.
+        Any incoming user, version or timestamp in the incoming sample is ignored.
 
         sample - the sample to save.
         prior_version - if non-null, ensures that no other sample version is saved between

@@ -52,12 +52,12 @@ def _save_sample_with_name(name):
         '1234567890abcdef1234567890abcdef'), 1)
 
     assert storage.save_sample.call_args_list == [
-        (('auser',
-          SavedSample(UUID('1234567890abcdef1234567890abcdef'),
+        ((SavedSample(UUID('1234567890abcdef1234567890abcdef'),
+                      'auser',
                       [SampleNode('foo')],
                       datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
                       name
-                      )
+                      ),  # make a tuple
           ), {})]
 
 
@@ -89,6 +89,7 @@ def _save_sample_version_per_user(user, name, prior_version):
 
     assert storage.save_sample_version.call_args_list == [
         ((SavedSample(UUID('1234567890abcdef1234567890abcdea'),
+                      user,
                       [SampleNode('foo')],
                       datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
                       name
@@ -164,6 +165,7 @@ def _get_sample(user, version):
 
     storage.get_sample.return_value = SavedSample(
         UUID('1234567890abcdef1234567890abcdea'),
+        'anotheruser',
         [SampleNode('foo')],
         datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
         'bar',
@@ -172,6 +174,7 @@ def _get_sample(user, version):
     assert samples.get_sample(
         UUID('1234567890abcdef1234567890abcdea'), user, version) == SavedSample(
             UUID('1234567890abcdef1234567890abcdea'),
+            'anotheruser',
             [SampleNode('foo')],
             datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
             'bar',

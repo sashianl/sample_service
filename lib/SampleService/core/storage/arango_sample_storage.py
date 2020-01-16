@@ -94,6 +94,7 @@ _FLD_UUID_VER = 'uuidver'
 _FLD_VER = 'ver'
 _VAL_NO_VER = -1
 _FLD_NAME = 'name'
+_FLD_USER = 'user'
 _FLD_SAVE_TIME = 'saved'
 
 _FLD_NODE_NAME = 'name'
@@ -301,7 +302,7 @@ class ArangoSampleStorage:
         '''
         self._scheduler.pause()
 
-    def save_sample(self, user_name: str, sample: SavedSample) -> bool:
+    def save_sample(self, sample: SavedSample) -> bool:
         '''
         Save a new sample. The version in the sample object, if any, is ignored.
 
@@ -315,14 +316,13 @@ class ArangoSampleStorage:
         '''
         # TODO think about user name a bit. Make a class?
         _not_falsy(sample, 'sample')
-        _not_falsy(user_name, 'user_name')
         if self._get_sample_doc(sample.id, exception=False):
             return False  # bail early
-        return self._save_sample_pt2(user_name, sample)
+        return self._save_sample_pt2(sample)
 
     # this method is separated so we can test the race condition case where a sample with the
     # same ID is saved after the check above.
-    def _save_sample_pt2(self, user_name: str, sample: SavedSample) -> bool:
+    def _save_sample_pt2(self, sample: SavedSample) -> bool:
 
         versionid = _uuid.uuid4()
 
@@ -333,7 +333,7 @@ class ArangoSampleStorage:
                   # yes, this is redundant. It'll match the ver & node collectons though
                   _FLD_ID: str(sample.id),  # TODO test this is saved
                   _FLD_VERSIONS: [str(versionid)],
-                  _FLD_ACLS: {_FLD_OWNER: user_name,
+                  _FLD_ACLS: {_FLD_OWNER: sample.user,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
                               _FLD_READ: []
@@ -411,6 +411,7 @@ class ArangoSampleStorage:
         # save version document
         verdoc = {_FLD_ARANGO_KEY: verdocid,
                   _FLD_ID: str(sample.id),
+                  _FLD_USER: sample.user,
                   _FLD_VER: _VAL_NO_VER,
                   _FLD_UUID_VER: str(versionid),
                   _FLD_SAVE_TIME: sample.savetime.timestamp(),
@@ -575,7 +576,8 @@ class ArangoSampleStorage:
         nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
         dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
 
-        return SavedSample(UUID(doc[_FLD_ID]), nodes, dt, verdoc[_FLD_NAME], version)
+        return SavedSample(
+            UUID(doc[_FLD_ID]), verdoc[_FLD_USER], nodes, dt, verdoc[_FLD_NAME], version)
 
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
