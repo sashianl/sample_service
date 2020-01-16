@@ -326,6 +326,7 @@ def test_create_and_get_sample_with_version(sample_port):
     assert j == {
         'id': id_,
         'version': 1,
+        'user': USER1,
         'name': 'mysample',
         'node_tree': [{'id': 'root',
                        'parent': None,
@@ -349,6 +350,7 @@ def test_create_and_get_sample_with_version(sample_port):
     assert j == {
         'id': id_,
         'version': 2,
+        'user': USER1,
         'name': 'mysample2',
         'node_tree': [{'id': 'root2',
                        'parent': None,
@@ -547,6 +549,7 @@ def test_get_and_replace_acls(sample_port):
         assert j == {
             'id': id_,
             'version': 1,
+            'user': USER1,
             'name': 'mysample',
             'node_tree': [{
                 'id': 'root',
@@ -563,9 +566,9 @@ def test_get_and_replace_acls(sample_port):
             'version': '1.1',
             'id': '68',
             'params': [{
-                'sample': {'name': 'mysample2',
+                'sample': {'name': f'mysample{version}',
                            'id': id_,
-                           'node_tree': [{'id': 'root2',
+                           'node_tree': [{'id': f'root{version}',
                                           'type': 'BioReplicate',
                                           }
                                          ]
@@ -575,6 +578,31 @@ def test_get_and_replace_acls(sample_port):
         # print(ret.text)
         assert ret.ok is True
         assert ret.json()['result'][0]['version'] == version
+
+    # check one of the writes
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'version': 2}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    j = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(j['save_date'])
+    del j['save_date']
+    assert j == {
+        'id': id_,
+        'version': 2,
+        'user': USER2,
+        'name': 'mysample2',
+        'node_tree': [{'id': 'root2',
+                       'parent': None,
+                       'type': 'BioReplicate',
+                       'meta_controlled': {},
+                       'meta_user': {}
+                       }]
+    }
 
     # test that an admin can replace ACLs
     _replace_acls(url, id_, TOKEN2, {

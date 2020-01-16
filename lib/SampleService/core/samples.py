@@ -21,7 +21,6 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 
 
-# TODO save user that created version
 # TODO remove own acls.
 
 class Samples:
@@ -82,13 +81,13 @@ class Samples:
             if prior_version is not None and prior_version < 1:
                 raise _IllegalParameterError('Prior version must be > 0')
             self._check_perms(id_, user, _SampleAccessType.WRITE)
-            swid = SavedSample(id_, list(sample.nodes), self._now(), sample.name)
+            swid = SavedSample(id_, user, list(sample.nodes), self._now(), sample.name)
             ver = self._storage.save_sample_version(swid, prior_version)
         else:
             id_ = self._uuid_gen()
-            swid = SavedSample(id_, list(sample.nodes), self._now(), sample.name)
+            swid = SavedSample(id_, user, list(sample.nodes), self._now(), sample.name)
             # don't bother checking output since we created uuid
-            self._storage.save_sample(user, swid)
+            self._storage.save_sample(swid)
             ver = 1
         return (id_, ver)
 

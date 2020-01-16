@@ -102,8 +102,8 @@ def test_startup_and_check_config_doc(samplestorage):
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     n = SampleNode('rootyroot')
-    assert ss.save_sample('auser', SavedSample(id_, [n], dt(1), 'foo')) is True
-    assert ss.get_sample(id_) == SavedSample(id_, [n], dt(1), 'foo', version=1)
+    assert ss.save_sample(SavedSample(id_, 'u', [n], dt(1), 'foo')) is True
+    assert ss.get_sample(id_) == SavedSample(id_, 'u', [n], dt(1), 'foo', version=1)
 
 
 def test_startup_with_extra_config_doc(arango):
@@ -168,7 +168,7 @@ def test_startup_with_unupdated_version_and_node_docs(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id_, 'user', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     # this is very naughty
     # checked that these modifications actually work by viewing the db contents
@@ -210,10 +210,10 @@ def test_startup_with_unupdated_node_docs(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id_, 'u', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     assert samplestorage.save_sample_version(
-        SavedSample(id_, [n1, n2, n3, n4], dt(1), 'bar')) == 2
+        SavedSample(id_, 'u', [n1, n2, n3, n4], dt(1), 'bar')) == 2
 
     # this is very naughty
     sample = samplestorage._col_sample.find({}).next()
@@ -257,10 +257,10 @@ def test_startup_with_no_sample_doc(samplestorage):
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id1, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id1, 'u', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id2, [n1, n2, n3, n4], dt(1000), 'foo')) is True
+        SavedSample(id2, 'u', [n1, n2, n3, n4], dt(1000), 'foo')) is True
 
     # this is very naughty
     assert samplestorage._col_version.count() == 2
@@ -331,10 +331,10 @@ def test_startup_with_no_version_in_sample_doc(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id1, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id1, 'u', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     assert samplestorage.save_sample_version(
-        SavedSample(id1, [n1, n2, n3, n4], dt(2000), 'foo')) == 2
+        SavedSample(id1, 'u', [n1, n2, n3, n4], dt(2000), 'foo')) == 2
 
     # this is very naughty
     assert samplestorage._col_sample.count() == 1
@@ -521,10 +521,10 @@ def test_consistency_checker_run(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id_, 'u', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     assert samplestorage.save_sample_version(
-        SavedSample(id_, [n1, n2, n3, n4], dt(1), 'bar')) == 2
+        SavedSample(id_, 'u', [n1, n2, n3, n4], dt(1), 'bar')) == 2
 
     # this is very naughty
     sample = samplestorage._col_sample.find({}).next()
@@ -591,42 +591,36 @@ def test_save_and_get_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id_, [n1, n2, n3, n4], dt(8), 'foo')) is True
+        SavedSample(id_, 'auser', [n1, n2, n3, n4], dt(8), 'foo')) is True
 
-    assert samplestorage.get_sample(id_) == SavedSample(id_, [n1, n2, n3, n4], dt(8), 'foo', 1)
+    assert samplestorage.get_sample(id_) == SavedSample(
+        id_, 'auser', [n1, n2, n3, n4], dt(8), 'foo', 1)
 
     assert samplestorage.get_sample_acls(id_) == SampleACL('auser')
 
 
 def test_save_sample_fail_bad_input(samplestorage):
-    s = SavedSample(uuid.UUID('1234567890abcdef1234567890abcdef'), [TEST_NODE], dt(1), 'foo')
-
     with raises(Exception) as got:
-        samplestorage.save_sample('', s)
-    assert_exception_correct(
-        got.value, ValueError('user_name cannot be a value that evaluates to false'))
-
-    with raises(Exception) as got:
-        samplestorage.save_sample('a', None)
+        samplestorage.save_sample(None)
     assert_exception_correct(
         got.value, ValueError('sample cannot be a value that evaluates to false'))
 
 
 def test_save_sample_fail_duplicate(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user1', [TEST_NODE], dt(1), 'foo')) is True
 
     assert samplestorage.save_sample(
-        'user1', SavedSample(id_, [TEST_NODE], dt(1), 'bar')) is False
+        SavedSample(id_, 'user1', [TEST_NODE], dt(1), 'bar')) is False
 
 
 def test_save_sample_fail_duplicate_race_condition(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     # this is a very bad and naughty thing to do
     assert samplestorage._save_sample_pt2(
-        'user1', SavedSample(id_, [TEST_NODE], dt(1), 'bar')) is False
+        SavedSample(id_, 'user', [TEST_NODE], dt(1), 'bar')) is False
 
 
 def test_get_sample_with_non_updated_version_doc(samplestorage):
@@ -640,14 +634,15 @@ def test_get_sample_with_non_updated_version_doc(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id_, 'auser', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     # this is very naughty
     # checked that these modifications actually work by viewing the db contents
     samplestorage._col_version.update_match({}, {'ver': -1})
     samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
 
-    assert samplestorage.get_sample(id_) == SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo', 1)
+    assert samplestorage.get_sample(id_) == SavedSample(
+        id_, 'auser', [n1, n2, n3, n4], dt(1), 'foo', 1)
 
     for v in samplestorage._col_version.all():
         assert v['ver'] == 1
@@ -670,13 +665,14 @@ def test_get_sample_with_non_updated_node_doc(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     assert samplestorage.save_sample(
-        'auser', SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo')) is True
+        SavedSample(id_, 'auser', [n1, n2, n3, n4], dt(1), 'foo')) is True
 
     # this is very naughty
     # checked that these modifications actually work by viewing the db contents
     samplestorage._col_nodes.update_match({'name': 'kid1'}, {'ver': -1})
 
-    assert samplestorage.get_sample(id_) == SavedSample(id_, [n1, n2, n3, n4], dt(1), 'foo', 1)
+    assert samplestorage.get_sample(id_) == SavedSample(
+        id_, 'auser', [n1, n2, n3, n4], dt(1), 'foo', 1)
 
     for v in samplestorage._col_nodes.all():
         assert v['ver'] == 1
@@ -691,7 +687,7 @@ def test_get_sample_fail_bad_input(samplestorage):
 
 def test_get_sample_fail_no_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdea'))
@@ -701,16 +697,17 @@ def test_get_sample_fail_no_sample(samplestorage):
 
 def test_get_sample_fail_no_such_version(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
     assert_exception_correct(
         got.value, NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 2'))
 
-    assert samplestorage.save_sample_version(SavedSample(id_, [TEST_NODE], dt(1), 'bar')) == 2
+    assert samplestorage.save_sample_version(
+        SavedSample(id_, 'user2', [TEST_NODE], dt(1), 'bar')) == 2
 
-    assert samplestorage.get_sample(id_) == SavedSample(id_, [TEST_NODE], dt(1), 'bar', 2)
+    assert samplestorage.get_sample(id_) == SavedSample(id_, 'user2', [TEST_NODE], dt(1), 'bar', 2)
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=3)
@@ -721,7 +718,7 @@ def test_get_sample_fail_no_such_version(samplestorage):
 def test_get_sample_fail_no_version_doc_1_version(samplestorage):
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     # this is very naughty
     verdoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 1}
@@ -738,8 +735,9 @@ def test_get_sample_fail_no_version_doc_1_version(samplestorage):
 def test_get_sample_fail_no_version_doc_2_versions(samplestorage):
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
-    assert samplestorage.save_sample_version(SavedSample(id_, [TEST_NODE], dt(1), 'bar')) == 2
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(id_, 'user', [TEST_NODE], dt(1), 'bar')) == 2
 
     # this is very naughty
     verdoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 2}
@@ -747,7 +745,7 @@ def test_get_sample_fail_no_version_doc_2_versions(samplestorage):
     samplestorage._col_version.delete_match(verdoc_filters)
 
     assert samplestorage.get_sample(id_, version=1) == SavedSample(
-        id_, [TEST_NODE], dt(1), 'foo', 1)
+        id_, 'user', [TEST_NODE], dt(1), 'foo', 1)
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
@@ -759,7 +757,7 @@ def test_get_sample_fail_no_version_doc_2_versions(samplestorage):
 def test_get_sample_fail_no_node_docs_1_version(samplestorage):
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     # this is very naughty
     nodedoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 1}
@@ -777,8 +775,9 @@ def test_get_sample_fail_no_node_docs_1_version(samplestorage):
 def test_get_sample_fail_no_node_docs_2_versions(samplestorage):
     # This should be impossible in practice unless someone actively deletes records from the db.
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
-    assert samplestorage.save_sample_version(SavedSample(id_, [TEST_NODE], dt(1), 'bar')) == 2
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(id_, 'user', [TEST_NODE], dt(1), 'bar')) == 2
 
     # this is very naughty
     nodedoc_filters = {'id': '12345678-90ab-cdef-1234-567890abcdef', 'ver': 2}
@@ -786,7 +785,7 @@ def test_get_sample_fail_no_node_docs_2_versions(samplestorage):
     samplestorage._col_nodes.delete_match(nodedoc_filters)
 
     assert samplestorage.get_sample(id_, version=1) == SavedSample(
-        id_, [TEST_NODE], dt(1), 'foo', 1)
+        id_, 'user', [TEST_NODE], dt(1), 'foo', 1)
 
     with raises(Exception) as got:
         samplestorage.get_sample(uuid.UUID('1234567890abcdef1234567890abcdef'), version=2)
@@ -798,7 +797,7 @@ def test_get_sample_fail_no_node_docs_2_versions(samplestorage):
 
 def test_save_and_get_sample_version(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(42), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(42), 'foo')) is True
 
     n1 = SampleNode('root')
     n2 = SampleNode(
@@ -810,24 +809,24 @@ def test_save_and_get_sample_version(samplestorage):
                     uncontrolled_metadata={'f': {'g': 'h'}})
 
     assert samplestorage.save_sample_version(
-        SavedSample(id_, [n1, n2, n3, n4], dt(86), 'bar')) == 2
+        SavedSample(id_, 'user2', [n1, n2, n3, n4], dt(86), 'bar')) == 2
     assert samplestorage.save_sample_version(
-        SavedSample(id_, [n1], dt(7), 'whiz', version=6)) == 3
+        SavedSample(id_, 'user3', [n1], dt(7), 'whiz', version=6)) == 3
 
     assert samplestorage.get_sample(id_, version=1) == SavedSample(
-        id_, [TEST_NODE], dt(42), 'foo', 1)
+        id_, 'user', [TEST_NODE], dt(42), 'foo', 1)
 
     assert samplestorage.get_sample(id_, version=2) == SavedSample(
-        id_, [n1, n2, n3, n4], dt(86), 'bar', 2)
+        id_, 'user2', [n1, n2, n3, n4], dt(86), 'bar', 2)
 
-    expected = SavedSample(id_, [n1], dt(7), 'whiz', 3)
+    expected = SavedSample(id_, 'user3', [n1], dt(7), 'whiz', 3)
     assert samplestorage.get_sample(id_) == expected
     assert samplestorage.get_sample(id_, version=3) == expected
 
 
 def test_save_sample_version_fail_bad_input(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    s = SavedSample(id_, [TEST_NODE], dt(1), 'foo')
+    s = SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')
 
     _save_sample_version_fail(samplestorage, None, None, ValueError(
         'sample cannot be a value that evaluates to false'))
@@ -843,30 +842,31 @@ def _save_sample_version_fail(samplestorage, sample, prior_version, expected):
 
 def test_save_sample_version_fail_no_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
     with raises(Exception) as got:
-        samplestorage.save_sample_version(SavedSample(id2, [TEST_NODE], dt(1), 'whiz'))
+        samplestorage.save_sample_version(SavedSample(id2, 'user', [TEST_NODE], dt(1), 'whiz'))
     assert_exception_correct(got.value, NoSuchSampleError('12345678-90ab-cdef-1234-567890abcdea'))
 
 
 def test_save_sample_version_fail_prior_version(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
     assert samplestorage.save_sample_version(
-        SavedSample(id_, [SampleNode('bat')], dt(1), 'bar')) == 2
+        SavedSample(id_, 'user', [SampleNode('bat')], dt(1), 'bar')) == 2
 
     with raises(Exception) as got:
         samplestorage.save_sample_version(
-            SavedSample(id_, [TEST_NODE], dt(1), 'whiz'), prior_version=1)
+            SavedSample(id_, 'user', [TEST_NODE], dt(1), 'whiz'), prior_version=1)
     assert_exception_correct(got.value, ConcurrencyError(
         'Version required for sample ' +
         '12345678-90ab-cdef-1234-567890abcdef is 1, but current version is 2'))
 
     # this is naughty, but need to check race condition
     with raises(Exception) as got:
-        samplestorage._save_sample_version_pt2(SavedSample(id_, [TEST_NODE], dt(1), 'whiz'), 1)
+        samplestorage._save_sample_version_pt2(
+            SavedSample(id_, 'user', [TEST_NODE], dt(1), 'whiz'), 1)
     assert_exception_correct(got.value, ConcurrencyError(
         'Version required for sample ' +
         '12345678-90ab-cdef-1234-567890abcdef is 1, but current version is 2'))
@@ -876,15 +876,16 @@ def test_sample_version_update(samplestorage):
     # tests that the versions on node and version documents are updated correctly
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
-        'user', SavedSample(id_, [SampleNode('baz')], dt(1), 'foo')) is True
+        SavedSample(id_, 'user', [SampleNode('baz')], dt(1), 'foo')) is True
 
     assert samplestorage.save_sample_version(
-        SavedSample(id_, [SampleNode('bat')], dt(1), 'bar')) == 2
+        SavedSample(id_, 'user', [SampleNode('bat')], dt(1), 'bar')) == 2
 
     assert samplestorage.get_sample(id_, version=1) == SavedSample(
-        id_, [SampleNode('baz')], dt(1), 'foo', 1)
+        id_, 'user', [SampleNode('baz')], dt(1), 'foo', 1)
 
-    assert samplestorage.get_sample(id_) == SavedSample(id_, [SampleNode('bat')], dt(1), 'bar', 2)
+    assert samplestorage.get_sample(id_) == SavedSample(
+        id_, 'user', [SampleNode('bat')], dt(1), 'bar', 2)
 
     idstr = '12345678-90ab-cdef-1234-567890abcdef'
     vers = set()
@@ -909,7 +910,7 @@ def test_get_sample_acls_fail_bad_input(samplestorage):
 
 def test_get_sample_acls_fail_no_sample(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     with raises(Exception) as got:
         samplestorage.get_sample_acls(uuid.UUID('1234567890abcdef1234567890abcdea'))
@@ -919,7 +920,7 @@ def test_get_sample_acls_fail_no_sample(samplestorage):
 
 def test_replace_sample_acls(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     samplestorage.replace_sample_acls(id_, SampleACL(
         'user', ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
@@ -947,7 +948,7 @@ def test_replace_sample_acls_fail_bad_args(samplestorage):
 
 def test_replace_sample_acls_fail_no_sample(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id1, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id1, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
 
@@ -958,7 +959,7 @@ def test_replace_sample_acls_fail_no_sample(samplestorage):
 
 def test_replace_sample_acls_fail_owner_changed(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert samplestorage.save_sample('user', SavedSample(id_, [TEST_NODE], dt(1), 'foo')) is True
+    assert samplestorage.save_sample(SavedSample(id_, 'user', [TEST_NODE], dt(1), 'foo')) is True
 
     # this is naughty
     samplestorage._db.aql.execute(

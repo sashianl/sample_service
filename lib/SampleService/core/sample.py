@@ -106,6 +106,10 @@ class SampleNode:
         return hash((self.name, self.type, self.parent, self.controlled_metadata,
                      self.uncontrolled_metadata))
 
+    # def __repr__(self):
+    #     return (f'{self.name}, {self.type}, {self.parent}, {self.controlled_metadata}, ' +
+    #             f'{self.uncontrolled_metadata}')
+
 
 class Sample:
     '''
@@ -184,7 +188,7 @@ class SavedSample(Sample):
     def __init__(
             self,
             id_: UUID,
-            # user: str,
+            user: str,
             nodes: List[SampleNode],
             savetime: datetime.datetime,
             name: Optional[str] = None,
@@ -209,7 +213,7 @@ class SavedSample(Sample):
         # yet another class, so...
         super().__init__(nodes, name)
         self.id = _not_falsy(id_, 'id_')
-        # self.user = _not_falsy(user, 'user')
+        self.user = _not_falsy(user, 'user')
         self.savetime = _not_falsy(savetime, 'savetime')
         if savetime.tzinfo is None:
             # see https://docs.python.org/3.3/library/datetime.html#datetime.timezone
@@ -224,6 +228,7 @@ class SavedSample(Sample):
     def __eq__(self, other):
         if type(other) is type(self):
             return (other.id == self.id
+                    and other.user == self.user
                     and other.name == self.name
                     and other.savetime == self.savetime
                     and other.version == self.version
@@ -231,7 +236,11 @@ class SavedSample(Sample):
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.id, self.name, self.savetime, self.version, self.nodes))
+        return hash((self.id, self.user, self.name, self.savetime, self.version, self.nodes))
+
+    # def __repr__(self):
+    #     return (f'{self.id}, {self.user}, {self.name}, {self.savetime}, {self.version}, ' +
+    #             f'{self.nodes}')
 
 
 def _xor(bool1: bool, bool2: bool):
