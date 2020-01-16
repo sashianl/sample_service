@@ -81,6 +81,8 @@ Handles creating, updating, retriving samples and linking data to samples.
                 node-collection: {col_node}
                 node-edge-collection: {col_node_edge}
                 schema-collection: {col_schema}
+                auth-root-url: {auth_root_url}
+                auth-token: [REDACTED FOR YOUR CONVENIENCE AND ENJOYMENT]
         ''')
 
         arangoclient = _arango.ArangoClient(hosts=arango_url)
