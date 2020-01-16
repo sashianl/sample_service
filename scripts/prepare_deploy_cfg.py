@@ -44,9 +44,7 @@ if __name__ == "__main__":
     else:
         raise ValueError('Neither ' + sys.argv[2] + ' file nor KBASE_ENDPOINT env-variable found')
     props = dict(config.items("global"))
-    print(props)
     output = t.render(props)
-    print(output)
     with open(sys.argv[1] + ".orig", 'w') as f:
         f.write(text)
     with open(sys.argv[1], 'w') as f:
