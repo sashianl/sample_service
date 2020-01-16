@@ -23,7 +23,7 @@ from arango_controller import ArangoController
 from mongo_controller import MongoController
 from auth_controller import AuthController
 
-VER = '0.1.0-alpha1'
+VER = '0.1.0-alpha2'
 
 _AUTH_DB = 'test_auth_db'
 

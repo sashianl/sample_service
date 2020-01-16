@@ -36,9 +36,9 @@ Handles creating, updating, retriving samples and linking data to samples.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-alpha1"
+    VERSION = "0.1.0-alpha2"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "c1a7b2bfd5b4e92c5200921bfdcef49c444c6b11"
+    GIT_COMMIT_HASH = "a001bb3959c7a50102fdfbf6e6c0eb4a504f1000"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -107,13 +107,14 @@ Handles creating, updating, retriving samples and linking data to samples.
            creating a sample. If Sample.id is null, a new Sample is created
            along with a new ID. Otherwise, a new version of Sample.id is
            created. If Sample.id does not exist, an error is returned. Any
-           incoming version or timestamp in the incoming sample is ignored.
-           sample - the sample to save. prior_version - if non-null, ensures
-           that no other sample version is saved between prior_version and
-           the version that is created by this save. If this is not the case,
-           the sample will fail to save.) -> structure: parameter "sample" of
-           type "Sample" (A Sample, consisting of a tree of subsamples and
-           replicates. id - the ID of the sample. node_tree - the tree(s) of
+           incoming user, version or timestamp in the incoming sample is
+           ignored. sample - the sample to save. prior_version - if non-null,
+           ensures that no other sample version is saved between
+           prior_version and the version that is created by this save. If
+           this is not the case, the sample will fail to save.) -> structure:
+           parameter "sample" of type "Sample" (A Sample, consisting of a
+           tree of subsamples and replicates. id - the ID of the sample. user
+           - the user that saved the sample. node_tree - the tree(s) of
            sample nodes in the sample. The the roots of all trees must be
            BioReplicate nodes. All the BioReplicate nodes must be at the
            start of the list, and all child nodes must occur after their
@@ -121,41 +122,42 @@ Handles creating, updating, retriving samples and linking data to samples.
            than 255 characters. save_date - the date the sample version was
            saved. version - the version of the sample.) -> structure:
            parameter "id" of type "sample_id" (A Sample ID. Must be globally
-           unique. Always assigned by the Sample service.), parameter
-           "node_tree" of list of type "SampleNode" (A node in a sample tree.
-           id - the ID of the node. parent - the id of the parent node for
-           the current node. BioReplicate nodes, and only BioReplicate nodes,
-           do not have a parent. type - the type of the node. meta_controlled
-           - metadata restricted by the sample controlled vocabulary and
-           validators. meta_user - unrestricted metadata.) -> structure:
-           parameter "id" of type "node_id" (A SampleNode ID. Must be unique
-           within a Sample and be less than 255 characters.), parameter
-           "parent" of type "node_id" (A SampleNode ID. Must be unique within
-           a Sample and be less than 255 characters.), parameter "type" of
-           type "samplenode_type" (The type of a sample node. One of:
-           BioReplicate - a biological replicate. Always at the top of the
-           sample tree. TechReplicate - a technical replicate. SubSample - a
-           sub sample that is not a technical replicate.), parameter
-           "meta_controlled" of type "metadata" (Metadata attached to a
-           sample. The UnspecifiedObject map values MUST be a primitive type
-           - either int, float, string, or equivalent typedefs.) -> mapping
-           from type "metadata_key" (A key in a metadata key/value pair. Less
-           than 1000 unicode characters.) to mapping from type
-           "metadata_value_key" (A key for a value associated with a piece of
-           metadata. Less than 1000 unicode characters. Examples: units,
-           value, species) to unspecified object, parameter "meta_user" of
-           type "metadata" (Metadata attached to a sample. The
+           unique. Always assigned by the Sample service.), parameter "user"
+           of type "user" (A user's username.), parameter "node_tree" of list
+           of type "SampleNode" (A node in a sample tree. id - the ID of the
+           node. parent - the id of the parent node for the current node.
+           BioReplicate nodes, and only BioReplicate nodes, do not have a
+           parent. type - the type of the node. meta_controlled - metadata
+           restricted by the sample controlled vocabulary and validators.
+           meta_user - unrestricted metadata.) -> structure: parameter "id"
+           of type "node_id" (A SampleNode ID. Must be unique within a Sample
+           and be less than 255 characters.), parameter "parent" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "type" of type
+           "samplenode_type" (The type of a sample node. One of: BioReplicate
+           - a biological replicate. Always at the top of the sample tree.
+           TechReplicate - a technical replicate. SubSample - a sub sample
+           that is not a technical replicate.), parameter "meta_controlled"
+           of type "metadata" (Metadata attached to a sample. The
            UnspecifiedObject map values MUST be a primitive type - either
            int, float, string, or equivalent typedefs.) -> mapping from type
            "metadata_key" (A key in a metadata key/value pair. Less than 1000
            unicode characters.) to mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "name" of type "sample_name" (A
-           sample name. Must be less than 255 characters.), parameter
-           "save_date" of type "timestamp" (A timestamp in epoch
-           milliseconds.), parameter "version" of type "version" (The version
-           of a sample. Always > 0.), parameter "prior_version" of Long
+           unspecified object, parameter "meta_user" of type "metadata"
+           (Metadata attached to a sample. The UnspecifiedObject map values
+           MUST be a primitive type - either int, float, string, or
+           equivalent typedefs.) -> mapping from type "metadata_key" (A key
+           in a metadata key/value pair. Less than 1000 unicode characters.)
+           to mapping from type "metadata_value_key" (A key for a value
+           associated with a piece of metadata. Less than 1000 unicode
+           characters. Examples: units, value, species) to unspecified
+           object, parameter "name" of type "sample_name" (A sample name.
+           Must be less than 255 characters.), parameter "save_date" of type
+           "timestamp" (A timestamp in epoch milliseconds.), parameter
+           "version" of type "version" (The version of a sample. Always >
+           0.), parameter "prior_version" of Long
         :returns: instance of type "SampleAddress" (A Sample ID and version.
            id - the ID of the sample. version - the version of the sample.)
            -> structure: parameter "id" of type "sample_id" (A Sample ID.
@@ -189,49 +191,50 @@ Handles creating, updating, retriving samples and linking data to samples.
            service.), parameter "version" of type "version" (The version of a
            sample. Always > 0.)
         :returns: instance of type "Sample" (A Sample, consisting of a tree
-           of subsamples and replicates. id - the ID of the sample. node_tree
-           - the tree(s) of sample nodes in the sample. The the roots of all
-           trees must be BioReplicate nodes. All the BioReplicate nodes must
-           be at the start of the list, and all child nodes must occur after
-           their parents in the list. name - the name of the sample. Must be
-           less than 255 characters. save_date - the date the sample version
-           was saved. version - the version of the sample.) -> structure:
+           of subsamples and replicates. id - the ID of the sample. user -
+           the user that saved the sample. node_tree - the tree(s) of sample
+           nodes in the sample. The the roots of all trees must be
+           BioReplicate nodes. All the BioReplicate nodes must be at the
+           start of the list, and all child nodes must occur after their
+           parents in the list. name - the name of the sample. Must be less
+           than 255 characters. save_date - the date the sample version was
+           saved. version - the version of the sample.) -> structure:
            parameter "id" of type "sample_id" (A Sample ID. Must be globally
-           unique. Always assigned by the Sample service.), parameter
-           "node_tree" of list of type "SampleNode" (A node in a sample tree.
-           id - the ID of the node. parent - the id of the parent node for
-           the current node. BioReplicate nodes, and only BioReplicate nodes,
-           do not have a parent. type - the type of the node. meta_controlled
-           - metadata restricted by the sample controlled vocabulary and
-           validators. meta_user - unrestricted metadata.) -> structure:
-           parameter "id" of type "node_id" (A SampleNode ID. Must be unique
-           within a Sample and be less than 255 characters.), parameter
-           "parent" of type "node_id" (A SampleNode ID. Must be unique within
-           a Sample and be less than 255 characters.), parameter "type" of
-           type "samplenode_type" (The type of a sample node. One of:
-           BioReplicate - a biological replicate. Always at the top of the
-           sample tree. TechReplicate - a technical replicate. SubSample - a
-           sub sample that is not a technical replicate.), parameter
-           "meta_controlled" of type "metadata" (Metadata attached to a
-           sample. The UnspecifiedObject map values MUST be a primitive type
-           - either int, float, string, or equivalent typedefs.) -> mapping
-           from type "metadata_key" (A key in a metadata key/value pair. Less
-           than 1000 unicode characters.) to mapping from type
-           "metadata_value_key" (A key for a value associated with a piece of
-           metadata. Less than 1000 unicode characters. Examples: units,
-           value, species) to unspecified object, parameter "meta_user" of
-           type "metadata" (Metadata attached to a sample. The
+           unique. Always assigned by the Sample service.), parameter "user"
+           of type "user" (A user's username.), parameter "node_tree" of list
+           of type "SampleNode" (A node in a sample tree. id - the ID of the
+           node. parent - the id of the parent node for the current node.
+           BioReplicate nodes, and only BioReplicate nodes, do not have a
+           parent. type - the type of the node. meta_controlled - metadata
+           restricted by the sample controlled vocabulary and validators.
+           meta_user - unrestricted metadata.) -> structure: parameter "id"
+           of type "node_id" (A SampleNode ID. Must be unique within a Sample
+           and be less than 255 characters.), parameter "parent" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "type" of type
+           "samplenode_type" (The type of a sample node. One of: BioReplicate
+           - a biological replicate. Always at the top of the sample tree.
+           TechReplicate - a technical replicate. SubSample - a sub sample
+           that is not a technical replicate.), parameter "meta_controlled"
+           of type "metadata" (Metadata attached to a sample. The
            UnspecifiedObject map values MUST be a primitive type - either
            int, float, string, or equivalent typedefs.) -> mapping from type
            "metadata_key" (A key in a metadata key/value pair. Less than 1000
            unicode characters.) to mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "name" of type "sample_name" (A
-           sample name. Must be less than 255 characters.), parameter
-           "save_date" of type "timestamp" (A timestamp in epoch
-           milliseconds.), parameter "version" of type "version" (The version
-           of a sample. Always > 0.)
+           unspecified object, parameter "meta_user" of type "metadata"
+           (Metadata attached to a sample. The UnspecifiedObject map values
+           MUST be a primitive type - either int, float, string, or
+           equivalent typedefs.) -> mapping from type "metadata_key" (A key
+           in a metadata key/value pair. Less than 1000 unicode characters.)
+           to mapping from type "metadata_value_key" (A key for a value
+           associated with a piece of metadata. Less than 1000 unicode
+           characters. Examples: units, value, species) to unspecified
+           object, parameter "name" of type "sample_name" (A sample name.
+           Must be less than 255 characters.), parameter "save_date" of type
+           "timestamp" (A timestamp in epoch milliseconds.), parameter
+           "version" of type "version" (The version of a sample. Always > 0.)
         """
         # ctx is the context object
         # return variables are: sample
@@ -256,7 +259,7 @@ Handles creating, updating, retriving samples and linking data to samples.
            "sample_id" (A Sample ID. Must be globally unique. Always assigned
            by the Sample service.)
         :returns: instance of type "SampleACLs" (Access control lists for a
-           sample. Access levels include the priviledges of the lower access
+           sample. Access levels include the privileges of the lower access
            levels. owner - the user that created and owns the sample. admin -
            users that can administrate (e.g. alter ACLs) the sample. write -
            users that can write (e.g. create a new version) to the sample.
@@ -284,7 +287,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     def replace_sample_acls(self, ctx, params):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
-        ACLs and gone forever.
+        ACLs, even if empty, and gone forever.
         The sample owner cannot be changed via this method.
         :param params: instance of type "ReplaceSampleACLsParams"
            (replace_sample_acls parameters. id - the ID of the sample to
@@ -292,7 +295,7 @@ Handles creating, updating, retriving samples and linking data to samples.
            parameter "id" of type "sample_id" (A Sample ID. Must be globally
            unique. Always assigned by the Sample service.), parameter "acls"
            of type "SampleACLs" (Access control lists for a sample. Access
-           levels include the priviledges of the lower access levels. owner -
+           levels include the privileges of the lower access levels. owner -
            the user that created and owns the sample. admin - users that can
            administrate (e.g. alter ACLs) the sample. write - users that can
            write (e.g. create a new version) to the sample. read - users that
