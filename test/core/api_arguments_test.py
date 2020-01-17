@@ -171,6 +171,12 @@ def test_create_sample_params_fail_bad_input():
     create_sample_params_meta_fail(
         {'foo': {}, 'bar': {'baz': 1, 'bat': ['yay']}},
         "Node at index {}'s {} entry does not have a primitive type as the value at bar/bat")
+    create_sample_params_meta_fail(
+        {'foo': {}, None: 'yay'},
+        "Node at index {}'s {} entry contains a non-string key")
+    create_sample_params_meta_fail(
+        {'foo': {None: 'foo'}, 'bar': 'yay'},
+        "Node at index {}'s {} entry contains a non-string key under key foo")
 
     create_sample_params_fail(
         {'sample': {'node_tree': [{'id': 'foo', 'type': 'BioReplicate'},
