@@ -389,7 +389,7 @@ class ArangoSampleStorage:
                     _FLD_NODE_PARENT: n.parent,
                     _FLD_NODE_INDEX: index,
                     _FLD_NODE_CONTROLLED_METADATA: self._meta_to_list(n.controlled_metadata),
-                    _FLD_NODE_UNCONTROLLED_METADATA: self._meta_to_list(n.uncontrolled_metadata),
+                    _FLD_NODE_UNCONTROLLED_METADATA: self._meta_to_list(n.user_metadata),
                     }
             if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
                 to = f'{self._col_version.name}/{verdocid}'

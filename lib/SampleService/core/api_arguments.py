@@ -175,7 +175,7 @@ def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
               'type': n.type.value,
               'parent': n.parent,
               'meta_controlled': _unfreeze_meta(n.controlled_metadata),
-              'meta_user': _unfreeze_meta(n.uncontrolled_metadata)
+              'meta_user': _unfreeze_meta(n.user_metadata)
               }
              for n in _not_falsy(sample, 'sample').nodes]
     return {'id': str(sample.id),

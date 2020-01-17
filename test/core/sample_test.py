@@ -12,14 +12,14 @@ def test_sample_node_build():
     assert sn.type == SubSampleType.BIOLOGICAL_REPLICATE
     assert sn.parent is None
     assert sn.controlled_metadata == {}
-    assert sn.uncontrolled_metadata == {}
+    assert sn.user_metadata == {}
 
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256)
     assert sn.name == 'a' * 256
     assert sn.type == SubSampleType.TECHNICAL_REPLICATE
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {}
-    assert sn.uncontrolled_metadata == {}
+    assert sn.user_metadata == {}
 
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256,
                     {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'}, 'wugga': {'a': 'b' * 1024}},
@@ -29,7 +29,7 @@ def test_sample_node_build():
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
                                       'wugga': {'a': 'b' * 1024}}
-    assert sn.uncontrolled_metadata == {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}}
+    assert sn.user_metadata == {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}}
 
     # 100KB when serialized to json
     meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
@@ -40,7 +40,7 @@ def test_sample_node_build():
     assert sn.type == SubSampleType.SUB_SAMPLE
     assert sn.parent == 'b'
     assert sn.controlled_metadata == meta
-    assert sn.uncontrolled_metadata == meta
+    assert sn.user_metadata == meta
 
 
 def test_sample_node_build_fail():
@@ -112,7 +112,7 @@ def _sample_node_build_fail_metadata(meta, expected):
         SampleNode('n', SubSampleType.BIOLOGICAL_REPLICATE, controlled_metadata=meta)
     assert_exception_correct(got.value, IllegalParameterError(expected.format('Controlled')))
     with raises(Exception) as got:
-        SampleNode('n', SubSampleType.BIOLOGICAL_REPLICATE, uncontrolled_metadata=meta)
+        SampleNode('n', SubSampleType.BIOLOGICAL_REPLICATE, user_metadata=meta)
     assert_exception_correct(got.value, IllegalParameterError(expected.format('User')))
 
 
@@ -140,14 +140,14 @@ def test_sample_node_eq():
     assert SampleNode('foo', s, 'bar', {'foo': {'a': 'b'}}) != SampleNode(
         'foo', s, 'bar', {'fo': {'a': 'b'}})
 
-    assert SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}}) == SampleNode(
-        'foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}})
-    assert SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}}) != SampleNode(
-        'foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'c'}})
-    assert SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}}) != SampleNode(
-        'foo', s, 'bar', uncontrolled_metadata={'foo': {'z': 'b'}})
-    assert SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}}) != SampleNode(
-        'foo', s, 'bar', uncontrolled_metadata={'fo': {'a': 'b'}})
+    assert SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}) == SampleNode(
+        'foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})
+    assert SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}) != SampleNode(
+        'foo', s, 'bar', user_metadata={'foo': {'a': 'c'}})
+    assert SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}) != SampleNode(
+        'foo', s, 'bar', user_metadata={'foo': {'z': 'b'}})
+    assert SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}) != SampleNode(
+        'foo', s, 'bar', user_metadata={'fo': {'a': 'b'}})
 
     assert SampleNode('foo') != 'foo'
     assert 'foo' != SampleNode('foo')
@@ -181,14 +181,14 @@ def test_sample_node_hash():
     assert hash(SampleNode('foo', s, 'bar', {'foo': {'a': 'b'}})) != hash(SampleNode(
         'foo', s, 'bar', {'fo': {'a': 'b'}}))
 
-    assert hash(SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}})) == hash(
-        SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}}))
-    assert hash(SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}})) != hash(
-        SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'c'}}))
-    assert hash(SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}})) != hash(
-        SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'z': 'b'}}))
-    assert hash(SampleNode('foo', s, 'bar', uncontrolled_metadata={'foo': {'a': 'b'}})) != hash(
-        SampleNode('foo', s, 'bar', uncontrolled_metadata={'fo': {'a': 'b'}}))
+    assert hash(SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})) == hash(
+        SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}))
+    assert hash(SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})) != hash(
+        SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'c'}}))
+    assert hash(SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})) != hash(
+        SampleNode('foo', s, 'bar', user_metadata={'foo': {'z': 'b'}}))
+    assert hash(SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})) != hash(
+        SampleNode('foo', s, 'bar', user_metadata={'fo': {'a': 'b'}}))
 
 
 def dt(timestamp):
