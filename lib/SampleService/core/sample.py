@@ -5,6 +5,8 @@ Contains classes related to samples.
 import datetime
 from enum import Enum as _Enum, unique as _unique
 import maps as _maps
+import json as _json
+import unicodedata as _unicodedata
 from uuid import UUID
 from typing import Optional, List, Dict, TypeVar as _TypeVar
 from typing import Set as _Set, cast as _cast
@@ -17,8 +19,12 @@ from SampleService.core.errors import IllegalParameterError, MissingParameterErr
 # if that doesn't hold true, override __setattr__.
 
 
-_MAX_SAMPLE_NAME_LEN = 255
+_MAX_SAMPLE_NAME_LEN = 256
 _MAX_SAMPLE_NODES = 10000
+
+_META_MAX_SIZE_B = 100000  # based on serialized json
+_META_MAX_KEY_SIZE = 256
+_META_MAX_VALUE_SIZE = 1024
 
 
 @_unique
@@ -81,9 +87,13 @@ class SampleNode:
         self.name = _cast(str, _check_string(name, 'subsample name', max_len=_MAX_SAMPLE_NAME_LEN))
         self.type = _not_falsy(type_, 'type')
         self.parent = _check_string(parent, 'parent', max_len=_MAX_SAMPLE_NAME_LEN, optional=True)
-        # TODO key/value/size checking, maybe make a class
-        self.controlled_metadata = _fz(controlled_metadata if controlled_metadata else {})
-        self.uncontrolled_metadata = _fz(uncontrolled_metadata if uncontrolled_metadata else {})
+        cm = controlled_metadata if controlled_metadata else {}
+        _check_meta(cm, True)
+        self.controlled_metadata = _fz(cm)
+        # TODO change uncontrolled to user
+        um = uncontrolled_metadata if uncontrolled_metadata else {}
+        _check_meta(um, False)
+        self.uncontrolled_metadata = _fz(um)
         isbiorep = type_ == SubSampleType.BIOLOGICAL_REPLICATE
         if not _xor(bool(parent), isbiorep):
             raise IllegalParameterError(
@@ -109,6 +119,54 @@ class SampleNode:
     # def __repr__(self):
     #     return (f'{self.name}, {self.type}, {self.parent}, {self.controlled_metadata}, ' +
     #             f'{self.uncontrolled_metadata}')
+
+
+def _check_meta(m: Dict[str, Dict[str, PrimitiveType]], controlled: bool):
+    c = 'Controlled' if controlled else 'User'
+    for k in m:
+        if len(k) > _META_MAX_KEY_SIZE:
+            raise IllegalParameterError(
+                f'{c} metadata has key starting with {k[:_META_MAX_KEY_SIZE]} that ' +
+                f'exceeds maximum length of {_META_MAX_KEY_SIZE}')
+        cc = _control_char_first_pos(k)
+        if cc:
+            raise IllegalParameterError(
+                f"{c} metadata key {k}'s character at index {cc} is a control character.")
+        for vk in m[k]:
+            if len(vk) > _META_MAX_KEY_SIZE:
+                raise IllegalParameterError(
+                    f'{c} metadata has value key under root key {k} starting with ' +
+                    f'{vk[:_META_MAX_KEY_SIZE]} that exceeds maximum length of ' +
+                    f'{_META_MAX_KEY_SIZE}')
+            cc = _control_char_first_pos(vk)
+            if cc:
+                raise IllegalParameterError(
+                    f"{c} metadata value key {vk} under key {k}'s character at index {cc} " +
+                    'is a control character.')
+            val = m[k][vk]
+            if type(val) == str:
+                if len(_cast(str, val)) > _META_MAX_VALUE_SIZE:
+                    raise IllegalParameterError(
+                        f'{c} metadata has value under root key {k} and value key {vk} ' +
+                        f'starting with {_cast(str, val)[:_META_MAX_KEY_SIZE]} that ' +
+                        f'exceeds maximum length of {_META_MAX_VALUE_SIZE}')
+                cc = _control_char_first_pos(_cast(str, val), allow_tabs_and_lf=True)
+                if cc:
+                    raise IllegalParameterError(
+                        f"{c} metadata value under root key {k} and value key {vk}'s " +
+                        f'character at index {cc} is a control character.')
+    if len(_json.dumps(m, ensure_ascii=False).encode('utf-8')) > _META_MAX_SIZE_B:
+        # would be nice if that could be streamed so we don't make a new byte array
+        raise IllegalParameterError(
+            f'{c} metadata is larger than maximum of {_META_MAX_SIZE_B}B')
+
+
+def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):
+    for i, c in enumerate(string):
+        if _unicodedata.category(c)[0] == "C":
+            if not allow_tabs_and_lf or (c != '\n' and c != '\t'):
+                return i
+    return 0
 
 
 class Sample:
