@@ -81,7 +81,8 @@ class SampleNode:
         :param controlled_metadata: Unrestricted sample metadata.
         :raises MissingParameterError: if the name is None or whitespace only.
         :raises IllegalParameterError: if the name or parent is too long or contains illegal
-            characters or the parent is missing and the node type is not BIOLOGICAL_REPLICATE.
+            characters, the parent is missing and the node type is not BIOLOGICAL_REPLICATE,
+            or basic metadata constraints are violated.
         '''
         # could make a bioreplicate class... meh for now
         self.name = _cast(str, _check_string(name, 'subsample name', max_len=_MAX_SAMPLE_NAME_LEN))

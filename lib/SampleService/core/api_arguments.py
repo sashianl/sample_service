@@ -88,12 +88,13 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
         if n.get('parent') and type(n.get('parent')) != str:
             raise _IllegalParameterError(
                 f'Node at index {i} has a parent entry that is not a string')
-        nodes.append(_SampleNode(
-            n.get('id'),
-            type_,
-            n.get('parent'),
-            _check_meta(n.get('meta_controlled'), i, 'controlled metadata'),
-            _check_meta(n.get('meta_user'), i, 'user metadata')))
+        mc = _check_meta(n.get('meta_controlled'), i, 'controlled metadata')
+        mu = _check_meta(n.get('meta_user'), i, 'user metadata')
+        try:
+            nodes.append(_SampleNode(n.get('id'), type_, n.get('parent'), mc, mu))
+            # already checked for the missing param error above, for id
+        except _IllegalParameterError as e:
+            raise _IllegalParameterError(f'Error for node at index {i}: ' + _cast(str, e.message))
 
     id_ = get_id_from_object(s)
 
