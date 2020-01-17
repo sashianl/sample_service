@@ -586,7 +586,7 @@ def test_save_and_get_sample(samplestorage):
         {'m': {'n': 'o'}})
     n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
     n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
-                    uncontrolled_metadata={'f': {'g': 'h'}})
+                    user_metadata={'f': {'g': 'h'}})
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
 
@@ -806,7 +806,7 @@ def test_save_and_get_sample_version(samplestorage):
         {'m': {'n': 'o'}})
     n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
     n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
-                    uncontrolled_metadata={'f': {'g': 'h'}})
+                    user_metadata={'f': {'g': 'h'}})
 
     assert samplestorage.save_sample_version(
         SavedSample(id_, 'user2', [n1, n2, n3, n4], dt(86), 'bar')) == 2

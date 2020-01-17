@@ -59,7 +59,7 @@ class SampleNode:
     :ivar parent: The parent SampleNode of this node.
     :ivar controlled_metadata: Sample metadata that has been checked against a controlled
         vocabulary.
-    :ivar controlled_metadata: Unrestricted sample metadata.
+    :ivar user_metadata: Unrestricted sample metadata.
     '''
 
     def __init__(
@@ -68,7 +68,7 @@ class SampleNode:
             type_: SubSampleType = SubSampleType.BIOLOGICAL_REPLICATE,
             parent: Optional[str] = None,
             controlled_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None,
-            uncontrolled_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None
+            user_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None
             ):
         '''
         Create a sample node.
@@ -90,10 +90,9 @@ class SampleNode:
         cm = controlled_metadata if controlled_metadata else {}
         _check_meta(cm, True)
         self.controlled_metadata = _fz(cm)
-        # TODO change uncontrolled to user
-        um = uncontrolled_metadata if uncontrolled_metadata else {}
+        um = user_metadata if user_metadata else {}
         _check_meta(um, False)
-        self.uncontrolled_metadata = _fz(um)
+        self.user_metadata = _fz(um)
         isbiorep = type_ == SubSampleType.BIOLOGICAL_REPLICATE
         if not _xor(bool(parent), isbiorep):
             raise IllegalParameterError(
@@ -108,13 +107,13 @@ class SampleNode:
                     and other.type == self.type
                     and other.parent == self.parent
                     and other.controlled_metadata == self.controlled_metadata
-                    and other.uncontrolled_metadata == self.uncontrolled_metadata
+                    and other.user_metadata == self.user_metadata
                     )
         return NotImplemented
 
     def __hash__(self):
         return hash((self.name, self.type, self.parent, self.controlled_metadata,
-                     self.uncontrolled_metadata))
+                     self.user_metadata))
 
     # def __repr__(self):
     #     return (f'{self.name}, {self.type}, {self.parent}, {self.controlled_metadata}, ' +
