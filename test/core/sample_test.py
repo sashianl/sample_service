@@ -14,21 +14,33 @@ def test_sample_node_build():
     assert sn.controlled_metadata == {}
     assert sn.uncontrolled_metadata == {}
 
-    sn = SampleNode('a' * 255, SubSampleType.TECHNICAL_REPLICATE, 'b' * 255)
-    assert sn.name == 'a' * 255
+    sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256)
+    assert sn.name == 'a' * 256
     assert sn.type == SubSampleType.TECHNICAL_REPLICATE
-    assert sn.parent == 'b' * 255
+    assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {}
     assert sn.uncontrolled_metadata == {}
 
-    sn = SampleNode('a' * 255, SubSampleType.TECHNICAL_REPLICATE, 'b' * 255,
-                    {'foo': {'bar': 'baz', 'bat': 'whee'}, 'wugga': {'a': 'b'}},
-                    {'a': {'b': 'foo'}})
-    assert sn.name == 'a' * 255
+    sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256,
+                    {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'}, 'wugga': {'a': 'b' * 1024}},
+                    {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}})
+    assert sn.name == 'a' * 256
     assert sn.type == SubSampleType.TECHNICAL_REPLICATE
-    assert sn.parent == 'b' * 255
-    assert sn.controlled_metadata == {'foo': {'bar': 'baz', 'bat': 'whee'}, 'wugga': {'a': 'b'}}
-    assert sn.uncontrolled_metadata == {'a': {'b': 'foo'}}
+    assert sn.parent == 'b' * 256
+    assert sn.controlled_metadata == {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
+                                      'wugga': {'a': 'b' * 1024}}
+    assert sn.uncontrolled_metadata == {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}}
+
+    # 100KB when serialized to json
+    meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
+    meta['a'] = {'b': 'c' * 30}
+
+    sn = SampleNode('a', SubSampleType.SUB_SAMPLE, 'b', meta, meta)
+    assert sn.name == 'a'
+    assert sn.type == SubSampleType.SUB_SAMPLE
+    assert sn.parent == 'b'
+    assert sn.controlled_metadata == meta
+    assert sn.uncontrolled_metadata == meta
 
 
 def test_sample_node_build_fail():
@@ -36,12 +48,12 @@ def test_sample_node_build_fail():
     # it's there
     _sample_node_build_fail('', SubSampleType.BIOLOGICAL_REPLICATE, None,
                             MissingParameterError('subsample name'))
-    _sample_node_build_fail('a' * 256, SubSampleType.BIOLOGICAL_REPLICATE, None,
-                            IllegalParameterError('subsample name exceeds maximum length of 255'))
+    _sample_node_build_fail('a' * 257, SubSampleType.BIOLOGICAL_REPLICATE, None,
+                            IllegalParameterError('subsample name exceeds maximum length of 256'))
     _sample_node_build_fail('a', None, None,
                             ValueError('type cannot be a value that evaluates to false'))
-    _sample_node_build_fail('a', SubSampleType.TECHNICAL_REPLICATE, 'b' * 256,
-                            IllegalParameterError('parent exceeds maximum length of 255'))
+    _sample_node_build_fail('a', SubSampleType.TECHNICAL_REPLICATE, 'b' * 257,
+                            IllegalParameterError('parent exceeds maximum length of 256'))
     _sample_node_build_fail(
         'a', SubSampleType.BIOLOGICAL_REPLICATE, 'badparent', IllegalParameterError(
             'Node a is of type BioReplicate and therefore cannot have a parent'))
@@ -57,6 +69,51 @@ def _sample_node_build_fail(name, type_, parent, expected):
     with raises(Exception) as got:
         SampleNode(name, type_, parent)
     assert_exception_correct(got.value, expected)
+
+
+def test_sample_node_build_fail_metadata():
+    _sample_node_build_fail_metadata(
+        {'a' * 255 + 'ff': {}},
+        f"{{}} metadata has key starting with {'a' * 255 + 'f'} " +
+        "that exceeds maximum length of 256")
+
+    _sample_node_build_fail_metadata(
+        {'wh\tee': {}},
+        f"{{}} metadata key wh\tee's character at index 2 is a control character.")
+
+    _sample_node_build_fail_metadata(
+        {'bat': {'a' * 255 + 'ff': 'whee'}},
+        f"{{}} metadata has value key under root key bat starting with {'a' * 255 + 'f'} " +
+        "that exceeds maximum length of 256")
+
+    _sample_node_build_fail_metadata(
+        {'wugga': {'wh\tee': {}}},
+        f"{{}} metadata value key wh\tee under key wugga's character at index 2 is a " +
+        "control character.")
+
+    _sample_node_build_fail_metadata(
+        {'bat': {'whee': 'a' * 255 + 'f' * 770}},
+        f"{{}} metadata has value under root key bat and value key whee starting with " +
+        f"{'a' * 255 + 'f'} that exceeds maximum length of 1024")
+
+    _sample_node_build_fail_metadata(
+        {'bat': {'whee': 'whoop\bbutt'}},
+        "{} metadata value under root key bat and value key whee's character at index 5 " +
+        'is a control character.')
+
+    # 100001B when serialized to json
+    meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
+    meta['a'] = {'b': 'c' * 31}
+    _sample_node_build_fail_metadata(meta, "{} metadata is larger than maximum of 100000B")
+
+
+def _sample_node_build_fail_metadata(meta, expected):
+    with raises(Exception) as got:
+        SampleNode('n', SubSampleType.BIOLOGICAL_REPLICATE, controlled_metadata=meta)
+    assert_exception_correct(got.value, IllegalParameterError(expected.format('Controlled')))
+    with raises(Exception) as got:
+        SampleNode('n', SubSampleType.BIOLOGICAL_REPLICATE, uncontrolled_metadata=meta)
+    assert_exception_correct(got.value, IllegalParameterError(expected.format('User')))
 
 
 def test_sample_node_eq():
@@ -153,9 +210,9 @@ def test_sample_build():
     assert s.nodes == (sndup, sn2, sn4, sn3)
     assert s.name == 'foo'
 
-    s = Sample([sn], 'a' * 255)
+    s = Sample([sn], 'a' * 256)
     assert s.nodes == (sndup,)
-    assert s.name == 'a' * 255
+    assert s.name == 'a' * 256
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     s = SavedSample(id_, 'user', [sn], dt(6))
@@ -212,7 +269,7 @@ def test_sample_build_fail():
     d = dt(8)
 
     _sample_build_fail(
-        [sn], 'a' * 256, IllegalParameterError('name exceeds maximum length of 255'))
+        [sn], 'a' * 257, IllegalParameterError('name exceeds maximum length of 256'))
     _sample_build_fail([], None, MissingParameterError('At least one node per sample is required'))
     _sample_build_fail(
         [tn, sn], 'a', IllegalParameterError('The first node in a sample must be a BioReplicate'))
