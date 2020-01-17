@@ -111,10 +111,16 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
         raise _IllegalParameterError(f"Node at index {index}'s {name} entry must be a mapping")
     # since this is coming from JSON we assume keys are strings
     for k1 in m:
+        if type(k1) != str:
+            raise _IllegalParameterError(
+                f"Node at index {index}'s {name} entry contains a non-string key")
         if type(m[k1]) != dict:
             raise _IllegalParameterError(f"Node at index {index}'s {name} entry does " +
                                          f"not have a dict as a value at key {k1}")
         for k2 in m[k1]:
+            if type(k2) != str:
+                raise _IllegalParameterError(f"Node at index {index}'s {name} entry contains " +
+                                             f'a non-string key under key {k1}')
             v = m[k1][k2]
             if type(v) != str and type(v) != int and type(v) != float and type(v) != bool:
                 raise _IllegalParameterError(
