@@ -175,8 +175,15 @@ def test_create_sample_params_fail_bad_input():
         {'foo': {}, None: 'yay'},
         "Node at index {}'s {} entry contains a non-string key")
     create_sample_params_meta_fail(
-        {'foo': {None: 'foo'}, 'bar': 'yay'},
+        {'foo': {None: 'foo'}, 'bar': {'a': 'yay'}},
         "Node at index {}'s {} entry contains a non-string key under key foo")
+
+    m = {'foo': {'b\nar': 'foo'}, 'bar': {'a': 'yay'}}
+    create_sample_params_fail(
+        {'sample': {'node_tree': [
+            {'id': 'foo', 'type': 'BioReplicate', 'meta_controlled': m}]}},
+        IllegalParameterError("Error for node at index 0: Controlled metadata value key b\nar " +
+                              "under key foo's character at index 1 is a control character."))
 
     create_sample_params_fail(
         {'sample': {'node_tree': [{'id': 'foo', 'type': 'BioReplicate'},

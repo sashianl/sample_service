@@ -78,7 +78,7 @@ class SampleError(Exception):
             msg += ': ' + message
         super().__init__(msg)
         self.error_type = error_type
-        self.message = message
+        self.message: Optional[str] = message
 
 
 class NoDataException(SampleError):
