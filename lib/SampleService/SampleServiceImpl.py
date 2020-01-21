@@ -1,13 +1,7 @@
 # -*- coding: utf-8 -*-
 #BEGIN_HEADER
 
-import arango as _arango
-
-from SampleService.core.samples import Samples as _Samples
-from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
-    as _ArangoSampleStorage
-from SampleService.core.arg_checkers import check_string as _check_string
-
+from SampleService.core.config import build_samples as _build_samples
 from SampleService.core.api_arguments import (get_sample_address_from_object as
                                               _get_sample_address_from_object)
 from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
@@ -15,7 +9,6 @@ from SampleService.core.api_arguments import acls_from_dict as _acls_from_dict
 from SampleService.core.api_arguments import acls_to_dict as _acls_to_dict
 from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
 from SampleService.core.api_arguments import create_sample_params as _create_sample_params
-from SampleService.core.user_lookup import KBaseUserLookup as _KBaseUserLookup
 #END_HEADER
 
 
@@ -47,60 +40,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     # be found
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
-        if not config:
-            raise ValueError('config is empty, cannot start service')
-        arango_url = _check_string(config.get('arango-url'), 'config param arango-url')
-        arango_db = _check_string(config.get('arango-db'), 'config param arango-db')
-        arango_user = _check_string(config.get('arango-user'), 'config param arango-user')
-        arango_pwd = _check_string(config.get('arango-pwd'), 'config param arango-pwd')
-
-        col_sample = _check_string(config.get('sample-collection'),
-                                   'config param sample-collection')
-        col_version = _check_string(
-            config.get('version-collection'), 'config param version-collection')
-        col_ver_edge = _check_string(
-            config.get('version-edge-collection'), 'config param version-edge-collection')
-        col_node = _check_string(config.get('node-collection'), 'config param node-collection')
-        col_node_edge = _check_string(
-            config.get('node-edge-collection'), 'config param node-edge-collection')
-        col_schema = _check_string(config.get('schema-collection'),
-                                   'config param schema-collection')
-
-        auth_root_url = _check_string(config.get('auth-root-url'), 'config param auth-root-url')
-        auth_token = _check_string(config.get('auth-token'), 'config param auth-token')
-
-        print(f'''
-            Starting server with config:
-                arango-url: {arango_url}
-                arango-db: {arango_db}
-                arango-user: {arango_user}
-                arango-pwd: [REDACTED FOR YOUR SAFETY AND COMFORT]
-                sample-collection: {col_sample}
-                version-collection: {col_version}
-                version-edge-collection: {col_ver_edge}
-                node-collection: {col_node}
-                node-edge-collection: {col_node_edge}
-                schema-collection: {col_schema}
-                auth-root-url: {auth_root_url}
-                auth-token: [REDACTED FOR YOUR CONVENIENCE AND ENJOYMENT]
-        ''')
-
-        arangoclient = _arango.ArangoClient(hosts=arango_url)
-        arango_db = arangoclient.db(
-            arango_db, username=arango_user, password=arango_pwd, verify=True)
-        storage = _ArangoSampleStorage(
-            arango_db,
-            col_sample,
-            col_version,
-            col_ver_edge,
-            col_node,
-            col_node_edge,
-            col_schema,
-        )
-        user_lookup = _KBaseUserLookup(auth_root_url, auth_token)
-        # TODO VALIDATION pass in validators
-        val = {'foo': lambda x: None}  # TODO REMOVE
-        self._samples = _Samples(storage, user_lookup, val)
+        self._samples = _build_samples(config)
         #END_CONSTRUCTOR
         pass
 
