@@ -94,7 +94,8 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
             nodes.append(_SampleNode(n.get('id'), type_, n.get('parent'), mc, mu))
             # already checked for the missing param error above, for id
         except _IllegalParameterError as e:
-            raise _IllegalParameterError(f'Error for node at index {i}: ' + _cast(str, e.message))
+            raise _IllegalParameterError(
+                f'Error for node at index {i}: ' + _cast(str, e.message)) from e
 
     id_ = get_id_from_object(s)
 

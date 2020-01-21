@@ -33,6 +33,9 @@ class ErrorType(Enum):
     ILLEGAL_PARAMETER =      (30001, "Illegal input parameter")  # noqa: E222 @IgnorePep8
     """ An input parameter had an illegal value. """
 
+    METADATA_VALIDATION =    (30010, "Metadata validation failed")  # noqa: E222 @IgnorePep8
+    """ Metadata failed validation. """
+
     SAMPLE_CONCURRENCY =     (40000, "Concurrency violation")  # noqa: E222 @IgnorePep8
     """ A concurrency check failed and the operation could not continue. """
 
@@ -124,6 +127,15 @@ class IllegalParameterError(SampleError):
 
     def __init__(self, message: str = None) -> None:
         super().__init__(ErrorType.ILLEGAL_PARAMETER, message)
+
+
+class MetadataValidationError(SampleError):
+    """
+    An error thrown when metadata fails to validate.
+    """
+
+    def __init__(self, message: str = None) -> None:
+        super().__init__(ErrorType.METADATA_VALIDATION, message)
 
 
 class NoSuchSampleError(NoDataException):

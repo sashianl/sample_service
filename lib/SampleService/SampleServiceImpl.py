@@ -98,7 +98,9 @@ Handles creating, updating, retriving samples and linking data to samples.
             col_schema,
         )
         user_lookup = _KBaseUserLookup(auth_root_url, auth_token)
-        self._samples = _Samples(storage, user_lookup)
+        # TODO VALIDATION pass in validators
+        val = {'foo': lambda x: None}  # TODO REMOVE
+        self._samples = _Samples(storage, user_lookup, val)
         #END_CONSTRUCTOR
         pass
 

@@ -7,6 +7,7 @@ from unittest.mock import create_autospec
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL
 from SampleService.core.errors import IllegalParameterError, UnauthorizedError, NoSuchUserError
+from SampleService.core.errors import MetadataValidationError
 from SampleService.core.sample import Sample, SampleNode, SavedSample
 from SampleService.core.samples import Samples
 from SampleService.core.storage.errors import OwnerChangedError
@@ -34,7 +35,7 @@ def test_init_fail_bad_args():
 
 def _init_fail(storage, lookup, now, uuid_gen, expected):
     with raises(Exception) as got:
-        Samples(storage, lookup, now, uuid_gen)
+        Samples(storage, lookup, None, now, uuid_gen)
     assert_exception_correct(got.value, expected)
 
 
@@ -46,15 +47,33 @@ def test_save_sample():
 def _save_sample_with_name(name):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    s = Samples(storage, lu, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    metaval = {'key1': lambda x: exec('assert x["val"] == "foo"'),  # this is vile
+               'key2': lambda _: None}  # noop
+    s = Samples(storage, lu, metadata_validators=metaval, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
-    assert s.save_sample(Sample([SampleNode('foo')], name), 'auser') == (UUID(
-        '1234567890abcdef1234567890abcdef'), 1)
+    assert s.save_sample(
+        Sample([
+            SampleNode(
+                'foo',
+                controlled_metadata={'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},
+                user_metadata={'key_not_in_validator_map': {'val': 'yay'},
+                               'key1': {'val': 'wrong'}}
+                )
+            ],
+            name),
+        'auser') == (UUID('1234567890abcdef1234567890abcdef'), 1)
 
     assert storage.save_sample.call_args_list == [
         ((SavedSample(UUID('1234567890abcdef1234567890abcdef'),
                       'auser',
-                      [SampleNode('foo')],
+                      [SampleNode(
+                          'foo',
+                          controlled_metadata={'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},
+                          user_metadata={'key_not_in_validator_map': {'val': 'yay'},
+                                         'key1': {'val': 'wrong'}}
+                          )
+                       ],
                       datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
                       name
                       ),  # make a tuple
@@ -112,6 +131,52 @@ def test_save_sample_fail_bad_args():
         samples, s, '', id_, 1, ValueError('user cannot be a value that evaluates to false'))
     _save_sample_fail(
         samples, s, 'a', id_, 0, IllegalParameterError('Prior version must be > 0'))
+
+
+def test_save_sample_fail_no_metadata_validator():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    metaval = {'key1': lambda _: None, 'key2': lambda _: None}
+    s = Samples(storage, lu, metadata_validators=metaval, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    with raises(Exception) as got:
+        s.save_sample(
+            Sample([
+                SampleNode(
+                    'foo',
+                    controlled_metadata={'key1': {'val': 'foo'}, 'key3': {'val': 'bar'}},
+                    user_metadata={'key_not_in_validator_map': {'val': 'yay'}}
+                    )
+                ],
+                'foo'),
+            'auser')
+    assert_exception_correct(got.value, MetadataValidationError(
+        'No validator available for metadata key key3 for node at index 0'))
+
+
+def test_save_sample_fail_metadata_validator_exception():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    metaval = {'key1': lambda _: None,
+               # this is vile
+               'key2': lambda _: exec('raise MetadataValidationError("u suk lol")')}
+    s = Samples(storage, lu, metadata_validators=metaval, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    with raises(Exception) as got:
+        s.save_sample(
+            Sample([
+                SampleNode(
+                    'foo',
+                    controlled_metadata={'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},
+                    user_metadata={'key_not_in_validator_map': {'val': 'yay'}}
+                    )
+                ],
+                'foo'),
+            'auser')
+    assert_exception_correct(got.value, MetadataValidationError(
+        'Node at index 0, key key2: u suk lol'))
 
 
 def test_save_sample_fail_unauthorized():
