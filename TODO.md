@@ -10,6 +10,7 @@
 * Search integration
 * Logging
 * Metadata validation
+  * prefix keys?
 * Link data to samples
 * Workspace @sample integration
 * ACLs:
@@ -17,6 +18,7 @@
   * remove self from acls (read/write)
 
 # Documentation
+* Metadata validation functions
 * Document error codes
 * note RocksDB is required for Arango
 * minimum arango ver is 3.5.1
