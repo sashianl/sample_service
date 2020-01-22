@@ -11,6 +11,7 @@
 * Logging
 * Metadata validation
   * prefix keys?
+  * Multiple validators per key?
 * Link data to samples
 * Workspace @sample integration
 * ACLs:
