@@ -77,6 +77,11 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['node-collection'] = TEST_COL_NODES
     cfg[ss]['node-edge-collection'] = TEST_COL_NODE_EDGE
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
+    cfg[ss]['metaval-foo-module'] = 'SampleService.core.validators.builtin'
+    cfg[ss]['metaval-foo-callable_builder'] = 'noop'
+    cfg[ss]['metaval-stringlentest-module'] = 'SampleService.core.validators.builtin'
+    cfg[ss]['metaval-stringlentest-callable_builder'] = 'string_length'
+    cfg[ss]['metaval-stringlentest-param-max_len'] = '5'
 
     _, path = tempfile.mkstemp('.cfg', 'deploy-', dir=test_utils.get_temp_dir(), text=True)
 
@@ -235,12 +240,14 @@ def test_init_fail():
     init_fail(cfg, MissingParameterError('config param auth-root-url'))
     cfg['auth-root-url'] = 'crap'
     init_fail(cfg, MissingParameterError('config param auth-token'))
+    cfg['auth-token'] = 'crap'
+    cfg['metaval-x-'] = 'foo'  # get_validators is tested elsewhere, just make sure it'll error out
+    init_fail(cfg, ValueError('Missing config param metaval-x-module'))
 
 
 def init_fail(config, expected):
     with raises(Exception) as got:
         SampleService(config)
-    print(repr(got.value))
     assert_exception_correct(got.value, expected)
 
 
@@ -277,7 +284,8 @@ def test_create_and_get_sample_with_version(sample_port):
             'sample': {'name': 'mysample',
                        'node_tree': [{'id': 'root',
                                       'type': 'BioReplicate',
-                                      'meta_controlled': {'foo': {'bar': 'baz'}},
+                                      'meta_controlled': {'foo': {'bar': 'baz'},
+                                                          'stringlentest': {'foooo': 'barrr'}},
                                       'meta_user': {'a': {'b': 'c'}}
                                       }
                                      ]
@@ -331,7 +339,8 @@ def test_create_and_get_sample_with_version(sample_port):
         'node_tree': [{'id': 'root',
                        'parent': None,
                        'type': 'BioReplicate',
-                       'meta_controlled': {'foo': {'bar': 'baz'}},
+                       'meta_controlled': {'foo': {'bar': 'baz'},
+                                           'stringlentest': {'foooo': 'barrr'}},
                        'meta_user': {'a': {'b': 'c'}}}]
     }
 
@@ -378,6 +387,30 @@ def test_create_sample_fail_no_nodes(sample_port):
     assert ret.json()['error']['message'] == (
         f'Sample service error code 30001 Illegal input parameter: sample node tree ' +
         'must be present and a list')
+
+
+def test_create_sample_fail_bad_metadata(sample_port):
+    url = f'http://localhost:{sample_port}'
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'stringlentest': {'foooo': 'barrrr'}}
+                                      }
+                                     ]
+                       }
+        }]
+    })
+
+    # print(ret.text)
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 30010 Metadata validation failed: Node at index 0, ' +
+        'key stringlentest: Metadata value at key foooo is longer than max length of 5')
 
 
 def test_create_sample_fail_permissions(sample_port):
