@@ -1,6 +1,6 @@
 ''' Look up user names in the KBase Auth service to determine if they represent existing users. '''
 
-# note this is tested in the integration tests to avoid starting up the auth server again, as
+# this is tested in the integration tests to avoid starting up the auth server again, as
 # it takes a few seconds
 
 import logging

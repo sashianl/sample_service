@@ -11,16 +11,35 @@ You will need to have the SDK installed to use this module. [Learn more about th
 
 You can also learn more about the apps implemented in this module from its [catalog page](https://narrative.kbase.us/#catalog/modules/SampleService) or its [spec file](SampleService.spec).
 
+# Description
+
+The Sample Service stores information regarding experimental samples taken from the environment.
+It has Access Control Lists for each sample, supports subsample trees, and modular metadata
+validation.
+
+The SDK API specification for the service is contained in the `SampleService.spec` file. An indexed
+interactive version is
+[also available](http://htmlpreview.github.io/?https://github.com/kbaseIncubator/sample_service/blob/master/SampleService.html).
+
 # Setup and test
 
-Add your KBase developer token to `test_local/test.cfg` and run the following:
+The Sample Service requires ArangoDB 3.5.1+ with RocksDB as the storage engine.
 
-```bash
-$ make
-$ kb-sdk test
+To run tests, MongoDB 3.6+ and the KBase Jars file repo are also required.
+
+See `.travis.yml` for an example of how to set up tests, including creating a `test.cfg` file
+from the `test/test.cfg.example` file.
+
+Once the dependencies are installed, run:
+
+```
+pipenv install --dev
+pipenv shell
+make test-sdkless
 ```
 
-After making any additional changes to this repo, run `kb-sdk test` again to verify that everything still works.
+`kb-sdk test` does not currently pass. 
+
 
 # Installation from another module
 
@@ -28,4 +47,32 @@ To use this code in another SDK module, call `kb-sdk install SampleService` in t
 
 # Help
 
-You may find the answers to your questions in our [FAQ](https://kbase.github.io/kb_sdk_docs/references/questions_and_answers.html) or [Troubleshooting Guide](https://kbase.github.io/kb_sdk_docs/references/troubleshooting.html). 
+You may find the answers to your questions in our [FAQ](https://kbase.github.io/kb_sdk_docs/references/questions_and_answers.html) or [Troubleshooting Guide](https://kbase.github.io/kb_sdk_docs/references/troubleshooting.html).
+
+# API Error codes
+
+Error messages returned from the API may be general errors without a specific structure to
+the error string or messages that have error codes embedded in the error string. The latter
+*usually* indicate that the user/client has sent bad input, while the latter indicate a server
+error. A message with an error code has the following structure:
+
+```
+Sample service error code <error code> <error type>: <message>
+```
+
+There is a 1:1 mapping from error code to error type; error type is simply a more readable
+version of the error code. The error type **may change** for an error code, but the error code
+for a specfic error will not.
+
+The current error codes are:
+```
+20000 Unauthorized
+30000 Missing input parameter
+30001 Illegal input parameter
+30010 Metadata validation failed
+40000 Concurrency violation
+50000 No such user
+50010 No such sample
+50020 No such sample version
+60000 Unsupported operation
+```
