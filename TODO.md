@@ -28,10 +28,6 @@
     more complicated or impossible.
 * Linking data may be complicated depending on the constrataints and features we want
 
-# Documentation
-* Metadata validation functions
-* document collections for server. Do not auto create as admins will want to specify shard count
-
 # Testing
 * flake8 and bandit on test-sdkless (generated code is poopy)
 * When https://github.com/python/mypy/issues/6385 is implemented, ditch all the stupid 
