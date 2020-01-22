@@ -48,8 +48,12 @@ def build_samples(config: Dict[str, str]) -> Samples:
     auth_root_url = _check_string_req(config.get('auth-root-url'), 'config param auth-root-url')
     auth_token = _check_string_req(config.get('auth-token'), 'config param auth-token')
 
+    metaval = get_validators(config)  # build the validators before trying to connect to arango
+
+    # meta params may have info that shouldn't be logged so don't log any for now.
+    # Add code to deal with this later if needed
     print(f'''
-        Starting server with config:
+        Starting server with config (metadata validator params excluded):
             arango-url: {arango_url}
             arango-db: {arango_db}
             arango-user: {arango_user}
@@ -77,10 +81,7 @@ def build_samples(config: Dict[str, str]) -> Samples:
         col_schema,
     )
     user_lookup = _KBaseUserLookup(auth_root_url, auth_token)
-    # TODO VALIDATION pass in validators
-    val = {'foo': lambda x: None}  # TODO REMOVE
-    # return _Samples(storage, user_lookup, get_validators(config))
-    return Samples(storage, user_lookup, val)
+    return Samples(storage, user_lookup, metaval)
 
 
 def _check_string_req(s: _Optional[str], name: str) -> str:
