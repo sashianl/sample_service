@@ -20,9 +20,10 @@ def test_config_get_validators():
            'metaval-key3-param-foo': 'bat',
            }
     vals = get_validators(cfg)
-    assert vals['key1']({'a': 'b'}) == (1, {}, {'a': 'b'})
-    assert vals['key2']({'a': 'd'}) == (2, {'foo': 'bar', 'max_len': '7'}, {'a': 'd'})
-    assert vals['key3']({'a': 'c'}) == (1, {'foo': 'bat'}, {'a': 'c'})
+    # validators always fail
+    assert vals['key1']({'a': 'b'}) == "1, {}, {'a': 'b'}"
+    assert vals['key2']({'a': 'd'}) == "2, {'foo': 'bar', 'max_len': '7'}, {'a': 'd'}"
+    assert vals['key3']({'a': 'c'}) == "1, {'foo': 'bat'}, {'a': 'c'}"
 
 
 def test_config_get_validators_fail_bad_params():

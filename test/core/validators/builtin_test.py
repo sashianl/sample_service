@@ -2,7 +2,6 @@ from pytest import raises
 from core.test_utils import assert_exception_correct
 
 from SampleService.core.validators import builtin
-from SampleService.core.errors import MetadataValidationError
 
 
 def test_noop():
@@ -16,7 +15,7 @@ def test_string_length():
     sl = builtin.string_length({'max_len': 2})
     assert sl({
         'fo': 'b',
-        'ba': 'f',
+        'e': 'fb',
         'a': True,
         'b': 1111111111,
         'c': 1.23456789}) is None
@@ -37,14 +36,13 @@ def _string_length_fail_construct(d, expected):
 
 
 def test_string_length_fail_bad_metadata_values():
-    _string_length_fail_validate(2, {'foo': 'ba', 'ba': 'f'}, MetadataValidationError(
-        'Metadata contains key longer than max length of 2'))
-    _string_length_fail_validate(4, {'foo': 'ba', 'ba': 'fudge'}, MetadataValidationError(
-        'Metadata value at key ba is longer than max length of 4'))
+    _string_length_fail_validate(
+        2, {'foo': 'ba', 'ba': 'f'},
+        'Metadata contains key longer than max length of 2')
+    _string_length_fail_validate(
+        4, {'foo': 'ba', 'ba': 'fudge'},
+        'Metadata value at key ba is longer than max length of 4')
 
 
 def _string_length_fail_validate(max_len, meta, expected):
-    sl = builtin.string_length({'max_len': max_len})
-    with raises(Exception) as got:
-        sl(meta)
-    assert_exception_correct(got.value, expected)
+    assert builtin.string_length({'max_len': max_len})(meta) == expected
