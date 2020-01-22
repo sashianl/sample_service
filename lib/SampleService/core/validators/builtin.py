@@ -15,7 +15,6 @@ If an error is not thrown, the validation succeeds.
 
 from typing import Dict, cast as _cast
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.errors import MetadataValidationError
 
 
 def noop(d: Dict[str, str]):
@@ -48,11 +47,9 @@ def string_length(d: Dict[str, str]):
     def strlen(d1: Dict[str, PrimitiveType]):
         for k, v in d1.items():
             if len(k) > maxlen:
-                raise MetadataValidationError(
-                    f'Metadata contains key longer than max length of {maxlen}')
+                return f'Metadata contains key longer than max length of {maxlen}'
             if type(v) == str:
                 if len(_cast(str, v)) > maxlen:
-                    raise MetadataValidationError(
-                        f'Metadata value at key {k} is longer than max length of {maxlen}')
+                    return f'Metadata value at key {k} is longer than max length of {maxlen}'
 
     return strlen

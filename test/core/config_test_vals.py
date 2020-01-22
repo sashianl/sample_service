@@ -1,12 +1,16 @@
+def s(d):
+    return dict(sorted(d.items()))
+
+
 def val1(d1):
     def f(d2):
-        return (1, d1, d2)
+        return f'1, {s(d1)}, {s(d2)}'
     return f
 
 
 def val2(d1):
     def f(d2):
-        return (2, d1, d2)
+        return f'2, {s(d1)}, {s(d2)}'
     return f
 
 

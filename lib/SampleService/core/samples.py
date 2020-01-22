@@ -34,7 +34,8 @@ class Samples:
             self,
             storage: ArangoSampleStorage,
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
-            metadata_validators: Dict[str, Callable[[Dict[str, PrimitiveType]], None]] = None,
+            metadata_validators: Dict[
+                str, Callable[[Dict[str, PrimitiveType]], Optional[str]]] = None,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -104,11 +105,9 @@ class Samples:
                 if k not in self._metaval:
                     raise _MetadataValidationError(
                         f'No validator available for metadata key {k} for node at index {i}')
-                try:
-                    self._metaval[k](n.controlled_metadata[k])
-                except _MetadataValidationError as e:
-                    raise _MetadataValidationError(
-                        f'Node at index {i}, key {k}: ' + _cast(str, e.message)) from e
+                ret = self._metaval[k](n.controlled_metadata[k])
+                if ret:
+                    raise _MetadataValidationError(f'Node at index {i}, key {k}: ' + ret)
 
     def _check_perms(
             self,

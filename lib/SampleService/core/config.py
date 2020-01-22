@@ -7,7 +7,7 @@ Configuration parsing and creation for the sample service.
 
 import importlib
 from collections import defaultdict as _defaultdict
-from typing import Dict, Callable, Optional as _Optional, cast as _cast
+from typing import Dict, Callable, Optional, cast as _cast
 from typing import DefaultDict as _DefaultDict
 import arango as _arango
 
@@ -84,11 +84,13 @@ def build_samples(config: Dict[str, str]) -> Samples:
     return Samples(storage, user_lookup, metaval)
 
 
-def _check_string_req(s: _Optional[str], name: str) -> str:
+def _check_string_req(s: Optional[str], name: str) -> str:
     return _cast(str, _check_string(s, name))
 
 
-def get_validators(cfg: Dict[str, str]) -> Dict[str, Callable[[Dict[str, PrimitiveType]], None]]:
+def get_validators(
+        cfg: Dict[str, str]
+        ) -> Dict[str, Callable[[Dict[str, PrimitiveType]], Optional[str]]]:
     '''
     Given an SDK server generated config mapping, initialize any metadata validators present
     in the configuration.

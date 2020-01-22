@@ -5,7 +5,6 @@
     as the experimental techniques don't allow it.
 
 # Functionality
-* change validator error to returned string
 * Config in separate repo
   * Means validator config is public
 * Admin flags on ops

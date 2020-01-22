@@ -158,9 +158,7 @@ def test_save_sample_fail_no_metadata_validator():
 def test_save_sample_fail_metadata_validator_exception():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    metaval = {'key1': lambda _: None,
-               # this is vile
-               'key2': lambda _: exec('raise MetadataValidationError("u suk lol")')}
+    metaval = {'key1': lambda _: None, 'key2': lambda _: "u suk lol"}
     s = Samples(storage, lu, metadata_validators=metaval, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 

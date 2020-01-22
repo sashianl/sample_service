@@ -126,11 +126,10 @@ argument. E.g. in the case of the `temperature` key, the argument to the functio
  }
 ```
 
-If the metadata is incorrect, the validator should [TODO currently requires throwing an exception,
-which means the validator has to import the server code. Change to returning an error string.]
-
-If the validator cannot validate the metadata due to some uncontrollable error (e.g. it can't
-connect to an external server after a reasonable timeout), it should throw an exception.
+If the metadata is incorrect, the validator should return an error message as a string. Otherwise
+it should return `None` unless the validator cannot validate the metadata due to some
+uncontrollable error (e.g. it can't connect to an external server after a reasonable timeout),
+in which case it should throw an exception.
 
 [TODO redo validator configuration to pull a yaml file from a url rather than using catalog
  params and document here]
@@ -142,15 +141,15 @@ connect to an external server after a reasonable timeout), it should throw an ex
  A very simple example might be:
 
  ```python
- def enum_builder(params: Dict[str, str]):
+ def enum_builder(params: Dict[str, str]
+        ) -> Callable[[Dict[str, Union[float, int, bool, str]]], str]:
     # should handle errors better here
     enums = {e.strip() for e in d['enums'].split(',')}
     key = d['key']
 
-    def validate_enum(value: Dict[str, Union[float, int, bool, str]]):
-        # should check for missing key
-        if value[key] not in enums:
-            return f'Illegal value: value[key]'
+    def validate_enum(value: Dict[str, Union[float, int, bool, str]]) -> str:
+        if value.get(key) not in enums:
+            return f'Illegal value for key {key}: {value.get(key)}'
         return None
 
     return validate_enum
