@@ -53,7 +53,7 @@ You may find the answers to your questions in our [FAQ](https://kbase.github.io/
 
 Error messages returned from the API may be general errors without a specific structure to
 the error string or messages that have error codes embedded in the error string. The latter
-*usually* indicate that the user/client has sent bad input, while the latter indicate a server
+*usually* indicate that the user/client has sent bad input, while the former indicate a server
 error. A message with an error code has the following structure:
 
 ```
@@ -76,3 +76,84 @@ The current error codes are:
 50020 No such sample version
 60000 Unsupported operation
 ```
+
+# Metadata validation
+
+Each node in the sample tree accepted by the `create_sample` method may contain controlled and
+user metadata. User metadata is not validated other than very basic size checks, while controlled
+metadata is validated based on configured validation rules.
+
+Validators are modular and can be added to the service via configuration without changing the
+service core code. Validators are assigned to metadata keys in a 1:M relationship - that is, each
+metadata key has one validator assigned, but multiple keys may use the same validator, possibly
+with different parameters for the validator.
+
+Sample metadata has the following structure (also see the service spec file):
+
+```
+{"metadata_key_1: {"metadata_value_key_1_1": "metadata_value_1_1",
+                                        ...
+                   "metadata_value_key_1_N": "metadata_value_1_N",
+                   },
+                      ...
+ "metadata_key_N: {"metadata_value_key_N_1": "metadata_value_N_1",
+                                        ...
+                   "metadata_value_key_N_N": "metadata_value_N_N",
+                   }
+}
+```
+Metadata values are primitives: a string, float, intetger, or boolean.
+
+A simple example:
+```
+{"temperature": {"measurement": 1.0,
+                 "units": "Kelvin"
+                 },
+ "location": {"name": "Castle Geyser",
+              "lat": 44.463816,
+              "long": -110.836471
+              }
+}
+```
+
+In this case, a validator would need to be assigned to the `temperature` and `location`
+metadata keys. Validators are `python` callables that accept the value of the key as the only
+argument. E.g. in the case of the `temperature` key, the argument to the function would be:
+
+```
+{"measurement": 1.0,
+ "units": "Kelvin"
+ }
+```
+
+If the metadata is incorrect, the validator should [TODO currently requires throwing an exception,
+which means the validator has to import the server code. Change to returning an error string.]
+
+If the validator cannot validate the metadata due to some uncontrollable error (e.g. it can't
+connect to an external server after a reasonable timeout), it should throw an exception.
+
+[TODO redo validator configuration to pull a yaml file from a url rather than using catalog
+ params and document here]
+
+ Validators are built by the builder function specified in the configuration. The builder is
+ passed any parameters specified in the configuration as a string -> string mapping. This allows
+ the builder function to set up any necessary state for the validator before returning the
+ validator for use. Examine the validators in `SampleService.core.validators.builtin` for examples.
+ A very simple example might be:
+
+ ```python
+ def enum_builder(params: Dict[str, str]):
+    # should handle errors better here
+    enums = {e.strip() for e in d['enums'].split(',')}
+    key = d['key']
+
+    def validate_enum(value: Dict[str, Union[float, int, bool, str]]):
+        # should check for missing key
+        if value[key] not in enums:
+            return f'Illegal value: value[key]'
+        return None
+
+    return validate_enum
+```
+
+
