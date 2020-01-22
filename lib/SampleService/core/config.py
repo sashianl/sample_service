@@ -5,20 +5,26 @@ Configuration parsing and creation for the sample service.
 # Because creating the samples instance involves contacting arango and the auth service,
 # this code is mostly tested in the integration tests.
 
-
-from typing import Dict, Optional as _Optional, cast as _cast
+import importlib
+from collections import defaultdict as _defaultdict
+from typing import Dict, Callable, Optional as _Optional, cast as _cast
+from typing import DefaultDict as _DefaultDict
 import arango as _arango
 
-from SampleService.core.samples import Samples as _Samples
+from SampleService.core.core_types import PrimitiveType
+from SampleService.core.samples import Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.user_lookup import KBaseUserLookup as _KBaseUserLookup
 
 
-def build_samples(config: Dict[str, str]):
+def build_samples(config: Dict[str, str]) -> Samples:
     '''
     Build the sample service instance from the SDK server provided parameters.
+
+    :param cfg: The SDK generated configuration.
+    :returns: A samples instance.
     '''
     if not config:
         raise ValueError('config is empty, cannot start service')
@@ -73,8 +79,48 @@ def build_samples(config: Dict[str, str]):
     user_lookup = _KBaseUserLookup(auth_root_url, auth_token)
     # TODO VALIDATION pass in validators
     val = {'foo': lambda x: None}  # TODO REMOVE
-    return _Samples(storage, user_lookup, val)
+    # return _Samples(storage, user_lookup, get_validators(config))
+    return Samples(storage, user_lookup, val)
 
 
 def _check_string_req(s: _Optional[str], name: str) -> str:
     return _cast(str, _check_string(s, name))
+
+
+def get_validators(cfg: Dict[str, str]) -> Dict[str, Callable[[Dict[str, PrimitiveType]], None]]:
+    '''
+    Given an SDK server generated config mapping, initialize any metadata validators present
+    in the configuration.
+
+    :param cfg: The SDK generated configuration.
+    :returns: A mapping of metadata key to associated validator function.
+    '''
+    # https://github.com/python/mypy/issues/4226
+    def lst() -> list:
+        return [{}, {}]
+    valparams: _DefaultDict[str, list] = _defaultdict(lst)
+    for k, v in cfg.items():
+        if k.startswith('metaval-'):
+            p = k.split('-')
+            if len(p) == 3:
+                valparams[p[1]][0][p[2]] = v
+            elif len(p) == 4:
+                if p[2] != 'param':
+                    raise ValueError(f'invalid configuration key: {k}')
+                valparams[p[1]][1][p[3]] = v
+            else:
+                raise ValueError(f'invalid configuration key: {k}')
+
+    ret = {}
+    for k, v2 in valparams.items():
+        if 'module' not in v2[0]:
+            raise ValueError(f'Missing config param metaval-{k}-module')
+        if 'callable_builder' not in v2[0]:
+            raise ValueError(f'Missing config param metaval-{k}-callable_builder')
+        m = importlib.import_module(v2[0]['module'])
+        try:
+            ret[k] = getattr(m, v2[0]['callable_builder'])(v2[1])
+        except Exception as e:
+            raise ValueError(
+                f'Metadata validator callable build failed for key {k}: {e.args[0]}') from e
+    return ret
