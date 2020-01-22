@@ -5,6 +5,9 @@
     as the experimental techniques don't allow it.
 
 # Functionality
+* change validator error to returned string
+* Config in separate repo
+  * Means validator config is public
 * Admin flags on ops
 * List / find samples, possibly with...
 * Search integration
@@ -18,12 +21,16 @@
   * cache known good users
   * remove self from acls (read/write)
 
+# Concerns:
+* Searching for samples could get very expensive based on the queries.
+* Searching for samples may be difficult as the metadata is embedded in the sample node
+  document which limits the possible indexed queries to some extent.
+  * Separating out the metadata documents means that traversals querying metadata would be
+    more complicated or impossible.
+* Linking data may be complicated depending on the constrataints and features we want
+
 # Documentation
 * Metadata validation functions
-* Document error codes
-* note RocksDB is required for Arango
-* minimum arango ver is 3.5.1
-* how to run both types of tests
 * document collections for server. Do not auto create as admins will want to specify shard count
 
 # Testing
