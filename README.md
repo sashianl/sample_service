@@ -102,7 +102,7 @@ Sample metadata has the following structure (also see the service spec file):
                    }
 }
 ```
-Metadata values are primitives: a string, float, intetger, or boolean.
+Metadata values are primitives: a string, float, integer, or boolean.
 
 A simple example:
 ```
@@ -142,12 +142,12 @@ in which case it should throw an exception.
 
  ```python
  def enum_builder(params: Dict[str, str]
-        ) -> Callable[[Dict[str, Union[float, int, bool, str]]], str]:
+        ) -> Callable[[Dict[str, Union[float, int, bool, str]]], Optional[str]]:
     # should handle errors better here
     enums = {e.strip() for e in d['enums'].split(',')}
     key = d['key']
 
-    def validate_enum(value: Dict[str, Union[float, int, bool, str]]) -> str:
+    def validate_enum(value: Dict[str, Union[float, int, bool, str]]) -> Optional[str]:
         if value.get(key) not in enums:
             return f'Illegal value for key {key}: {value.get(key)}'
         return None
