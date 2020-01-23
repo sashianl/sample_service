@@ -6,9 +6,12 @@ Configuration parsing and creation for the sample service.
 # this code is mostly tested in the integration tests.
 
 import importlib
-from collections import defaultdict as _defaultdict
 from typing import Dict, Callable, Optional, cast as _cast
-from typing import DefaultDict as _DefaultDict
+import urllib as _urllib
+from urllib.error import URLError as _URLError
+import yaml as _yaml
+from yaml.parser import ParserError as _ParserError
+from jsonschema import validate as _validate
 import arango as _arango
 
 from SampleService.core.core_types import PrimitiveType
@@ -17,6 +20,8 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.user_lookup import KBaseUserLookup as _KBaseUserLookup
+
+# TODO NOW document config format
 
 
 def build_samples(config: Dict[str, str]) -> Samples:
@@ -48,7 +53,12 @@ def build_samples(config: Dict[str, str]) -> Samples:
     auth_root_url = _check_string_req(config.get('auth-root-url'), 'config param auth-root-url')
     auth_token = _check_string_req(config.get('auth-token'), 'config param auth-token')
 
-    metaval = get_validators(config)  # build the validators before trying to connect to arango
+    metaval_url = _check_string(config.get('metadata-validator-config-url'),
+                                'config param metadata-validator-config-url',
+                                optional=True)
+
+    # build the validators before trying to connect to arango
+    metaval = get_validators(metaval_url) if metaval_url else {}
 
     # meta params may have info that shouldn't be logged so don't log any for now.
     # Add code to deal with this later if needed
@@ -88,41 +98,47 @@ def _check_string_req(s: Optional[str], name: str) -> str:
     return _cast(str, _check_string(s, name))
 
 
-def get_validators(
-        cfg: Dict[str, str]
-        ) -> Dict[str, Callable[[Dict[str, PrimitiveType]], Optional[str]]]:
+_META_VAL_JSONSCHEMA = {
+    'type': 'object',
+    # validate values only
+    'additionalProperties': {
+        'type': 'object',
+        'properties': {
+            'module': {'type': 'string'},
+            'callable-builder': {'type': 'string'},
+            'parameters': {'type': 'object'}
+        },
+        'additionalProperties': False,
+        'required': ['module', 'callable-builder']
+    }
+}
+
+
+def get_validators(url: str) -> Dict[str, Callable[[Dict[str, PrimitiveType]], Optional[str]]]:
     '''
-    Given an SDK server generated config mapping, initialize any metadata validators present
+    Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
 
-    :param cfg: The SDK generated configuration.
+    :param url: The URL for a config file for the metadata validators.
     :returns: A mapping of metadata key to associated validator function.
     '''
-    # https://github.com/python/mypy/issues/4226
-    def lst() -> list:
-        return [{}, {}]
-    valparams: _DefaultDict[str, list] = _defaultdict(lst)
-    for k, v in cfg.items():
-        if k.startswith('metaval-'):
-            p = k.split('-')
-            if len(p) == 3:
-                valparams[p[1]][0][p[2]] = v
-            elif len(p) == 4:
-                if p[2] != 'param':
-                    raise ValueError(f'invalid configuration key: {k}')
-                valparams[p[1]][1][p[3]] = v
-            else:
-                raise ValueError(f'invalid configuration key: {k}')
+    try:
+        with _urllib.request.urlopen(url) as res:
+            cfg = _yaml.safe_load(res)
+    except _URLError as e:
+        raise ValueError(
+            f'Failed to open validator configuration file at {url}: {str(e.reason)}') from e
+    except _ParserError as e:
+        raise ValueError(
+            f'Failed to open validator configuration file at {url}: {str(e)}') from e
+    _validate(instance=cfg, schema=_META_VAL_JSONSCHEMA)
 
     ret = {}
-    for k, v2 in valparams.items():
-        if 'module' not in v2[0]:
-            raise ValueError(f'Missing config param metaval-{k}-module')
-        if 'callable_builder' not in v2[0]:
-            raise ValueError(f'Missing config param metaval-{k}-callable_builder')
-        m = importlib.import_module(v2[0]['module'])
+    for k, v in cfg.items():
+        m = importlib.import_module(v['module'])
+        p = v.get('parameters')
         try:
-            ret[k] = getattr(m, v2[0]['callable_builder'])(v2[1])
+            ret[k] = getattr(m, v['callable-builder'])(p if p else {})
         except Exception as e:
             raise ValueError(
                 f'Metadata validator callable build failed for key {k}: {e.args[0]}') from e

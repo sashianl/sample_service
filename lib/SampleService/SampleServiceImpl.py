@@ -29,9 +29,9 @@ Handles creating, updating, retriving samples and linking data to samples.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-alpha2"
+    VERSION = "0.1.0-alpha3"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "a001bb3959c7a50102fdfbf6e6c0eb4a504f1000"
+    GIT_COMMIT_HASH = "9b1d42a9af756805e2bba0e612816167ccfbecf7"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER

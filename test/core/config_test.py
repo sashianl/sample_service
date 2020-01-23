@@ -1,78 +1,140 @@
 # Most of the tests for the config code are in the integration tests as they require running
 # arango and auth instances
 
-from pytest import raises
+import os
+import shutil
+import tempfile
+import yaml
+from pytest import raises, fixture
+from jsonschema.exceptions import ValidationError
 
-from SampleService.core.config import get_validators
+from core import test_utils
 from core.test_utils import assert_exception_correct
+from SampleService.core.config import get_validators
 
 
-def test_config_get_validators():
-    cfg = {'ignore-me': 'foo',
-           'metaval-key1-module': 'core.config_test_vals',
-           'metaval-key1-callable_builder': 'val1',
-           'metaval-key2-module': 'core.config_test_vals',
-           'metaval-key2-callable_builder': 'val2',
-           'metaval-key2-param-max_len': '7',
-           'metaval-key2-param-foo': 'bar',
-           'metaval-key3-module': 'core.config_test_vals',
-           'metaval-key3-callable_builder': 'val1',
-           'metaval-key3-param-foo': 'bat',
+@fixture(scope='module')
+def temp_dir():
+    tempdir = test_utils.get_temp_dir()
+    yield tempdir
+
+    if test_utils.get_delete_temp_files():
+        shutil.rmtree(test_utils.get_temp_dir())
+
+
+def _write_config(cfg, temp_dir):
+    tf = tempfile.mkstemp('.tmp.cfg', 'config_test_', dir=temp_dir)
+    os.close(tf[0])
+    with open(tf[1], 'w') as temp:
+        yaml.dump(cfg, temp)
+    return tf[1]
+
+
+def test_config_get_validators(temp_dir):
+    cfg = {'key1': {'module': 'core.config_test_vals',
+                    'callable-builder': 'val1'
+                    },
+           'key2': {'module': 'core.config_test_vals',
+                    'callable-builder': 'val2',
+                    'parameters': {'max-len': 7, 'foo': 'bar'}
+                    },
+           'key3': {'module': 'core.config_test_vals',
+                    'callable-builder': 'val1',
+                    'parameters': {'foo': 'bat'}
+                    }
            }
-    vals = get_validators(cfg)
+    tf = _write_config(cfg, temp_dir)
+    vals = get_validators('file://' + tf)
+    assert len(vals) == 3
     # validators always fail
     assert vals['key1']({'a': 'b'}) == "1, {}, {'a': 'b'}"
-    assert vals['key2']({'a': 'd'}) == "2, {'foo': 'bar', 'max_len': '7'}, {'a': 'd'}"
+    assert vals['key2']({'a': 'd'}) == "2, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
     assert vals['key3']({'a': 'c'}) == "1, {'foo': 'bat'}, {'a': 'c'}"
 
-
-def test_config_get_validators_fail_bad_params():
-    _config_get_validators_fail(
-        {'metaval-key-bad_param-x': 'y'},
-        ValueError('invalid configuration key: metaval-key-bad_param-x'))
-    _config_get_validators_fail(
-        {'metaval-': 'y'},
-        ValueError('invalid configuration key: metaval-'))
-    _config_get_validators_fail(
-        {'metaval-x': 'y'},
-        ValueError('invalid configuration key: metaval-x'))
-    _config_get_validators_fail(
-        {'metaval-x-param-y-z': 'y'},
-        ValueError('invalid configuration key: metaval-x-param-y-z'))
-    _config_get_validators_fail(
-        {'metaval-x-mdule': 'foo',
-         'metaval-x-param-y': 'y'},
-        ValueError('Missing config param metaval-x-module'))
-    _config_get_validators_fail(
-        {'metaval-x-module': 'foo',
-         'metaval-x-param-y': 'y'},
-        ValueError('Missing config param metaval-x-callable_builder'))
+    # noop entry
+    cfg = {}
+    tf = _write_config(cfg, temp_dir)
+    assert get_validators('file://' + tf) == {}
 
 
-def test_config_get_validators_fail_no_module():
+def test_config_get_validators_fail_bad_file(temp_dir):
+    tf = _write_config({}, temp_dir)
+    os.remove(tf)
+    with raises(Exception) as got:
+        get_validators('file://' + tf)
+    assert_exception_correct(got.value, ValueError(
+        f"Failed to open validator configuration file at file://{tf}: " +
+        f"[Errno 2] No such file or directory: '{tf}'"))
+
+
+def test_config_get_validators_fail_bad_yaml(temp_dir):
+    # note that calling str() on ValidationErrors returns more detailed into about the error
+    tf = tempfile.mkstemp('.tmp.cfg', 'config_test_bad_yaml', dir=temp_dir)
+    os.close(tf[0])
+    with open(tf[1], 'w') as temp:
+        temp.write('[bad yaml')
+    with raises(Exception) as got:
+        get_validators('file://' + tf[1])
+    assert_exception_correct(got.value, ValueError(
+        f'Failed to open validator configuration file at file://{tf[1]}: while parsing a ' +
+        'flow sequence\n  in "<urllib response>", line 1, column 1\nexpected \',\' or \']\', ' +
+        'but got \'<stream end>\'\n  in "<urllib response>", line 1, column 10'
+    ))
+
+
+def test_config_get_validators_fail_bad_params(temp_dir):
+    # note that calling str() on ValidationErrors returns more detailed into about the error
     _config_get_validators_fail(
-        {'metaval-x-module': 'no_modules_here',
-         'metaval-x-callable_builder': 'foo'},
+        '', temp_dir,
+        ValidationError("'' is not of type 'object'"))
+    _config_get_validators_fail(
+        ['foo', 'bar'], temp_dir,
+        ValidationError("['foo', 'bar'] is not of type 'object'"))
+    _config_get_validators_fail(
+        {'key': 'y'}, temp_dir,
+        ValidationError("'y' is not of type 'object'"))
+    _config_get_validators_fail(
+        {'key': {}}, temp_dir,
+        ValidationError("'module' is a required property"))
+    _config_get_validators_fail(
+        {'key': {'module': 'foo'}}, temp_dir,
+        ValidationError("'callable-builder' is a required property"))
+    _config_get_validators_fail(
+        {'key': {'module': 'foo', 'callable-builder': 'bar', 'xtraprop': 1}}, temp_dir,
+        ValidationError("Additional properties are not allowed ('xtraprop' was unexpected)"))
+    _config_get_validators_fail(
+        {'key': {'module': ['foo'], 'callable-builder': 'bar'}}, temp_dir,
+        ValidationError("['foo'] is not of type 'string'"))
+    _config_get_validators_fail(
+        {'key': {'module': 'foo', 'callable-builder': ['bar']}}, temp_dir,
+        ValidationError("['bar'] is not of type 'string'"))
+    _config_get_validators_fail(
+        {'key': {'module': 'foo', 'callable-builder': 'bar', 'parameters': 'foo'}}, temp_dir,
+        ValidationError("'foo' is not of type 'object'"))
+
+
+def test_config_get_validators_fail_no_module(temp_dir):
+    _config_get_validators_fail(
+        {'key': {'module': 'no_modules_here', 'callable-builder': 'foo'}}, temp_dir,
         ModuleNotFoundError("No module named 'no_modules_here'"))
 
 
-def test_config_get_validators_fail_no_function():
+def test_config_get_validators_fail_no_function(temp_dir):
     _config_get_validators_fail(
-        {'metaval-x-module': 'core.config_test_vals',
-         'metaval-x-callable_builder': 'foo'},
+        {'x': {'module': 'core.config_test_vals', 'callable-builder': 'foo'}}, temp_dir,
         ValueError("Metadata validator callable build failed for key x: " +
                    "module 'core.config_test_vals' has no attribute 'foo'"))
 
 
-def test_config_get_validators_fail_function_exception():
+def test_config_get_validators_fail_function_exception(temp_dir):
     _config_get_validators_fail(
-        {'metaval-x-module': 'core.config_test_vals',
-         'metaval-x-callable_builder': 'fail_val'},
+        {'x': {'module': 'core.config_test_vals', 'callable-builder': 'fail_val'}}, temp_dir,
         ValueError("Metadata validator callable build failed for key x: " +
                    "we've no functions 'ere"))
 
 
-def _config_get_validators_fail(cfg, expected):
+def _config_get_validators_fail(cfg, temp_dir, expected):
+    tf = _write_config(cfg, temp_dir)
     with raises(Exception) as got:
-        get_validators(cfg)
+        get_validators('file://' + tf)
     assert_exception_correct(got.value, expected)

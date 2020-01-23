@@ -30,19 +30,19 @@ def string_length(d: Dict[str, str]):
     Build a validation callable that ensures all the keys and string values in the metadata
     value are less than a given length. Non-string values are ignored.
 
-    :param d: the configuration map for the callable. Expects a max_len key that must be parseable
+    :param d: the configuration map for the callable. Expects a max-len key that must be parseable
         to an integer greater than 0.
     :raises MetadataValidationError: if any keys' or values' length are greater than the
         maximum.
     '''
-    if not d or 'max_len' not in d:
-        raise ValueError('max_len parameter required')
+    if not d or 'max-len' not in d:
+        raise ValueError('max-len parameter required')
     try:
-        maxlen = int(d['max_len'])
+        maxlen = int(d['max-len'])
     except ValueError:
-        raise ValueError('max_len must be an integer')
+        raise ValueError('max-len must be an integer')
     if maxlen < 1:
-        raise ValueError('max_len must be > 0')
+        raise ValueError('max-len must be > 0')
 
     def strlen(d1: Dict[str, PrimitiveType]):
         for k, v in d1.items():

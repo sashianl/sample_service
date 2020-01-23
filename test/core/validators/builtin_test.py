@@ -12,7 +12,7 @@ def test_noop():
 
 
 def test_string_length():
-    sl = builtin.string_length({'max_len': 2})
+    sl = builtin.string_length({'max-len': 2})
     assert sl({
         'fo': 'b',
         'e': 'fb',
@@ -22,11 +22,11 @@ def test_string_length():
 
 
 def test_string_length_fail_bad_constructor_args():
-    _string_length_fail_construct(None, ValueError('max_len parameter required'))
-    _string_length_fail_construct({'foo': 'bar'}, ValueError('max_len parameter required'))
-    _string_length_fail_construct({'max_len': 'shazzbat'},
-                                  ValueError('max_len must be an integer'))
-    _string_length_fail_construct({'max_len': '0'}, ValueError('max_len must be > 0'))
+    _string_length_fail_construct(None, ValueError('max-len parameter required'))
+    _string_length_fail_construct({'foo': 'bar'}, ValueError('max-len parameter required'))
+    _string_length_fail_construct({'max-len': 'shazzbat'},
+                                  ValueError('max-len must be an integer'))
+    _string_length_fail_construct({'max-len': '0'}, ValueError('max-len must be > 0'))
 
 
 def _string_length_fail_construct(d, expected):
@@ -45,4 +45,4 @@ def test_string_length_fail_bad_metadata_values():
 
 
 def _string_length_fail_validate(max_len, meta, expected):
-    assert builtin.string_length({'max_len': max_len})(meta) == expected
+    assert builtin.string_length({'max-len': max_len})(meta) == expected
