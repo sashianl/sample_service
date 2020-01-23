@@ -14,7 +14,7 @@ You can also learn more about the apps implemented in this module from its [cata
 # Description
 
 The Sample Service stores information regarding experimental samples taken from the environment.
-It has Access Control Lists for each sample, supports subsample trees, and modular metadata
+It supports Access Control Lists for each sample, subsample trees, and modular metadata
 validation.
 
 The SDK API specification for the service is contained in the `SampleService.spec` file. An indexed
@@ -48,6 +48,12 @@ To use this code in another SDK module, call `kb-sdk install SampleService` in t
 # Help
 
 You may find the answers to your questions in our [FAQ](https://kbase.github.io/kb_sdk_docs/references/questions_and_answers.html) or [Troubleshooting Guide](https://kbase.github.io/kb_sdk_docs/references/troubleshooting.html).
+
+# Configuring the server
+
+The server has several startup parameters beyond the standard SDK-provided parameters
+that must be configured in the Catalog Service by a Catalog Service administrator in order
+for the service to run. These are documented in the `deploy.cfg` file. 
 
 # API Error codes
 
