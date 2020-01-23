@@ -81,14 +81,15 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['node-edge-collection'] = TEST_COL_NODE_EDGE
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
 
+    # TODO NOW test with 2 validators
     metacfg = {
-        'foo': {'module': 'SampleService.core.validators.builtin',
-                'callable-builder': 'noop'
-                },
-        'stringlentest': {'module': 'SampleService.core.validators.builtin',
-                          'callable-builder': 'string_length',
-                          'parameters': {'max-len': 5}
-                          }
+        'foo': [{'module': 'SampleService.core.validators.builtin',
+                 'callable-builder': 'noop'
+                 }],
+        'stringlentest': [{'module': 'SampleService.core.validators.builtin',
+                           'callable-builder': 'string_length',
+                           'parameters': {'max-len': 5}
+                           }]
     }
     metaval = tempfile.mkstemp('.cfg', 'metaval-', dir=test_utils.get_temp_dir(), text=True)
     os.close(metaval[0])
