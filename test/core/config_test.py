@@ -46,10 +46,10 @@ def test_config_get_validators(temp_dir):
     tf = _write_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
     assert len(vals) == 3
-    # validators always fail
-    assert vals['key1']({'a': 'b'}) == "1, {}, {'a': 'b'}"
-    assert vals['key2']({'a': 'd'}) == "2, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
-    assert vals['key3']({'a': 'c'}) == "1, {'foo': 'bat'}, {'a': 'c'}"
+    # the test validators always fail
+    assert vals['key1'][0]({'a': 'b'}) == "1, {}, {'a': 'b'}"
+    assert vals['key2'][0]({'a': 'd'}) == "2, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
+    assert vals['key3'][0]({'a': 'c'}) == "1, {'foo': 'bat'}, {'a': 'c'}"
 
     # noop entry
     cfg = {}

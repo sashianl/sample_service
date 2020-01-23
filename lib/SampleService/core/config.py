@@ -6,7 +6,7 @@ Configuration parsing and creation for the sample service.
 # this code is mostly tested in the integration tests.
 
 import importlib
-from typing import Dict, Callable, Optional, cast as _cast
+from typing import Dict, Callable, Optional, List, cast as _cast
 import urllib as _urllib
 from urllib.error import URLError as _URLError
 import yaml as _yaml
@@ -114,7 +114,8 @@ _META_VAL_JSONSCHEMA = {
 }
 
 
-def get_validators(url: str) -> Dict[str, Callable[[Dict[str, PrimitiveType]], Optional[str]]]:
+def get_validators(url: str) -> Dict[
+        str, List[Callable[[Dict[str, PrimitiveType]], Optional[str]]]]:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -138,7 +139,8 @@ def get_validators(url: str) -> Dict[str, Callable[[Dict[str, PrimitiveType]], O
         m = importlib.import_module(v['module'])
         p = v.get('parameters')
         try:
-            ret[k] = getattr(m, v['callable-builder'])(p if p else {})
+            # TODO NOW handle lists of validators
+            ret[k] = [getattr(m, v['callable-builder'])(p if p else {})]
         except Exception as e:
             raise ValueError(
                 f'Metadata validator callable build failed for key {k}: {e.args[0]}') from e
