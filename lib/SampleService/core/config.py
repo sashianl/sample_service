@@ -5,8 +5,9 @@ Configuration parsing and creation for the sample service.
 # Because creating the samples instance involves contacting arango and the auth service,
 # this code is mostly tested in the integration tests.
 
+from collections import defaultdict as _defaultdict
 import importlib
-from typing import Dict, Callable, Optional, List, cast as _cast
+from typing import Dict, Callable, Optional, List, cast as _cast, DefaultDict as _DefaultDict
 import urllib as _urllib
 from urllib.error import URLError as _URLError
 import yaml as _yaml
@@ -102,14 +103,17 @@ _META_VAL_JSONSCHEMA = {
     'type': 'object',
     # validate values only
     'additionalProperties': {
-        'type': 'object',
-        'properties': {
-            'module': {'type': 'string'},
-            'callable-builder': {'type': 'string'},
-            'parameters': {'type': 'object'}
-        },
-        'additionalProperties': False,
-        'required': ['module', 'callable-builder']
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'module': {'type': 'string'},
+                'callable-builder': {'type': 'string'},
+                'parameters': {'type': 'object'}
+            },
+            'additionalProperties': False,
+            'required': ['module', 'callable-builder']
+        }
     }
 }
 
@@ -134,14 +138,16 @@ def get_validators(url: str) -> Dict[
             f'Failed to open validator configuration file at {url}: {str(e)}') from e
     _validate(instance=cfg, schema=_META_VAL_JSONSCHEMA)
 
-    ret = {}
-    for k, v in cfg.items():
-        m = importlib.import_module(v['module'])
-        p = v.get('parameters')
-        try:
-            # TODO NOW handle lists of validators
-            ret[k] = [getattr(m, v['callable-builder'])(p if p else {})]
-        except Exception as e:
-            raise ValueError(
-                f'Metadata validator callable build failed for key {k}: {e.args[0]}') from e
-    return ret
+    ret: _DefaultDict[
+        str, List[Callable[[Dict[str, PrimitiveType]], Optional[str]]]] = _defaultdict(list)
+    for k, lv in cfg.items():
+        for i, v in enumerate(lv):
+            m = importlib.import_module(v['module'])
+            p = v.get('parameters')
+            try:
+                ret[k].append(getattr(m, v['callable-builder'])(p if p else {}))
+            except Exception as e:
+                raise ValueError(
+                    f'Metadata validator callable build #{i} failed for key {k}: {e.args[0]}'
+                    ) from e
+    return dict(ret)  # get rid of defaultdict which can be surprising
