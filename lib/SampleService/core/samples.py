@@ -6,7 +6,7 @@ import datetime
 import uuid as _uuid
 from uuid import UUID
 
-from typing import Optional, Callable, Tuple, Dict, cast as _cast, List as _List
+from typing import Optional, Callable, Tuple, Dict, List, cast as _cast
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
@@ -35,7 +35,7 @@ class Samples:
             storage: ArangoSampleStorage,
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
             metadata_validators: Dict[
-                str, Callable[[Dict[str, PrimitiveType]], Optional[str]]] = None,
+                str, List[Callable[[Dict[str, PrimitiveType]], Optional[str]]]] = None,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -102,12 +102,13 @@ class Samples:
     def _validate_metadata(self, sample: Sample):
         for i, n in enumerate(sample.nodes):
             for k in n.controlled_metadata:
-                if k not in self._metaval:
+                if not self._metaval.get(k):
                     raise _MetadataValidationError(
                         f'No validator available for metadata key {k} for node at index {i}')
-                ret = self._metaval[k](n.controlled_metadata[k])
-                if ret:
-                    raise _MetadataValidationError(f'Node at index {i}, key {k}: ' + ret)
+                for valfunc in self._metaval[k]:
+                    ret = valfunc(n.controlled_metadata[k])
+                    if ret:
+                        raise _MetadataValidationError(f'Node at index {i}, key {k}: ' + ret)
 
     def _check_perms(
             self,
@@ -189,7 +190,7 @@ class Samples:
         _not_falsy(new_acls, 'new_acls')
         try:
             bad_users = self._user_lookup.are_valid_users(
-                _cast(_List[str], []) + list(new_acls.admin) +
+                _cast(List[str], []) + list(new_acls.admin) +
                 list(new_acls.write) + list(new_acls.read))
             # let authentication errors propagate, not much to do
             # could add retries to the client

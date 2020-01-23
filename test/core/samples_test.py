@@ -47,8 +47,11 @@ def test_save_sample():
 def _save_sample_with_name(name):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    metaval = {'key1': lambda x: exec('assert x["val"] == "foo"'),  # this is vile
-               'key2': lambda _: None}  # noop
+    metaval = {'key1': [lambda x: exec('assert x["val"] == "foo"'),  # this is vile
+                        lambda x: exec('assert "val" in x')
+                        ],
+               'key2': [lambda _: None]  # noop
+               }
     s = Samples(storage, lu, metadata_validators=metaval, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -136,7 +139,7 @@ def test_save_sample_fail_bad_args():
 def test_save_sample_fail_no_metadata_validator():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    metaval = {'key1': lambda _: None, 'key2': lambda _: None}
+    metaval = {'key1': [lambda _: None], 'key2': [lambda _: None], 'key3': []}
     s = Samples(storage, lu, metadata_validators=metaval, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -158,7 +161,7 @@ def test_save_sample_fail_no_metadata_validator():
 def test_save_sample_fail_metadata_validator_exception():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    metaval = {'key1': lambda _: None, 'key2': lambda _: "u suk lol"}
+    metaval = {'key1': [lambda _: None], 'key2': [lambda _: None, lambda _: "u suk lol"]}
     s = Samples(storage, lu, metadata_validators=metaval, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
