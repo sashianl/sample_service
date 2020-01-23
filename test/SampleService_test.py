@@ -5,10 +5,10 @@
 # Tests of the auth user lookup code is at the bottom of the file.
 
 import os
-import shutil
 import tempfile
 import requests
 import time
+import yaml
 from configparser import ConfigParser
 from pytest import fixture, raises
 from threading import Thread
@@ -23,7 +23,10 @@ from arango_controller import ArangoController
 from mongo_controller import MongoController
 from auth_controller import AuthController
 
-VER = '0.1.0-alpha2'
+# TODO should really test a start up for the case where the metadata validation config is not
+# supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
+
+VER = '0.1.0-alpha3'
 
 _AUTH_DB = 'test_auth_db'
 
@@ -77,31 +80,35 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['node-collection'] = TEST_COL_NODES
     cfg[ss]['node-edge-collection'] = TEST_COL_NODE_EDGE
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
-    cfg[ss]['metaval-foo-module'] = 'SampleService.core.validators.builtin'
-    cfg[ss]['metaval-foo-callable_builder'] = 'noop'
-    cfg[ss]['metaval-stringlentest-module'] = 'SampleService.core.validators.builtin'
-    cfg[ss]['metaval-stringlentest-callable_builder'] = 'string_length'
-    cfg[ss]['metaval-stringlentest-param-max_len'] = '5'
 
-    _, path = tempfile.mkstemp('.cfg', 'deploy-', dir=test_utils.get_temp_dir(), text=True)
+    metacfg = {
+        'foo': {'module': 'SampleService.core.validators.builtin',
+                'callable-builder': 'noop'
+                },
+        'stringlentest': {'module': 'SampleService.core.validators.builtin',
+                          'callable-builder': 'string_length',
+                          'parameters': {'max-len': 5}
+                          }
+    }
+    metaval = tempfile.mkstemp('.cfg', 'metaval-', dir=test_utils.get_temp_dir(), text=True)
+    os.close(metaval[0])
 
-    with open(path, 'w') as handle:
+    with open(metaval[1], 'w') as handle:
+        yaml.dump(metacfg, handle)
+
+    cfg[ss]['metadata-validator-config-url'] = f'file://{metaval[1]}'
+
+    deploy = tempfile.mkstemp('.cfg', 'deploy-', dir=test_utils.get_temp_dir(), text=True)
+    os.close(deploy[0])
+
+    with open(deploy[1], 'w') as handle:
         cfg.write(handle)
 
-    return path
+    return deploy[1]
 
 
 @fixture(scope='module')
-def temp_file():
-    tempdir = test_utils.get_temp_dir()
-    yield tempdir
-
-    if test_utils.get_delete_temp_files():
-        shutil.rmtree(test_utils.get_temp_dir())
-
-
-@fixture(scope='module')
-def mongo(temp_file):
+def mongo():
     mongoexe = test_utils.get_mongo_exe()
     tempdir = test_utils.get_temp_dir()
     wt = test_utils.get_use_wired_tiger()
@@ -241,8 +248,10 @@ def test_init_fail():
     cfg['auth-root-url'] = 'crap'
     init_fail(cfg, MissingParameterError('config param auth-token'))
     cfg['auth-token'] = 'crap'
-    cfg['metaval-x-'] = 'foo'  # get_validators is tested elsewhere, just make sure it'll error out
-    init_fail(cfg, ValueError('Missing config param metaval-x-module'))
+    # get_validators is tested elsewhere, just make sure it'll error out
+    cfg['metadata-validator-config-url'] = 'https://kbase.us/services'
+    init_fail(cfg, ValueError(
+        'Failed to open validator configuration file at https://kbase.us/services: Not Found'))
 
 
 def init_fail(config, expected):
