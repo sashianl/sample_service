@@ -89,10 +89,19 @@ Each node in the sample tree accepted by the `create_sample` method may contain 
 user metadata. User metadata is not validated other than very basic size checks, while controlled
 metadata is validated based on configured validation rules.
 
-Validators are modular and can be added to the service via configuration without changing the
-service core code. Validators are assigned to metadata keys in a 1:M relationship - that is, each
-metadata key has one validator assigned, but multiple keys may use the same validator, possibly
-with different parameters for the validator.
+## All metadata
+
+For all metadata, map keys are are limited to 256 characters and values are limited to 1024
+characters. Keys may not contain any control characters, while values may contain tabs and
+new lines.
+
+## Controlled metadata
+
+Controlled metadata is subject to validation - no metadata is allowed that does not pass
+validation or does not have a validator assigned.
+
+Metadata validators are modular and can be added to the service via configuration without
+changing the service core code. Multiple validators can be assigned to each metadata key.
 
 Sample metadata has the following structure (also see the service spec file):
 
@@ -137,14 +146,11 @@ it should return `None` unless the validator cannot validate the metadata due to
 uncontrollable error (e.g. it can't connect to an external server after a reasonable timeout),
 in which case it should throw an exception.
 
-[TODO redo validator configuration to pull a yaml file from a url rather than using catalog
- params and document here]
-
- Validators are built by the builder function specified in the configuration. The builder is
- passed any parameters specified in the configuration as a string -> string mapping. This allows
- the builder function to set up any necessary state for the validator before returning the
- validator for use. Examine the validators in `SampleService.core.validators.builtin` for examples.
- A very simple example might be:
+ Validators are built by a builder function specified in the configuration (see below).
+ The builder is passed any parameters specified in the configuration as a
+ mapping. This allows the builder function to set up any necessary state for the validator
+ before returning the validator for use. Examine the validators in
+`SampleService.core.validators.builtin` for examples. A very simple example might be:
 
  ```python
  def enum_builder(params: Dict[str, str]
@@ -161,4 +167,64 @@ in which case it should throw an exception.
     return validate_enum
 ```
 
+### Configuration
 
+The `deploy.cfg` configuration file contains a key, `metadata-validator-config-url`, that if
+provided must be a url that points to a validator configuration file. The configuration file
+is loaded on service startup and used to configure the metadata validators. If changes are made
+to the configuration file the service must be restarted to reconfigure the validators.
+
+The configuration file uses the YAML format and is validated against the following JSONSchema:
+
+```
+{
+    'type': 'object',
+    'additionalProperties': {
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'module': {'type': 'string'},
+                'callable-builder': {'type': 'string'},
+                'parameters': {'type': 'object'}
+            },
+            'additionalProperties': False,
+            'required': ['module', 'callable-builder']
+        }
+    }
+}
+```
+
+The configuration consists of a mapping of metadata keys to a list of validator specifications
+per key. Each validator is run against the metadata value in order. The `module` key is a python
+import path for the module containing a builder function for the validator, while the
+`callable-builder` key is the name of the function within the module that can be called to 
+create the validator. `parameters` contains a mapping that is passed directly to the callable
+builder. The builder is expected to return a callable that accepts a mapping of
+`str -> Union[str, int, float, bool]`.
+
+A simple configuration might look like:
+```
+{
+    'foo': [{'module': 'SampleService.core.validators.builtin',
+             'callable-builder': 'noop'
+             }],
+    'stringlen': [{'module': 'SampleService.core.validators.builtin',
+                   'callable-builder': 'string',
+                   'parameters': {'max-len': 5}
+                   },
+                  {'module': 'SampleService.core.validators.builtin',
+                   'callable-builder': 'string',
+                   'parameters': {'keys': 'spcky', 'max-len': 2}
+                   }]
+}
+```
+
+In this case any value for the `foo` key is allowed, as the `noop` validator is assigned to the
+key. Note that if no validator was assigned to `foo`, including that key in the metadata would
+cause a validation error.
+The `stringlen` key has two validators assigned and any metadata under that key must pass
+both validators. The first validator ensures that no keys or value strings in in the metadata map
+are longer than 5 characters, and the second ensures that the value of the `spcky` key is a
+string of no more than two characters. See the documentation for the `string` validator (below)
+for more information.
