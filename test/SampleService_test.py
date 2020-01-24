@@ -87,7 +87,7 @@ def create_deploy_cfg(auth_port, arango_port):
                  'callable-builder': 'noop'
                  }],
         'stringlentest': [{'module': 'SampleService.core.validators.builtin',
-                           'callable-builder': 'string_length',
+                           'callable-builder': 'string',
                            'parameters': {'max-len': 5}
                            }]
     }
