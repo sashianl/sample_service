@@ -81,7 +81,6 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['node-edge-collection'] = TEST_COL_NODE_EDGE
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
 
-    # TODO NOW test with 2 validators
     metacfg = {
         'foo': [{'module': 'SampleService.core.validators.builtin',
                  'callable-builder': 'noop'
@@ -89,6 +88,10 @@ def create_deploy_cfg(auth_port, arango_port):
         'stringlentest': [{'module': 'SampleService.core.validators.builtin',
                            'callable-builder': 'string',
                            'parameters': {'max-len': 5}
+                           },
+                          {'module': 'SampleService.core.validators.builtin',
+                           'callable-builder': 'string',
+                           'parameters': {'keys': 'spcky', 'max-len': 2}
                            }]
     }
     metaval = tempfile.mkstemp('.cfg', 'metaval-', dir=test_utils.get_temp_dir(), text=True)
@@ -295,7 +298,8 @@ def test_create_and_get_sample_with_version(sample_port):
                        'node_tree': [{'id': 'root',
                                       'type': 'BioReplicate',
                                       'meta_controlled': {'foo': {'bar': 'baz'},
-                                                          'stringlentest': {'foooo': 'barrr'}},
+                                                          'stringlentest': {'foooo': 'barrr',
+                                                                            'spcky': 'fa'}},
                                       'meta_user': {'a': {'b': 'c'}}
                                       }
                                      ]
@@ -350,7 +354,8 @@ def test_create_and_get_sample_with_version(sample_port):
                        'parent': None,
                        'type': 'BioReplicate',
                        'meta_controlled': {'foo': {'bar': 'baz'},
-                                           'stringlentest': {'foooo': 'barrr'}},
+                                           'stringlentest': {'foooo': 'barrr',
+                                                             'spcky': 'fa'}},
                        'meta_user': {'a': {'b': 'c'}}}]
     }
 
@@ -400,6 +405,17 @@ def test_create_sample_fail_no_nodes(sample_port):
 
 
 def test_create_sample_fail_bad_metadata(sample_port):
+    _create_sample_fail_bad_metadata(
+        sample_port, {'stringlentest': {'foooo': 'barrrr'}},
+        'Sample service error code 30010 Metadata validation failed: Node at index 0, ' +
+        'key stringlentest: Metadata value at key foooo is longer than max length of 5')
+    _create_sample_fail_bad_metadata(
+        sample_port, {'stringlentest': {'foooo': 'barrr', 'spcky': 'baz'}},
+        'Sample service error code 30010 Metadata validation failed: Node at index 0, key ' +
+        'stringlentest: Metadata value at key spcky is longer than max length of 2')
+
+
+def _create_sample_fail_bad_metadata(sample_port, meta, expected):
     url = f'http://localhost:{sample_port}'
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.create_sample',
@@ -409,7 +425,7 @@ def test_create_sample_fail_bad_metadata(sample_port):
             'sample': {'name': 'mysample',
                        'node_tree': [{'id': 'root',
                                       'type': 'BioReplicate',
-                                      'meta_controlled': {'stringlentest': {'foooo': 'barrrr'}}
+                                      'meta_controlled': meta
                                       }
                                      ]
                        }
@@ -418,9 +434,7 @@ def test_create_sample_fail_bad_metadata(sample_port):
 
     # print(ret.text)
     assert ret.status_code == 500
-    assert ret.json()['error']['message'] == (
-        f'Sample service error code 30010 Metadata validation failed: Node at index 0, ' +
-        'key stringlentest: Metadata value at key foooo is longer than max length of 5')
+    assert ret.json()['error']['message'] == expected
 
 
 def test_create_sample_fail_permissions(sample_port):
