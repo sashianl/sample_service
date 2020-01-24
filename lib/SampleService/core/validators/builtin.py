@@ -15,6 +15,10 @@ If an error is not thrown, and a falsy value is returned, the validation succeed
 from typing import Dict, cast as _cast
 from SampleService.core.core_types import PrimitiveType
 
+# TODO enum
+# TODO float / int
+# TODO units (pint)
+
 
 def noop(d: Dict[str, str]):
     '''
