@@ -205,19 +205,19 @@ builder. The builder is expected to return a callable that accepts a mapping of
 
 A simple configuration might look like:
 ```
-{
-    'foo': [{'module': 'SampleService.core.validators.builtin',
-             'callable-builder': 'noop'
-             }],
-    'stringlen': [{'module': 'SampleService.core.validators.builtin',
-                   'callable-builder': 'string',
-                   'parameters': {'max-len': 5}
-                   },
-                  {'module': 'SampleService.core.validators.builtin',
-                   'callable-builder': 'string',
-                   'parameters': {'keys': 'spcky', 'max-len': 2}
-                   }]
-}
+foo:
+    - module: SampleService.core.validators.builtin
+      callable-builder: noop
+stringlen:
+    - module: SampleService.core.validators.builtin
+      callable-builder: string
+      parameters:
+        max-len: 5
+    - module: SampleService.core.validators.builtin
+      callable-builder: string
+      parameters:
+        keys: spcky
+        max-len: 2
 ```
 
 In this case any value for the `foo` key is allowed, as the `noop` validator is assigned to the
@@ -228,3 +228,39 @@ both validators. The first validator ensures that no keys or value strings in in
 are longer than 5 characters, and the second ensures that the value of the `spcky` key is a
 string of no more than two characters. See the documentation for the `string` validator (below)
 for more information.
+
+### Built in validators
+
+All built in validators are in the `SampleService.core.validators.builtin` module.
+
+#### noop
+
+Example configuration:
+```
+metadatakey:
+    - module: SampleService.core.validators.builtin
+      callable-builder: noop
+```
+
+This validator accepts any and all values.
+
+#### string
+
+Example configuration:
+```
+metadatakey:
+    - module: SampleService.core.validators.builtin
+      callable-builder: string
+      parameters:
+        keys: [key1, key2]
+        required: True
+        max-len: 10
+```
+
+* `keys` is either a string or a list of strings and determines which keys will be checked by the
+  validator. If the key exists, its value must be a string or `None` (`null` in JSON-speak).
+* `required` requires any keys in they `keys` field to exist in the map, although their value may
+  still be `None`.
+* `max-len` determines the maximum length in characters of the values of the keys listed in `keys`.
+  If `keys` is not supplied, then it determines the maximum length of all keys and string values
+  in the metadata value map.

@@ -7,9 +7,10 @@ from which they can configure themselves and return a validation callable.
 Validation callables must accept a metadata value for their key, a dict where the keys are
 strings and the values are strings, integers, floats, or booleans. A non-None return value
 indicates the metadata failed validation.
-For error that are not under control of the user, any other appropriate error should be thrown.
+For errors that are not under control of the user, any other appropriate exception should be
+thrown.
 
-If an error is not thrown, and a falsy value is returned, the validation succeeds.
+If an exception is not thrown, and a falsy value is returned, the validation succeeds.
 '''
 
 from typing import Dict, cast as _cast

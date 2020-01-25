@@ -22,8 +22,6 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.user_lookup import KBaseUserLookup as _KBaseUserLookup
 
-# TODO NOW document config format
-
 
 def build_samples(config: Dict[str, str]) -> Samples:
     '''
