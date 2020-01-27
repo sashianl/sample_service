@@ -252,15 +252,33 @@ metadatakey:
     - module: SampleService.core.validators.builtin
       callable-builder: string
       parameters:
-        keys: [key1, key2]
+        keys: ['key1', 'key2']
         required: True
         max-len: 10
 ```
 
 * `keys` is either a string or a list of strings and determines which keys will be checked by the
   validator. If the key exists, its value must be a string or `None` (`null` in JSON-speak).
-* `required` requires any keys in they `keys` field to exist in the map, although their value may
+* `required` requires any keys in the `keys` field to exist in the map, although their value may
   still be `None`.
 * `max-len` determines the maximum length in characters of the values of the keys listed in `keys`.
   If `keys` is not supplied, then it determines the maximum length of all keys and string values
   in the metadata value map.
+
+#### enum
+
+Example configuration:
+```
+metadatakey:
+    - module: SampleService.core.validators.builtin
+      callable-builder: enum
+      parameters:
+        keys: ['key1', 'key2']
+        allowed-values: ['red', 'blue', 'green]
+```
+
+* `allowed-values` is a list of primitives - strings, integers, floats, or booleans - that are
+  allowed metadata values. If `keys` is not supplied, all values in the metadata value mapping must
+  be one of the allowed values.
+* `keys` is either a string or a list of strings and determines which keys will be checked by the
+  validator. The key must exist and its value must be one of the `allowed-values`.
