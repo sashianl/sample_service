@@ -75,23 +75,82 @@ def _string_fail_construct(d, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_string_fail_bad_metadata_values():
-    _string_fail_validate(
+def test_string_validate_fail_bad_metadata_values():
+    _string_validate_fail(
         {'max-len': 2}, {'foo': 'ba', 'ba': 'f'},
         'Metadata contains key longer than max length of 2')
-    _string_fail_validate(
+    _string_validate_fail(
         {'max-len': 4}, {'foo': 'ba', 'ba': 'fudge'},
         'Metadata value at key ba is longer than max length of 4')
-    _string_fail_validate(
+    _string_validate_fail(
         {'keys': ['foo', 'bar'], 'required': True}, {'foo': 'ba', 'ba': 'fudge'},
         'Required key bar is missing')
-    _string_fail_validate(
+    _string_validate_fail(
         {'keys': 'foo'}, {'foo': ['a'], 'ba': 'fudge'},
         'Metadata value at key foo is not a string')
-    _string_fail_validate(
+    _string_validate_fail(
         {'keys': ['foo', 'bar'], 'required': True, 'max-len': 6}, {'foo': 'ba', 'bar': 'fudgera'},
         'Metadata value at key bar is longer than max length of 6')
 
 
-def _string_fail_validate(cfg, meta, expected):
+def _string_validate_fail(cfg, meta, expected):
     assert builtin.string(cfg)(meta) == expected
+
+
+def test_enum():
+    en = builtin.enum({'allowed-values': ['a', 1, 3.1, True]})
+
+    assert en({'z': 'a', 'w': 1, 'x': 3.1, 'y': True}) is None
+
+
+def test_enum_with_single_key():
+    en = builtin.enum({'keys': '4', 'allowed-values': ['b', 2, 3.2, False]})
+
+    assert en({'4': 2}) is None
+
+
+def test_enum_with_keys():
+    en = builtin.enum({'keys': ['1', '2', '3', '4'], 'allowed-values': ['b', 2, 3.2, False]})
+
+    assert en({'1': 'b', '2': 2, '3': 3.2, '4': False}) is None
+
+
+def test_enum_build_fail():
+    _enum_build_fail(None, ValueError('d must be a dict'))
+    _enum_build_fail(['foo'], ValueError('d must be a dict'))
+    _enum_build_fail({'keys': ['foo']}, ValueError('allowed-values is a required parameter'))
+    _enum_build_fail({'allowed-values': {'a': 'b'}}, ValueError(
+        'allowed-values parameter must be a list'))
+    _enum_build_fail({'allowed-values': ['a', True, []]}, ValueError(
+        'allowed-values parameter contains a non-primitive type entry at index 2'))
+    _enum_build_fail({'allowed-values': ['a', True, 1, {}]}, ValueError(
+        'allowed-values parameter contains a non-primitive type entry at index 3'))
+    _enum_build_fail({'keys': {'a': 'b'}, 'allowed-values': [1]}, ValueError(
+        'keys parameter must be a string or list'))
+    _enum_build_fail({'keys': ['a', 1], 'allowed-values': [1]}, ValueError(
+        'keys parameter contains a non-string entry at index 1'))
+
+
+def test_enum_validate_fail():
+    _enum_validate_fail(
+        {'allowed-values': ['a', 1]}, {'foo': 'a', 'bar': 1, 'baz': 'whee'},
+        'Metadata value at key baz is not in the allowed list of values')
+    _enum_validate_fail(
+        {'allowed-values': ['a', 1]}, {'foo': 'a', 'bar': 1, 'bat': None},
+        'Metadata value at key bat is not in the allowed list of values')
+    _enum_validate_fail(
+        {'allowed-values': ['a', 1], 'keys': ['bat']}, {'foo': 'b', 'bar': 'b', 'bat': 'whoo'},
+        'Metadata value at key bat is not in the allowed list of values')
+    _enum_validate_fail(
+        {'allowed-values': ['a', 1], 'keys': ['bat']}, {'foo': 'b', 'bar': 'b', 'bat': None},
+        'Metadata value at key bat is not in the allowed list of values')
+
+
+def _enum_build_fail(cfg, expected):
+    with raises(Exception) as got:
+        builtin.enum(cfg)
+    assert_exception_correct(got.value, expected)
+
+
+def _enum_validate_fail(cfg, meta, expected):
+    assert builtin.enum(cfg)(meta) == expected

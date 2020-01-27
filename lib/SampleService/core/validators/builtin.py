@@ -13,15 +13,14 @@ thrown.
 If an exception is not thrown, and a falsy value is returned, the validation succeeds.
 '''
 
-from typing import Dict, cast as _cast
+from typing import Dict, Any, Callable, Optional, cast as _cast
 from SampleService.core.core_types import PrimitiveType
 
-# TODO enum
-# TODO float / int
+# TODO float / int w/ ranges
 # TODO units (pint)
 
 
-def noop(d: Dict[str, str]):
+def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that allows any value for the metadata key.
     :params d: The configuration parameters for the callable. Unused.
@@ -29,7 +28,7 @@ def noop(d: Dict[str, str]):
     return lambda _: None
 
 
-def string(d: Dict[str, str]):
+def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that performs string checking based on the following rules:
 
@@ -60,16 +59,9 @@ def string(d: Dict[str, str]):
         if maxlen < 1:
             raise ValueError('max-len must be > 0')
 
-    keys = d.get('keys')
     required = d.get('required')
+    keys = _get_keys(d)
     if keys:
-        if type(keys) == str:
-            keys = [keys]
-        elif type(keys) != list:
-            raise ValueError('keys parameter must be a string or list')
-        for i, k in enumerate(keys):
-            if type(k) != str:
-                raise ValueError(f'keys parameter contains a non-string entry at index {i}')
 
         def strlen(d1: Dict[str, PrimitiveType]):
             for k in keys:
@@ -91,3 +83,60 @@ def string(d: Dict[str, str]):
     else:
         raise ValueError('If the keys parameter is not specified, max-len must be specified')
     return strlen
+
+
+def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+    '''
+    Build a validation callable that checks that values are one of a set of specified values.
+
+    The 'allowed-values' parameter is required and is a list of the allowed values for the
+    metadata values. Any primitive value is allowed. By default, all the metadata values will
+    be checked against the allowed values.
+
+    If the keys parameter is provided, it must be either a string or a list of strings. In this
+    case, only the specified keys are checked.
+    '''
+    if type(d) != dict:
+        raise ValueError('d must be a dict')
+    allowed = d.get('allowed-values')
+    if not allowed:
+        raise ValueError('allowed-values is a required parameter')
+    if type(allowed) != list:
+        raise ValueError('allowed-values parameter must be a list')
+    for i, a in enumerate(allowed):
+        if _not_primitive(a):
+            raise ValueError(
+                f'allowed-values parameter contains a non-primitive type entry at index {i}')
+    allowed = set(allowed)
+    keys = _get_keys(d)
+    if keys:
+
+        def enumval(d1: Dict[str, PrimitiveType]):
+            for k in keys:
+                if d1.get(k) not in allowed:
+                    return f'Metadata value at key {k} is not in the allowed list of values'
+    else:
+
+        def enumval(d1: Dict[str, PrimitiveType]):
+            for k, v in d1.items():
+                if v not in allowed:
+                    return f'Metadata value at key {k} is not in the allowed list of values'
+    return enumval
+
+
+def _not_primitive(value):
+    return (type(value) != str and type(value) != int and
+            type(value) != float and type(value) != bool)
+
+
+def _get_keys(d):
+    keys = d.get('keys')
+    if keys:
+        if type(keys) == str:
+            keys = [keys]
+        elif type(keys) != list:
+            raise ValueError('keys parameter must be a string or list')
+        for i, k in enumerate(keys):
+            if type(k) != str:
+                raise ValueError(f'keys parameter contains a non-string entry at index {i}')
+    return keys
