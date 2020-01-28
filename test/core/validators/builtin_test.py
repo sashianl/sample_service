@@ -154,3 +154,58 @@ def _enum_build_fail(cfg, expected):
 
 def _enum_validate_fail(cfg, meta, expected):
     assert builtin.enum(cfg)(meta) == expected
+
+
+def test_units():
+    _units_good({'key': 'u', 'units': 'N'}, {'u': 'lb * ft/ s^2'})
+    _units_good({'key': 'y', 'units': 'degF'}, {'y': 'K', 'u': 'not a unit'})
+    _units_good({'key': 'u', 'units': '(lb * ft^2) / (s^3 * A^2)'}, {'u': 'ohm'})
+
+
+def _units_good(cfg, meta):
+    assert builtin.units(cfg)(meta) is None
+
+
+def test_units_build_fail():
+    _units_build_fail(None, ValueError('d must be a dict'))
+    _units_build_fail([], ValueError('d must be a dict'))
+    _units_build_fail({}, ValueError('key is a required parameter'))
+    _units_build_fail({'key': None}, ValueError('key is a required parameter'))
+    _units_build_fail({'key': ['foo']}, ValueError('the key parameter must be a string'))
+    _units_build_fail({'key': 'foo'}, ValueError('units is a required parameter'))
+    _units_build_fail({'key': 'foo', 'units': None}, ValueError('units is a required parameter'))
+    _units_build_fail(
+        {'key': 'foo', 'units': ['N']}, ValueError('the units parameter must be a string'))
+    _units_build_fail(
+        {'key': 'foo', 'units': 'not a unit'}, ValueError(
+            "unable to parse units 'not a unit': undefined unit: not"))
+    _units_build_fail(
+        {'key': 'foo', 'units': 'm ^'}, ValueError(
+            'unable to parse units \'m ^\': syntax error: missing unary operator "**"'))
+
+
+def test_units_validate_fail():
+    _units_validate_fail({'key': 'u', 'units': 'm'}, {}, 'metadata value key u is required')
+    _units_validate_fail({'key': 'u', 'units': 'm'}, {'u': None},
+                         'metadata value key u is required')
+    _units_validate_fail({'key': 'u', 'units': 'm'}, {'u': ['ft']},
+                         'metadata value key u must be a string')
+    _units_validate_fail({'key': 'u', 'units': 'm'}, {'u': 'no_units_here'},
+                         "unable to parse units 'm' at key u: undefined unit: no_units_here")
+    _units_validate_fail(
+        {'key': 'u', 'units': 'm'}, {'u': 'ft / '},
+        'unable to parse units \'m\' at key u: syntax error: missing unary operator "/"')
+    _units_validate_fail(
+        {'key': 'u', 'units': 'm'}, {'u': 's'},
+        "Units at key u, 's', are not equivalent to required units, 'm': Cannot convert " +
+        "from 'second' ([time]) to 'meter' ([length])")
+
+
+def _units_build_fail(cfg, expected):
+    with raises(Exception) as got:
+        builtin.units(cfg)
+    assert_exception_correct(got.value, expected)
+
+
+def _units_validate_fail(cfg, meta, expected):
+    assert builtin.units(cfg)(meta) == expected
