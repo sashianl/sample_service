@@ -282,3 +282,21 @@ metadatakey:
   be one of the allowed values.
 * `keys` is either a string or a list of strings and determines which keys will be checked by the
   validator. The key must exist and its value must be one of the `allowed-values`.
+
+#### units
+
+Example configuration:
+```
+metadatakey:
+    - module: SampleService.core.validators.builtin
+      callable-builder: units
+      parameters:
+        key: 'units'
+        units: 'mg/L'
+```
+
+* `key` is the metadata value key that will be checked against the `units` specification.
+* `units` is a **unit specification in the form of an example**. Any units that can be converted
+  to the given units will be accepted. For example, if `units` is `K`, then `degF`, `degC`, and
+  `degR` are all acceptable input to the validator. Similarly, if `N` is given, `kg * m / s^2` and
+  `lb * f / s^2` are both acceptable.
