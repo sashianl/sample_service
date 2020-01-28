@@ -14,16 +14,20 @@ If an exception is not thrown, and a falsy value is returned, the validation suc
 '''
 
 from typing import Dict, Any, Callable, Optional, cast as _cast
+from pint import UnitRegistry as _UnitRegistry
+from pint import DimensionalityError as _DimensionalityError
+from pint import UndefinedUnitError as _UndefinedUnitError
+from pint import DefinitionSyntaxError as _DefinitionSyntaxError
 from SampleService.core.core_types import PrimitiveType
 
 # TODO float / int w/ ranges
-# TODO units (pint)
 
 
 def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that allows any value for the metadata key.
     :params d: The configuration parameters for the callable. Unused.
+    :returns: a callable that validates metadata maps.
     '''
     return lambda _: None
 
@@ -63,7 +67,7 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     keys = _get_keys(d)
     if keys:
 
-        def strlen(d1: Dict[str, PrimitiveType]):
+        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k in keys:
                 if required and k not in d1:
                     return f'Required key {k} is missing'
@@ -73,7 +77,7 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
                 if v and maxlen and len(v) > maxlen:
                     return f'Metadata value at key {k} is longer than max length of {maxlen}'
     elif maxlen:
-        def strlen(d1: Dict[str, PrimitiveType]):
+        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
                 if len(k) > maxlen:
                     return f'Metadata contains key longer than max length of {maxlen}'
@@ -95,6 +99,9 @@ def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
 
     If the keys parameter is provided, it must be either a string or a list of strings. In this
     case, only the specified keys are checked.
+
+    :param d: the configuration map for the callable.
+    :returns: a callable that validates metadata maps.
     '''
     if type(d) != dict:
         raise ValueError('d must be a dict')
@@ -111,13 +118,13 @@ def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
     keys = _get_keys(d)
     if keys:
 
-        def enumval(d1: Dict[str, PrimitiveType]):
+        def enumval(d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k in keys:
                 if d1.get(k) not in allowed:
                     return f'Metadata value at key {k} is not in the allowed list of values'
     else:
 
-        def enumval(d1: Dict[str, PrimitiveType]):
+        def enumval(d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
                 if v not in allowed:
                     return f'Metadata value at key {k} is not in the allowed list of values'
@@ -140,3 +147,59 @@ def _get_keys(d):
             if type(k) != str:
                 raise ValueError(f'keys parameter contains a non-string entry at index {i}')
     return keys
+
+
+_UNIT_REG = _UnitRegistry()
+
+
+def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+    '''
+    Build a validation callable that checks that values are equivalent to a provided example
+    unit. E.g., if the example units are N, lb * ft / s^2 is also accepted.
+
+    The 'key' parameter is a string that denotes which metadata key to check, and the 'units'
+    parameter contains the example units as a string. Both are required.
+
+    :param d: the configuration map for the callable.
+    :returns: a callable that validates metadata maps.
+    '''
+    if type(d) != dict:
+        raise ValueError('d must be a dict')
+    k = d.get('key')
+    if not k:
+        raise ValueError('key is a required parameter')
+    if type(k) != str:
+        raise ValueError('the key parameter must be a string')
+    u = d.get('units')
+    if not u:
+        raise ValueError('units is a required parameter')
+    if type(u) != str:
+        raise ValueError('the units parameter must be a string')
+    try:
+        req_units = _UNIT_REG.parse_expression(u)
+        # looks like you just need to catch these two. I wish all the pint errors inherited
+        # from a single pint error
+        # https://pint.readthedocs.io/en/0.10.1/developers_reference.html#pint-errors
+    except _UndefinedUnitError as e:
+        raise ValueError(f"unable to parse units '{u}': undefined unit: {e.args[0]}")
+    except _DefinitionSyntaxError as e:
+        raise ValueError(f"unable to parse units '{u}': syntax error: {e.args[0]}")
+
+    def unitval(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        unitstr = d1.get(k)
+        if not unitstr:
+            return f'metadata value key {k} is required'
+        if type(unitstr) != str:
+            return f'metadata value key {k} must be a string'
+        try:
+            units = _UNIT_REG.parse_expression(unitstr)
+        except _UndefinedUnitError as e:
+            return f"unable to parse units '{u}' at key {k}: undefined unit: {e.args[0]}"
+        except _DefinitionSyntaxError as e:
+            return f"unable to parse units '{u}' at key {k}: syntax error: {e.args[0]}"
+        try:
+            (1 * units).ito(req_units)
+        except _DimensionalityError as e:
+            return (f"Units at key {k}, '{unitstr}', are not equivalent to " +
+                    f"required units, '{u}': {e}")
+    return unitval
