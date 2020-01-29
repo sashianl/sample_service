@@ -300,3 +300,34 @@ metadatakey:
   to the given units will be accepted. For example, if `units` is `K`, then `degF`, `degC`, and
   `degR` are all acceptable input to the validator. Similarly, if `N` is given, `kg * m / s^2` and
   `lb * f / s^2` are both acceptable.
+
+
+#### number
+
+Example configuration:
+```
+metadatakey:
+    - module: SampleService.core.validators.builtin
+      callable-builder: number
+      parameters:
+        keys: ['length', 'width']
+        type: int
+        required: True
+        gte: 42
+        lt: 77
+```
+
+Ensures all values are integers or floats.
+
+* `keys`, which is either a string or a list of strings, determines which keys in the metdata value
+  map are checked. If omitted, all keys are checked.
+* If `required` is specified, the keys in the `keys` list must exist in the metadata value map,
+  although their value may be `null`.
+* `type` specifies that the number or numbers must be integers if set to `int` or any number if
+  omitted or `null`.
+* `gt`, `gte`, `lt`, and `lte` are respectively greater than, greater than or equal,
+  less than, and less than or equal, and specify a range in which the number or numbers must exist.
+  If `gt` or `lt` are specified, `gte` or `lte` cannot be specified, respectively, and vice versa.
+
+
+  

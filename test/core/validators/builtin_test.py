@@ -214,7 +214,7 @@ def _units_validate_fail(cfg, meta, expected):
 def test_number():
     _number_success({}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
     # required should be ignored
-    _number_success({'required': True}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
+    _number_success({'required': True}, {'whee': 1, '2': 2.3, '3': 10312.567, '4': 682, '5': None})
     # test none is ok and ints are ok
     _number_success({'type': 'int'}, {'whee': 1, '2': 2, '3': 10312, '4': 682, '5': None})
 
@@ -238,8 +238,8 @@ def test_number_with_keys():
     _number_success({'keys': 'whee'}, {'whee': 1, '2': 7.4, '3': True, '4': 'nan'})
     # test keys are not required
     _number_success({'keys': ['whee', '2', 'a']}, {'whee': 1, '2': 2.3, '3': True, '4': 'nan'})
-    _number_success({'required': True, 'keys': ['whee', '2']},
-                    {'whee': 64, '2': 18.3, '3': 'foo', '4': False})
+    _number_success({'required': True, 'keys': ['whee', '2', '5']},
+                    {'whee': 64, '2': 18.3, '3': 'foo', '4': False, '5': None})
     # test int only & None is ok
     _number_success({'type': 'int', 'keys': ['whee', '2', '5']},
                     {'whee': 1, '2': 2, '3': 10312.3, '4': 'bar', '5': None})
