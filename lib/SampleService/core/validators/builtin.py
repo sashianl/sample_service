@@ -217,7 +217,7 @@ def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     allowed.
 
     The 'lt', 'lte', 'gt', and 'gte' configuration keys - less than, less than or equal,
-    greater than, and greater than or equal, respectively, will require that the number be
+    greater than, and greater than or equal, respectively - will require that the number be
     bounded by the given values of those keys. They are all optional. Specifying lt and lte or
     gt and gte at the same time is an error.
 
