@@ -68,7 +68,7 @@ Sample service error code <error code> <error type>: <message>
 
 There is a 1:1 mapping from error code to error type; error type is simply a more readable
 version of the error code. The error type **may change** for an error code, but the error code
-for a specfic error will not.
+for a specific error will not.
 
 The current error codes are:
 ```
