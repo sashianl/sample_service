@@ -11,6 +11,19 @@ def test_noop():
     assert n({}) is None
 
 
+def test_noop_fail_bad_input():
+    _noop_fail_build(None, ValueError('d must be a dict'))
+    _noop_fail_build([], ValueError('d must be a dict'))
+    _noop_fail_build({'key4': 'a', 'key86': 'a', 'key23': 'b', 'key6': 'c', 'key3': 'd'},
+                     ValueError('Unexpected configuration parameter: key23'))
+
+
+def _noop_fail_build(cfg, expected):
+    with raises(Exception) as got:
+        builtin.noop(cfg)
+    assert_exception_correct(got.value, expected)
+
+
 def test_string_general():
     sl = builtin.string({'max-len': 2})
     assert sl({
@@ -60,8 +73,10 @@ def test_string_multiple_keys_required():
 
 def test_string_fail_bad_constructor_args():
     _string_fail_construct(None, ValueError('d must be a dict'))
-    _string_fail_construct({'foo': 'bar'}, ValueError(
+    _string_fail_construct({}, ValueError(
         'If the keys parameter is not specified, max-len must be specified'))
+    _string_fail_construct({'keys': 'foo', 'foo': 'bar', 'max-len': 25}, ValueError(
+        'Unexpected configuration parameter: foo'))
     _string_fail_construct({'max-len': 'shazzbat'}, ValueError('max-len must be an integer'))
     _string_fail_construct({'max-len': '0'}, ValueError('max-len must be > 0'))
     _string_fail_construct({'keys': 356}, ValueError('keys parameter must be a string or list'))
@@ -119,6 +134,8 @@ def test_enum_build_fail():
     _enum_build_fail(None, ValueError('d must be a dict'))
     _enum_build_fail(['foo'], ValueError('d must be a dict'))
     _enum_build_fail({'keys': ['foo']}, ValueError('allowed-values is a required parameter'))
+    _enum_build_fail({'keys': ['foo'], 'allowed-values': [], 'bar': 'bat'},
+                     ValueError('Unexpected configuration parameter: bar'))
     _enum_build_fail({'allowed-values': {'a': 'b'}}, ValueError(
         'allowed-values parameter must be a list'))
     _enum_build_fail({'allowed-values': ['a', True, []]}, ValueError(
@@ -174,6 +191,8 @@ def test_units_build_fail():
     _units_build_fail({'key': ['foo']}, ValueError('the key parameter must be a string'))
     _units_build_fail({'key': 'foo'}, ValueError('units is a required parameter'))
     _units_build_fail({'key': 'foo', 'units': None}, ValueError('units is a required parameter'))
+    _units_build_fail({'key': 'foo', 'units': 'm', 'whee': 'whoo'},
+                      ValueError('Unexpected configuration parameter: whee'))
     _units_build_fail(
         {'key': 'foo', 'units': ['N']}, ValueError('the units parameter must be a string'))
     _units_build_fail(
@@ -281,6 +300,9 @@ def test_number_build_fail():
     _number_build_fail({'keys': ['a', 'b', 7]}, ValueError(
         'keys parameter contains a non-string entry at index 2'))
     _number_build_fail({'type': 'foo'}, ValueError('Illegal value for type parameter: foo'))
+    _number_build_fail({'type': 'int', 'keys': ['bar'], 'required': True,
+                        'gt': 1, 'lte': 4, 'fakekey': 'yay'},
+                       ValueError('Unexpected configuration parameter: fakekey'))
     _number_build_fail({'type': []}, ValueError('Illegal value for type parameter: []'))
 
     for r in ['gt', 'gte', 'lt', 'lte']:
