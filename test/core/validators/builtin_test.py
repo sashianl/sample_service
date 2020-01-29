@@ -209,3 +209,145 @@ def _units_build_fail(cfg, expected):
 
 def _units_validate_fail(cfg, meta, expected):
     assert builtin.units(cfg)(meta) == expected
+
+
+def test_number():
+    _number_success({}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
+    # required should be ignored
+    _number_success({'required': True}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
+    # test none is ok and ints are ok
+    _number_success({'type': 'int'}, {'whee': 1, '2': 2, '3': 10312, '4': 682, '5': None})
+
+
+def test_number_with_ranges():
+    _number_success({'gt': 4.6}, {'whee': 4.6000000000000001, '2': 4.7, '3': 10312.5677, '4': 682})
+    _number_success({'gt': 4}, {'whee': 5, '2': 6, '3': 10312.5677, '4': 682})
+    _number_success({'gte': 4.6}, {'whee': 4.6, '2': 4.7, '3': 10312.5677, '4': 682})
+    _number_success({'gte': 4}, {'whee': 4, '2': 4.7, '3': 10312.5677, '4': 682})
+
+    _number_success({'lt': 10312.5678}, {'whee': 4.600000001, '2': 4.7, '3': 10312.5677, '4': 682})
+    _number_success({'lt': 10312}, {'whee': 5, '2': 6, '3': 10311, '4': 682})
+    _number_success({'lte': 10312.5678}, {'whee': 4.6, '2': 4.7, '3': 10312.5678, '4': 682})
+    _number_success({'lte': 10312}, {'whee': 4, '2': 4.7, '3': 10312, '4': 682})
+
+    _number_success({'lt': 10312.5678, 'gte': 4}, {'whee': 4, '2': 4.7, '3': 10312.5677, '4': 682})
+    _number_success({'lte': 10.1, 'gt': 10}, {'whee': 10.1, '2': 10.0000000000001, '3': 10.01})
+
+
+def test_number_with_keys():
+    _number_success({'keys': 'whee'}, {'whee': 1, '2': 7.4, '3': True, '4': 'nan'})
+    # test keys are not required
+    _number_success({'keys': ['whee', '2', 'a']}, {'whee': 1, '2': 2.3, '3': True, '4': 'nan'})
+    _number_success({'required': True, 'keys': ['whee', '2']},
+                    {'whee': 64, '2': 18.3, '3': 'foo', '4': False})
+    # test int only & None is ok
+    _number_success({'type': 'int', 'keys': ['whee', '2', '5']},
+                    {'whee': 1, '2': 2, '3': 10312.3, '4': 'bar', '5': None})
+
+
+def test_number_with_keys_and_ranges():
+    _number_success({'gt': 4.6, 'keys': ['whee', '2']},
+                    {'whee': 4.6000000000000001, '2': 4.7, '3': 0, '4': 4})
+    _number_success({'gt': 4, 'keys': ['whee', '2']},
+                    {'whee': 5, '2': 6, '3': 4, '4': -12})
+    _number_success({'gte': 4.6, 'keys': ['whee', '2']},
+                    {'whee': 4.6, '2': 4.7, '3': 4.5999, '4': -300})
+    _number_success({'gte': 4, 'keys': ['whee', '2']},
+                    {'whee': 4, '2': 4.7, '3': 3, '4': 682})
+
+    _number_success({'lt': 10312.5678, 'keys': ['whee', '3']},
+                    {'whee': 4.600000001, '2': 10321.5678, '3': 10312.5677, '4': 100000})
+    _number_success({'lt': 10312, 'keys': ['whee', '3']},
+                    {'whee': 5, '2': 10312, '3': 10311, '4': 777777})
+    _number_success({'lte': 10312.5678, 'keys': ['whee', '3']},
+                    {'whee': 4.6, '2': 10312.5679, '3': 10312.5678, '4': 1000000000})
+    _number_success({'lte': 10312, 'keys': ['whee', '3']},
+                    {'whee': 4, '2': 10313, '3': 10312, '4': 1000000})
+
+    _number_success({'lt': 10312.5678, 'gte': 4, 'keys': ['whee', '2', '3']},
+                    {'whee': 4, '2': 4.7, '3': 10312.5677, '4': 3, '5': 10312.5679})
+    _number_success({'lte': 10.1, 'gt': 10, 'keys': ['whee', '2', '3']},
+                    {'whee': 10.1, '2': 10.0000000000001, '3': 10.01, '4': 10.11, '5': 10})
+
+
+def _number_success(cfg, params):
+    assert builtin.number(cfg)(params) is None
+
+
+def test_number_build_fail():
+    _number_build_fail(None, ValueError('d must be a dict'))
+    _number_build_fail([], ValueError('d must be a dict'))
+    _number_build_fail({'keys': {'a': 'b'}}, ValueError('keys parameter must be a string or list'))
+    _number_build_fail({'keys': ['a', 'b', 7]}, ValueError(
+        'keys parameter contains a non-string entry at index 2'))
+    _number_build_fail({'type': 'foo'}, ValueError('Illegal value for type parameter: foo'))
+    _number_build_fail({'type': []}, ValueError('Illegal value for type parameter: []'))
+
+    for r in ['gt', 'gte', 'lt', 'lte']:
+        _number_build_fail({r: 'foo'}, ValueError(f'Value for {r} parameter is not a number'))
+        _number_build_fail({r: []}, ValueError(f'Value for {r} parameter is not a number'))
+
+    _number_build_fail({'gt': 7, 'gte': 8}, ValueError('Cannot specify both gt and gte'))
+    _number_build_fail({'lt': 5, 'lte': 89}, ValueError('Cannot specify both lt and lte'))
+
+
+def test_number_validate_fails():
+    _number_validate_fail(
+        {}, {'a': 'foo'}, 'Metadata value at key a is not an accepted number type')
+    _number_validate_fail(
+        {}, {'a': {}}, 'Metadata value at key a is not an accepted number type')
+    _number_validate_fail(
+        {'type': 'int'}, {'a': 3.1}, 'Metadata value at key a is not an accepted number type')
+    _number_validate_fail(
+        {'gt': 7, 'lt': 9}, {'a': 7},
+        'Metadata value at key a is not within the range (7, 9)')
+    _number_validate_fail(
+        {'gt': 7, 'lt': 9}, {'a': 9},
+        'Metadata value at key a is not within the range (7, 9)')
+    _number_validate_fail(
+        {'gte': 0, 'lte': 100}, {'a': -0.00000000000000000001},
+        'Metadata value at key a is not within the range [0, 100]')
+    _number_validate_fail(
+        {'gte': 0, 'lte': 100}, {'a': 100.01},
+        'Metadata value at key a is not within the range [0, 100]')
+    # 0 is falsy, which is dumb and could cause problems here
+    _number_validate_fail(
+        {'gte': 0.1, 'lte': 100}, {'a': 0},
+        'Metadata value at key a is not within the range [0.1, 100]')
+
+
+def test_number_validate_with_keys_fails():
+    _number_validate_fail(
+        {'required': True, 'keys': ['a', 'b']}, {'a': 1},
+        'Required key b is missing')
+    _number_validate_fail(
+        {'keys': 'a'}, {'a': True}, 'Metadata value at key a is not an accepted number type')
+    _number_validate_fail(
+        {'type': 'int', 'keys': 'a'}, {'a': 3.1},
+        'Metadata value at key a is not an accepted number type')
+    _number_validate_fail(
+        {'keys': 'a', 'gt': 7, 'lt': 9}, {'a': 7},
+        'Metadata value at key a is not within the range (7, 9)')
+    _number_validate_fail(
+        {'keys': 'a', 'gt': 7, 'lt': 9}, {'a': 9},
+        'Metadata value at key a is not within the range (7, 9)')
+    _number_validate_fail(
+        {'keys': 'a', 'gte': 0, 'lte': 100}, {'a': -0.00000000000000000001},
+        'Metadata value at key a is not within the range [0, 100]')
+    _number_validate_fail(
+        {'keys': 'a', 'gte': 0, 'lte': 100}, {'a': 100.01},
+        'Metadata value at key a is not within the range [0, 100]')
+    # 0 is falsy, which is dumb and could cause problems here
+    _number_validate_fail(
+        {'gte': 0.1, 'lte': 100, 'keys': 'a'}, {'a': 0},
+        'Metadata value at key a is not within the range [0.1, 100]')
+
+
+def _number_build_fail(cfg, expected):
+    with raises(Exception) as got:
+        builtin.number(cfg)
+    assert_exception_correct(got.value, expected)
+
+
+def _number_validate_fail(cfg, meta, expected):
+    assert builtin.number(cfg)(meta) == expected

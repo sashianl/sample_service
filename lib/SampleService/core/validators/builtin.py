@@ -13,6 +13,7 @@ thrown.
 If an exception is not thrown, and a falsy value is returned, the validation succeeds.
 '''
 
+import ranges
 from typing import Dict, Any, Callable, Optional, cast as _cast
 from pint import UnitRegistry as _UnitRegistry
 from pint import DimensionalityError as _DimensionalityError
@@ -20,7 +21,7 @@ from pint import UndefinedUnitError as _UndefinedUnitError
 from pint import DefinitionSyntaxError as _DefinitionSyntaxError
 from SampleService.core.core_types import PrimitiveType
 
-# TODO float / int w/ ranges
+# TODO check for unexpected keys
 
 
 def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
@@ -51,6 +52,7 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     :param d: the configuration map for the callable.
     :returns: a callable that validates metadata maps.
     '''
+    # no reason to require max-len, could just check all values are strings. YAGNI for now
     if type(d) != dict:
         raise ValueError('d must be a dict')
     if 'max-len' not in d:
@@ -203,3 +205,98 @@ def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[st
             return (f"Units at key {k}, '{unitstr}', are not equivalent to " +
                     f"required units, '{u}': {e}")
     return unitval
+
+
+def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+    '''
+    Build a validation callable that checks that values are numerical, and optionally within a
+    given range.
+
+    By default, all values within the metadata value map must be integers or floats.
+    If the 'type' key in the configuration is set to 'int', only integers are
+    allowed.
+
+    The 'lt', 'lte', 'gt', and 'gte' configuration keys - less than, less than or equal,
+    greater than, and greater than or equal, respectively, will require that the number be
+    bounded by the given values of those keys. They are all optional. Specifying lt and lte or
+    gt and gte at the same time is an error.
+
+    If the 'keys' parameter is specified it must contain a string or a list of strings. The
+    provided string(s) are used by the returned callable to query the metadata map.
+    If any of the values for the provided keys are not a number as specified, an error is
+    returned. If the 'required' parameter's value is truthy, an error is
+    thrown if any of the keys in the 'keys' parameter do not exist in the map, athough the
+    values may be None.
+
+    :param d: the configuration map for the callable.
+    :returns: a callable that validates metadata maps.
+    '''
+    # hold off on complex numbers for now
+    if type(d) != dict:
+        raise ValueError('d must be a dict')
+    required = d.get('required')
+    keys = _get_keys(d)
+    types = _get_types(d)
+    # range checker
+    range_ = _get_range(d)
+
+    if keys:
+        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+            for k in keys:
+                if required and k not in d1:
+                    return f'Required key {k} is missing'
+                v = d1.get(k)
+                if v is not None and type(v) not in types:
+                    return f'Metadata value at key {k} is not an accepted number type'
+                if v is not None and v not in range_:
+                    return f'Metadata value at key {k} is not within the range {range_}'
+    else:
+        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+            for k, v in d1.items():
+                # duplicate of above, meh.
+                if v is not None and type(v) not in types:
+                    return f'Metadata value at key {k} is not an accepted number type'
+                if v is not None and v not in range_:
+                    return f'Metadata value at key {k} is not within the range {range_}'
+    return strlen
+
+
+def _get_types(d):
+    types = [float, int]
+    if d.get('type') == 'int':
+        types = [int]
+    elif d.get('type') is not None:
+        raise ValueError(f"Illegal value for type parameter: {d.get('type')}")
+    return types
+
+
+def _get_range(d):
+    gte = _is_num('gte', d.get('gte'))
+    gt = _is_num('gt', d.get('gt'))
+    lte = _is_num('lte', d.get('lte'))
+    lt = _is_num('lt', d.get('lt'))
+    # zero is ok here, so check vs. None
+    if gte is not None and gt is not None:
+        raise ValueError('Cannot specify both gt and gte')
+    if lte is not None and lt is not None:
+        raise ValueError('Cannot specify both lt and lte')
+    rangevals = {}
+    if gte is not None:
+        rangevals['start'] = gte
+        rangevals['include_start'] = True
+    if gt is not None:
+        rangevals['start'] = gt
+        rangevals['include_start'] = False
+    if lte is not None:
+        rangevals['end'] = lte
+        rangevals['include_end'] = True
+    if lt is not None:
+        rangevals['end'] = lt
+        rangevals['include_end'] = False
+    return ranges.Range(**rangevals)
+
+
+def _is_num(name, val):
+    if val is not None and type(val) != float and type(val) != int:
+        raise ValueError(f'Value for {name} parameter is not a number')
+    return val
