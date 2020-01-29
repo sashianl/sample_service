@@ -21,7 +21,13 @@ from pint import UndefinedUnitError as _UndefinedUnitError
 from pint import DefinitionSyntaxError as _DefinitionSyntaxError
 from SampleService.core.core_types import PrimitiveType
 
-# TODO check for unexpected keys
+
+def _check_unknown_keys(d, expected):
+    if type(d) != dict:
+        raise ValueError('d must be a dict')
+    d2 = {k for k in d if k not in expected}
+    if d2:
+        raise ValueError(f'Unexpected configuration parameter: {sorted(d2)[0]}')
 
 
 def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
@@ -30,6 +36,7 @@ def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
     :params d: The configuration parameters for the callable. Unused.
     :returns: a callable that validates metadata maps.
     '''
+    _check_unknown_keys(d, [])
     return lambda _: None
 
 
@@ -53,8 +60,7 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     :returns: a callable that validates metadata maps.
     '''
     # no reason to require max-len, could just check all values are strings. YAGNI for now
-    if type(d) != dict:
-        raise ValueError('d must be a dict')
+    _check_unknown_keys(d, {'max-len', 'required', 'keys'})
     if 'max-len' not in d:
         maxlen = None
     else:
@@ -105,8 +111,7 @@ def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
     :param d: the configuration map for the callable.
     :returns: a callable that validates metadata maps.
     '''
-    if type(d) != dict:
-        raise ValueError('d must be a dict')
+    _check_unknown_keys(d, {'allowed-values', 'keys'})
     allowed = d.get('allowed-values')
     if not allowed:
         raise ValueError('allowed-values is a required parameter')
@@ -165,8 +170,7 @@ def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[st
     :param d: the configuration map for the callable.
     :returns: a callable that validates metadata maps.
     '''
-    if type(d) != dict:
-        raise ValueError('d must be a dict')
+    _check_unknown_keys(d, {'key', 'units'})
     k = d.get('key')
     if not k:
         raise ValueError('key is a required parameter')
@@ -232,8 +236,7 @@ def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     :returns: a callable that validates metadata maps.
     '''
     # hold off on complex numbers for now
-    if type(d) != dict:
-        raise ValueError('d must be a dict')
+    _check_unknown_keys(d, {'required', 'keys', 'type', 'lt', 'gt', 'lte', 'gte'})
     required = d.get('required')
     keys = _get_keys(d)
     types = _get_types(d)

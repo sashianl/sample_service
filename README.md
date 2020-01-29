@@ -301,7 +301,6 @@ metadatakey:
   `degR` are all acceptable input to the validator. Similarly, if `N` is given, `kg * m / s^2` and
   `lb * f / s^2` are both acceptable.
 
-
 #### number
 
 Example configuration:
