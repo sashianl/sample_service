@@ -33,7 +33,8 @@ in the RE database, not via workspace annotations.
 
 ### Link data to a sample
 
-1. Make request to SS with the UPA of the object and the ID of the sample.
+1. Make request to SS with the UPA of the object and the ID (and optionally, version)
+    of the sample.
     * May want a bulk method, especially for linking columns of a matrix to multiple samples.
     * May need to associate metadata with the link, e.g. denoting to which column of a matrix
       the link refers.
@@ -53,18 +54,21 @@ in the RE database, not via workspace annotations.
         each data subunit is not linked to any other samples
         * Links may need a unique ID field in this case that, in combination with the UPA,
           uniquely identifies the subdata within the object.
+          * Should the SS verify the IDs somehow? That seems really expensive and really
+            complicated - would need a verifier for each type or the types would have to put
+            the IDs in a standard location in the JSON.
       * It can be linked to other versions of the same sample.
         * In this case, the old link should be expired (time traveling).
-      * What about errors? Expire the old link and make a new link to the new sample?
-      * May also need a method for expiring links without making new ones.
-      * Not quite sure how to do this yet.
+    * What about errors? Expire the old link and make a new link to the new sample?
+    * May also need a method for expiring links without making new ones.
+    * Not quite sure how to do this yet.
 
 ### View data linked to a sample
 
-1. Make a request to the SS with the ID of the sample.
+1. Make a request to the SS with the ID (and optionally, version) of the sample.
 2. The SS checks that the user has read access to the sample.
 3. The SS gets the list of workspaces to which the user has read access from the WSS.
-4. The SS performs a traversal from the nodes in the sample to WSS shadow objects where the
+4. The SS performs a traversal from the version node in the sample to WSS shadow objects where the
    workspace ID is in the list of accessible workspaces.
 5. The SS returns the list of UPAs.
    * How do we page through this? Could be very large.
@@ -72,6 +76,9 @@ in the RE database, not via workspace annotations.
        sort order is the order the nodes are encountered in the traversal.
        * That means we're subjecting arango to possible OOMs on these traversals.
      * Maybe return a cursor ID and page though that way.
+       * But people will want to sort...
+         * Maybe there's a way for Arango to say the result set is too large. In this case
+           we may have to do something manually to help the user.
    * May also want to query on workspace object properties. Node indexes on these properties
      could speed up the query.
 
@@ -92,6 +99,8 @@ in the RE database, not via workspace annotations.
    * Same questions as above re paging.
    * How does the metadata of parent nodes of the linked node in the sample affect the query?
      * Is metadata inherited? Should we duplicate parent metadata to children in the DB?
+   * Exclude all but the latest sample version?
+     * Not sure if this is possible in query or needs to be done in the server
 
 ### Other operations
 
