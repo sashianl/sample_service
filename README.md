@@ -149,7 +149,7 @@ in which case it should throw an exception.
  The builder is passed any parameters specified in the configuration as a
  mapping. This allows the builder function to set up any necessary state for the validator
  before returning the validator for use. Examine the validators in
-`SampleService.core.validators.builtin` for examples. A very simple example might be:
+`SampleService.core.validator.builtin` for examples. A very simple example might be:
 
  ```python
  def enum_builder(params: Dict[str, str]
@@ -206,14 +206,14 @@ builder. The builder is expected to return a callable that accepts a mapping of
 A simple configuration might look like:
 ```
 foo:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: noop
 stringlen:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: string
       parameters:
         max-len: 5
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: string
       parameters:
         keys: spcky
@@ -231,14 +231,14 @@ for more information.
 
 ### Built in validators
 
-All built in validators are in the `SampleService.core.validators.builtin` module.
+All built in validators are in the `SampleService.core.validator.builtin` module.
 
 #### noop
 
 Example configuration:
 ```
 metadatakey:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: noop
 ```
 
@@ -249,7 +249,7 @@ This validator accepts any and all values.
 Example configuration:
 ```
 metadatakey:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: string
       parameters:
         keys: ['key1', 'key2']
@@ -270,7 +270,7 @@ metadatakey:
 Example configuration:
 ```
 metadatakey:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: enum
       parameters:
         keys: ['key1', 'key2']
@@ -288,7 +288,7 @@ metadatakey:
 Example configuration:
 ```
 metadatakey:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: units
       parameters:
         key: 'units'
@@ -306,7 +306,7 @@ metadatakey:
 Example configuration:
 ```
 metadatakey:
-    - module: SampleService.core.validators.builtin
+    - module: SampleService.core.validator.builtin
       callable-builder: number
       parameters:
         keys: ['length', 'width']
