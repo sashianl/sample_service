@@ -37,7 +37,7 @@ def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
     :returns: a callable that validates metadata maps.
     '''
     _check_unknown_keys(d, [])
-    return lambda _: None
+    return lambda key, val: None
 
 
 def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
@@ -75,7 +75,7 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     keys = _get_keys(d)
     if keys:
 
-        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k in keys:
                 if required and k not in d1:
                     return f'Required key {k} is missing'
@@ -85,7 +85,7 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
                 if v and maxlen and len(v) > maxlen:
                     return f'Metadata value at key {k} is longer than max length of {maxlen}'
     elif maxlen:
-        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
                 if len(k) > maxlen:
                     return f'Metadata contains key longer than max length of {maxlen}'
@@ -125,13 +125,13 @@ def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
     keys = _get_keys(d)
     if keys:
 
-        def enumval(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k in keys:
                 if d1.get(k) not in allowed:
                     return f'Metadata value at key {k} is not in the allowed list of values'
     else:
 
-        def enumval(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
                 if v not in allowed:
                     return f'Metadata value at key {k} is not in the allowed list of values'
@@ -191,7 +191,7 @@ def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[st
     except _DefinitionSyntaxError as e:
         raise ValueError(f"unable to parse units '{u}': syntax error: {e.args[0]}")
 
-    def unitval(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+    def unitval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
         unitstr = d1.get(k)
         if not unitstr:
             return f'metadata value key {k} is required'
@@ -244,7 +244,7 @@ def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
     range_ = _get_range(d)
 
     if keys:
-        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k in keys:
                 if required and k not in d1:
                     return f'Required key {k} is missing'
@@ -254,7 +254,7 @@ def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
                 if v is not None and v not in range_:
                     return f'Metadata value at key {k} is not within the range {range_}'
     else:
-        def strlen(d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
                 # duplicate of above, meh.
                 if v is not None and type(v) not in types:

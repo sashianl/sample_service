@@ -117,7 +117,7 @@ _META_VAL_JSONSCHEMA = {
 
 
 def get_validators(url: str) -> Dict[
-        str, List[Callable[[Dict[str, PrimitiveType]], Optional[str]]]]:
+        str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]]:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -137,7 +137,7 @@ def get_validators(url: str) -> Dict[
     _validate(instance=cfg, schema=_META_VAL_JSONSCHEMA)
 
     ret: _DefaultDict[
-        str, List[Callable[[Dict[str, PrimitiveType]], Optional[str]]]] = _defaultdict(list)
+        str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]] = _defaultdict(list)
     for k, lv in cfg.items():
         for i, v in enumerate(lv):
             m = importlib.import_module(v['module'])
