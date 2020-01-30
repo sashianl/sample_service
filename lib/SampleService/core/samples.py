@@ -35,7 +35,7 @@ class Samples:
             storage: ArangoSampleStorage,
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
             metadata_validators: Dict[
-                str, List[Callable[[Dict[str, PrimitiveType]], Optional[str]]]] = None,
+                str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]] = None,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -106,7 +106,7 @@ class Samples:
                     raise _MetadataValidationError(
                         f'No validator available for metadata key {k} for node at index {i}')
                 for valfunc in self._metaval[k]:
-                    ret = valfunc(n.controlled_metadata[k])
+                    ret = valfunc(k, n.controlled_metadata[k])
                     if ret:
                         raise _MetadataValidationError(f'Node at index {i}, key {k}: ' + ret)
 

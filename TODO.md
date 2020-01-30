@@ -5,15 +5,12 @@
     as the experimental techniques don't allow it.
 
 # Functionality
-* Config in separate repo
-  * Means validator config is public
 * Admin flags on ops
 * List / find samples, possibly with...
 * Search integration
 * Logging
 * Metadata validation
   * prefix keys?
-  * Multiple validators per key?
 * Link data to samples
 * Workspace @sample integration
 * ACLs:
@@ -26,7 +23,7 @@
   document which limits the possible indexed queries to some extent.
   * Separating out the metadata documents means that traversals querying metadata would be
     more complicated or impossible.
-* Linking data may be complicated depending on the constrataints and features we want
+* Linking data may be complicated depending on the constraints and features we want
 
 # Testing
 * flake8 and bandit on test-sdkless (generated code is poopy)

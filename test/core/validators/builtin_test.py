@@ -8,7 +8,7 @@ def test_noop():
     # not much to test here.
     n = builtin.noop({})
 
-    assert n({}) is None
+    assert n('key', {}) is None
 
 
 def test_noop_fail_bad_input():
@@ -26,7 +26,7 @@ def _noop_fail_build(cfg, expected):
 
 def test_string_general():
     sl = builtin.string({'max-len': 2})
-    assert sl({
+    assert sl('key', {
         'fo': 'b',
         'e': 'fb',
         'a': True,
@@ -36,7 +36,7 @@ def test_string_general():
 
 def test_string_single_keys():
     sl = builtin.string({'keys': 'whee', 'required': False})
-    assert sl({
+    assert sl('key', {
         'fo': 'b',
         'e': 'fb',
         'whee': 'whooooooooooooo',
@@ -48,7 +48,7 @@ def test_string_single_keys():
 def test_string_multiple_keys_max_len():
     sl = builtin.string({'keys': ['whee', 'whoo', 'whoa'], 'max-len': 9})
     # missing whoo key
-    assert sl({
+    assert sl('key', {
         'fo': 'b',
         'e': 'fb',
         'whee': 'whoo',
@@ -60,7 +60,7 @@ def test_string_multiple_keys_max_len():
 
 def test_string_multiple_keys_required():
     sl = builtin.string({'keys': ['whee', 'whoo', 'whoa'], 'required': True})
-    assert sl({
+    assert sl('key', {
         'fo': 'b',
         'e': 'fb',
         'whee': None,  # test that none is allowed as a value, even w/ required
@@ -109,25 +109,25 @@ def test_string_validate_fail_bad_metadata_values():
 
 
 def _string_validate_fail(cfg, meta, expected):
-    assert builtin.string(cfg)(meta) == expected
+    assert builtin.string(cfg)('key', meta) == expected
 
 
 def test_enum():
     en = builtin.enum({'allowed-values': ['a', 1, 3.1, True]})
 
-    assert en({'z': 'a', 'w': 1, 'x': 3.1, 'y': True}) is None
+    assert en('key', {'z': 'a', 'w': 1, 'x': 3.1, 'y': True}) is None
 
 
 def test_enum_with_single_key():
     en = builtin.enum({'keys': '4', 'allowed-values': ['b', 2, 3.2, False]})
 
-    assert en({'4': 2}) is None
+    assert en('key', {'4': 2}) is None
 
 
 def test_enum_with_keys():
     en = builtin.enum({'keys': ['1', '2', '3', '4'], 'allowed-values': ['b', 2, 3.2, False]})
 
-    assert en({'1': 'b', '2': 2, '3': 3.2, '4': False}) is None
+    assert en('key', {'1': 'b', '2': 2, '3': 3.2, '4': False}) is None
 
 
 def test_enum_build_fail():
@@ -170,7 +170,7 @@ def _enum_build_fail(cfg, expected):
 
 
 def _enum_validate_fail(cfg, meta, expected):
-    assert builtin.enum(cfg)(meta) == expected
+    assert builtin.enum(cfg)('key', meta) == expected
 
 
 def test_units():
@@ -180,7 +180,7 @@ def test_units():
 
 
 def _units_good(cfg, meta):
-    assert builtin.units(cfg)(meta) is None
+    assert builtin.units(cfg)('key', meta) is None
 
 
 def test_units_build_fail():
@@ -227,7 +227,7 @@ def _units_build_fail(cfg, expected):
 
 
 def _units_validate_fail(cfg, meta, expected):
-    assert builtin.units(cfg)(meta) == expected
+    assert builtin.units(cfg)('key', meta) == expected
 
 
 def test_number():
@@ -290,7 +290,7 @@ def test_number_with_keys_and_ranges():
 
 
 def _number_success(cfg, params):
-    assert builtin.number(cfg)(params) is None
+    assert builtin.number(cfg)('key', params) is None
 
 
 def test_number_build_fail():
@@ -372,4 +372,4 @@ def _number_build_fail(cfg, expected):
 
 
 def _number_validate_fail(cfg, meta, expected):
-    assert builtin.number(cfg)(meta) == expected
+    assert builtin.number(cfg)('key', meta) == expected

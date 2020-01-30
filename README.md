@@ -132,13 +132,12 @@ A simple example:
 ```
 
 In this case, a validator would need to be assigned to the `temperature` and `location`
-metadata keys. Validators are `python` callables that accept the value of the key as the only
-argument. E.g. in the case of the `temperature` key, the argument to the function would be:
+metadata keys. Validators are `python` callables that accept the key and the value of the key as
+callable parameters. E.g. in the case of the `temperature` key, the arguments to the function
+would be:
 
 ```
-{"measurement": 1.0,
- "units": "Kelvin"
- }
+("temperature", {"measurement": 1.0, "units": "Kelvin"})
 ```
 
 If the metadata is incorrect, the validator should return an error message as a string. Otherwise
@@ -157,11 +156,12 @@ in which case it should throw an exception.
         ) -> Callable[[Dict[str, Union[float, int, bool, str]]], Optional[str]]:
     # should handle errors better here
     enums = {e.strip() for e in d['enums'].split(',')}
-    key = d['key']
+    valuekey = d['key']
 
-    def validate_enum(value: Dict[str, Union[float, int, bool, str]]) -> Optional[str]:
-        if value.get(key) not in enums:
-            return f'Illegal value for key {key}: {value.get(key)}'
+    def validate_enum(key: str, value: Dict[str, Union[float, int, bool, str]]) -> Optional[str]:
+        # key parameter not needed in this case
+        if value.get(valuekey) not in enums:
+            return f'Illegal value for key {valuekey}: {value.get(valuekey)}'
         return None
 
     return validate_enum
