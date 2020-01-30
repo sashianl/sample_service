@@ -82,14 +82,14 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
 
     metacfg = {
-        'foo': [{'module': 'SampleService.core.validators.builtin',
+        'foo': [{'module': 'SampleService.core.validator.builtin',
                  'callable-builder': 'noop'
                  }],
-        'stringlentest': [{'module': 'SampleService.core.validators.builtin',
+        'stringlentest': [{'module': 'SampleService.core.validator.builtin',
                            'callable-builder': 'string',
                            'parameters': {'max-len': 5}
                            },
-                          {'module': 'SampleService.core.validators.builtin',
+                          {'module': 'SampleService.core.validator.builtin',
                            'callable-builder': 'string',
                            'parameters': {'keys': 'spcky', 'max-len': 2}
                            }]
