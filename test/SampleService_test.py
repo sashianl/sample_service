@@ -407,11 +407,11 @@ def test_create_sample_fail_no_nodes(sample_port):
 def test_create_sample_fail_bad_metadata(sample_port):
     _create_sample_fail_bad_metadata(
         sample_port, {'stringlentest': {'foooo': 'barrrr'}},
-        'Sample service error code 30010 Metadata validation failed: Node at index 0, ' +
-        'key stringlentest: Metadata value at key foooo is longer than max length of 5')
+        'Sample service error code 30010 Metadata validation failed: Node at index 0: ' +
+        'Key stringlentest: Metadata value at key foooo is longer than max length of 5')
     _create_sample_fail_bad_metadata(
         sample_port, {'stringlentest': {'foooo': 'barrr', 'spcky': 'baz'}},
-        'Sample service error code 30010 Metadata validation failed: Node at index 0, key ' +
+        'Sample service error code 30010 Metadata validation failed: Node at index 0: Key ' +
         'stringlentest: Metadata value at key spcky is longer than max length of 2')
 
 

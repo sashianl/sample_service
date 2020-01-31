@@ -6,17 +6,17 @@ import datetime
 import uuid as _uuid
 from uuid import UUID
 
-from typing import Optional, Callable, Tuple, Dict, List, cast as _cast
+from typing import Optional, Callable, Tuple, List, cast as _cast
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
+from SampleService.core.validator.metadata_validator import MetadataValidator
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
 from SampleService.core.sample import Sample, SavedSample
-from SampleService.core.core_types import PrimitiveType
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
@@ -34,8 +34,7 @@ class Samples:
             self,
             storage: ArangoSampleStorage,
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
-            metadata_validators: Dict[
-                str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]] = None,
+            metadata_validator: MetadataValidator,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -44,9 +43,7 @@ class Samples:
 
         :param storage: the storage system to use.
         :param user_lookup: a service to verify usernames are valid and exist.
-        :param metadata_validators: A dictionary containing a mapping of a metadata validator name
-            to a validator function. The function expects a single argument,
-            the metadata dictionary associated with the key.
+        :param metadata_validator: A validator for metadata.
         '''
         # don't publicize these params
         # :param now: A callable that returns the current time. Primarily used for testing.
@@ -54,7 +51,7 @@ class Samples:
         # extract an interface from ASS if needed.
         self._storage = _not_falsy(storage, 'storage')
         self._user_lookup = _not_falsy(user_lookup, 'user_lookup')
-        self._metaval = metadata_validators if metadata_validators else {}
+        self._metaval = _not_falsy(metadata_validator, 'metadata_validator')
         self._now = _not_falsy(now, 'now')
         self._uuid_gen = _not_falsy(uuid_gen, 'uuid_gen')
 
@@ -101,14 +98,10 @@ class Samples:
 
     def _validate_metadata(self, sample: Sample):
         for i, n in enumerate(sample.nodes):
-            for k in n.controlled_metadata:
-                if not self._metaval.get(k):
-                    raise _MetadataValidationError(
-                        f'No validator available for metadata key {k} for node at index {i}')
-                for valfunc in self._metaval[k]:
-                    ret = valfunc(k, n.controlled_metadata[k])
-                    if ret:
-                        raise _MetadataValidationError(f'Node at index {i}, key {k}: ' + ret)
+            try:
+                self._metaval.validate_metadata(n.controlled_metadata)
+            except _MetadataValidationError as e:
+                raise _MetadataValidationError(f'Node at index {i}: {e.message}') from e
 
     def _check_perms(
             self,

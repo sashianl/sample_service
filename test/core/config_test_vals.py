@@ -3,14 +3,14 @@ def s(d):
 
 
 def val1(d1):
-    def f(d2):
-        return f'1, {s(d1)}, {s(d2)}'
+    def f(key, d2):
+        return f'1, {key}, {s(d1)}, {s(d2)}'
     return f
 
 
 def val2(d1):
-    def f(d2):
-        return f'2, {s(d1)}, {s(d2)}'
+    def f(key, d2):
+        return f'2, {key}, {s(d1)}, {s(d2)}'
     return f
 
 

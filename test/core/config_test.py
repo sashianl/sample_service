@@ -49,20 +49,23 @@ def test_config_get_validators(temp_dir):
            }
     tf = _write_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
-    assert len(vals) == 3
+    assert len(vals.keys()) == 3
     # the test validators always fail
-    assert len(vals['key1']) == 1
-    assert vals['key1'][0]({'a': 'b'}) == "1, {}, {'a': 'b'}"
-    assert len(vals['key2']) == 2
-    assert vals['key2'][0]({'a': 'd'}) == "2, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
-    assert vals['key2'][1]({'a': 'd'}) == "2, {'foo': 'bar', 'max-len': 5}, {'a': 'd'}"
-    assert len(vals['key3']) == 1
-    assert vals['key3'][0]({'a': 'c'}) == "1, {'foo': 'bat'}, {'a': 'c'}"
+    assert vals.validator_count('key1') == 1
+    assert vals.call_validator('key1', 0, {'a': 'b'}) == "1, key1, {}, {'a': 'b'}"
+    assert vals.validator_count('key2') == 2
+    assert vals.call_validator(
+        'key2', 0, {'a': 'd'}) == "2, key2, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
+    assert vals.call_validator(
+        'key2', 1, {'a': 'd'}) == "2, key2, {'foo': 'bar', 'max-len': 5}, {'a': 'd'}"
+    assert vals.validator_count('key3') == 1
+    assert vals.call_validator('key3', 0, {'a': 'c'}) == "1, key3, {'foo': 'bat'}, {'a': 'c'}"
 
     # noop entry
     cfg = {}
     tf = _write_config(cfg, temp_dir)
-    assert get_validators('file://' + tf) == {}
+    vals = get_validators('file://' + tf)
+    assert len(vals.keys()) == 0
 
 
 def test_config_get_validators_fail_bad_file(temp_dir):
