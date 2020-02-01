@@ -16,6 +16,7 @@ from jsonschema import validate as _validate
 import arango as _arango
 
 from SampleService.core.core_types import PrimitiveType
+from SampleService.core.validator.metadata_validator import MetadataValidator
 from SampleService.core.samples import Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
@@ -57,7 +58,7 @@ def build_samples(config: Dict[str, str]) -> Samples:
                                 optional=True)
 
     # build the validators before trying to connect to arango
-    metaval = get_validators(metaval_url) if metaval_url else {}
+    metaval = get_validators(metaval_url) if metaval_url else MetadataValidator()
 
     # meta params may have info that shouldn't be logged so don't log any for now.
     # Add code to deal with this later if needed
@@ -116,8 +117,7 @@ _META_VAL_JSONSCHEMA = {
 }
 
 
-def get_validators(url: str) -> Dict[
-        str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]]:
+def get_validators(url: str) -> MetadataValidator:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -148,4 +148,4 @@ def get_validators(url: str) -> Dict[
                 raise ValueError(
                     f'Metadata validator callable build #{i} failed for key {k}: {e.args[0]}'
                     ) from e
-    return dict(ret)  # get rid of defaultdict which can be surprising
+    return MetadataValidator(ret)
