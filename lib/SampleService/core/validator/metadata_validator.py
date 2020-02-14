@@ -138,6 +138,4 @@ class MetadataValidator:
                         raise _MetadataValidationError(
                             f'Prefix validator {p}, key {k}: ' + ret)
 
-# TODO add to config and set up
-# TODO integration test
 # TODO docs

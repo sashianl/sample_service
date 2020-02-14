@@ -26,7 +26,7 @@ from auth_controller import AuthController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.1.0-alpha3'
+VER = '0.1.0-alpha4'
 
 _AUTH_DB = 'test_auth_db'
 
@@ -92,7 +92,12 @@ def create_deploy_cfg(auth_port, arango_port):
                           {'module': 'SampleService.core.validator.builtin',
                            'callable-builder': 'string',
                            'parameters': {'keys': 'spcky', 'max-len': 2}
-                           }]
+                           }],
+        'pre': [{'module': 'core.config_test_vals',
+                 'callable-builder': 'prefix_validator_test_builder',
+                 'prefix': True,
+                 'parameters': {'fail_on_arg': 'fail_plz'}
+                 }]
     }
     metaval = tempfile.mkstemp('.cfg', 'metaval-', dir=test_utils.get_temp_dir(), text=True)
     os.close(metaval[0])
@@ -299,7 +304,9 @@ def test_create_and_get_sample_with_version(sample_port):
                                       'type': 'BioReplicate',
                                       'meta_controlled': {'foo': {'bar': 'baz'},
                                                           'stringlentest': {'foooo': 'barrr',
-                                                                            'spcky': 'fa'}},
+                                                                            'spcky': 'fa'},
+                                                          'prefixed': {'safe': 'args'}
+                                                          },
                                       'meta_user': {'a': {'b': 'c'}}
                                       }
                                      ]
@@ -355,7 +362,9 @@ def test_create_and_get_sample_with_version(sample_port):
                        'type': 'BioReplicate',
                        'meta_controlled': {'foo': {'bar': 'baz'},
                                            'stringlentest': {'foooo': 'barrr',
-                                                             'spcky': 'fa'}},
+                                                             'spcky': 'fa'},
+                                           'prefixed': {'safe': 'args'}
+                                           },
                        'meta_user': {'a': {'b': 'c'}}}]
     }
 
@@ -413,6 +422,10 @@ def test_create_sample_fail_bad_metadata(sample_port):
         sample_port, {'stringlentest': {'foooo': 'barrr', 'spcky': 'baz'}},
         'Sample service error code 30010 Metadata validation failed: Node at index 0: Key ' +
         'stringlentest: Metadata value at key spcky is longer than max length of 2')
+    _create_sample_fail_bad_metadata(
+        sample_port, {'prefix': {'fail_plz': 'yes, or principal sayof'}},
+        "Sample service error code 30010 Metadata validation failed: Node at index 0: " +
+        "Prefix validator pre, key prefix: pre, prefix, {'fail_plz': 'yes, or principal sayof'}")
 
 
 def _create_sample_fail_bad_metadata(sample_port, meta, expected):
