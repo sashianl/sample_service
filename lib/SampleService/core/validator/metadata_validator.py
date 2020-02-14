@@ -26,7 +26,7 @@ class MetadataValidator:
         :param validators: A map from metadata keys to a list of validators for that key.
           The arguments to each validator are the metadata key and the value mapped from the key.
         :param prefix_validators: A map from metadata prefix keys to a list of validators for
-          that key. These keys match any metdata key for which they are a prefix, and their
+          that key. These keys match any metadata key for which they are a prefix, and their
           validators will be run on any matching key.
           The arguments to each validator are the metadata key, the prefix key that matched the
           key, and the value mapped from the metadata key.

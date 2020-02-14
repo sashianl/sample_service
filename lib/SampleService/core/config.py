@@ -108,6 +108,7 @@ _META_VAL_JSONSCHEMA = {
             'properties': {
                 'module': {'type': 'string'},
                 'callable-builder': {'type': 'string'},
+                'prefix': {'type': 'boolean'},
                 'parameters': {'type': 'object'}
             },
             'additionalProperties': False,
@@ -136,16 +137,23 @@ def get_validators(url: str) -> MetadataValidator:
             f'Failed to open validator configuration file at {url}: {str(e)}') from e
     _validate(instance=cfg, schema=_META_VAL_JSONSCHEMA)
 
-    ret: _DefaultDict[
+    vals: _DefaultDict[
         str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]] = _defaultdict(list)
-    for k, lv in cfg.items():
-        for i, v in enumerate(lv):
-            m = importlib.import_module(v['module'])
-            p = v.get('parameters')
+    prefix_vals: _DefaultDict[
+        str, List[Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]]
+        ] = _defaultdict(list)
+    for key, validator_list in cfg.items():
+        for i, val in enumerate(validator_list):
+            m = importlib.import_module(val['module'])
+            p = val.get('parameters')
             try:
-                ret[k].append(getattr(m, v['callable-builder'])(p if p else {}))
+                build_func = getattr(m, val['callable-builder'])
+                if val.get('prefix'):  # mypy gets unhappy if we condense this
+                    prefix_vals[key].append(build_func(p if p else {}))
+                else:
+                    vals[key].append(build_func(p if p else {}))
             except Exception as e:
                 raise ValueError(
-                    f'Metadata validator callable build #{i} failed for key {k}: {e.args[0]}'
+                    f'Metadata validator callable build #{i} failed for key {key}: {e.args[0]}'
                     ) from e
-    return MetadataValidator(ret)
+    return MetadataValidator(vals, prefix_vals)

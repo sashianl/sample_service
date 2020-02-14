@@ -40,32 +40,72 @@ def test_config_get_validators(temp_dir):
                      },
                     {'module': 'core.config_test_vals',
                      'callable-builder': 'val2',
-                     'parameters': {'max-len': 5, 'foo': 'bar'}
+                     'parameters': {'max-len': 5, 'foo': 'bar'},
+                     'prefix': False
                      }],
            'key3': [{'module': 'core.config_test_vals',
                      'callable-builder': 'val1',
+                     'parameters': {'foo': 'bat'}
+                     }],
+           'key4': [{'module': 'core.config_test_vals',
+                     'callable-builder': 'pval1',
+                     'prefix': True
+                     }],
+           'key5': [{'module': 'core.config_test_vals',
+                     'callable-builder': 'pval2',
+                     'parameters': {'max-len': 7, 'foo': 'bar'},
+                     'prefix': True,
+                     },
+                    {'module': 'core.config_test_vals',
+                     'callable-builder': 'pval2',
+                     'prefix': True,
+                     'parameters': {'max-len': 5, 'foo': 'bar'}
+                     }],
+           'key6': [{'module': 'core.config_test_vals',
+                     'callable-builder': 'pval1',
+                     'prefix': True,
                      'parameters': {'foo': 'bat'}
                      }]
            }
     tf = _write_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
     assert len(vals.keys()) == 3
+    assert len(vals.prefix_keys()) == 3
     # the test validators always fail
     assert vals.validator_count('key1') == 1
     assert vals.call_validator('key1', 0, {'a': 'b'}) == "1, key1, {}, {'a': 'b'}"
+
     assert vals.validator_count('key2') == 2
     assert vals.call_validator(
         'key2', 0, {'a': 'd'}) == "2, key2, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
     assert vals.call_validator(
         'key2', 1, {'a': 'd'}) == "2, key2, {'foo': 'bar', 'max-len': 5}, {'a': 'd'}"
+
     assert vals.validator_count('key3') == 1
     assert vals.call_validator('key3', 0, {'a': 'c'}) == "1, key3, {'foo': 'bat'}, {'a': 'c'}"
+
+    assert vals.prefix_validator_count('key4') == 1
+    assert vals.call_prefix_validator(
+        'key4', 0, 'key4stuff', {'a': 'b'}) == "1, key4, key4stuff, {}, {'a': 'b'}"
+
+    assert vals.prefix_validator_count('key5') == 2
+    assert vals.call_prefix_validator(
+        'key5', 0, 'key5s', {'a': 'd'}
+        ) == "2, key5, key5s, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
+    assert vals.call_prefix_validator(
+        'key5', 1, 'key5s1', {'a': 'd'}
+        ) == "2, key5, key5s1, {'foo': 'bar', 'max-len': 5}, {'a': 'd'}"
+
+    assert vals.prefix_validator_count('key6') == 1
+    assert vals.call_prefix_validator(
+        'key6', 0, 'key6s', {'a': 'c'}) == "1, key6, key6s, {'foo': 'bat'}, {'a': 'c'}"
 
     # noop entry
     cfg = {}
     tf = _write_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
     assert len(vals.keys()) == 0
+    assert len(vals.prefix_keys()) == 0
 
 
 def test_config_get_validators_fail_bad_file(temp_dir):
@@ -125,6 +165,9 @@ def test_config_get_validators_fail_bad_params(temp_dir):
     _config_get_validators_fail(
         {'key': [{'module': 'foo', 'callable-builder': 'bar', 'parameters': 'foo'}]}, temp_dir,
         ValidationError("'foo' is not of type 'object'"))
+    _config_get_validators_fail(
+        {'key': [{'module': 'foo', 'callable-builder': 'bar', 'prefix': 0}]}, temp_dir,
+        ValidationError("0 is not of type 'boolean'"))
 
 
 def test_config_get_validators_fail_no_module(temp_dir):
@@ -143,9 +186,27 @@ def test_config_get_validators_fail_no_function(temp_dir):
 def test_config_get_validators_fail_function_exception(temp_dir):
     _config_get_validators_fail(
         {'x': [{'module': 'core.config_test_vals', 'callable-builder': 'val1'},
-               {'module': 'core.config_test_vals', 'callable-builder': 'fail_val'}]}, temp_dir,
+               {'module': 'core.config_test_vals', 'callable-builder': 'fail_val'}]},
+        temp_dir,
         ValueError("Metadata validator callable build #1 failed for key x: " +
                    "we've no functions 'ere"))
+
+
+def test_config_get_prefix_validators_fail_function_exception(temp_dir):
+    _config_get_validators_fail(
+        {'p': [{'module': 'core.config_test_vals',
+                'callable-builder': 'val1',
+                'prefix': True},
+               {'module': 'core.config_test_vals',
+                'callable-builder': 'val1',
+                'prefix': True},
+               {'module': 'core.config_test_vals',
+                'callable-builder': 'fail_prefix_val',
+                'prefix': True}
+               ]},
+        temp_dir,
+        ValueError("Metadata validator callable build #2 failed for key p: " +
+                   "we've no prefix functions 'ere"))
 
 
 def _config_get_validators_fail(cfg, temp_dir, expected):
