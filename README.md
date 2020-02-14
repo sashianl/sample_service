@@ -155,8 +155,8 @@ in which case it should throw an exception.
  def enum_builder(params: Dict[str, str]
         ) -> Callable[[Dict[str, Union[float, int, bool, str]]], Optional[str]]:
     # should handle errors better here
-    enums = {e.strip() for e in d['enums'].split(',')}
-    valuekey = d['key']
+    enums = set(params['enums'])
+    valuekey = params['key']
 
     def validate_enum(key: str, value: Dict[str, Union[float, int, bool, str]]) -> Optional[str]:
         # key parameter not needed in this case
