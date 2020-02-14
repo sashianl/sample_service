@@ -16,3 +16,19 @@ def val2(d1):
 
 def fail_val(d):
     raise ValueError("we've no functions 'ere")
+
+
+def pval1(d1):
+    def f(prefix, key, d2):
+        return f'1, {prefix}, {key}, {s(d1)}, {s(d2)}'
+    return f
+
+
+def pval2(d1):
+    def f(prefix, key, d2):
+        return f'2, {prefix}, {key}, {s(d1)}, {s(d2)}'
+    return f
+
+
+def fail_prefix_val(d):
+    raise ValueError("we've no prefix functions 'ere")
