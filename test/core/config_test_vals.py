@@ -32,3 +32,12 @@ def pval2(d1):
 
 def fail_prefix_val(d):
     raise ValueError("we've no prefix functions 'ere")
+
+
+def prefix_validator_test_builder(cfg):
+    arg = cfg['fail_on_arg']
+
+    def val(prefix, key, args):
+        if arg in args:
+            return f'{prefix}, {key}, {dict(sorted(args.items()))}'
+    return val
