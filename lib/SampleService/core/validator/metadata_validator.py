@@ -137,5 +137,3 @@ class MetadataValidator:
                     if ret:
                         raise _MetadataValidationError(
                             f'Prefix validator {p}, key {k}: ' + ret)
-
-# TODO docs
