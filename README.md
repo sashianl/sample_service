@@ -167,6 +167,51 @@ in which case it should throw an exception.
     return validate_enum
 ```
 
+### Prefix validators
+
+The sample service supports a special class of validators that will validate any keys that match
+a specified prefix, as opposed to standard validators that only validate keys that match exactly.
+Otherwise they behave similarly to standard validators except the validator function signature is:
+
+```
+(prefix, key, value)
+```
+
+For the temperature example above, if the prefix for the validator was `temp`, the arguments
+would be
+
+```
+("temp", "temperature", {"measurement": 1.0, "units": "Kelvin"})
+```
+
+A particular metadata key can match one standard validator key (which may have many 
+validators associated with it) and up to `n` prefix validator keys, where `n` is the length of the
+key in characters. Like standard metadata keys, prefix validator keys may have multiple
+validators associated with them. The validators are run in the order of the list for a particular
+prefix key, but the order the matching prefix keys are run against the metadata key is not
+specified.
+
+A toy example of a prefix validators builder function might be:
+
+```python
+def chemical_species_builder(params: Dict[str, str]
+        ) -> Callable[[Dict[str, str, Union[float, int, bool, str]]], Optional[str]]:
+    # or contact an external db or whatever
+    chem_db = setup_sqlite_db_wrapper(params['sqlite_file'])
+    valuekey = params['key']
+
+    def validate_cs(prefix: str, key: str, value: Dict[str, Union[float, int, bool, str]]
+            ) -> Optional[str]:
+        species = key[len(prefix):]
+        if value[valuekey] != species:
+            return f'Species in key {species} does not match species in value {value[valuekey]}'
+        if not chem_db.find_chem_species(species):
+            return f'No such chemical species: {species}
+        return None
+
+    return validate_cs
+```
+
 ### Configuration
 
 The `deploy.cfg` configuration file contains a key, `metadata-validator-config-url`, that if
@@ -186,6 +231,7 @@ The configuration file uses the YAML format and is validated against the followi
             'properties': {
                 'module': {'type': 'string'},
                 'callable-builder': {'type': 'string'},
+                'prefix': {'type': 'boolean'},
                 'parameters': {'type': 'object'}
             },
             'additionalProperties': False,
@@ -199,9 +245,9 @@ The configuration consists of a mapping of metadata keys to a list of validator 
 per key. Each validator is run against the metadata value in order. The `module` key is a python
 import path for the module containing a builder function for the validator, while the
 `callable-builder` key is the name of the function within the module that can be called to 
-create the validator. `parameters` contains a mapping that is passed directly to the callable
-builder. The builder is expected to return a callable that accepts a mapping of
-`str -> Union[str, int, float, bool]`.
+create the validator. `prefix`, if `True`, specifies that the validator is a prefix validator.
+`parameters` contains a mapping that is passed directly to the callable builder. The builder
+is expected to return a callable with the call signature as described previously.
 
 A simple configuration might look like:
 ```
@@ -218,6 +264,13 @@ stringlen:
       parameters:
         keys: spcky
         max-len: 2
+gene_ontology_:
+    - module: geneontology.plugins.kbase
+      callable-builder: go_builder
+      prefix: True
+      parameters: 
+        url: https://fake.go.service.org/api/go
+        apitoken: abcdefg-hijklmnop
 ```
 
 In this case any value for the `foo` key is allowed, as the `noop` validator is assigned to the
@@ -228,6 +281,11 @@ both validators. The first validator ensures that no keys or value strings in in
 are longer than 5 characters, and the second ensures that the value of the `spcky` key is a
 string of no more than two characters. See the documentation for the `string` validator (below)
 for more information.
+Finally, the wholly fabricated `gene_ontology_` prefix validator will match **any** key
+starting with `gene_ontology_`. The validator code might look up the suffix of the key,
+say `GO_0099593`, at the provided url to ensure the suffix matches a legitmate ontology
+term. Without a prefix validator, a validator would have to be written for each individual
+ontology term, which is infeasible.
 
 ### Built in validators
 

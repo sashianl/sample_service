@@ -9,8 +9,6 @@
 * List / find samples, possibly with...
 * Search integration
 * Logging
-* Metadata validation
-  * prefix keys?
 * Link data to samples
 * Workspace @sample integration
 * ACLs:
