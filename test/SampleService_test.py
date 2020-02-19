@@ -1008,8 +1008,8 @@ def _check_is_admin(port, results, full_roles=None, read_roles=None):
         full_roles,
         read_roles)
 
-    for t, r in zip([TOKEN1, TOKEN2, TOKEN3, TOKEN4], results):
-        assert ul.is_admin(t) == r
+    for t, u, r in zip([TOKEN1, TOKEN2, TOKEN3, TOKEN4], [USER1, USER2, USER3, USER4], results):
+        assert ul.is_admin(t) == (r, u)
 
 
 def test_is_admin_fail_bad_input(sample_port, auth):

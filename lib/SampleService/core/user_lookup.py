@@ -6,7 +6,7 @@
 from enum import IntEnum
 import logging
 import requests
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _no_falsy_in_iterable
@@ -109,19 +109,22 @@ class KBaseUserLookup:
         # TODO ACL cache
         return [u for u in usernames if u not in good_users]
 
-    def is_admin(self, token: str):
+    def is_admin(self, token: str) -> Tuple[AdminPermission, str]:
         '''
         Check whether a user is a service administrator.
 
         :param token: The user's token.
-        :returns: An enum indicating the user's administration permissions, if any.
+        :returns: A tuple consisting of an enum indicating the user's administration permissions,
+          if any, and the username.
         '''
         # TODO ACL cache admin users
         # TODO CODE should regex the token to check for \n etc., but the SDK has already checked it
         _not_falsy(token, 'token')
         r = requests.get(self._me_url, headers={'Authorization': token})
         self._check_error(r)
-        return self._get_role(r.json()['customroles'])
+        j = r.json()
+        print(j)
+        return self._get_role(j['customroles']), j['user']
 
     def _get_role(self, roles):
         r = set(roles)
