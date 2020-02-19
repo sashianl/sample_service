@@ -113,7 +113,7 @@ def split_value(d: Dict[str, str], key: str):
     rstr = _check_string(d.get(key), 'config param ' + key, optional=True)
     if not rstr:
         return []
-    return [x.strip() for x in rstr.split(',')]
+    return [x.strip() for x in rstr.split(',') if x.strip()]
 
 
 def _check_string_req(s: Optional[str], name: str) -> str:
