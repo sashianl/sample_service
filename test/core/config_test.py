@@ -36,7 +36,7 @@ def test_split_value():
     assert split_value({'k': None}, 'k') == []
     assert split_value({'k': '      '}, 'k') == []
     assert split_value({'k': '    foo  '}, 'k') == ['foo']
-    assert split_value({'k': 'foo  ,  bar    , baz  '}, 'k') == ['foo', 'bar', 'baz']
+    assert split_value({'k': 'foo  ,  bar  ,     , baz  '}, 'k') == ['foo', 'bar', 'baz']
 
 
 def test_split_value_fail():
