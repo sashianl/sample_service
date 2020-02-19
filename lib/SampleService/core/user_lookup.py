@@ -123,7 +123,6 @@ class KBaseUserLookup:
         r = requests.get(self._me_url, headers={'Authorization': token})
         self._check_error(r)
         j = r.json()
-        print(j)
         return self._get_role(j['customroles']), j['user']
 
     def _get_role(self, roles):
