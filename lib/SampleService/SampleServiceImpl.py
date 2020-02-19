@@ -40,7 +40,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     # be found
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
-        self._samples = _build_samples(config)
+        self._samples, self._user_lookup = _build_samples(config)
         #END_CONSTRUCTOR
         pass
 
