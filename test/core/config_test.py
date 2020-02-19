@@ -10,7 +10,8 @@ from jsonschema.exceptions import ValidationError
 
 from core import test_utils
 from core.test_utils import assert_exception_correct
-from SampleService.core.config import get_validators
+from SampleService.core.config import get_validators, split_value
+from SampleService.core.errors import IllegalParameterError
 
 
 @fixture(scope='module')
@@ -22,12 +23,32 @@ def temp_dir():
         shutil.rmtree(test_utils.get_temp_dir())
 
 
-def _write_config(cfg, temp_dir):
+def _write_validator_config(cfg, temp_dir):
     tf = tempfile.mkstemp('.tmp.cfg', 'config_test_', dir=temp_dir)
     os.close(tf[0])
     with open(tf[1], 'w') as temp:
         yaml.dump(cfg, temp)
     return tf[1]
+
+
+def test_split_value():
+    assert split_value({}, 'k') == []
+    assert split_value({'k': None}, 'k') == []
+    assert split_value({'k': '      '}, 'k') == []
+    assert split_value({'k': '    foo  '}, 'k') == ['foo']
+    assert split_value({'k': 'foo  ,  bar    , baz  '}, 'k') == ['foo', 'bar', 'baz']
+
+
+def test_split_value_fail():
+    _split_value_fail(None, 'k', ValueError('d cannot be None'))
+    _split_value_fail({'k': 'foo\tbar'}, 'k', IllegalParameterError(
+        'config param k contains control characters'))
+
+
+def _split_value_fail(d, k, expected):
+    with raises(Exception) as got:
+        split_value(d, k)
+    assert_exception_correct(got.value, expected)
 
 
 def test_config_get_validators(temp_dir):
@@ -67,7 +88,7 @@ def test_config_get_validators(temp_dir):
                      'parameters': {'foo': 'bat'}
                      }]
            }
-    tf = _write_config(cfg, temp_dir)
+    tf = _write_validator_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
     assert len(vals.keys()) == 3
     assert len(vals.prefix_keys()) == 3
@@ -102,14 +123,14 @@ def test_config_get_validators(temp_dir):
 
     # noop entry
     cfg = {}
-    tf = _write_config(cfg, temp_dir)
+    tf = _write_validator_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
     assert len(vals.keys()) == 0
     assert len(vals.prefix_keys()) == 0
 
 
 def test_config_get_validators_fail_bad_file(temp_dir):
-    tf = _write_config({}, temp_dir)
+    tf = _write_validator_config({}, temp_dir)
     os.remove(tf)
     with raises(Exception) as got:
         get_validators('file://' + tf)
@@ -210,7 +231,7 @@ def test_config_get_prefix_validators_fail_function_exception(temp_dir):
 
 
 def _config_get_validators_fail(cfg, temp_dir, expected):
-    tf = _write_config(cfg, temp_dir)
+    tf = _write_validator_config(cfg, temp_dir)
     with raises(Exception) as got:
         get_validators('file://' + tf)
     assert_exception_correct(got.value, expected)

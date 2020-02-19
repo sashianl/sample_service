@@ -7,7 +7,8 @@ Configuration parsing and creation for the sample service.
 
 from collections import defaultdict as _defaultdict
 import importlib
-from typing import Dict, Callable, Optional, List, cast as _cast, DefaultDict as _DefaultDict
+from typing import Dict, Callable, Optional, List, Tuple
+from typing import cast as _cast, DefaultDict as _DefaultDict
 import urllib as _urllib
 from urllib.error import URLError as _URLError
 import yaml as _yaml
@@ -21,10 +22,10 @@ from SampleService.core.samples import Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
-from SampleService.core.user_lookup import KBaseUserLookup as _KBaseUserLookup
+from SampleService.core.user_lookup import KBaseUserLookup
 
 
-def build_samples(config: Dict[str, str]) -> Samples:
+def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     '''
     Build the sample service instance from the SDK server provided parameters.
 
@@ -56,6 +57,8 @@ def build_samples(config: Dict[str, str]) -> Samples:
     metaval_url = _check_string(config.get('metadata-validator-config-url'),
                                 'config param metadata-validator-config-url',
                                 optional=True)
+    full_roles = split_value(config, 'auth-full-admin-roles')
+    read_roles = split_value(config, 'auth-read-admin-roles')
 
     # build the validators before trying to connect to arango
     metaval = get_validators(metaval_url) if metaval_url else MetadataValidator()
@@ -76,6 +79,8 @@ def build_samples(config: Dict[str, str]) -> Samples:
             schema-collection: {col_schema}
             auth-root-url: {auth_root_url}
             auth-token: [REDACTED FOR YOUR CONVENIENCE AND ENJOYMENT]
+            auth-full-admin-roles: {', '.join(full_roles)}
+            auth-read-admin-roles: {', '.join(read_roles)}
     ''')
 
     arangoclient = _arango.ArangoClient(hosts=arango_url)
@@ -90,8 +95,25 @@ def build_samples(config: Dict[str, str]) -> Samples:
         col_node_edge,
         col_schema,
     )
-    user_lookup = _KBaseUserLookup(auth_root_url, auth_token)
-    return Samples(storage, user_lookup, metaval)
+    user_lookup = KBaseUserLookup(auth_root_url, auth_token, full_roles, read_roles)
+    return Samples(storage, user_lookup, metaval), user_lookup
+
+
+def split_value(d: Dict[str, str], key: str):
+    '''
+    Get a list of comma separated values given a string taken from a configuration dict.
+    :param config: The configuration dict containing the string to be processed as a value.
+    :param key: The key in the dict containing the value.
+    :returns: a list of strings split from the source comma separated string, or an empty list
+    if the key does not exist or contains only whitespace.
+    :raises ValueError: if the value contains control characters.
+    '''
+    if d is None:
+        raise ValueError('d cannot be None')
+    rstr = _check_string(d.get(key), 'config param ' + key, optional=True)
+    if not rstr:
+        return []
+    return [x.strip() for x in rstr.split(',')]
 
 
 def _check_string_req(s: Optional[str], name: str) -> str:

@@ -1,6 +1,5 @@
 # SampleService
 
-
 Build status (master):
 [![Build Status](https://travis-ci.org/kbaseIncubator/sample_service.svg?branch=master)](https://travis-ci.org/kbaseIncubator/sample_service)
 [![Coverage Status](https://coveralls.io/repos/github/kbaseIncubator/sample_service/badge.svg?branch=master)](https://coveralls.io/github/kbaseIncubator/sample_service?branch=master)
