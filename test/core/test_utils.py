@@ -127,3 +127,21 @@ def create_auth_login_token(auth_url, username):
     if not ret.ok:
         ret.raise_for_status()
     return ret.json()['token']
+
+
+def create_auth_role(auth_url, role, description):
+    ret = requests.post(
+        auth_url + '/testmode/api/V2/testmodeonly/customroles',
+        headers={'accept': 'application/json'},
+        json={'id': role, 'desc': description})
+    if not ret.ok:
+        ret.raise_for_status()
+
+
+def set_custom_roles(auth_url, user, roles):
+    ret = requests.put(
+        auth_url + '/testmode/api/V2/testmodeonly/userroles',
+        headers={'accept': 'application/json'},
+        json={'user': user, 'customroles': roles})
+    if not ret.ok:
+        ret.raise_for_status()

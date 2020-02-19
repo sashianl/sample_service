@@ -15,7 +15,8 @@ from threading import Thread
 
 from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import MissingParameterError
-from SampleService.core.user_lookup import KBaseUserLookup, InvalidTokenError, InvalidUserError
+from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
+from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
 
 from core import test_utils
 from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct
@@ -145,15 +146,26 @@ def auth(mongo):
     print(f'running KBase Auth2 {auth.version} on port {auth.port} in dir {auth.temp_dir}')
     url = f'http://localhost:{auth.port}'
 
+    test_utils.create_auth_role(url, 'fulladmin1', 'fa1')
+    test_utils.create_auth_role(url, 'fulladmin2', 'fa2')
+    test_utils.create_auth_role(url, 'readadmin1', 'ra1')
+    test_utils.create_auth_role(url, 'readadmin2', 'ra2')
+
     test_utils.create_auth_user(url, USER_SERVICE, 'serv')
     TOKEN_SERVICE = test_utils.create_auth_login_token(url, USER_SERVICE)
 
     test_utils.create_auth_user(url, USER1, 'display1')
     TOKEN1 = test_utils.create_auth_login_token(url, USER1)
+    test_utils.set_custom_roles(url, USER1, ['fulladmin1'])
+
     test_utils.create_auth_user(url, USER2, 'display2')
     TOKEN2 = test_utils.create_auth_login_token(url, USER2)
+    test_utils.set_custom_roles(url, USER2, ['fulladmin1', 'fulladmin2', 'readadmin2'])
+
     test_utils.create_auth_user(url, USER3, 'display3')
     TOKEN3 = test_utils.create_auth_login_token(url, USER3)
+    test_utils.set_custom_roles(url, USER3, ['readadmin1'])
+
     test_utils.create_auth_user(url, USER4, 'display4')
     TOKEN4 = test_utils.create_auth_login_token(url, USER4)
 
@@ -972,4 +984,49 @@ def test_user_lookup_fail_bad_username(sample_port, auth):
 def _user_lookup_fail(userlookup, users, expected):
     with raises(Exception) as got:
         userlookup.are_valid_users(users)
+    assert_exception_correct(got.value, expected)
+
+
+def test_is_admin(sample_port, auth):
+    n = AdminPermission.NONE
+    r = AdminPermission.READ
+    f = AdminPermission.FULL
+
+    _check_is_admin(auth.port, [n, n, n, n])
+    _check_is_admin(auth.port, [f, f, n, n], ['fulladmin1'])
+    _check_is_admin(auth.port, [n, f, n, n], ['fulladmin2'])
+    _check_is_admin(auth.port, [n, n, r, n], None, ['readadmin1'])
+    _check_is_admin(auth.port, [n, r, n, n], None, ['readadmin2'])
+    _check_is_admin(auth.port, [n, f, n, n], ['fulladmin2'], ['readadmin2'])
+    _check_is_admin(auth.port, [n, f, r, n], ['fulladmin2'], ['readadmin1'])
+
+
+def _check_is_admin(port, results, full_roles=None, read_roles=None):
+    ul = KBaseUserLookup(
+        f'http://localhost:{port}/testmode/',
+        TOKEN_SERVICE,
+        full_roles,
+        read_roles)
+
+    for t, r in zip([TOKEN1, TOKEN2, TOKEN3, TOKEN4], results):
+        assert ul.is_admin(t) == r
+
+
+def test_is_admin_fail_bad_input(sample_port, auth):
+    ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN_SERVICE)
+
+    _is_admin_fail(ul, None, ValueError('token cannot be a value that evaluates to false'))
+    _is_admin_fail(ul, '', ValueError('token cannot be a value that evaluates to false'))
+
+
+def test_is_admin_fail_bad_token(sample_port, auth):
+    ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN_SERVICE)
+
+    _is_admin_fail(ul, 'bad token here', InvalidTokenError(
+        'KBase auth server reported token is invalid.'))
+
+
+def _is_admin_fail(userlookup, user, expected):
+    with raises(Exception) as got:
+        userlookup.is_admin(user)
     assert_exception_correct(got.value, expected)

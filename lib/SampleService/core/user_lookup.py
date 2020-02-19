@@ -3,6 +3,7 @@
 # this is tested in the integration tests to avoid starting up the auth server again, as
 # it takes a few seconds
 
+from enum import IntEnum
 import logging
 import requests
 from typing import List, Sequence
@@ -11,10 +12,24 @@ from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _no_falsy_in_iterable
 
 
+class AdminPermission(IntEnum):
+    '''
+    The different levels of admin permissions.
+    '''
+    NONE = 1
+    READ = 2,
+    FULL = 3
+
+
 class KBaseUserLookup:
     ''' A client for contacting the KBase authentication server to verify user names. '''
 
-    def __init__(self, auth_url: str, auth_token: str):
+    def __init__(
+            self,
+            auth_url: str,
+            auth_token: str,
+            full_admin_roles: List[str] = None,
+            read_admin_roles: List[str] = None):
         '''
         Create the client.
         :param auth_url: The root url of the authentication service.
@@ -25,7 +40,10 @@ class KBaseUserLookup:
         if not self._url.endswith('/'):
             self._url += '/'
         self._user_url = self._url + 'api/V2/users?list='
+        self._me_url = self._url + 'api/V2/me'
         self._token = _not_falsy(auth_token, 'auth_token')
+        self._full_roles = set(full_admin_roles) if full_admin_roles else set()
+        self._read_roles = set(read_admin_roles) if read_admin_roles else set()
 
         # the auth url doesn't support the root endpoint in testmode. Add this in when it does.
         # r = requests.get(self.auth_url, headers={'Accept': 'application/json'})
@@ -90,6 +108,28 @@ class KBaseUserLookup:
         good_users = r.json()
         # TODO ACL cache
         return [u for u in usernames if u not in good_users]
+
+    def is_admin(self, token: str):
+        '''
+        Check whether a user is a service administrator.
+
+        :param token: The user's token.
+        :returns: An enum indicating the user's administration permissions, if any.
+        '''
+        # TODO ACL cache admin users
+        # TODO CODE should regex the token to check for \n etc., but the SDK has already checked it
+        _not_falsy(token, 'token')
+        r = requests.get(self._me_url, headers={'Authorization': token})
+        self._check_error(r)
+        return self._get_role(r.json()['customroles'])
+
+    def _get_role(self, roles):
+        r = set(roles)
+        if r & self._full_roles:
+            return AdminPermission.FULL
+        if r & self._read_roles:
+            return AdminPermission.READ
+        return AdminPermission.NONE
 
 
 class AuthenticationError(Exception):

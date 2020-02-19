@@ -11,6 +11,7 @@
 * Logging
 * Link data to samples
 * Workspace @sample integration
+  * If user has access to sample set, should have access to embedded samples (?)
 * ACLs:
   * cache known good users
   * remove self from acls (read/write)
@@ -29,7 +30,6 @@
   `__init__.py` files
 
 # Misc
-* https://github.com/kbaseIncubator/samples/pull/1/files
 * The ~10 documents that have been written about this
 
 # Obsolete
