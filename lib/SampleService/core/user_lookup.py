@@ -45,15 +45,12 @@ class KBaseUserLookup:
         self._full_roles = set(full_admin_roles) if full_admin_roles else set()
         self._read_roles = set(read_admin_roles) if read_admin_roles else set()
 
-        # the auth url doesn't support the root endpoint in testmode. Add this in when it does.
-        # r = requests.get(self.auth_url, headers={'Accept': 'application/json'})
+        # Auth 0.4.1 needs to be deployed before this will work
+        # r = requests.get(self._url, headers={'Accept': 'application/json'})
         # self._check_error(r)
-        # missing_keys = {'version', 'gitcommithash', 'servertime'} - r.json().keys()
-        # if missing_keys:
-        #    raise IOError('{} does not appear to be the KBase auth server. '.format(
-        #                    kbase_auth_url) +
-        #                  'The root JSON response does not contain the expected keys {}'.format(
-        #                      sorted(missing_keys)))
+        # if r.json().get('servicename') != 'Authentication Service':
+        #     raise IOError(f'The service at {self._url} does not appear to be the KBase ' +
+        #                   'Authentication Service')
 
         # could use the server time to adjust for clock skew, probably not worth the trouble
 
