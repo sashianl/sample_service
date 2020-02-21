@@ -19,6 +19,7 @@ from SampleService.core.user_lookup import KBaseUserLookup
 
 from core.test_utils import assert_exception_correct
 
+# TODO NOW rename to api_translation
 
 def test_get_id_from_object():
     assert get_id_from_object(None, False) is None
@@ -448,10 +449,24 @@ def _check_admin(perm, permreq, user, method, as_user, expected_log):
 
     ul.is_admin.return_value = (perm, user)
 
-    check_admin(ul, 'thisisatoken', permreq, method, lambda x: logs.append(x), as_user)
+    assert check_admin(
+        ul, 'thisisatoken', permreq, method, lambda x: logs.append(x), as_user) is True
 
     assert ul.is_admin.call_args_list == [(('thisisatoken',), {})]
     assert logs == [expected_log]
+
+
+def _check_admin_skip():
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    logs = []
+
+    ul.is_admin.return_value = (AdminPermission.FULL, 'u')
+
+    assert check_admin(ul, 'thisisatoken', AdminPermission.FULL, 'm', lambda x: logs.append(x),
+                       skip_check=True) is False
+
+    assert ul.is_admin.call_args_list == []
+    assert logs == []
 
 
 def test_check_admin_fail_bad_args():
