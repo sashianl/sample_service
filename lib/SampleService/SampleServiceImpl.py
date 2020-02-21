@@ -36,7 +36,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     ######################################### noqa
     VERSION = "0.1.0-alpha4"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "dea836cef90aa6f534c44539b5e67005376665db"
+    GIT_COMMIT_HASH = "62a563489ea5cc1b15061bf2ff443ba572c83323"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -195,7 +195,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         admin = _check_admin(self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
                              # pretty annoying to test ctx.log_info is working, do it manually
                              'get_sample', ctx.log_info, skip_check=not params.get('as_admin'))
-        s = self._samples.get_sample(id_, ctx[_CTX_USER], ver, admin)
+        s = self._samples.get_sample(id_, ctx[_CTX_USER], ver, as_admin=admin)
         sample = _sample_to_dict(s)
         #END get_sample
 
@@ -211,12 +211,12 @@ Handles creating, updating, retriving samples and linking data to samples.
         Get a sample's ACLs.
         :param params: instance of type "GetSampleACLsParams"
            (get_sample_acls parameters. id - the ID of the sample to
-           retrieve. as_admin - get the sample regardless of ACLs as long as
-           the user has administration read permissions.) -> structure:
-           parameter "id" of type "sample_id" (A Sample ID. Must be globally
-           unique. Always assigned by the Sample service.), parameter
-           "as_admin" of type "boolean" (A boolean value, 0 for false, 1 for
-           true.)
+           retrieve. as_admin - get the sample acls regardless of ACL
+           contents as long as the user has administration read permissions.)
+           -> structure: parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "as_admin" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
         :returns: instance of type "SampleACLs" (Access control lists for a
            sample. Access levels include the privileges of the lower access
            levels. owner - the user that created and owns the sample. admin -
@@ -236,7 +236,7 @@ Handles creating, updating, retriving samples and linking data to samples.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
             'get_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
-        acls_ret = self._samples.get_sample_acls(id_, ctx[_CTX_USER], admin)
+        acls_ret = self._samples.get_sample_acls(id_, ctx[_CTX_USER], as_admin=admin)
         acls = _acls_to_dict(acls_ret)
         #END get_sample_acls
 
@@ -254,25 +254,32 @@ Handles creating, updating, retriving samples and linking data to samples.
         The sample owner cannot be changed via this method.
         :param params: instance of type "ReplaceSampleACLsParams"
            (replace_sample_acls parameters. id - the ID of the sample to
-           modify. acls - the ACLs to set on the sample.) -> structure:
-           parameter "id" of type "sample_id" (A Sample ID. Must be globally
-           unique. Always assigned by the Sample service.), parameter "acls"
-           of type "SampleACLs" (Access control lists for a sample. Access
-           levels include the privileges of the lower access levels. owner -
-           the user that created and owns the sample. admin - users that can
+           modify. acls - the ACLs to set on the sample. as_admin - replace
+           the sample acls regardless of ACL contents as long as the user has
+           full administration permissions.) -> structure: parameter "id" of
+           type "sample_id" (A Sample ID. Must be globally unique. Always
+           assigned by the Sample service.), parameter "acls" of type
+           "SampleACLs" (Access control lists for a sample. Access levels
+           include the privileges of the lower access levels. owner - the
+           user that created and owns the sample. admin - users that can
            administrate (e.g. alter ACLs) the sample. write - users that can
            write (e.g. create a new version) to the sample. read - users that
            can view the sample.) -> structure: parameter "owner" of type
            "user" (A user's username.), parameter "admin" of list of type
            "user" (A user's username.), parameter "write" of list of type
            "user" (A user's username.), parameter "read" of list of type
-           "user" (A user's username.)
+           "user" (A user's username.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
         """
         # ctx is the context object
         #BEGIN replace_sample_acls
         id_ = _get_id_from_object(params, required=True)
         acls = _acls_from_dict(params)
-        self._samples.replace_sample_acls(id_, ctx[_CTX_USER], acls)
+        admin = _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'replace_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
+        self._samples.replace_sample_acls(id_, ctx[_CTX_USER], acls, as_admin=admin)
         #END replace_sample_acls
         pass
 
