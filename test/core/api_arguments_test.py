@@ -21,6 +21,7 @@ from core.test_utils import assert_exception_correct
 
 # TODO NOW rename to api_translation
 
+
 def test_get_id_from_object():
     assert get_id_from_object(None, False) is None
     assert get_id_from_object({}, False) is None
@@ -456,7 +457,7 @@ def _check_admin(perm, permreq, user, method, as_user, expected_log):
     assert logs == [expected_log]
 
 
-def _check_admin_skip():
+def test_check_admin_skip():
     ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     logs = []
 
