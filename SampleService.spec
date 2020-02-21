@@ -144,9 +144,14 @@ module SampleService {
     /* Get a sample. If the version is omitted the most recent sample is returned. */
     funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication required;
 
-    /* get_sample_acls parameters. */
+    /* get_sample_acls parameters.
+        id - the ID of the sample to retrieve.
+        as_admin - get the sample regardless of ACLs as long as the user has administration read
+            permissions.
+     */
     typedef structure {
         sample_id id;
+        boolean as_admin;
     } GetSampleACLsParams;
 
     /* Get a sample's ACLs. */

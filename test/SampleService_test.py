@@ -789,6 +789,37 @@ def test_get_and_replace_acls(sample_port):
     })
 
 
+def test_get_acls_as_admin(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    # user 3 has admin read rights only
+    _assert_acl_contents(url, id_, TOKEN3, {
+        'owner': USER1,
+        'admin': [],
+        'write': [],
+        'read': []
+        },
+        as_admin=1)
+
+
 def _replace_acls(url, id_, token, acls):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.replace_sample_acls',
@@ -800,12 +831,12 @@ def _replace_acls(url, id_, token, acls):
     assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
 
 
-def _assert_acl_contents(url, id_, token, expected):
+def _assert_acl_contents(url, id_, token, expected, as_admin=0):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_sample_acls',
         'version': '1.1',
         'id': '47',
-        'params': [{'id': id_}]
+        'params': [{'id': id_, 'as_admin': as_admin}]
     })
     # print(ret.text)
     assert ret.ok is True
@@ -860,6 +891,25 @@ def test_get_acls_fail_permissions(sample_port):
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
         f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+
+
+def test_get_acls_fail_admin_permissions(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    # user 4 has no admin perms
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'as_admin': 1}]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
+        'necessary administration privileges to run method get_sample_acls')
 
 
 def _create_generic_sample(url, token):
