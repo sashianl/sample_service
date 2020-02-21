@@ -160,11 +160,12 @@ class Samples:
                           _SampleAccessType.READ, as_admin=as_admin)
         return self._storage.get_sample(id_, version)
 
-    def get_sample_acls(self, id_: UUID, user: str) -> SampleACL:
+    def get_sample_acls(self, id_: UUID, user: str, as_admin: bool = False) -> SampleACL:
         '''
         Get a sample's acls.
         :param id_: the ID of the sample.
         :param user: the username of the user getting the acls.
+        :param as_admin: Skip ACL checks.
         :returns: the sample acls.
         :raises UnauthorizedError: if the user does not have read permission for the sample.
         :raises NoSuchSampleError: if the sample does not exist.
@@ -172,7 +173,7 @@ class Samples:
         '''
         _not_falsy(user, 'user')
         acls = self._storage.get_sample_acls(_not_falsy(id_, 'id_'))
-        self._check_perms(id_, user, _SampleAccessType.READ, acls)
+        self._check_perms(id_, user, _SampleAccessType.READ, acls, as_admin=as_admin)
         return acls
 
     def replace_sample_acls(self, id_: UUID, user: str, new_acls: SampleACLOwnerless) -> None:

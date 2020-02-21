@@ -325,13 +325,14 @@ def _get_sample_fail(samples, id_, user, version, expected):
 
 
 def test_get_sample_acls():
-    _get_sample_acls('someuser')
-    _get_sample_acls('otheruser')
-    _get_sample_acls('anotheruser')
-    _get_sample_acls('x')
+    _get_sample_acls('someuser', False)
+    _get_sample_acls('otheruser', False)
+    _get_sample_acls('anotheruser', False)
+    _get_sample_acls('x', False)
+    _get_sample_acls('no_rights_here', True)
 
 
-def _get_sample_acls(user):
+def _get_sample_acls(user, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
@@ -342,7 +343,7 @@ def _get_sample_acls(user):
     storage.get_sample_acls.return_value = SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
-    assert samples.get_sample_acls(id_, user) == SampleACL(
+    assert samples.get_sample_acls(id_, user, as_admin) == SampleACL(
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
     assert storage.get_sample_acls.call_args_list == [
