@@ -19,8 +19,6 @@ from SampleService.core.user_lookup import KBaseUserLookup
 
 from core.test_utils import assert_exception_correct
 
-# TODO NOW rename to api_translation
-
 
 def test_get_id_from_object():
     assert get_id_from_object(None, False) is None
