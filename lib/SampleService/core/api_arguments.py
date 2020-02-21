@@ -4,16 +4,20 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple, cast as _cast
+from typing import Dict, Any, Optional, Tuple, Callable, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.sample import Sample, SampleNode as _SampleNode, SavedSample
 from SampleService.core.sample import SubSampleType as _SubSampleType
-from SampleService.core.acls import SampleACLOwnerless, SampleACL
+from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission
+from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
+from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
+
+# TODO NOW rename to api_translation
 
 ID = 'id'
 ''' The ID of a sample. '''
@@ -237,3 +241,40 @@ def _check_acl(acls, type_):
         for i, item, in enumerate(acl):
             if not type(item) == str:
                 raise _IllegalParameterError(f'Index {i} of {type_} ACL does not contain a string')
+
+
+def check_admin(
+        user_lookup: KBaseUserLookup,
+        token: str,
+        perm: AdminPermission,
+        method: str,
+        log_fn: Callable[[str], None],
+        as_user: str = None) -> None:
+    '''
+    Check whether a user has admin privileges.
+    The request is logged.
+
+    :param user_lookup: the service to use to look up user information.
+    :param token: the user's token.
+    :param perm: the required administration permission.
+    :param method: the method the user is trying to run. This is used in logging and error
+      messages.
+    :param logger: a function that logs information when called with a string.
+    :param as_user: if the admin is impersonating another user, the username of that user.
+    :throws UnauthorizedError: if the user does not have the permission required.
+    '''
+    _not_falsy(method, 'method')
+    _not_falsy(log_fn, 'log_fn')
+    if _not_falsy(perm, 'perm') == AdminPermission.NONE:
+        raise ValueError('what are you doing calling this method with no permission ' +
+                         'requirement? That totally makes no sense. Get a brain moran')
+    if as_user and perm != AdminPermission.FULL:
+        raise ValueError('as_user is supplied, but permission is not FULL')
+    p, user = _not_falsy(user_lookup, 'user_lookup').is_admin(_not_falsy(token, 'token'))
+    if p < perm:
+        err = (f'User {user} does not have the necessary administration ' +
+               f'privileges to run method {method}')
+        log_fn(err)
+        raise _UnauthorizedError(err)
+    log_fn(f'User {user} is running method {method} with administration permission {p.name}' +
+           (f' as user {as_user}' if as_user else ''))
