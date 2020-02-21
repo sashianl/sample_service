@@ -389,11 +389,12 @@ def _get_sample_acls_fail(samples, id_, user, expected):
 
 
 def test_replace_sample_acls():
-    _replace_sample_acls('someuser')
-    _replace_sample_acls('otheruser')
+    _replace_sample_acls('someuser', False)
+    _replace_sample_acls('otheruser', False)
+    _replace_sample_acls('super_admin_man', True)
 
 
-def _replace_sample_acls(user):
+def _replace_sample_acls(user, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
@@ -407,7 +408,8 @@ def _replace_sample_acls(user):
         'someuser', ['otheruser', 'y'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
     samples.replace_sample_acls(id_, user, SampleACL(
-        'someuser', ['x', 'y'], ['z', 'a'], ['b', 'c']))
+        'someuser', ['x', 'y'], ['z', 'a'], ['b', 'c']),
+        as_admin=as_admin)
 
     assert lu.are_valid_users.call_args_list == [((['x', 'y', 'z', 'a', 'b', 'c'],), {})]
 
