@@ -36,7 +36,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     ######################################### noqa
     VERSION = "0.1.0-alpha4"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "f9bd1e9e000ce82fc2a582e91ca368d6478b6304"
+    GIT_COMMIT_HASH = "dea836cef90aa6f534c44539b5e67005376665db"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -210,9 +210,13 @@ Handles creating, updating, retriving samples and linking data to samples.
         """
         Get a sample's ACLs.
         :param params: instance of type "GetSampleACLsParams"
-           (get_sample_acls parameters.) -> structure: parameter "id" of type
-           "sample_id" (A Sample ID. Must be globally unique. Always assigned
-           by the Sample service.)
+           (get_sample_acls parameters. id - the ID of the sample to
+           retrieve. as_admin - get the sample regardless of ACLs as long as
+           the user has administration read permissions.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter
+           "as_admin" of type "boolean" (A boolean value, 0 for false, 1 for
+           true.)
         :returns: instance of type "SampleACLs" (Access control lists for a
            sample. Access levels include the privileges of the lower access
            levels. owner - the user that created and owns the sample. admin -
@@ -228,7 +232,11 @@ Handles creating, updating, retriving samples and linking data to samples.
         # return variables are: acls
         #BEGIN get_sample_acls
         id_ = _get_id_from_object(params, required=True)
-        acls_ret = self._samples.get_sample_acls(id_, ctx[_CTX_USER])
+        admin = _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'get_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
+        acls_ret = self._samples.get_sample_acls(id_, ctx[_CTX_USER], admin)
         acls = _acls_to_dict(acls_ret)
         #END get_sample_acls
 
