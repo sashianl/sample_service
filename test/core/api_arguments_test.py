@@ -5,11 +5,11 @@ from uuid import UUID
 import json
 from unittest.mock import create_autospec
 
-from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
-from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
-from SampleService.core.api_arguments import acls_to_dict, acls_from_dict
-from SampleService.core.api_arguments import create_sample_params, get_sample_address_from_object
-from SampleService.core.api_arguments import check_admin
+from SampleService.core.api_translation import datetime_to_epochmilliseconds, get_id_from_object
+from SampleService.core.api_translation import get_version_from_object, sample_to_dict
+from SampleService.core.api_translation import acls_to_dict, acls_from_dict
+from SampleService.core.api_translation import create_sample_params, get_sample_address_from_object
+from SampleService.core.api_translation import check_admin
 from SampleService.core.sample import Sample, SampleNode, SubSampleType, SavedSample
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import IllegalParameterError, MissingParameterError

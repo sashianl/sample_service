@@ -17,8 +17,6 @@ from SampleService.core.errors import IllegalParameterError as _IllegalParameter
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 
-# TODO NOW rename to api_translation
-
 ID = 'id'
 ''' The ID of a sample. '''
 
