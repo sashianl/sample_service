@@ -176,13 +176,19 @@ class Samples:
         self._check_perms(id_, user, _SampleAccessType.READ, acls, as_admin=as_admin)
         return acls
 
-    def replace_sample_acls(self, id_: UUID, user: str, new_acls: SampleACLOwnerless) -> None:
+    def replace_sample_acls(
+            self,
+            id_: UUID,
+            user: str,
+            new_acls: SampleACLOwnerless,
+            as_admin: bool = False) -> None:
         '''
         Completely replace a sample's ACLs. The owner cannot be changed.
 
         :param id_: the sample's ID.
         :param user: the user changing the ACLs.
         :param new_acls: the new ACLs.
+        :param as_admin: Skip ACL checks.
         :raises NoSuchUserError: if any of the users in the ACLs do not exist.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises UnauthorizedError: if the user does not have admin permission for the sample or
@@ -210,7 +216,7 @@ class Samples:
             if count >= 5:
                 raise ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}')
             acls = self._storage.get_sample_acls(id_)
-            self._check_perms(id_, user, _SampleAccessType.ADMIN, acls)
+            self._check_perms(id_, user, _SampleAccessType.ADMIN, acls, as_admin=as_admin)
             new_acls = SampleACL(acls.owner, new_acls.admin, new_acls.write, new_acls.read)
             try:
                 self._storage.replace_sample_acls(id_, new_acls)
