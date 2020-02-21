@@ -15,10 +15,19 @@ class SampleAccessType(IntEnum):
     The different levels of sample access.
     '''
     NONE = 1
-    READ = 2,
-    WRITE = 3,
-    ADMIN = 4,
+    READ = 2
+    WRITE = 3
+    ADMIN = 4
     OWNER = 5
+
+
+class AdminPermission(IntEnum):
+    '''
+    The different levels of admin permissions.
+    '''
+    NONE = 1
+    READ = 2
+    FULL = 3
 
 
 class SampleACLOwnerless:

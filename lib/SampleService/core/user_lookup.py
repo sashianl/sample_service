@@ -3,22 +3,13 @@
 # this is tested in the integration tests to avoid starting up the auth server again, as
 # it takes a few seconds
 
-from enum import IntEnum
 import logging
 import requests
 from typing import List, Sequence, Tuple
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _no_falsy_in_iterable
-
-
-class AdminPermission(IntEnum):
-    '''
-    The different levels of admin permissions.
-    '''
-    NONE = 1
-    READ = 2,
-    FULL = 3
+from SampleService.core.acls import AdminPermission
 
 
 class KBaseUserLookup:

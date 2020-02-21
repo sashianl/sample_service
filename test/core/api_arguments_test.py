@@ -3,14 +3,19 @@ import datetime
 from pytest import raises
 from uuid import UUID
 import json
+from unittest.mock import create_autospec
 
-from SampleService.core.api_arguments import datetime_to_epochmilliseconds, get_id_from_object
-from SampleService.core.api_arguments import get_version_from_object, sample_to_dict
-from SampleService.core.api_arguments import acls_to_dict, acls_from_dict
-from SampleService.core.api_arguments import create_sample_params, get_sample_address_from_object
+from SampleService.core.api_translation import datetime_to_epochmilliseconds, get_id_from_object
+from SampleService.core.api_translation import get_version_from_object, sample_to_dict
+from SampleService.core.api_translation import acls_to_dict, acls_from_dict
+from SampleService.core.api_translation import create_sample_params, get_sample_address_from_object
+from SampleService.core.api_translation import check_admin
 from SampleService.core.sample import Sample, SampleNode, SubSampleType, SavedSample
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
+from SampleService.core.errors import UnauthorizedError
+from SampleService.core.acls import AdminPermission
+from SampleService.core.user_lookup import KBaseUserLookup
 
 from core.test_utils import assert_exception_correct
 
@@ -420,4 +425,85 @@ def _acls_from_dict_fail_acl_check(acltype):
 def _acls_from_dict_fail(d, expected):
     with raises(Exception) as got:
         acls_from_dict(d)
+    assert_exception_correct(got.value, expected)
+
+
+def test_check_admin():
+    f = AdminPermission.FULL
+    r = AdminPermission.READ
+    _check_admin(f, f, 'user1', 'somemethod', None,
+                 f'User user1 is running method somemethod with administration permission FULL')
+    _check_admin(f, f, 'user1', 'somemethod', 'otheruser',
+                 f'User user1 is running method somemethod with administration permission FULL ' +
+                 'as user otheruser')
+    _check_admin(f, r, 'someuser', 'a_method', None,
+                 f'User someuser is running method a_method with administration permission FULL')
+    _check_admin(r, r, 'user2', 'm', None,
+                 f'User user2 is running method m with administration permission READ')
+
+
+def _check_admin(perm, permreq, user, method, as_user, expected_log):
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    logs = []
+
+    ul.is_admin.return_value = (perm, user)
+
+    check_admin(ul, 'thisisatoken', permreq, method, lambda x: logs.append(x), as_user)
+
+    assert ul.is_admin.call_args_list == [(('thisisatoken',), {})]
+    assert logs == [expected_log]
+
+
+def test_check_admin_fail_bad_args():
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    p = AdminPermission.FULL
+
+    _check_admin_fail(None, 't', p, 'm', lambda _: None, None, ValueError(
+        'user_lookup cannot be a value that evaluates to false'))
+    _check_admin_fail(ul, '', p, 'm', lambda _: None, None, ValueError(
+        'token cannot be a value that evaluates to false'))
+    _check_admin_fail(ul, 't', None, 'm', lambda _: None, None, ValueError(
+        'perm cannot be a value that evaluates to false'))
+    _check_admin_fail(ul, 't', p, None, lambda _: None, None, ValueError(
+        'method cannot be a value that evaluates to false'))
+    _check_admin_fail(ul, 't', p, 'm', None, None, ValueError(
+        'log_fn cannot be a value that evaluates to false'))
+
+
+def test_check_admin_fail_none_perm():
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    _check_admin_fail(ul, 't', AdminPermission.NONE, 'm', lambda _: None, None, ValueError(
+        'what are you doing calling this method with no permission requirement? ' +
+        'That totally makes no sense. Get a brain moran'))
+
+
+def test_check_admin_fail_read_with_impersonate():
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    _check_admin_fail(ul, 't', AdminPermission.READ, 'm', lambda _: None, 'user', ValueError(
+        'as_user is supplied, but permission is not FULL'))
+
+
+def test_check_admin_fail_no_admin_perms():
+    f = AdminPermission.FULL
+    r = AdminPermission.READ
+    n = AdminPermission.NONE
+    _check_admin_fail_no_admin_perms(r, f)
+    _check_admin_fail_no_admin_perms(n, f)
+    _check_admin_fail_no_admin_perms(n, r)
+
+
+def _check_admin_fail_no_admin_perms(permhas, permreq):
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    log = []
+
+    ul.is_admin.return_value = (permhas, 'user1')
+    err = 'User user1 does not have the necessary administration privileges to run method m'
+    _check_admin_fail(ul, 't', permreq, 'm', lambda l: log.append(l), None, UnauthorizedError(err))
+
+    assert log == [err]
+
+
+def _check_admin_fail(ul, token, perm, method, logfn, as_user, expected):
+    with raises(Exception) as got:
+        check_admin(ul, token, perm, method, logfn, as_user)
     assert_exception_correct(got.value, expected)

@@ -2,13 +2,13 @@
 #BEGIN_HEADER
 
 from SampleService.core.config import build_samples as _build_samples
-from SampleService.core.api_arguments import (get_sample_address_from_object as
-                                              _get_sample_address_from_object)
-from SampleService.core.api_arguments import get_id_from_object as _get_id_from_object
-from SampleService.core.api_arguments import acls_from_dict as _acls_from_dict
-from SampleService.core.api_arguments import acls_to_dict as _acls_to_dict
-from SampleService.core.api_arguments import sample_to_dict as _sample_to_dict
-from SampleService.core.api_arguments import create_sample_params as _create_sample_params
+from SampleService.core.api_translation import (get_sample_address_from_object as
+                                                _get_sample_address_from_object)
+from SampleService.core.api_translation import get_id_from_object as _get_id_from_object
+from SampleService.core.api_translation import acls_from_dict as _acls_from_dict
+from SampleService.core.api_translation import acls_to_dict as _acls_to_dict
+from SampleService.core.api_translation import sample_to_dict as _sample_to_dict
+from SampleService.core.api_translation import create_sample_params as _create_sample_params
 #END_HEADER
 
 
