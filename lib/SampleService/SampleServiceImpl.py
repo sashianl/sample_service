@@ -9,6 +9,11 @@ from SampleService.core.api_translation import acls_from_dict as _acls_from_dict
 from SampleService.core.api_translation import acls_to_dict as _acls_to_dict
 from SampleService.core.api_translation import sample_to_dict as _sample_to_dict
 from SampleService.core.api_translation import create_sample_params as _create_sample_params
+from SampleService.core.api_translation import check_admin as _check_admin
+from SampleService.core.acls import AdminPermission as _AdminPermission
+
+_CTX_USER = 'user_id'
+_CTX_TOKEN = 'token'
 #END_HEADER
 
 
@@ -31,7 +36,7 @@ Handles creating, updating, retriving samples and linking data to samples.
     ######################################### noqa
     VERSION = "0.1.0-alpha4"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "9b1d42a9af756805e2bba0e612816167ccfbecf7"
+    GIT_COMMIT_HASH = "f9bd1e9e000ce82fc2a582e91ca368d6478b6304"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -113,7 +118,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         # return variables are: address
         #BEGIN create_sample
         s, id_, pv = _create_sample_params(params)
-        ret = self._samples.save_sample(s, ctx['user_id'], id_, pv)
+        ret = self._samples.save_sample(s, ctx[_CTX_USER], id_, pv)
         address = {'id': str(ret[0]), 'version': ret[1]}
         #END create_sample
 
@@ -130,10 +135,13 @@ Handles creating, updating, retriving samples and linking data to samples.
         :param params: instance of type "GetSampleParams" (get_sample
            parameters. id - the ID of the sample to retrieve. version - the
            version of the sample to retrieve, or the most recent sample if
-           omitted.) -> structure: parameter "id" of type "sample_id" (A
-           Sample ID. Must be globally unique. Always assigned by the Sample
-           service.), parameter "version" of type "version" (The version of a
-           sample. Always > 0.)
+           omitted. as_admin - get the sample regardless of ACLs as long as
+           the user has administration read permissions.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter
+           "version" of type "version" (The version of a sample. Always >
+           0.), parameter "as_admin" of type "boolean" (A boolean value, 0
+           for false, 1 for true.)
         :returns: instance of type "Sample" (A Sample, consisting of a tree
            of subsamples and replicates. id - the ID of the sample. user -
            the user that saved the sample. node_tree - the tree(s) of sample
@@ -184,7 +192,10 @@ Handles creating, updating, retriving samples and linking data to samples.
         # return variables are: sample
         #BEGIN get_sample
         id_, ver = _get_sample_address_from_object(params)
-        s = self._samples.get_sample(id_, ctx['user_id'], ver)
+        admin = _check_admin(self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+                             # pretty annoying to test ctx.log_info is working, do it manually
+                             'get_sample', ctx.log_info, skip_check=not params.get('as_admin'))
+        s = self._samples.get_sample(id_, ctx[_CTX_USER], ver, admin)
         sample = _sample_to_dict(s)
         #END get_sample
 
@@ -217,7 +228,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         # return variables are: acls
         #BEGIN get_sample_acls
         id_ = _get_id_from_object(params, required=True)
-        acls_ret = self._samples.get_sample_acls(id_, ctx['user_id'])
+        acls_ret = self._samples.get_sample_acls(id_, ctx[_CTX_USER])
         acls = _acls_to_dict(acls_ret)
         #END get_sample_acls
 
@@ -253,7 +264,7 @@ Handles creating, updating, retriving samples and linking data to samples.
         #BEGIN replace_sample_acls
         id_ = _get_id_from_object(params, required=True)
         acls = _acls_from_dict(params)
-        self._samples.replace_sample_acls(id_, ctx['user_id'], acls)
+        self._samples.replace_sample_acls(id_, ctx[_CTX_USER], acls)
         #END replace_sample_acls
         pass
 

@@ -69,6 +69,7 @@ def create_deploy_cfg(auth_port, arango_port):
 
     cfg[ss]['auth-root-url'] = f'http://localhost:{auth_port}/testmode'
     cfg[ss]['auth-token'] = TOKEN_SERVICE
+    cfg[ss]['auth-read-admin-roles'] = 'readadmin1'
 
     cfg[ss]['arango-url'] = f'http://localhost:{arango_port}'
     cfg[ss]['arango-db'] = TEST_DB_NAME
@@ -405,6 +406,57 @@ def test_create_and_get_sample_with_version(sample_port):
     }
 
 
+def test_get_sample_as_admin(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    # verison 1
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'baz'}
+                                                          },
+                                      'meta_user': {'a': {'b': 'c'}}
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    # token3 has read admin but not full admin
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'version': 1, 'as_admin': 1}]
+    })
+    print(ret.text)
+    assert ret.ok is True
+    j = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(j['save_date'])
+    del j['save_date']
+    assert j == {
+        'id': id_,
+        'version': 1,
+        'user': USER1,
+        'name': 'mysample',
+        'node_tree': [{'id': 'root',
+                       'parent': None,
+                       'type': 'BioReplicate',
+                       'meta_controlled': {'foo': {'bar': 'baz'},
+                                           },
+                       'meta_user': {'a': {'b': 'c'}}}]
+    }
+
+
 def test_create_sample_fail_no_nodes(sample_port):
     url = f'http://localhost:{sample_port}'
 
@@ -573,6 +625,42 @@ def test_get_sample_fail_permissions(sample_port):
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
         f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+
+
+def test_get_sample_fail_admin_permissions(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    # user 4 has no admin permissions
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'as_admin': 1}]
+    })
+
+    # print(ret.text)
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == (
+        f'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
+        'necessary administration privileges to run method get_sample')
 
 
 def test_get_and_replace_acls(sample_port):

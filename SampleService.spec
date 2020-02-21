@@ -6,6 +6,9 @@ Handles creating, updating, retriving samples and linking data to samples.
 
 module SampleService {
 
+    /* A boolean value, 0 for false, 1 for true. */
+    typedef int boolean;
+
     /* A timestamp in epoch milliseconds. */
     typedef int timestamp;
 
@@ -129,10 +132,13 @@ module SampleService {
     /* get_sample parameters.
         id - the ID of the sample to retrieve.
         version - the version of the sample to retrieve, or the most recent sample if omitted.
+        as_admin - get the sample regardless of ACLs as long as the user has administration read
+            permissions.
      */
     typedef structure {
         sample_id id;
         version version;
+        boolean as_admin;
     } GetSampleParams;
 
     /* Get a sample. If the version is omitted the most recent sample is returned. */
