@@ -242,13 +242,14 @@ def _save_sample_fail(samples, sample, user, id_, prior_version, expected):
 
 def test_get_sample():
     # sample versions other than 4 don't really make sense but the mock doesn't care
-    _get_sample('someuser', None)
-    _get_sample('otheruser', None)
-    _get_sample('anotheruser', None)
-    _get_sample('x', None)
+    _get_sample('someuser', None, False)
+    _get_sample('otheruser', None, False)
+    _get_sample('anotheruser', None, False)
+    _get_sample('x', None, False)
+    _get_sample('notinacl', None, True)
 
 
-def _get_sample(user, version):
+def _get_sample(user, version, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
@@ -267,16 +268,18 @@ def _get_sample(user, version):
         4)
 
     assert samples.get_sample(
-        UUID('1234567890abcdef1234567890abcdea'), user, version) == SavedSample(
+        UUID('1234567890abcdef1234567890abcdea'), user, version, as_admin) == SavedSample(
             UUID('1234567890abcdef1234567890abcdea'),
             'anotheruser',
             [SampleNode('foo')],
             datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
             'bar',
             4)
-
-    assert storage.get_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcdea'),), {})]
+    if not as_admin:
+        assert storage.get_sample_acls.call_args_list == [
+            ((UUID('1234567890abcdef1234567890abcdea'),), {})]
+    else:
+        assert storage.get_sample_acls.call_args_list == []
 
     assert storage.get_sample.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcdea'), version), {})]
