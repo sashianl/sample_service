@@ -247,7 +247,8 @@ def check_admin(
         perm: AdminPermission,
         method: str,
         log_fn: Callable[[str], None],
-        as_user: str = None) -> None:
+        as_user: str = None,
+        skip_check: bool = False) -> bool:
     '''
     Check whether a user has admin privileges.
     The request is logged.
@@ -259,8 +260,13 @@ def check_admin(
       messages.
     :param logger: a function that logs information when called with a string.
     :param as_user: if the admin is impersonating another user, the username of that user.
+    :param skip_check: Skip the administration permission check and return false.
+    :returns: true if the user has the required administration permission, false if skip_check
+        is true.
     :throws UnauthorizedError: if the user does not have the permission required.
     '''
+    if skip_check:
+        return False
     _not_falsy(method, 'method')
     _not_falsy(log_fn, 'log_fn')
     if _not_falsy(perm, 'perm') == AdminPermission.NONE:
@@ -276,3 +282,4 @@ def check_admin(
         raise _UnauthorizedError(err)
     log_fn(f'User {user} is running method {method} with administration permission {p.name}' +
            (f' as user {as_user}' if as_user else ''))
+    return True
