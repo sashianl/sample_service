@@ -70,6 +70,7 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['auth-root-url'] = f'http://localhost:{auth_port}/testmode'
     cfg[ss]['auth-token'] = TOKEN_SERVICE
     cfg[ss]['auth-read-admin-roles'] = 'readadmin1'
+    cfg[ss]['auth-full-admin-roles'] = 'fulladmin2'
 
     cfg[ss]['arango-url'] = f'http://localhost:{arango_port}'
     cfg[ss]['arango-db'] = TEST_DB_NAME
@@ -820,13 +821,41 @@ def test_get_acls_as_admin(sample_port):
         as_admin=1)
 
 
-def _replace_acls(url, id_, token, acls):
+def test_replace_acls_as_admin(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _assert_acl_contents(url, id_, TOKEN1, {
+        'owner': USER1,
+        'admin': [],
+        'write': [],
+        'read': []
+    })
+
+    _replace_acls(url, id_, TOKEN2, {
+        'admin': [USER2],
+        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
+        'read': [USER_NO_TOKEN3, USER4],
+        },
+        as_admin=1)
+
+    _assert_acl_contents(url, id_, TOKEN1, {
+        'owner': USER1,
+        'admin': [USER2],
+        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
+        'read': [USER_NO_TOKEN3, USER4],
+    })
+
+
+def _replace_acls(url, id_, token, acls, as_admin=0):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.replace_sample_acls',
         'version': '1.1',
         'id': '67',
-        'params': [{'id': id_, 'acls': acls}]
+        'params': [{'id': id_, 'acls': acls, 'as_admin': as_admin}]
     })
+    # print(ret.text)
     assert ret.ok is True
     assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
 
@@ -988,6 +1017,25 @@ def test_replace_acls_fail_permissions(sample_port):
         assert ret.json()['error']['message'] == (
             f'Sample service error code 20000 Unauthorized: User {user} cannot ' +
             f'administrate sample {id_}')
+
+
+def test_replace_acls_fail_admin_permissions(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    for user, token in ((USER1, TOKEN1), (USER3, TOKEN3), (USER4, TOKEN4)):
+        ret = requests.post(url, headers=get_authorized_headers(token), json={
+            'method': 'SampleService.replace_sample_acls',
+            'version': '1.1',
+            'id': '42',
+            'params': [{'id': id_, 'acls': {}, 'as_admin': 1}]
+        })
+        assert ret.status_code == 500
+        assert ret.json()['error']['message'] == (
+            f'Sample service error code 20000 Unauthorized: User {user} does not have the ' +
+            'necessary administration privileges to run method replace_sample_acls')
 
 
 def test_replace_acls_fail_bad_user(sample_port):

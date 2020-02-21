@@ -146,8 +146,8 @@ module SampleService {
 
     /* get_sample_acls parameters.
         id - the ID of the sample to retrieve.
-        as_admin - get the sample regardless of ACLs as long as the user has administration read
-            permissions.
+        as_admin - get the sample acls regardless of ACL contents as long as the user has
+            administration read permissions.
      */
     typedef structure {
         sample_id id;
@@ -162,10 +162,13 @@ module SampleService {
 
         id - the ID of the sample to modify.
         acls - the ACLs to set on the sample.
+        as_admin - replace the sample acls regardless of ACL contents as long as the user has
+            full administration permissions.
      */
     typedef structure {
         sample_id id;
         SampleACLs acls;
+        boolean as_admin;
     } ReplaceSampleACLsParams;
 
     /* Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
