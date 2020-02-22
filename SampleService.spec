@@ -2,6 +2,8 @@
 A KBase module: SampleService
 
 Handles creating, updating, retriving samples and linking data to samples.
+
+Note that usage of the administration flags will be logged by the service.
 */
 
 module SampleService {
@@ -119,10 +121,13 @@ module SampleService {
         prior_version - if non-null, ensures that no other sample version is saved between
             prior_version and the version that is created by this save. If this is not the case,
             the sample will fail to save.
+        as_user - save the sample as a different user. The actual user must have full
+            administration permissions.
      */
     typedef structure {
         Sample sample;
         int prior_version;
+        user as_user;
     } CreateSampleParams;
 
     /* Create a new sample or a sample version. */

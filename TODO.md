@@ -5,7 +5,6 @@
     as the experimental techniques don't allow it.
 
 # Functionality
-* Admin flags on ops
 * List / find samples, possibly with...
 * Search integration
 * Logging
