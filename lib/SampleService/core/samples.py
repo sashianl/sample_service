@@ -13,7 +13,7 @@ from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
-from SampleService.core.validator.metadata_validator import MetadataValidator
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
 from SampleService.core.sample import Sample, SavedSample
@@ -34,7 +34,7 @@ class Samples:
             self,
             storage: ArangoSampleStorage,
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
-            metadata_validator: MetadataValidator,
+            metadata_validator: MetadataValidatorSet,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):

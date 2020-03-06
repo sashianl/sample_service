@@ -9,9 +9,9 @@ from SampleService.core.core_types import PrimitiveType
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
 
 
-class MetadataValidator:
+class MetadataValidatorSet:
     '''
-    A validator of metadata.
+    A set of validators of metadata.
     '''
 
     def __init__(
@@ -21,7 +21,7 @@ class MetadataValidator:
         prefix_validators:
             Dict[str, List[Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]]] = None):
         '''
-        Create the validator.
+        Create the validator set.
 
         :param validators: A map from metadata keys to a list of validators for that key.
           The arguments to each validator are the metadata key and the value mapped from the key.

@@ -2,7 +2,7 @@ import maps
 from pytest import raises
 
 from core.test_utils import assert_exception_correct
-from SampleService.core.validator.metadata_validator import MetadataValidator
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.errors import MetadataValidationError
 
 
@@ -15,14 +15,14 @@ def _noop3(_, __, ___):
 
 
 def test_empty():
-    mv = MetadataValidator()
+    mv = MetadataValidatorSet()
 
     assert mv.keys() == {}.keys()
     assert mv.prefix_keys() == []
 
 
 def test_with_validators():
-    mv = MetadataValidator({
+    mv = MetadataValidatorSet({
         # this is vile
         'key1': [lambda k, v: exec('assert k == "key1"'),
                  lambda k, v: exec('assert v == {"a": "b"}')
@@ -41,7 +41,7 @@ def test_with_validators():
 
 
 def test_with_prefix_validators():
-    mv = MetadataValidator(prefix_validators={
+    mv = MetadataValidatorSet(prefix_validators={
         # this is vile
         'pre1': [lambda p, k, v: exec('assert p == "pre1"'),
                  lambda p, k, v: exec('assert k == "pre1stuff"'),
@@ -62,7 +62,7 @@ def test_with_prefix_validators():
 
 def test_with_prefix_validators_multiple_matches():
     results = []
-    mv = MetadataValidator(
+    mv = MetadataValidatorSet(
         validators={'somekey': [lambda k, v: results.append((k, v))]},
         prefix_validators={
             'somekeya': [lambda p, k, v: exec('raise ValueError("test failed somekeya")')],
@@ -87,7 +87,7 @@ def test_with_prefix_validators_multiple_matches():
 
 
 def test_call_validator():
-    mv = MetadataValidator({
+    mv = MetadataValidatorSet({
         'key1': [lambda k, v: (k, v, 1), lambda k, v: (k, v, 2)],
         'key2': [lambda k, v: (k, v, 3)]
     })
@@ -97,7 +97,7 @@ def test_call_validator():
 
 
 def test_call_prefix_validator():
-    mv = MetadataValidator({}, {
+    mv = MetadataValidatorSet({}, {
         'p1': [lambda p, k, v: (p, k, v, 1), lambda p, k, v: (p, k, v, 2)],
         'p2': [lambda p, k, v: (p, k, v, 3)]
     })
@@ -117,7 +117,7 @@ def test_validator_count_fail():
 
 
 def _validator_count_fail(vals, key, expected):
-    mv = MetadataValidator(vals)
+    mv = MetadataValidatorSet(vals)
     with raises(Exception) as got:
         mv.validator_count(key)
     assert_exception_correct(got.value, expected)
@@ -139,7 +139,7 @@ def test_prefix_validator_count_fail():
 
 
 def _prefix_validator_count_fail(vals, prefix, expected):
-    mv = MetadataValidator({}, vals)
+    mv = MetadataValidatorSet({}, vals)
     with raises(Exception) as got:
         mv.prefix_validator_count(prefix)
     assert_exception_correct(got.value, expected)
@@ -156,7 +156,7 @@ def test_call_validator_fail():
 
 
 def _call_validator_fail(vals, key, index, expected):
-    mv = MetadataValidator(vals)
+    mv = MetadataValidatorSet(vals)
     with raises(Exception) as got:
         mv.call_validator(key, index, {})
     assert_exception_correct(got.value, expected)
@@ -181,7 +181,7 @@ def test_call_prefix_validator_fail():
 
 
 def _call_prefix_validator_fail(vals, prefix, index, key, expected):
-    mv = MetadataValidator(prefix_validators=vals)
+    mv = MetadataValidatorSet(prefix_validators=vals)
     with raises(Exception) as got:
         mv.call_prefix_validator(prefix, index, key, {})
     assert_exception_correct(got.value, expected)
@@ -222,7 +222,7 @@ def test_validate_metadata_fail():
 
 
 def _validate_metadata_fail(vals, prevals, meta, expected):
-    mv = MetadataValidator(vals, prevals)
+    mv = MetadataValidatorSet(vals, prevals)
     with raises(Exception) as got:
         mv.validate_metadata(meta)
     assert_exception_correct(got.value, expected)

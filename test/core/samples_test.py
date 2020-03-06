@@ -12,7 +12,7 @@ from SampleService.core.sample import Sample, SampleNode, SavedSample
 from SampleService.core.samples import Samples
 from SampleService.core.storage.errors import OwnerChangedError
 from SampleService.core.user_lookup import KBaseUserLookup
-from SampleService.core.validator.metadata_validator import MetadataValidator
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core import user_lookup
 from core.test_utils import assert_exception_correct
 
@@ -24,7 +24,7 @@ def nw():
 def test_init_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ug = lambda: UUID('1234567890abcdef1234567890abcdef')  # noqa E731
 
     _init_fail(None, lu, meta, nw, ug, ValueError(
@@ -53,7 +53,7 @@ def test_save_sample():
 def _save_sample_with_name(name):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     s = Samples(storage, lu, meta, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -108,7 +108,7 @@ def test_save_sample_version():
 def _save_sample_version_per_user(user, name, prior_version):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     s = Samples(storage, lu, meta, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -141,7 +141,7 @@ def _save_sample_version_per_user(user, name, prior_version):
 def test_save_sample_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -159,7 +159,7 @@ def test_save_sample_fail_bad_args():
 def test_save_sample_fail_no_metadata_validator():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
 
     meta.validate_metadata.side_effect = MetadataValidationError('No validator for key3')
     s = Samples(storage, lu, meta, now=nw,
@@ -183,7 +183,7 @@ def test_save_sample_fail_no_metadata_validator():
 def test_save_sample_fail_metadata_validator_exception():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     meta.validate_metadata.side_effect = [None, MetadataValidationError('key2: u suk lol')]
     s = Samples(storage, lu, meta, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
@@ -215,7 +215,7 @@ def test_save_sample_fail_unauthorized():
 def _save_sample_fail_unauthorized(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -252,7 +252,7 @@ def test_get_sample():
 def _get_sample(user, version, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -288,7 +288,7 @@ def _get_sample(user, version, as_admin):
 def test_get_sample_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcdef')
@@ -303,7 +303,7 @@ def test_get_sample_fail_bad_args():
 def test_get_sample_fail_unauthorized():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -335,7 +335,7 @@ def test_get_sample_acls():
 def _get_sample_acls(user, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -353,7 +353,7 @@ def _get_sample_acls(user, as_admin):
 def test_get_sample_acls_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcdef')
@@ -367,7 +367,7 @@ def test_get_sample_acls_fail_bad_args():
 def test_get_sample_acls_fail_unauthorized():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
@@ -397,7 +397,7 @@ def test_replace_sample_acls():
 def _replace_sample_acls(user, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -424,7 +424,7 @@ def _replace_sample_acls(user, as_admin):
 def test_replace_sample_acls_with_owner_change():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -458,7 +458,7 @@ def test_replace_sample_acls_with_owner_change():
 def test_replace_sample_acls_with_owner_change_fail_lost_perms():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -493,7 +493,7 @@ def test_replace_sample_acls_with_owner_change_fail_lost_perms():
 def test_replace_sample_acls_with_owner_change_fail_5_times():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -525,7 +525,7 @@ def test_replace_sample_acls_with_owner_change_fail_5_times():
 def test_replace_sample_acls_fail_bad_input():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -541,7 +541,7 @@ def test_replace_sample_acls_fail_bad_input():
 def test_replace_sample_acls_fail_nonexistent_user_4_users():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -559,7 +559,7 @@ def test_replace_sample_acls_fail_nonexistent_user_4_users():
 def test_replace_sample_acls_fail_nonexistent_user_5_users():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -577,7 +577,7 @@ def test_replace_sample_acls_fail_nonexistent_user_5_users():
 def test_replace_sample_acls_fail_nonexistent_user_6_users():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -595,7 +595,7 @@ def test_replace_sample_acls_fail_nonexistent_user_6_users():
 def test_replace_sample_acls_fail_invalid_user():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -613,7 +613,7 @@ def test_replace_sample_acls_fail_invalid_user():
 def test_replace_sample_acls_fail_invalid_token():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
@@ -638,7 +638,7 @@ def test_replace_sample_acls_fail_unauthorized():
 def _replace_sample_acls_fail_unauthorized(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidator, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
