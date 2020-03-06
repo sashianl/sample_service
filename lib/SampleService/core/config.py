@@ -17,7 +17,7 @@ from jsonschema import validate as _validate
 import arango as _arango
 
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.validator.metadata_validator import MetadataValidator
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.samples import Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
@@ -61,7 +61,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     read_roles = split_value(config, 'auth-read-admin-roles')
 
     # build the validators before trying to connect to arango
-    metaval = get_validators(metaval_url) if metaval_url else MetadataValidator()
+    metaval = get_validators(metaval_url) if metaval_url else MetadataValidatorSet()
 
     # meta params may have info that shouldn't be logged so don't log any for now.
     # Add code to deal with this later if needed
@@ -140,7 +140,7 @@ _META_VAL_JSONSCHEMA = {
 }
 
 
-def get_validators(url: str) -> MetadataValidator:
+def get_validators(url: str) -> MetadataValidatorSet:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -178,4 +178,4 @@ def get_validators(url: str) -> MetadataValidator:
                 raise ValueError(
                     f'Metadata validator callable build #{i} failed for key {key}: {e.args[0]}'
                     ) from e
-    return MetadataValidator(vals, prefix_vals)
+    return MetadataValidatorSet(vals, prefix_vals)
