@@ -2,7 +2,7 @@ import maps
 from pytest import raises
 
 from core.test_utils import assert_exception_correct
-from SampleService.core.validator.metadata_validator import MetadataValidatorSet
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet, MetadataValidator
 from SampleService.core.errors import MetadataValidationError
 
 
@@ -14,14 +14,65 @@ def _noop3(_, __, ___):
     return None
 
 
-def test_empty():
+def val1(key, value):
+    return f'{key} {dict(sorted(value.items()))} 1'
+
+
+def val2(key, value):
+    return f'{key} {dict(sorted(value.items()))} 2'
+
+
+def test_construct_val_std():
+    mv = MetadataValidator('mykey', [val1, val2])
+
+    assert mv.key == 'mykey'
+    assert mv.is_prefix_validator() is False
+    assert len(mv.validators) == 2
+    assert len(mv.prefix_validators) == 0
+    assert mv.validators[0]('foo', {'a': 'b'}) == "foo {'a': 'b'} 1"
+    assert mv.validators[1]('bar', {'c': 'd'}) == "bar {'c': 'd'} 2"
+
+
+def test_construct_val_prefix():
+    mv = MetadataValidator('my other key', prefix_validators=[val2])
+
+    assert mv.key == 'my other key'
+    assert mv.is_prefix_validator() is True
+    assert len(mv.validators) == 0
+    assert len(mv.prefix_validators) == 1
+    assert mv.prefix_validators[0]('foo', {'a': 'b'}) == "foo {'a': 'b'} 2"
+
+
+def test_construct_val_fail_bad_args():
+    _fail_construct_val(None, [val1], None, ValueError(
+        'key cannot be a value that evaluates to false'))
+    _fail_construct_val('', [val1], None, ValueError(
+        'key cannot be a value that evaluates to false'))
+    _fail_construct_val('k', None, None, ValueError(
+        'Exactly one of validators or prefix_validators must be supplied and must contain ' +
+        'at least one validator'))
+    _fail_construct_val('k', [], [], ValueError(
+        'Exactly one of validators or prefix_validators must be supplied and must contain ' +
+        'at least one validator'))
+    _fail_construct_val('k', [val1], [val2], ValueError(
+        'Exactly one of validators or prefix_validators must be supplied and must contain ' +
+        'at least one validator'))
+
+
+def _fail_construct_val(key, validators, prefix_validators, expected):
+    with raises(Exception) as got:
+        MetadataValidator(key, validators, prefix_validators)
+    assert_exception_correct(got.value, expected)
+
+
+def test_empty_set():
     mv = MetadataValidatorSet()
 
     assert mv.keys() == {}.keys()
     assert mv.prefix_keys() == []
 
 
-def test_with_validators():
+def test_set_with_validators():
     mv = MetadataValidatorSet({
         # this is vile
         'key1': [lambda k, v: exec('assert k == "key1"'),
@@ -40,7 +91,7 @@ def test_with_validators():
     assert mv.validator_count('key2') == 1
 
 
-def test_with_prefix_validators():
+def test_set_with_prefix_validators():
     mv = MetadataValidatorSet(prefix_validators={
         # this is vile
         'pre1': [lambda p, k, v: exec('assert p == "pre1"'),
@@ -60,7 +111,7 @@ def test_with_prefix_validators():
     assert mv.prefix_validator_count('pre2') == 1
 
 
-def test_with_prefix_validators_multiple_matches():
+def test_set_with_prefix_validators_multiple_matches():
     results = []
     mv = MetadataValidatorSet(
         validators={'somekey': [lambda k, v: results.append((k, v))]},
@@ -86,7 +137,7 @@ def test_with_prefix_validators_multiple_matches():
     ]
 
 
-def test_call_validator():
+def test_set_call_validator():
     mv = MetadataValidatorSet({
         'key1': [lambda k, v: (k, v, 1), lambda k, v: (k, v, 2)],
         'key2': [lambda k, v: (k, v, 3)]
@@ -96,7 +147,7 @@ def test_call_validator():
     assert mv.call_validator('key2', 0, {'foo', 'baz'}) == ('key2', {'foo', 'baz'}, 3)
 
 
-def test_call_prefix_validator():
+def test_set_call_prefix_validator():
     mv = MetadataValidatorSet({}, {
         'p1': [lambda p, k, v: (p, k, v, 1), lambda p, k, v: (p, k, v, 2)],
         'p2': [lambda p, k, v: (p, k, v, 3)]
@@ -109,7 +160,7 @@ def test_call_prefix_validator():
         'p2', 0, 'key2', {'foo', 'baz'}) == ('p2', 'key2', {'foo', 'baz'}, 3)
 
 
-def test_validator_count_fail():
+def test_set_validator_count_fail():
     _validator_count_fail(
         {'key1': [_noop], 'key2': [_noop]}, 'key3', ValueError('No validators for key key3'))
     _validator_count_fail(
@@ -123,7 +174,7 @@ def _validator_count_fail(vals, key, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_prefix_validator_count_fail():
+def test_set_prefix_validator_count_fail():
     _prefix_validator_count_fail(
         {'key1': [_noop], 'key2': [_noop]}, 'key3',
         ValueError('No prefix validators for prefix key3'))
@@ -145,7 +196,7 @@ def _prefix_validator_count_fail(vals, prefix, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_call_validator_fail():
+def test_set_call_validator_fail():
     _call_validator_fail({'key1': [_noop], 'key2': [_noop]}, 'key3', 0,
                          ValueError('No validators for key key3'))
     _call_validator_fail({'key1': [_noop], 'key2': [_noop], 'key3': []}, 'key3', 0,
@@ -162,7 +213,7 @@ def _call_validator_fail(vals, key, index, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_call_prefix_validator_fail():
+def test_set_call_prefix_validator_fail():
     _call_prefix_validator_fail(
         {'key1': [_noop], 'key2': [_noop]}, 'key3', 0, 'key3stuff',
         ValueError('No prefix validators for prefix key3'))
@@ -187,7 +238,7 @@ def _call_prefix_validator_fail(vals, prefix, index, key, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_validate_metadata_fail():
+def test_set_validate_metadata_fail():
     _validate_metadata_fail(
         {'key1': [_noop], 'key2': [_noop]}, {}, [], ValueError('metadata must be a dict'))
     _validate_metadata_fail(
