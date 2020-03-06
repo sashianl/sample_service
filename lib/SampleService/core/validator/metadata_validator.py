@@ -5,8 +5,75 @@ Contains a Sample Service metadata validator class.
 import maps as _maps
 from typing import Dict, List, Callable, Optional
 from pygtrie import CharTrie as _CharTrie
+from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
+
+
+class MetadataValidator:
+    '''
+    A validator for a unit of metadata.
+
+    Only one of validators and prefix_validators will be populated; the other will be an
+    empty tuple.
+
+    The arguments to each standard validator are the metadata key and the value mapped from
+    the key.
+
+    The return value of the validators is an error string if the validation failed or None if
+    it passed.
+
+    The arguments to each prefix validator are the metadata key, the prefix key that
+    matched the key, and the value mapped from the metadata key.
+
+    :ivar key: The metadata key to which the validator is assigned.
+    :ivar validators: The list of validators.
+    :ivar prefix_validators: The list of prefix validators. These validators match any
+        metadata key for which the provided key is a prefix, and their validators will be run on
+        any matching key.
+    '''
+
+    def __init__(
+            self,
+            key: str,
+            validators: List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]] = None,
+            prefix_validators: List[
+                Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]] = None):
+        '''
+        Create the validator. Exactly one of the validators or prefix_validators arguments
+        must be supplied and must contain at least one validator.
+
+        The arguments to each standard validator are the metadata key and the value mapped
+        from the key.
+
+        The arguments to each prefix validator are the metadata key, the prefix key that
+        matched the key, and the value mapped from the metadata key.
+
+        The return value of the validators is an error string if the validation failed or None if
+        it passed.
+
+        :param key: The metadata key that this validator will validate.
+        :param validators: The metadata validator callables.
+        :param prefix_validators: The metadata prefix validators. These validators match any
+            metadata key for which the provided key is a prefix, and their validators will be run on
+            any matching key.
+        '''
+        # may want a builder for this?
+        # TODO static key metadata
+        self.key = _not_falsy(key, 'key')
+        if not (bool(validators) ^ bool(prefix_validators)):  # xor
+            raise ValueError('Exactly one of validators or prefix_validators must be supplied ' +
+                             'and must contain at least one validator')
+        self.validators = tuple(validators if validators else [])
+        self.prefix_validators = tuple(prefix_validators if prefix_validators else [])
+
+    def is_prefix_validator(self):
+        '''
+        Check if this validator is a prefix validator.
+
+        :returns: True if this validator is a prefix validator, False otherwise.
+        '''
+        return bool(self.prefix_validators)
 
 
 class MetadataValidatorSet:
