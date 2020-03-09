@@ -8,6 +8,7 @@ from pygtrie import CharTrie as _CharTrie
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
+from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 
 
 class MetadataValidator:
@@ -31,6 +32,8 @@ class MetadataValidator:
     :ivar prefix_validators: The list of prefix validators. These validators match any
         metadata key for which the provided key is a prefix, and their validators will be run on
         any matching key.
+    :ivar metadata: Metadata about the key; e.g. defining the key semantics or relation to
+        an ontology.
     '''
 
     def __init__(
@@ -38,7 +41,8 @@ class MetadataValidator:
             key: str,
             validators: List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]] = None,
             prefix_validators: List[
-                Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]] = None):
+                Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]] = None,
+            metadata: Dict[str, PrimitiveType] = None):
         '''
         Create the validator. Exactly one of the validators or prefix_validators arguments
         must be supplied and must contain at least one validator.
@@ -55,8 +59,10 @@ class MetadataValidator:
         :param key: The metadata key that this validator will validate.
         :param validators: The metadata validator callables.
         :param prefix_validators: The metadata prefix validators. These validators match any
-            metadata key for which the provided key is a prefix, and their validators will be run on
-            any matching key.
+            metadata key for which the provided key is a prefix, and their validators will be
+            run on any matching key.
+        :param metadata: Metadata about the key; e.g. defining the key semantics or relation to
+            an ontology.
         '''
         # may want a builder for this?
         # TODO static key metadata
@@ -66,6 +72,7 @@ class MetadataValidator:
                              'and must contain at least one validator')
         self.validators = tuple(validators if validators else [])
         self.prefix_validators = tuple(prefix_validators if prefix_validators else [])
+        self.metadata = metadata if metadata else {}
 
     def is_prefix_validator(self):
         '''
@@ -90,15 +97,19 @@ class MetadataValidatorSet:
         vals: Dict[str, _Tuple[Callable[[str, Dict[str, PrimitiveType]], Optional[str]], ...]] = {}
         pvals: Dict[
             str, _Tuple[Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]], ...]] = {}
+        self._vals_meta = {}
+        self._prefix_vals_meta = {}
         for v in (validators if validators else []):
             if v.is_prefix_validator():
                 if v.key in pvals:
                     raise ValueError(f'Duplicate prefix validator: {v.key}')
                 pvals[v.key] = v.prefix_validators
+                self._prefix_vals_meta[v.key] = v.metadata
             else:
                 if v.key in vals:
                     raise ValueError(f'Duplicate validator: {v.key}')
                 vals[v.key] = v.validators
+                self._vals_meta[v.key] = v.metadata
         self._vals = dict(vals)
         self._prefix_vals = _CharTrie(pvals)
 
@@ -115,6 +126,38 @@ class MetadataValidatorSet:
         :returns: the metadata keys.
         '''
         return self._prefix_vals.keys()
+
+    def key_metadata(self, keys: List[str]) -> Dict[str, Dict[str, PrimitiveType]]:
+        '''
+        Get any metdata associated with the specified keys.
+
+        :param keys: The keys to query.
+        :returns: A mapping of keys to their metadata.
+        :raises IllegalParameterError: if one of the provided keys does not exist in this
+            validator.
+        '''
+        return self._key_metadata(keys, self._vals_meta, '')
+
+    def _key_metadata(self, keys, meta, name_):
+        if keys is None:
+            raise ValueError('keys cannot be None')
+        ret = {}
+        for k in keys:
+            if k not in meta:
+                raise _IllegalParameterError(f'No such {name_}metadata key: {k}')
+            ret[k] = meta[k]
+        return ret
+
+    def prefix_key_metadata(self, keys: List[str]) -> Dict[str, Dict[str, PrimitiveType]]:
+        '''
+        Get any metdata associated with the specified prefix keys.
+
+        :param keys: The keys to query.
+        :returns: A mapping of keys to their metadata.
+        :raises IllegalParameterError: if one of the provided keys does not exist in this
+            validator.
+        '''
+        return self._key_metadata(keys, self._prefix_vals_meta, 'prefix ')
 
     def validator_count(self, key: str):
         '''

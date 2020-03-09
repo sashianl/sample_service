@@ -3,7 +3,7 @@ from pytest import raises
 
 from core.test_utils import assert_exception_correct
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet, MetadataValidator
-from SampleService.core.errors import MetadataValidationError
+from SampleService.core.errors import MetadataValidationError, IllegalParameterError
 
 
 def _noop(_, __):
@@ -26,6 +26,7 @@ def test_construct_val_std():
     mv = MetadataValidator('mykey', [val1, val2])
 
     assert mv.key == 'mykey'
+    assert mv.metadata == {}
     assert mv.is_prefix_validator() is False
     assert len(mv.validators) == 2
     assert len(mv.prefix_validators) == 0
@@ -33,10 +34,12 @@ def test_construct_val_std():
     assert mv.validators[1]('bar', {'c': 'd'}) == "bar {'c': 'd'} 2"
 
 
-def test_construct_val_prefix():
-    mv = MetadataValidator('my other key', prefix_validators=[val2])
+def test_construct_val_prefix_and_meta():
+    mv = MetadataValidator(
+        'my other key', prefix_validators=[val2], metadata={'foo': 'bar', 'baz': 'bat'})
 
     assert mv.key == 'my other key'
+    assert mv.metadata == {'foo': 'bar', 'baz': 'bat'}
     assert mv.is_prefix_validator() is True
     assert len(mv.validators) == 0
     assert len(mv.prefix_validators) == 1
@@ -190,6 +193,66 @@ def test_set_with_prefix_validators_multiple_matches():
         ('someke', 'somekey', {'x', 'y'}),
         ('somekey', 'somekey', {'x', 'y'}),
     ]
+
+
+def test_set_with_key_metadata():
+    mv = MetadataValidatorSet([
+        MetadataValidator('pre1', prefix_validators=[_noop], metadata={'a': 'b', 'c': 'd'}),
+        MetadataValidator('pre2', prefix_validators=[_noop]),
+        MetadataValidator('pre3', prefix_validators=[_noop], metadata={'c': 'd'}),
+        MetadataValidator('pre1', [_noop]),
+        MetadataValidator('pre2', [_noop], metadata={'e': 'f', 'h': 'i'}),
+        MetadataValidator('pre3', [_noop], metadata={'h': 'i'})
+        ])
+
+    assert mv.key_metadata([]) == {}
+    assert mv.prefix_key_metadata([]) == {}
+
+    assert mv.key_metadata(['pre1']) == {'pre1': {}}
+    assert mv.prefix_key_metadata(['pre1']) == {'pre1': {'a': 'b', 'c': 'd'}}
+
+    assert mv.key_metadata(['pre1', 'pre3']) == {'pre1': {},
+                                                 'pre3': {'h': 'i'}}
+    assert mv.prefix_key_metadata(['pre1', 'pre2']) == {'pre1': {'a': 'b', 'c': 'd'},
+                                                        'pre2': {}}
+
+    assert mv.key_metadata(['pre1', 'pre2', 'pre3']) == {'pre1': {},
+                                                         'pre2': {'e': 'f', 'h': 'i'},
+                                                         'pre3': {'h': 'i'}}
+    assert mv.prefix_key_metadata(['pre1', 'pre2', 'pre3']) == {'pre1': {'a': 'b', 'c': 'd'},
+                                                                'pre2': {},
+                                                                'pre3': {'c': 'd'}}
+
+
+def test_set_key_metadata_fail_bad_args():
+    _key_metadata_fail_([], None, ValueError('keys cannot be None'))
+    _key_metadata_fail_(
+        [MetadataValidator('key1', [_noop]), MetadataValidator('key3', [_noop])],
+        ['key1', 'key2', 'key3'],
+        IllegalParameterError('No such metadata key: key2'))
+
+
+def _key_metadata_fail_(vals, keys, expected):
+    mv = MetadataValidatorSet(vals)
+    with raises(Exception) as got:
+        mv.key_metadata(keys)
+    assert_exception_correct(got.value, expected)
+
+
+def test_set_prefix_key_metadata_fail_bad_args():
+    _prefix_key_metadata_fail_([], None, ValueError('keys cannot be None'))
+    _prefix_key_metadata_fail_(
+        [MetadataValidator('key1', prefix_validators=[_noop]),
+         MetadataValidator('key2', prefix_validators=[_noop])],
+        ['key1', 'key2', 'key3'],
+        IllegalParameterError('No such prefix metadata key: key3'))
+
+
+def _prefix_key_metadata_fail_(vals, keys, expected):
+    mv = MetadataValidatorSet(vals)
+    with raises(Exception) as got:
+        mv.prefix_key_metadata(keys)
+    assert_exception_correct(got.value, expected)
 
 
 def test_set_call_validator():
