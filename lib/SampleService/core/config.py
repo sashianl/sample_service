@@ -18,6 +18,7 @@ import arango as _arango
 
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
+from SampleService.core.validator.metadata_validator import MetadataValidator as _MetadataValidator
 from SampleService.core.samples import Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
@@ -178,4 +179,7 @@ def get_validators(url: str) -> MetadataValidatorSet:
                 raise ValueError(
                     f'Metadata validator callable build #{i} failed for key {key}: {e.args[0]}'
                     ) from e
-    return MetadataValidatorSet(vals, prefix_vals)
+    valids = [_MetadataValidator(k, v) for k, v in vals.items()]
+    valids.extend([_MetadataValidator(k, prefix_validators=v) for k, v in prefix_vals.items()])
+
+    return MetadataValidatorSet(valids)
