@@ -3,7 +3,7 @@ Contains a Sample Service metadata validator class.
 '''
 
 import maps as _maps
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Callable, Optional, Tuple as _Tuple
 from pygtrie import CharTrie as _CharTrie
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.core_types import PrimitiveType
@@ -81,32 +81,33 @@ class MetadataValidatorSet:
     A set of validators of metadata.
     '''
 
-    def __init__(
-        self,
-        validators:
-            Dict[str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]] = None,
-        prefix_validators:
-            Dict[str, List[Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]]] = None):
+    def __init__(self, validators: List[MetadataValidator] = None):
         '''
         Create the validator set.
 
-        :param validators: A map from metadata keys to a list of validators for that key.
-          The arguments to each validator are the metadata key and the value mapped from the key.
-        :param prefix_validators: A map from metadata prefix keys to a list of validators for
-          that key. These keys match any metadata key for which they are a prefix, and their
-          validators will be run on any matching key.
-          The arguments to each validator are the metadata key, the prefix key that matched the
-          key, and the value mapped from the metadata key.
+        :param validators: The validators.
         '''
-        self._vals = dict(validators) if validators else {}  # remove possible defaultdict
-        self._prefix_vals = _CharTrie(prefix_validators if prefix_validators else {})
+        vals: Dict[str, _Tuple[Callable[[str, Dict[str, PrimitiveType]], Optional[str]], ...]] = {}
+        pvals: Dict[
+            str, _Tuple[Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]], ...]] = {}
+        for v in (validators if validators else []):
+            if v.is_prefix_validator():
+                if v.key in pvals:
+                    raise ValueError(f'Duplicate prefix validator: {v.key}')
+                pvals[v.key] = v.prefix_validators
+            else:
+                if v.key in vals:
+                    raise ValueError(f'Duplicate validator: {v.key}')
+                vals[v.key] = v.validators
+        self._vals = dict(vals)
+        self._prefix_vals = _CharTrie(pvals)
 
     def keys(self):
         '''
         Get the keys with assigned metadata validators.
         :returns: the metadata keys.
         '''
-        return self._vals.keys()
+        return list(self._vals.keys())
 
     def prefix_keys(self):
         '''
