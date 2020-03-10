@@ -6,19 +6,20 @@ import datetime
 import uuid as _uuid
 from uuid import UUID
 
-from typing import Optional, Callable, Tuple, List, cast as _cast
+from typing import Optional, Callable, Tuple, List, Dict, Union, cast as _cast
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.core_types import PrimitiveType
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
-from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
 from SampleService.core.sample import Sample, SavedSample
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 
@@ -225,3 +226,26 @@ class Samples:
                 count += 1
 
     # TODO change owner. Probably needs a request/accept flow.
+
+    def get_key_static_metadata(
+            self,
+            keys: List[str],
+            prefix: Union[bool, None] = False
+            ) -> Dict[str, Dict[str, PrimitiveType]]:
+        '''
+        Get any static metadata associated with the provided list of keys.
+
+        :param keys: The keys to query.
+        :param prefix: True to query prefix keys, None to query prefix keys but only match exactly,
+            False for standard keys.
+        :returns: A mapping of key to key metadata.
+        '''
+        if keys is None:
+            raise ValueError('keys cannot be None')
+        if prefix is False:
+            return self._metaval.key_metadata(keys)
+        elif prefix:
+            # TODO NOW option for matching all prefixes, not just exact match
+            raise ValueError('unimplemented')
+        else:
+            return self._metaval.prefix_key_metadata(keys)
