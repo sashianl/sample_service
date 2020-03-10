@@ -209,7 +209,7 @@ def test_set_with_key_metadata():
     assert mv.prefix_key_metadata([]) == {}
 
     assert mv.key_metadata(['pre1']) == {'pre1': {}}
-    assert mv.prefix_key_metadata(['pre1']) == {'pre1': {'a': 'b', 'c': 'd'}}
+    assert mv.prefix_key_metadata(['pre1'], exact_match=True) == {'pre1': {'a': 'b', 'c': 'd'}}
 
     assert mv.key_metadata(['pre1', 'pre3']) == {'pre1': {},
                                                  'pre3': {'h': 'i'}}
@@ -222,6 +222,31 @@ def test_set_with_key_metadata():
     assert mv.prefix_key_metadata(['pre1', 'pre2', 'pre3']) == {'pre1': {'a': 'b', 'c': 'd'},
                                                                 'pre2': {},
                                                                 'pre3': {'c': 'd'}}
+
+
+def test_set_with_prefix_match_key_metadata():
+    mv = MetadataValidatorSet([
+        MetadataValidator('a', prefix_validators=[_noop], metadata={'a': 'b'}),
+        MetadataValidator('abc', prefix_validators=[_noop], metadata={'c': 'd'}),
+        MetadataValidator('abcdef', prefix_validators=[_noop], metadata={'f': 'g'}),
+        MetadataValidator('abcdefhi', prefix_validators=[_noop], metadata={'f': 'g'}),
+        MetadataValidator('abzhi', prefix_validators=[_noop], metadata={'z': 'w'}),
+        MetadataValidator('abzhijk', prefix_validators=[_noop], metadata={'q': 'q'}),
+        MetadataValidator('b', prefix_validators=[_noop], metadata={'bbb': 'bbb'}),
+    ])
+
+    assert mv.prefix_key_metadata(['abcdef']) == {'abcdef': {'f': 'g'}}
+    assert mv.prefix_key_metadata(['abcdef'], exact_match=False) == {
+        'a': {'a': 'b'}, 'abc': {'c': 'd'}, 'abcdef': {'f': 'g'}}
+    assert mv.prefix_key_metadata(['abcdefh'], exact_match=False) == {
+        'a': {'a': 'b'}, 'abc': {'c': 'd'}, 'abcdef': {'f': 'g'}}
+    assert mv.prefix_key_metadata(['abzhij'], exact_match=False) == {
+        'a': {'a': 'b'}, 'abzhi': {'z': 'w'}}
+    assert mv.prefix_key_metadata(['abcdef', 'abzhij'], exact_match=False) == {
+        'a': {'a': 'b'},
+        'abc': {'c': 'd'},
+        'abcdef': {'f': 'g'},
+        'abzhi': {'z': 'w'}}
 
 
 def test_set_key_metadata_fail_bad_args():
@@ -253,6 +278,26 @@ def _prefix_key_metadata_fail_(vals, keys, expected):
     with raises(Exception) as got:
         mv.prefix_key_metadata(keys)
     assert_exception_correct(got.value, expected)
+
+    with raises(Exception) as got:
+        mv.prefix_key_metadata(keys, exact_match=True)
+    assert_exception_correct(got.value, expected)
+
+
+def test_prefix_key_metadata_fail_prefix_match():
+    mv = MetadataValidatorSet([
+        MetadataValidator('abcdef', prefix_validators=[_noop], metadata={'f': 'g'}),
+        MetadataValidator('abcdefhi', prefix_validators=[_noop], metadata={'f': 'g'})
+    ])
+
+    with raises(Exception) as got:
+        mv.prefix_key_metadata(None, exact_match=False)
+    assert_exception_correct(got.value, ValueError('keys cannot be None'))
+
+    with raises(Exception) as got:
+        mv.prefix_key_metadata(['abcde'], exact_match=False)
+    assert_exception_correct(got.value, IllegalParameterError(
+        'No prefix metadata keys matching key abcde'))
 
 
 def test_set_call_validator():
