@@ -244,8 +244,5 @@ class Samples:
             raise ValueError('keys cannot be None')
         if prefix is False:
             return self._metaval.key_metadata(keys)
-        elif prefix:
-            # TODO NOW option for matching all prefixes, not just exact match
-            raise ValueError('unimplemented')
         else:
-            return self._metaval.prefix_key_metadata(keys)
+            return self._metaval.prefix_key_metadata(keys, exact_match=bool(prefix))
