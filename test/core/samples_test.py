@@ -661,3 +661,57 @@ def _replace_sample_acls_fail(samples, id_, user, acls, expected):
     with raises(Exception) as got:
         samples.replace_sample_acls(id_, user, acls)
     assert_exception_correct(got.value, expected)
+
+
+def test_get_key_metadata():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    meta.key_metadata.side_effect = [
+        {'a': {'c': 'd'}, 'b': {'e': 3}},
+        {'a': {'c': 'e'}, 'b': {'e': 4}},
+        ]
+
+    assert s.get_key_static_metadata(['a', 'b']) == {'a': {'c': 'd'}, 'b': {'e': 3}}
+
+    meta.key_metadata.assert_called_once_with(['a', 'b'])
+
+    assert s.get_key_static_metadata(['a', 'b'], prefix=False) == {'a': {'c': 'e'}, 'b': {'e': 4}}
+
+    meta.key_metadata.assert_called_with(['a', 'b'])
+
+    assert meta.key_metadata.call_count == 2
+
+
+def test_get_prefix_key_metadata_exact_match():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    meta.prefix_key_metadata.return_value = {'a': {'c': 'd'}, 'b': {'e': 3}}
+
+    assert s.get_key_static_metadata(['a', 'b'], prefix=None) == {
+        'a': {'c': 'd'}, 'b': {'e': 3}}
+
+    meta.prefix_key_metadata.assert_called_once_with(['a', 'b'])
+
+
+def test_get_prefix_key_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    with raises(Exception) as got:
+        s.get_key_static_metadata(None)
+    assert_exception_correct(got.value, ValueError('keys cannot be None'))
+
+    with raises(Exception) as got:
+        s.get_key_static_metadata([], prefix=True)
+    assert_exception_correct(got.value, ValueError('unimplemented'))
