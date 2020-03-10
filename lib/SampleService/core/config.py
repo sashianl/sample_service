@@ -120,6 +120,7 @@ def _check_string_req(s: Optional[str], name: str) -> str:
 
 
 # TODO key meta update docs
+# If this structure is updated, please update the README file.
 _META_VAL_JSONSCHEMA = {
     'type': 'object',
     'definitions': {
@@ -129,12 +130,12 @@ _META_VAL_JSONSCHEMA = {
             'additionalProperties': {
                 'type': 'object',
                 'properties': {
-                    # 'key_metadata': {
-                    #     'type': 'object',
-                    #     'items': {
-                    #         'type': ['number', 'boolean', 'string', 'null']
-                    #     }
-                    # },
+                    'key_metadata': {
+                        'type': 'object',
+                        'additionalProperties': {
+                            'type': ['number', 'boolean', 'string', 'null']
+                        }
+                    },
                     'validators': {
                         'type': 'array',
                         'items': {
@@ -169,7 +170,7 @@ def get_validators(url: str) -> MetadataValidatorSet:
     in the configuration.
 
     :param url: The URL for a config file for the metadata validators.
-    :returns: A mapping of metadata key to associated validator function.
+    :returns: A set of metadata validators.
     '''
     try:
         with _urllib.request.urlopen(url) as res:
@@ -185,19 +186,18 @@ def get_validators(url: str) -> MetadataValidatorSet:
     mvals = _get_validators(
         cfg.get('validators', {}),
         'Metadata',
-        lambda k, v, m: _MetadataValidator(k, v))  # , metadata=m))
+        lambda k, v, m: _MetadataValidator(k, v, metadata=m))
     mvals.extend(_get_validators(
         cfg.get('prefix_validators', {}),
         'Prefix metadata',
-        lambda k, v, m: _MetadataValidator(k, prefix_validators=v)))  # , metadata=m)))
+        lambda k, v, m: _MetadataValidator(k, prefix_validators=v, metadata=m)))
     return MetadataValidatorSet(mvals)
 
 
 def _get_validators(cfg, name_, metaval_func) -> List[_MetadataValidator]:
     mvals = []
     for key, keyval in cfg.items():
-        # meta = keyval.get('key_metadata')
-        meta = None
+        meta = keyval.get('key_metadata')
         lvals = []
         for i, val in enumerate(keyval['validators']):
             m = importlib.import_module(val['module'])
