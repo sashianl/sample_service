@@ -52,42 +52,49 @@ def _split_value_fail(d, k, expected):
 
 
 def test_config_get_validators(temp_dir):
-    cfg = {'key1': [{'module': 'core.config_test_vals',
-                     'callable-builder': 'val1'
-                     }],
-           'key2': [{'module': 'core.config_test_vals',
-                     'callable-builder': 'val2',
-                     'parameters': {'max-len': 7, 'foo': 'bar'}
+    cfg = {
+        'validators': {
+            'key1': {'validators': [{'module': 'core.config_test_vals',
+                                     'callable-builder': 'val1'
+                                     }],
                      },
-                    {'module': 'core.config_test_vals',
-                     'callable-builder': 'val2',
-                     'parameters': {'max-len': 5, 'foo': 'bar'},
-                     'prefix': False
-                     }],
-           'key3': [{'module': 'core.config_test_vals',
-                     'callable-builder': 'val1',
-                     'parameters': {'foo': 'bat'}
-                     }],
-           'key4': [{'module': 'core.config_test_vals',
-                     'callable-builder': 'pval1',
-                     'prefix': True
-                     }],
-           'key5': [{'module': 'core.config_test_vals',
-                     'callable-builder': 'pval2',
-                     'parameters': {'max-len': 7, 'foo': 'bar'},
-                     'prefix': True,
+            'key2': {'validators': [{'module': 'core.config_test_vals',
+                                     'callable-builder': 'val2',
+                                     'parameters': {'max-len': 7, 'foo': 'bar'}
+                                     },
+                                    {'module': 'core.config_test_vals',
+                                     'callable-builder': 'val2',
+                                     'parameters': {'max-len': 5, 'foo': 'bar'},
+                                     }],
                      },
-                    {'module': 'core.config_test_vals',
-                     'callable-builder': 'pval2',
-                     'prefix': True,
-                     'parameters': {'max-len': 5, 'foo': 'bar'}
-                     }],
-           'key6': [{'module': 'core.config_test_vals',
-                     'callable-builder': 'pval1',
-                     'prefix': True,
-                     'parameters': {'foo': 'bat'}
-                     }]
-           }
+            'key3': {'validators': [{'module': 'core.config_test_vals',
+                                     'callable-builder': 'val1',
+                                     'parameters': {'foo': 'bat'}
+                                     }]
+                     }
+        },
+        'prefix_validators': {
+            'key4': {'validators': [{'module': 'core.config_test_vals',
+                                     'callable-builder': 'pval1',
+                                     }],
+                     },
+            # check key3 doesn't interfere with above key3
+            'key3': {'validators': [{'module': 'core.config_test_vals',
+                                     'callable-builder': 'pval2',
+                                     'parameters': {'max-len': 7, 'foo': 'bar'},
+                                     },
+                                    {'module': 'core.config_test_vals',
+                                     'callable-builder': 'pval2',
+                                     'parameters': {'max-len': 5, 'foo': 'bar'}
+                                     }],
+                     },
+            'key5': {'validators': [{'module': 'core.config_test_vals',
+                                     'callable-builder': 'pval1',
+                                     'parameters': {'foo': 'bat'}
+                                     }]
+                     }
+        }
+    }
     tf = _write_validator_config(cfg, temp_dir)
     vals = get_validators('file://' + tf)
     assert len(vals.keys()) == 3
@@ -109,17 +116,17 @@ def test_config_get_validators(temp_dir):
     assert vals.call_prefix_validator(
         'key4', 0, 'key4stuff', {'a': 'b'}) == "1, key4, key4stuff, {}, {'a': 'b'}"
 
-    assert vals.prefix_validator_count('key5') == 2
+    assert vals.prefix_validator_count('key3') == 2
     assert vals.call_prefix_validator(
-        'key5', 0, 'key5s', {'a': 'd'}
-        ) == "2, key5, key5s, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
+        'key3', 0, 'key3s', {'a': 'd'}
+        ) == "2, key3, key3s, {'foo': 'bar', 'max-len': 7}, {'a': 'd'}"
     assert vals.call_prefix_validator(
-        'key5', 1, 'key5s1', {'a': 'd'}
-        ) == "2, key5, key5s1, {'foo': 'bar', 'max-len': 5}, {'a': 'd'}"
+        'key3', 1, 'key3s1', {'a': 'd'}
+        ) == "2, key3, key3s1, {'foo': 'bar', 'max-len': 5}, {'a': 'd'}"
 
-    assert vals.prefix_validator_count('key6') == 1
+    assert vals.prefix_validator_count('key5') == 1
     assert vals.call_prefix_validator(
-        'key6', 0, 'key6s', {'a': 'c'}) == "1, key6, key6s, {'foo': 'bat'}, {'a': 'c'}"
+        'key5', 0, 'key5s', {'a': 'c'}) == "1, key5, key5s, {'foo': 'bat'}, {'a': 'c'}"
 
     # noop entry
     cfg = {}
@@ -155,6 +162,11 @@ def test_config_get_validators_fail_bad_yaml(temp_dir):
 
 
 def test_config_get_validators_fail_bad_params(temp_dir):
+    _config_get_validators_fail_bad_params(temp_dir, 'validators')
+    _config_get_validators_fail_bad_params(temp_dir, 'prefix_validators')
+
+
+def _config_get_validators_fail_bad_params(temp_dir, key_):
     # calling str() on ValidationErrors returns more detailed into about the error
     _config_get_validators_fail(
         '', temp_dir,
@@ -164,50 +176,76 @@ def test_config_get_validators_fail_bad_params(temp_dir):
         ValidationError("['foo', 'bar'] is not of type 'object'"))
     _config_get_validators_fail(
         {'key': 'y'}, temp_dir,
-        ValidationError("'y' is not of type 'array'"))
+        ValidationError("Additional properties are not allowed ('key' was unexpected)"))
     _config_get_validators_fail(
-        {'key': ['foo']}, temp_dir,
+        {key_: 'y'}, temp_dir,
+        ValidationError("'y' is not of type 'object'"))
+    _config_get_validators_fail(
+        {key_: {'y': ['foo']}}, temp_dir,
+        ValidationError("['foo'] is not of type 'object'"))
+    _config_get_validators_fail(
+        {key_: {'y': {'key_metadata': {'a': 'b'}}}}, temp_dir,
+        ValidationError("'validators' is a required property"))
+    _config_get_validators_fail(
+        {key_: {'y': {'randomkey': {'a': 'b'}}}}, temp_dir,
+        ValidationError("'validators' is a required property"))
+    _config_get_validators_fail(
+        {key_: {'key': {'validators': {}}}}, temp_dir,
+        ValidationError("{} is not of type 'array'"))
+    _config_get_validators_fail(
+        {key_: {'key': {'validators': ['foo']}}}, temp_dir,
         ValidationError("'foo' is not of type 'object'"))
     _config_get_validators_fail(
-        {'key': [{}]}, temp_dir,
+        {key_: {'key': {'validators': [{}]}}}, temp_dir,
         ValidationError("'module' is a required property"))
     _config_get_validators_fail(
-        {'key': [{'module': 'foo'}]}, temp_dir,
+        {key_: {'key': {'validators': [{'module': 'foo'}]}}}, temp_dir,
         ValidationError("'callable-builder' is a required property"))
     _config_get_validators_fail(
-        {'key': [{'module': 'foo', 'callable-builder': 'bar', 'xtraprop': 1}]}, temp_dir,
-        ValidationError("Additional properties are not allowed ('xtraprop' was unexpected)"))
+        {key_: {'key': {'validators': [{'module': 'foo',
+                                        'callable-builder': 'bar',
+                                        'prefix': 1}]}}},
+        temp_dir,
+        ValidationError("Additional properties are not allowed ('prefix' was unexpected)"))
     _config_get_validators_fail(
-        {'key': [{'module': ['foo'], 'callable-builder': 'bar'}]}, temp_dir,
+        {key_: {'key': {'validators': [{'module': ['foo'], 'callable-builder': 'bar'}]}}},
+        temp_dir,
         ValidationError("['foo'] is not of type 'string'"))
     _config_get_validators_fail(
-        {'key': [{'module': 'foo', 'callable-builder': ['bar']}]}, temp_dir,
+        {key_: {'key': {'validators': [{'module': 'foo', 'callable-builder': ['bar']}]}}},
+        temp_dir,
         ValidationError("['bar'] is not of type 'string'"))
     _config_get_validators_fail(
-        {'key': [{'module': 'foo', 'callable-builder': 'bar', 'parameters': 'foo'}]}, temp_dir,
+        {key_: {'key': {'validators': [{'module': 'foo',
+                                        'callable-builder': 'bar',
+                                        'parameters': 'foo'}]}}},
+        temp_dir,
         ValidationError("'foo' is not of type 'object'"))
-    _config_get_validators_fail(
-        {'key': [{'module': 'foo', 'callable-builder': 'bar', 'prefix': 0}]}, temp_dir,
-        ValidationError("0 is not of type 'boolean'"))
 
 
 def test_config_get_validators_fail_no_module(temp_dir):
     _config_get_validators_fail(
-        {'key': [{'module': 'no_modules_here', 'callable-builder': 'foo'}]}, temp_dir,
+        {'validators': {'key': {'validators': [{'module': 'no_modules_here',
+                                                'callable-builder': 'foo'}]}}},
+        temp_dir,
         ModuleNotFoundError("No module named 'no_modules_here'"))
 
 
 def test_config_get_validators_fail_no_function(temp_dir):
     _config_get_validators_fail(
-        {'x': [{'module': 'core.config_test_vals', 'callable-builder': 'foo'}]}, temp_dir,
+        {'validators': {'x': {'validators': [{'module': 'core.config_test_vals',
+                                              'callable-builder': 'foo'}]}}},
+        temp_dir,
         ValueError("Metadata validator callable build #0 failed for key x: " +
                    "module 'core.config_test_vals' has no attribute 'foo'"))
 
 
 def test_config_get_validators_fail_function_exception(temp_dir):
     _config_get_validators_fail(
-        {'x': [{'module': 'core.config_test_vals', 'callable-builder': 'val1'},
-               {'module': 'core.config_test_vals', 'callable-builder': 'fail_val'}]},
+        {'validators': {'x': {'validators': [{'module': 'core.config_test_vals',
+                                              'callable-builder': 'val1'},
+                                             {'module': 'core.config_test_vals',
+                                              'callable-builder': 'fail_val'}]}}},
         temp_dir,
         ValueError("Metadata validator callable build #1 failed for key x: " +
                    "we've no functions 'ere"))
@@ -215,18 +253,15 @@ def test_config_get_validators_fail_function_exception(temp_dir):
 
 def test_config_get_prefix_validators_fail_function_exception(temp_dir):
     _config_get_validators_fail(
-        {'p': [{'module': 'core.config_test_vals',
-                'callable-builder': 'val1',
-                'prefix': True},
-               {'module': 'core.config_test_vals',
-                'callable-builder': 'val1',
-                'prefix': True},
-               {'module': 'core.config_test_vals',
-                'callable-builder': 'fail_prefix_val',
-                'prefix': True}
-               ]},
+        {'prefix_validators': {'p': {'validators': [{'module': 'core.config_test_vals',
+                                                     'callable-builder': 'val1'},
+                                                    {'module': 'core.config_test_vals',
+                                                     'callable-builder': 'val1'},
+                                                    {'module': 'core.config_test_vals',
+                                                     'callable-builder': 'fail_prefix_val'}
+                                                    ]}}},
         temp_dir,
-        ValueError("Metadata validator callable build #2 failed for key p: " +
+        ValueError('Prefix metadata validator callable build #2 failed for key p: ' +
                    "we've no prefix functions 'ere"))
 
 

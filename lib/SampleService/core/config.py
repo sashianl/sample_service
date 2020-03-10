@@ -5,10 +5,9 @@ Configuration parsing and creation for the sample service.
 # Because creating the samples instance involves contacting arango and the auth service,
 # this code is mostly tested in the integration tests.
 
-from collections import defaultdict as _defaultdict
 import importlib
-from typing import Dict, Callable, Optional, List, Tuple
-from typing import cast as _cast, DefaultDict as _DefaultDict
+from typing import Dict, Optional, List, Tuple
+from typing import cast as _cast
 import urllib as _urllib
 from urllib.error import URLError as _URLError
 import yaml as _yaml
@@ -16,7 +15,6 @@ from yaml.parser import ParserError as _ParserError
 from jsonschema import validate as _validate
 import arango as _arango
 
-from SampleService.core.core_types import PrimitiveType
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.validator.metadata_validator import MetadataValidator as _MetadataValidator
 from SampleService.core.samples import Samples
@@ -121,23 +119,47 @@ def _check_string_req(s: Optional[str], name: str) -> str:
     return _cast(str, _check_string(s, name))
 
 
+# TODO key meta update docs
 _META_VAL_JSONSCHEMA = {
     'type': 'object',
-    # validate values only
-    'additionalProperties': {
-        'type': 'array',
-        'items': {
+    'definitions': {
+        'validator_set': {
             'type': 'object',
-            'properties': {
-                'module': {'type': 'string'},
-                'callable-builder': {'type': 'string'},
-                'prefix': {'type': 'boolean'},
-                'parameters': {'type': 'object'}
-            },
-            'additionalProperties': False,
-            'required': ['module', 'callable-builder']
-        }
-    }
+            # validate values only
+            'additionalProperties': {
+                'type': 'object',
+                'properties': {
+                    # 'key_metadata': {
+                    #     'type': 'object',
+                    #     'items': {
+                    #         'type': ['number', 'boolean', 'string', 'null']
+                    #     }
+                    # },
+                    'validators': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'module': {'type': 'string'},
+                                'callable-builder': {'type': 'string'},
+                                'parameters': {'type': 'object'}
+                            },
+                            'additionalProperties': False,
+                            'required': ['module', 'callable-builder']
+                        }
+
+                    }
+                },
+                'required': ['validators']
+            }
+        },
+        'additionalProperties': False,
+    },
+    'properties': {
+        'validators': {'$ref': '#/definitions/validator_set'},
+        'prefix_validators': {'$ref': '#/definitions/validator_set'},
+    },
+    'additionalProperties': False
 }
 
 
@@ -160,26 +182,32 @@ def get_validators(url: str) -> MetadataValidatorSet:
             f'Failed to open validator configuration file at {url}: {str(e)}') from e
     _validate(instance=cfg, schema=_META_VAL_JSONSCHEMA)
 
-    vals: _DefaultDict[
-        str, List[Callable[[str, Dict[str, PrimitiveType]], Optional[str]]]] = _defaultdict(list)
-    prefix_vals: _DefaultDict[
-        str, List[Callable[[str, str, Dict[str, PrimitiveType]], Optional[str]]]
-        ] = _defaultdict(list)
-    for key, validator_list in cfg.items():
-        for i, val in enumerate(validator_list):
+    mvals = _get_validators(
+        cfg.get('validators', {}),
+        'Metadata',
+        lambda k, v, m: _MetadataValidator(k, v))  # , metadata=m))
+    mvals.extend(_get_validators(
+        cfg.get('prefix_validators', {}),
+        'Prefix metadata',
+        lambda k, v, m: _MetadataValidator(k, prefix_validators=v)))  # , metadata=m)))
+    return MetadataValidatorSet(mvals)
+
+
+def _get_validators(cfg, name_, metaval_func) -> List[_MetadataValidator]:
+    mvals = []
+    for key, keyval in cfg.items():
+        # meta = keyval.get('key_metadata')
+        meta = None
+        lvals = []
+        for i, val in enumerate(keyval['validators']):
             m = importlib.import_module(val['module'])
-            p = val.get('parameters')
+            p = val.get('parameters', {})
             try:
                 build_func = getattr(m, val['callable-builder'])
-                if val.get('prefix'):  # mypy gets unhappy if we condense this
-                    prefix_vals[key].append(build_func(p if p else {}))
-                else:
-                    vals[key].append(build_func(p if p else {}))
+                lvals.append(build_func(p))
             except Exception as e:
                 raise ValueError(
-                    f'Metadata validator callable build #{i} failed for key {key}: {e.args[0]}'
+                    f'{name_} validator callable build #{i} failed for key {key}: {e.args[0]}'
                     ) from e
-    valids = [_MetadataValidator(k, v) for k, v in vals.items()]
-    valids.extend([_MetadataValidator(k, prefix_validators=v) for k, v in prefix_vals.items()])
-
-    return MetadataValidatorSet(valids)
+        mvals.append(metaval_func(key, lvals, meta))
+    return mvals
