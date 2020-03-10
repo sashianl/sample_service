@@ -57,6 +57,7 @@ def test_config_get_validators(temp_dir):
             'key1': {'validators': [{'module': 'core.config_test_vals',
                                      'callable-builder': 'val1'
                                      }],
+                     'key_metadata': {'a': 'b', 'c': 1.56}
                      },
             'key2': {'validators': [{'module': 'core.config_test_vals',
                                      'callable-builder': 'val2',
@@ -70,7 +71,8 @@ def test_config_get_validators(temp_dir):
             'key3': {'validators': [{'module': 'core.config_test_vals',
                                      'callable-builder': 'val1',
                                      'parameters': {'foo': 'bat'}
-                                     }]
+                                     }],
+                     'key_metadata': {'f': None, 'g': 1}
                      }
         },
         'prefix_validators': {
@@ -87,11 +89,13 @@ def test_config_get_validators(temp_dir):
                                      'callable-builder': 'pval2',
                                      'parameters': {'max-len': 5, 'foo': 'bar'}
                                      }],
+                     'key_metadata': {'h': True, 'i': 1000}
                      },
             'key5': {'validators': [{'module': 'core.config_test_vals',
                                      'callable-builder': 'pval1',
                                      'parameters': {'foo': 'bat'}
-                                     }]
+                                     }],
+                     'key_metadata': {'a': 'f', 'c': 'l'}
                      }
         }
     }
@@ -127,6 +131,19 @@ def test_config_get_validators(temp_dir):
     assert vals.prefix_validator_count('key5') == 1
     assert vals.call_prefix_validator(
         'key5', 0, 'key5s', {'a': 'c'}) == "1, key5, key5s, {'foo': 'bat'}, {'a': 'c'}"
+
+    # Test metadata
+    assert vals.key_metadata(['key1', 'key2', 'key3']) == {
+        'key1': {'a': 'b', 'c': 1.56},
+        'key2': {},
+        'key3': {'f': None, 'g': 1}
+    }
+
+    assert vals.prefix_key_metadata(['key3', 'key4', 'key5']) == {
+        'key3': {'h': True, 'i': 1000},
+        'key4': {},
+        'key5': {'a': 'f', 'c': 'l'}
+    }
 
     # noop entry
     cfg = {}
@@ -195,6 +212,16 @@ def _config_get_validators_fail_bad_params(temp_dir, key_):
     _config_get_validators_fail(
         {key_: {'key': {'validators': ['foo']}}}, temp_dir,
         ValidationError("'foo' is not of type 'object'"))
+    _config_get_validators_fail(
+        {key_: {'key': {'validators': [{'module': 'foo',
+                                        'callable-builder': 'bar'}],
+                        'key_metadata': []}}},
+        temp_dir, ValidationError("[] is not of type 'object'"))
+    _config_get_validators_fail(
+        {key_: {'key': {'validators': [{'module': 'foo',
+                                        'callable-builder': 'bar'}],
+                        'key_metadata': {'a': {}}}}},
+        temp_dir, ValidationError("{} is not of type 'number', 'boolean', 'string', 'null'"))
     _config_get_validators_fail(
         {key_: {'key': {'validators': [{}]}}}, temp_dir,
         ValidationError("'module' is a required property"))
