@@ -148,16 +148,33 @@ class MetadataValidatorSet:
             ret[k] = meta[k]
         return ret
 
-    def prefix_key_metadata(self, keys: List[str]) -> Dict[str, Dict[str, PrimitiveType]]:
+    def prefix_key_metadata(
+            self,
+            keys: List[str],
+            exact_match: bool = True
+            ) -> Dict[str, Dict[str, PrimitiveType]]:
         '''
         Get any metdata associated with the specified prefix keys.
 
         :param keys: The keys to query.
+        :param exact_match: If False, any metadata keys that match a prefix of the given keys
+            will be included. If True, the given keys must match metadata keys exactly.
         :returns: A mapping of keys to their metadata.
         :raises IllegalParameterError: if one of the provided keys does not exist in this
             validator.
         '''
-        return self._key_metadata(keys, self._prefix_vals_meta, 'prefix ')
+        if exact_match:
+            return self._key_metadata(keys, self._prefix_vals_meta, 'prefix ')
+        else:
+            if keys is None:
+                raise ValueError('keys cannot be None')
+            ret = {}
+            for k in keys:
+                if not self._prefix_vals.shortest_prefix(k):
+                    raise _IllegalParameterError(f'No prefix metadata keys matching key {k}')
+                for p in self._prefix_vals.prefixes(k):
+                    ret[p.key] = self._prefix_vals_meta[p.key]
+            return ret
 
     def validator_count(self, key: str):
         '''
@@ -242,9 +259,9 @@ class MetadataValidatorSet:
                 ret = valfunc(k, metadata[k])
                 if ret:
                     raise _MetadataValidationError(f'Key {k}: ' + ret)
-            for p, funcs in self._prefix_vals.prefixes(k):
-                for f in funcs:
-                    ret = f(p, k, metadata[k])
-                    if ret:
+            for p in self._prefix_vals.prefixes(k):
+                for f in p.value:
+                    error = f(p.key, k, metadata[k])
+                    if error:
                         raise _MetadataValidationError(
-                            f'Prefix validator {p}, key {k}: ' + ret)
+                            f'Prefix validator {p.key}, key {k}: {error}')
