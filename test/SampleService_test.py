@@ -85,22 +85,28 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
 
     metacfg = {
-        'foo': [{'module': 'SampleService.core.validator.builtin',
-                 'callable-builder': 'noop'
-                 }],
-        'stringlentest': [{'module': 'SampleService.core.validator.builtin',
-                           'callable-builder': 'string',
-                           'parameters': {'max-len': 5}
-                           },
-                          {'module': 'SampleService.core.validator.builtin',
-                           'callable-builder': 'string',
-                           'parameters': {'keys': 'spcky', 'max-len': 2}
-                           }],
-        'pre': [{'module': 'core.config_test_vals',
-                 'callable-builder': 'prefix_validator_test_builder',
-                 'prefix': True,
-                 'parameters': {'fail_on_arg': 'fail_plz'}
-                 }]
+        'validators': {
+            'foo': {'validators': [{'module': 'SampleService.core.validator.builtin',
+                                    'callable-builder': 'noop'
+                                    }],
+                    },
+            'stringlentest': {'validators': [{'module': 'SampleService.core.validator.builtin',
+                                              'callable-builder': 'string',
+                                              'parameters': {'max-len': 5}
+                                              },
+                                             {'module': 'SampleService.core.validator.builtin',
+                                              'callable-builder': 'string',
+                                              'parameters': {'keys': 'spcky', 'max-len': 2}
+                                              }],
+                              }
+        },
+        'prefix_validators': {
+            'pre': {'validators': [{'module': 'core.config_test_vals',
+                                    'callable-builder': 'prefix_validator_test_builder',
+                                    'parameters': {'fail_on_arg': 'fail_plz'}
+                                    }]
+                    }
+        }
     }
     metaval = tempfile.mkstemp('.cfg', 'metaval-', dir=test_utils.get_temp_dir(), text=True)
     os.close(metaval[0])
