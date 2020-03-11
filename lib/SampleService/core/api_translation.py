@@ -4,7 +4,7 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple, Callable, cast as _cast
+from typing import Dict, Any, Optional, Tuple, List, Callable, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
@@ -283,3 +283,34 @@ def check_admin(
     log_fn(f'User {user} is running method {method} with administration permission {p.name}' +
            (f' as user {as_user}' if as_user else ''))
     return True
+
+
+def get_static_key_metadata_params(params: Dict[str, Any]) -> Tuple[List[str], Optional[bool]]:
+    '''
+    Given a dict, extract the parameters to interrogate metadata key static metadata.
+
+    :param params: The parameters.
+    :returns: A tuple consisting of, firstly, the list of keys to interrogate, and secondly,
+        a trinary value where False indicates that standard keys should be interrogated, None
+        indicates that prefix keys should be interrogated but only exact matches should be
+        considered, and True indicates that prefix keys should be interrogated but prefix matches
+        should be included in the results.
+    '''
+    _check_params(params)
+    keys = params.get('keys')
+    if type(keys) != list:
+        raise _IllegalParameterError('keys must be a list')
+    for i, k in enumerate(_cast(List[Any], keys)):
+        if type(k) != str:
+            raise _IllegalParameterError(f'index {i} of keys is not a string')
+    prefix = params.get('prefix')
+    pre: Optional[bool]
+    if not prefix:
+        pre = False
+    elif prefix == 1:
+        pre = None
+    elif prefix == 2:
+        pre = True
+    else:
+        raise _IllegalParameterError(f'Unexpected value for prefix: {prefix}')
+    return _cast(List[str], keys), pre
