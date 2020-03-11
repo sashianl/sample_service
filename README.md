@@ -295,12 +295,12 @@ validators:
             - module: SampleService.core.validator.builtin
               callable-builder: string
               parameters:
-                max-len: 5
+                  max-len: 5
             - module: SampleService.core.validator.builtin
               callable-builder: string
               parameters:
-                keys: spcky
-                max-len: 2
+                  keys: spcky
+                  max-len: 2
         key_metadata:
             description: check that no strings are longer than 5 characters and spcky is <2
 prefix_validators:
@@ -308,10 +308,9 @@ prefix_validators:
         validators:
             - module: geneontology.plugins.kbase
               callable-builder: go_builder
-              prefix: True
               parameters: 
-                url: https://fake.go.service.org/api/go
-                apitoken: abcdefg-hijklmnop
+                  url: https://fake.go.service.org/api/go
+                  apitoken: abcdefg-hijklmnop
         key_metadata:
             description: The key value contains a GO ontology ID that is linked to the sample.
             go_url: https://fake.go.service.org/api/go
