@@ -9,7 +9,7 @@ from SampleService.core.api_translation import datetime_to_epochmilliseconds, ge
 from SampleService.core.api_translation import get_version_from_object, sample_to_dict
 from SampleService.core.api_translation import acls_to_dict, acls_from_dict
 from SampleService.core.api_translation import create_sample_params, get_sample_address_from_object
-from SampleService.core.api_translation import check_admin
+from SampleService.core.api_translation import check_admin, get_static_key_metadata_params
 from SampleService.core.sample import Sample, SampleNode, SubSampleType, SavedSample
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
@@ -520,4 +520,34 @@ def _check_admin_fail_no_admin_perms(permhas, permreq):
 def _check_admin_fail(ul, token, perm, method, logfn, as_user, expected):
     with raises(Exception) as got:
         check_admin(ul, token, perm, method, logfn, as_user)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_static_key_metadata_params():
+    assert get_static_key_metadata_params({'keys': []}) == ([], False)
+    assert get_static_key_metadata_params({'keys': ['foo'], 'prefix': None}) == (['foo'], False)
+    assert get_static_key_metadata_params({'keys': ['bar', 'foo'], 'prefix': 0}) == (
+        ['bar', 'foo'], False)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': False}) == (['bar'], False)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 1}) == (['bar'], None)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 2}) == (['bar'], True)
+
+
+def test_get_static_key_metadata_params_fail_bad_args():
+    _get_static_key_metadata_params_fail(None, ValueError('params cannot be None'))
+    _get_static_key_metadata_params_fail({}, IllegalParameterError('keys must be a list'))
+    _get_static_key_metadata_params_fail({'keys': 0}, IllegalParameterError('keys must be a list'))
+    _get_static_key_metadata_params_fail({'keys': ['foo', 0]}, IllegalParameterError(
+        'index 1 of keys is not a string'))
+    _get_static_key_metadata_params_fail({'keys': [], 'prefix': -1}, IllegalParameterError(
+        'Unexpected value for prefix: -1'))
+    _get_static_key_metadata_params_fail({'keys': [], 'prefix': 3}, IllegalParameterError(
+        'Unexpected value for prefix: 3'))
+    _get_static_key_metadata_params_fail({'keys': [], 'prefix': 'foo'}, IllegalParameterError(
+        'Unexpected value for prefix: foo'))
+
+
+def _get_static_key_metadata_params_fail(params, expected):
+    with raises(Exception) as got:
+        get_static_key_metadata_params(params)
     assert_exception_correct(got.value, expected)
