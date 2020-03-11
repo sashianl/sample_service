@@ -245,4 +245,4 @@ class Samples:
         if prefix is False:
             return self._metaval.key_metadata(keys)
         else:
-            return self._metaval.prefix_key_metadata(keys, exact_match=bool(prefix))
+            return self._metaval.prefix_key_metadata(keys, exact_match=not bool(prefix))
