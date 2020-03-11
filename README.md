@@ -211,7 +211,14 @@ def chemical_species_builder(params: Dict[str, str]
     return validate_cs
 ```
 
-### Configuration
+## Static key metadata
+
+A service administrator can define metadata associated with the metadata keys - e.g. metadata
+*about* the keys. This might include a text definition, semantic information about the key,
+an ontology ID if the key represents a particular node in an ontology, etc. This metadata is
+defined in the validator configuration file (see below) and is accessible via the service API.
+
+## Configuration
 
 The `deploy.cfg` configuration file contains a key, `metadata-validator-config-url`, that if
 provided must be a url that points to a validator configuration file. The configuration file
@@ -223,53 +230,91 @@ The configuration file uses the YAML format and is validated against the followi
 ```
 {
     'type': 'object',
-    'additionalProperties': {
-        'type': 'array',
-        'items': {
+    'definitions': {
+        'validator_set': {
             'type': 'object',
-            'properties': {
-                'module': {'type': 'string'},
-                'callable-builder': {'type': 'string'},
-                'prefix': {'type': 'boolean'},
-                'parameters': {'type': 'object'}
-            },
-            'additionalProperties': False,
-            'required': ['module', 'callable-builder']
-        }
-    }
+            # validate values only
+            'additionalProperties': {
+                'type': 'object',
+                'properties': {
+                    'key_metadata': {
+                        'type': 'object',
+                        'additionalProperties': {
+                            'type': ['number', 'boolean', 'string', 'null']
+                        }
+                    },
+                    'validators': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'module': {'type': 'string'},
+                                'callable-builder': {'type': 'string'},
+                                'parameters': {'type': 'object'}
+                            },
+                            'additionalProperties': False,
+                            'required': ['module', 'callable-builder']
+                        }
+
+                    }
+                },
+                'required': ['validators']
+            }
+        },
+        'additionalProperties': False,
+    },
+    'properties': {
+        'validators': {'$ref': '#/definitions/validator_set'},
+        'prefix_validators': {'$ref': '#/definitions/validator_set'},
+    },
+    'additionalProperties': False
 }
 ```
 
-The configuration consists of a mapping of metadata keys to a list of validator specifications
-per key. Each validator is run against the metadata value in order. The `module` key is a python
-import path for the module containing a builder function for the validator, while the
+The configuration consists of a mapping of standard and prefix metadata keys to a further mapping
+of metadata key properties, including the list of validator specifications and static metadata
+about the key. Each validator is run against the metadata value in order. The `module` key is
+a python import path for the module containing a builder function for the validator, while the
 `callable-builder` key is the name of the function within the module that can be called to 
-create the validator. `prefix`, if `True`, specifies that the validator is a prefix validator.
-`parameters` contains a mapping that is passed directly to the callable builder. The builder
-is expected to return a callable with the call signature as described previously.
+create the validator. `parameters` contains a mapping that is passed directly to the
+callable builder. The builder is expected to return a callable with the call signature as
+described previously.
 
 A simple configuration might look like:
 ```
-foo:
-    - module: SampleService.core.validator.builtin
-      callable-builder: noop
-stringlen:
-    - module: SampleService.core.validator.builtin
-      callable-builder: string
-      parameters:
-        max-len: 5
-    - module: SampleService.core.validator.builtin
-      callable-builder: string
-      parameters:
-        keys: spcky
-        max-len: 2
-gene_ontology_:
-    - module: geneontology.plugins.kbase
-      callable-builder: go_builder
-      prefix: True
-      parameters: 
-        url: https://fake.go.service.org/api/go
-        apitoken: abcdefg-hijklmnop
+validators:
+    foo:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: noop
+        key_metadata:
+            description: test key
+            semantics: none really
+    stringlen:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: string
+              parameters:
+                  max-len: 5
+            - module: SampleService.core.validator.builtin
+              callable-builder: string
+              parameters:
+                  keys: spcky
+                  max-len: 2
+        key_metadata:
+            description: check that no strings are longer than 5 characters and spcky is <2
+prefix_validators:
+    gene_ontology_:
+        validators:
+            - module: geneontology.plugins.kbase
+              callable-builder: go_builder
+              parameters: 
+                  url: https://fake.go.service.org/api/go
+                  apitoken: abcdefg-hijklmnop
+        key_metadata:
+            description: The key value contains a GO ontology ID that is linked to the sample.
+            go_url: https://fake.go.service.org/api/go
+            date_added_to_service: 2020/3/8
 ```
 
 In this case any value for the `foo` key is allowed, as the `noop` validator is assigned to the
@@ -286,32 +331,39 @@ say `GO_0099593`, at the provided url to ensure the suffix matches a legitmate o
 term. Without a prefix validator, a validator would have to be written for each individual
 ontology term, which is infeasible.
 
-### Built in validators
+All the metadata keys have static metadata describing the semantics of the keys and other
+properties that service users might need to properly use the keys.
+
+## Built in validators
 
 All built in validators are in the `SampleService.core.validator.builtin` module.
 
-#### noop
+### noop
 
 Example configuration:
 ```
-metadatakey:
-    - module: SampleService.core.validator.builtin
-      callable-builder: noop
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: noop
 ```
 
 This validator accepts any and all values.
 
-#### string
+### string
 
 Example configuration:
 ```
-metadatakey:
-    - module: SampleService.core.validator.builtin
-      callable-builder: string
-      parameters:
-        keys: ['key1', 'key2']
-        required: True
-        max-len: 10
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: string
+              parameters:
+                  keys: ['key1', 'key2']
+                  required: True
+                  max-len: 10
 ```
 
 * `keys` is either a string or a list of strings and determines which keys will be checked by the
@@ -322,16 +374,18 @@ metadatakey:
   If `keys` is not supplied, then it determines the maximum length of all keys and string values
   in the metadata value map.
 
-#### enum
+### enum
 
 Example configuration:
 ```
-metadatakey:
-    - module: SampleService.core.validator.builtin
-      callable-builder: enum
-      parameters:
-        keys: ['key1', 'key2']
-        allowed-values: ['red', 'blue', 'green]
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: enum
+              parameters:
+                  keys: ['key1', 'key2']
+                  allowed-values: ['red', 'blue', 'green]
 ```
 
 * `allowed-values` is a list of primitives - strings, integers, floats, or booleans - that are
@@ -340,16 +394,18 @@ metadatakey:
 * `keys` is either a string or a list of strings and determines which keys will be checked by the
   validator. The key must exist and its value must be one of the `allowed-values`.
 
-#### units
+### units
 
 Example configuration:
 ```
-metadatakey:
-    - module: SampleService.core.validator.builtin
-      callable-builder: units
-      parameters:
-        key: 'units'
-        units: 'mg/L'
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: units
+              parameters:
+                  key: 'units'
+                  units: 'mg/L'
 ```
 
 * `key` is the metadata value key that will be checked against the `units` specification.
@@ -358,19 +414,21 @@ metadatakey:
   `degR` are all acceptable input to the validator. Similarly, if `N` is given, `kg * m / s^2` and
   `lb * f / s^2` are both acceptable.
 
-#### number
+### number
 
 Example configuration:
 ```
-metadatakey:
-    - module: SampleService.core.validator.builtin
-      callable-builder: number
-      parameters:
-        keys: ['length', 'width']
-        type: int
-        required: True
-        gte: 42
-        lt: 77
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: number
+              parameters:
+                  keys: ['length', 'width']
+                  type: int
+                  required: True
+                  gte: 42
+                  lt: 77
 ```
 
 Ensures all values are integers or floats.
@@ -384,6 +442,3 @@ Ensures all values are integers or floats.
 * `gt`, `gte`, `lt`, and `lte` are respectively greater than, greater than or equal,
   less than, and less than or equal, and specify a range in which the number or numbers must exist.
   If `gt` or `lt` are specified, `gte` or `lte` cannot be specified, respectively, and vice versa.
-
-
-  

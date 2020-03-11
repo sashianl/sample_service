@@ -39,9 +39,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-alpha4"
+    VERSION = "0.1.0-alpha5"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "e1350765b36c4eadbd366557a4c7d2108b5ccc72"
+    GIT_COMMIT_HASH = "239a7e19168fd517b98e001f1aadc6c1f1eae9e7"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER

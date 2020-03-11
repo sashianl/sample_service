@@ -119,7 +119,7 @@ def _check_string_req(s: Optional[str], name: str) -> str:
     return _cast(str, _check_string(s, name))
 
 
-# TODO key meta update docs
+# TODO may need a versioning scheme
 # If this structure is updated, please update the README file.
 _META_VAL_JSONSCHEMA = {
     'type': 'object',

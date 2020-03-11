@@ -65,7 +65,6 @@ class MetadataValidator:
             an ontology.
         '''
         # may want a builder for this?
-        # TODO static key metadata
         self.key = _not_falsy(key, 'key')
         if not (bool(validators) ^ bool(prefix_validators)):  # xor
             raise ValueError('Exactly one of validators or prefix_validators must be supplied ' +
