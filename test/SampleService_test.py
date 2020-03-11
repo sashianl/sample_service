@@ -89,6 +89,7 @@ def create_deploy_cfg(auth_port, arango_port):
             'foo': {'validators': [{'module': 'SampleService.core.validator.builtin',
                                     'callable-builder': 'noop'
                                     }],
+                    'key_metadata': {'a': 'b', 'c': 'd'}
                     },
             'stringlentest': {'validators': [{'module': 'SampleService.core.validator.builtin',
                                               'callable-builder': 'string',
@@ -98,13 +99,15 @@ def create_deploy_cfg(auth_port, arango_port):
                                               'callable-builder': 'string',
                                               'parameters': {'keys': 'spcky', 'max-len': 2}
                                               }],
+                              'key_metadata': {'h': 'i', 'j': 'k'}
                               }
         },
         'prefix_validators': {
             'pre': {'validators': [{'module': 'core.config_test_vals',
                                     'callable-builder': 'prefix_validator_test_builder',
                                     'parameters': {'fail_on_arg': 'fail_plz'}
-                                    }]
+                                    }],
+                    'key_metadata': {'1': '2'}
                     }
         }
     }
@@ -1204,6 +1207,69 @@ def test_replace_acls_fail_owner_in_another_acl(sample_port):
     assert ret.json()['error']['message'] == (
         'Sample service error code 30001 Illegal input parameter: ' +
         'The owner cannot be in any other ACL')
+
+
+def test_get_metadata_key_static_metadata(sample_port):
+    _get_metadata_key_static_metadata(
+        sample_port, {'keys': ['foo']}, {'foo': {'a': 'b', 'c': 'd'}})
+    _get_metadata_key_static_metadata(
+        sample_port,
+        {'keys': ['foo', 'stringlentest'], 'prefix': 0},
+        {'foo': {'a': 'b', 'c': 'd'}, 'stringlentest': {'h': 'i', 'j': 'k'}})
+    _get_metadata_key_static_metadata(
+        sample_port, {'keys': ['pre'], 'prefix': 1}, {'pre': {'1': '2'}})
+    _get_metadata_key_static_metadata(
+        sample_port, {'keys': ['premature'], 'prefix': 2}, {'pre': {'1': '2'}})
+
+
+def _get_metadata_key_static_metadata(sample_port, params, expected):
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, json={
+        'method': 'SampleService.get_metadata_key_static_metadata',
+        'version': '1.1',
+        'id': '67',
+        'params': [params]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0] == {'static_metadata': expected}
+
+
+def test_get_metadata_key_static_metadata_fail_bad_args(sample_port):
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {},
+        'Sample service error code 30001 Illegal input parameter: keys must be a list')
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {'keys': ['foo', 'stringlentestage'], 'prefix': 0},
+        'Sample service error code 30001 Illegal input parameter: No such metadata key: ' +
+        'stringlentestage')
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {'keys': ['premature'], 'prefix': 1},
+        'Sample service error code 30001 Illegal input parameter: No such prefix metadata key: ' +
+        'premature')
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {'keys': ['somekey'], 'prefix': 2},
+        'Sample service error code 30001 Illegal input parameter: No prefix metadata keys ' +
+        'matching key somekey')
+
+
+def _get_metadata_key_static_metadata_fail(sample_port, params, error):
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, json={
+        'method': 'SampleService.get_metadata_key_static_metadata',
+        'version': '1.1',
+        'id': '67',
+        'params': [params]
+    })
+    # print(ret.text)
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == error
 
 
 # ###########################

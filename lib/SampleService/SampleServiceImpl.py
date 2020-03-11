@@ -10,6 +10,8 @@ from SampleService.core.api_translation import acls_to_dict as _acls_to_dict
 from SampleService.core.api_translation import sample_to_dict as _sample_to_dict
 from SampleService.core.api_translation import create_sample_params as _create_sample_params
 from SampleService.core.api_translation import check_admin as _check_admin
+from SampleService.core.api_translation import (
+    get_static_key_metadata_params as _get_static_key_metadata_params)
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.arg_checkers import check_string as _check_string
 
@@ -39,7 +41,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha4"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "8ca7c3ed5cd1e6a64308ae908b73bb764c934643"
+    GIT_COMMIT_HASH = "e1350765b36c4eadbd366557a4c7d2108b5ccc72"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -293,6 +295,49 @@ Note that usage of the administration flags will be logged by the service.
         self._samples.replace_sample_acls(id_, ctx[_CTX_USER], acls, as_admin=admin)
         #END replace_sample_acls
         pass
+
+    def get_metadata_key_static_metadata(self, ctx, params):
+        """
+        Get static metadata for one or more metadata keys.
+            The static metadata for a metadata key is metadata *about* the key - e.g. it may
+            define the key's semantics or denote that the key is linked to an ontological ID.
+            The static metadata does not change without the service being restarted. Client
+            caching is recommended to improve performance.
+        :param params: instance of type "GetMetadataKeyStaticMetadataParams"
+           (get_metadata_key_static_metadata parameters. keys - the list of
+           metadata keys to interrogate. prefix - 0 (the default) to
+           interrogate standard metadata keys. 1 to interrogate prefix
+           metadata keys, but require an exact match to the prefix key. 2 to
+           interrogate prefix metadata keys, but any keys which are a prefix
+           of the provided keys will be included in the results.) ->
+           structure: parameter "keys" of list of type "metadata_key" (A key
+           in a metadata key/value pair. Less than 1000 unicode characters.),
+           parameter "prefix" of Long
+        :returns: instance of type "GetMetadataKeyStaticMetadataResults"
+           (get_metadata_key_static_metadata results. static_metadata - the
+           static metadata for the requested keys.) -> structure: parameter
+           "static_metadata" of type "metadata" (Metadata attached to a
+           sample. The UnspecifiedObject map values MUST be a primitive type
+           - either int, float, string, or equivalent typedefs.) -> mapping
+           from type "metadata_key" (A key in a metadata key/value pair. Less
+           than 1000 unicode characters.) to mapping from type
+           "metadata_value_key" (A key for a value associated with a piece of
+           metadata. Less than 1000 unicode characters. Examples: units,
+           value, species) to unspecified object
+        """
+        # ctx is the context object
+        # return variables are: results
+        #BEGIN get_metadata_key_static_metadata
+        keys, prefix = _get_static_key_metadata_params(params)
+        results = {'static_metadata': self._samples.get_key_static_metadata(keys, prefix=prefix)}
+        #END get_metadata_key_static_metadata
+
+        # At some point might do deeper type checking...
+        if not isinstance(results, dict):
+            raise ValueError('Method get_metadata_key_static_metadata return value ' +
+                             'results is not type dict as required.')
+        # return the results
+        return [results]
 
     def status(self, ctx):
         #BEGIN_STATUS
