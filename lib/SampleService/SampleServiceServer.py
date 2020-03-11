@@ -360,6 +360,10 @@ class Application(object):
                              name='SampleService.replace_sample_acls',
                              types=[dict])
         self.method_authentication['SampleService.replace_sample_acls'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.get_metadata_key_static_metadata,
+                             name='SampleService.get_metadata_key_static_metadata',
+                             types=[dict])
+        self.method_authentication['SampleService.get_metadata_key_static_metadata'] = 'none'  # noqa
         self.rpc_service.add(impl_SampleService.status,
                              name='SampleService.status',
                              types=[dict])

@@ -183,4 +183,38 @@ module SampleService {
      */
      funcdef replace_sample_acls(ReplaceSampleACLsParams params) returns() authentication required;
 
+    /* get_metadata_key_static_metadata parameters.
+
+        keys - the list of metadata keys to interrogate.
+        prefix -
+            0 (the default) to interrogate standard metadata keys.
+            1 to interrogate prefix metadata keys, but require an exact match to the prefix key.
+            2 to interrogate prefix metadata keys, but any keys which are a prefix of the
+                provided keys will be included in the results.
+     */
+    typedef structure {
+        list<metadata_key> keys;
+        int prefix;
+    } GetMetadataKeyStaticMetadataParams;
+
+    /* get_metadata_key_static_metadata results.
+
+        static_metadata - the static metadata for the requested keys.
+     */
+    typedef structure {
+        metadata static_metadata;
+    } GetMetadataKeyStaticMetadataResults;
+
+    /* Get static metadata for one or more metadata keys.
+    
+        The static metadata for a metadata key is metadata *about* the key - e.g. it may
+        define the key's semantics or denote that the key is linked to an ontological ID.
+
+        The static metadata does not change without the service being restarted. Client caching is
+        recommended to improve performance.
+
+     */
+    funcdef get_metadata_key_static_metadata(GetMetadataKeyStaticMetadataParams params)
+        returns(GetMetadataKeyStaticMetadataResults results) authentication none;
+
 };
