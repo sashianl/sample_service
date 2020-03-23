@@ -96,3 +96,45 @@ def _has_permission_fail(user, wsid, upa, perm, expected):
     with raises(Exception) as got:
         _has_permission(user, wsid, upa, perm, None)
     assert_exception_correct(got.value, expected)
+
+
+def test_get_user_workspaces():
+    _get_user_workspaces([], [], [])
+    _get_user_workspaces([8, 89], [], [8, 89])
+    _get_user_workspaces([], [4, 7], [4, 7])
+    _get_user_workspaces([4, 66, 90, 104], [1, 45, 89], [1, 4, 45, 66, 89, 90, 104])
+
+
+def _get_user_workspaces(workspaces, pub, expected):
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    wsc.administer.return_value = {'workspaces': workspaces, 'pub': pub}
+
+    assert ws.get_user_workspaces('usera') == expected
+
+    wsc.administer.assert_called_with({'command': 'listWorkspaceIDs',
+                                       'user': 'usera',
+                                       'params': {'perm': 'r'}})
+
+    assert wsc.administer.call_count == 2
+
+
+def test_get_user_workspaces_fail_bad_input():
+    _get_user_workspaces_fail(None, MissingParameterError('user'))
+    _get_user_workspaces_fail('', MissingParameterError('user'))
+
+
+def _get_user_workspaces_fail(user, expected):
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    with raises(Exception) as got:
+        ws.get_user_workspaces(user)
+    assert_exception_correct(got.value, expected)
