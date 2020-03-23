@@ -3,6 +3,7 @@ Methods for accessing workspace data.
 '''
 
 from enum import IntEnum
+from typing import List
 
 from installed_clients.WorkspaceClient import Workspace
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
@@ -61,6 +62,9 @@ class WS:
         :param perm: The requested permission
         :param workspace_id: The ID of the workspace.
         :param upa: a workspace service UPA.
+        :raises IllegalParameterError: if the parameters are incorrect, such as a missing user
+            or improper UPA.
+        :raises UnauthorizedError if the user doesn't have the requested permission.
         '''
         _check_string(user, 'user')
         _not_falsy(perm, 'perm')
@@ -102,3 +106,20 @@ class WS:
             return i
         except ValueError:
             raise _IllegalParameterError(f'{upa} is not a valid UPA')
+
+    def get_user_workspaces(self, user) -> List[int]:
+        '''
+        Get a list of IDs of workspaces a user can read, including public workspaces.
+
+        :param user: The username of the user whose workspaces will be returned.
+        :returns: A list of workspace IDs.
+        :raises IllegalParameterError: if the parameters are incorrect, such as a missing user.
+        '''
+        # May also want write / admin / no public ws
+        _check_string(user, 'user')
+        # TODO handle no such user, should throw IllegalParameter
+        # easier to do in integration test
+        ids = self.ws.administer({'command': 'listWorkspaceIDs',
+                                  'user': user,
+                                  'params': {'perm': 'r'}})
+        return sorted(ids['workspaces'] + ids['pub'])
