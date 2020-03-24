@@ -11,6 +11,8 @@ import tempfile as _tempfile
 import time as _time
 from pathlib import Path as _Path
 
+import requests as _requests
+
 from configparser import ConfigParser as _ConfigParser
 from installed_clients.WorkspaceClient import Workspace as _Workspace
 from installed_clients.baseclient import ServerError as _ServerError
@@ -104,7 +106,7 @@ class WorkspaceController:
             try:
                 self.version = ws.ver()
                 break
-            except _ServerError as se:
+            except (_ServerError, _requests.exceptions.ConnectionError) as se:
                 err = _TestException(se.args[0])
                 err.__cause__ = se
         if err:
