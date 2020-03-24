@@ -228,7 +228,7 @@ def workspace(auth, mongo):
 
     del_temp = test_utils.get_delete_temp_files()
     print(f'shutting down workspace, delete_temp_files={del_temp}')
-    ws.destroy(del_temp)
+    ws.destroy(del_temp, True)
 
 
 @fixture(scope='module')

@@ -91,7 +91,8 @@ class WorkspaceController:
 
         command = ['java', '-classpath', class_path, _WS_CLASS, str(self.port)]
 
-        self._outfile = open(self.temp_dir.joinpath('ws.log'), 'w')
+        self._wslog = self.temp_dir / 'ws.log'
+        self._outfile = open(self._wslog, 'w')
 
         self._proc = _subprocess.Popen(
             command, stdout=self._outfile, stderr=_subprocess.STDOUT, env=newenv)
@@ -148,16 +149,23 @@ class WorkspaceController:
             cp.write(inifile)
         return f
 
-    def destroy(self, delete_temp_files: bool = True):
+    def destroy(self, delete_temp_files: bool = True, dump_logs_to_stdout: bool = True):
         '''
         Shut down the server and optionally delete any files generated.
 
         :param delete_temp_files: if true, delete all the temporary files generated as part of
             running the server.
+        :param dump_logs_to_stdout: Write the contents of the workspace log file to stdout.
+            This is useful in the context of 3rd party CI services, where the log file is not
+            necessarily accessible.
         '''
         if self._proc:
             self._proc.terminate()
         if self._outfile:
             self._outfile.close()
+            if dump_logs_to_stdout:
+                with open(self._wslog) as f:
+                    for l in f:
+                        print(l)
         if delete_temp_files and self.temp_dir:
             _shutil.rmtree(self.temp_dir)
