@@ -108,6 +108,8 @@ class WorkspaceController:
                 err = _TestException(se.args[0])
                 err.__cause__ = se
         if err:
+            print('Error starting workspace service. Dumping logs and throwing error')
+            self._print_ws_logs()
             raise err
         self.startup_count = count + 1
 
@@ -161,11 +163,15 @@ class WorkspaceController:
         '''
         if self._proc:
             self._proc.terminate()
+        self._print_ws_logs(dump_logs_to_stdout=dump_logs_to_stdout)
+        if delete_temp_files and self.temp_dir:
+            _shutil.rmtree(self.temp_dir)
+
+    # closes logfile
+    def _print_ws_logs(self, dump_logs_to_stdout=True):
         if self._outfile:
             self._outfile.close()
             if dump_logs_to_stdout:
                 with open(self._wslog) as f:
                     for l in f:
                         print(l)
-        if delete_temp_files and self.temp_dir:
-            _shutil.rmtree(self.temp_dir)
