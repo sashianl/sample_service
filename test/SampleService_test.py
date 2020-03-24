@@ -17,11 +17,14 @@ from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import MissingParameterError
 from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
+from SampleService.core.workspace import WS
+from installed_clients.WorkspaceClient import Workspace as Workspace
 
 from core import test_utils
 from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct
 from arango_controller import ArangoController
 from mongo_controller import MongoController
+from workspace_controller import WorkspaceController
 from auth_controller import AuthController
 
 # TODO should really test a start up for the case where the metadata validation config is not
@@ -30,6 +33,8 @@ from auth_controller import AuthController
 VER = '0.1.0-alpha5'
 
 _AUTH_DB = 'test_auth_db'
+_WS_DB = 'test_ws_db'
+_WS_TYPE_DB = 'test_ws_type_db'
 
 TEST_DB_NAME = 'test_sample_service'
 TEST_COL_SAMPLE = 'samples'
@@ -40,6 +45,10 @@ TEST_COL_NODE_EDGE = 'node_edges'
 TEST_COL_SCHEMA = 'schema'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
+
+USER_WS_ADMIN = 'wsadmin'
+TOKEN_WS_ADMIN = None
+WS_READ_ADMIN = 'WS_READ_ADMIN'
 
 USER_SERVICE = 'serviceuser'
 TOKEN_SERVICE = None
@@ -58,7 +67,7 @@ USER_NO_TOKEN2 = 'usernt2'
 USER_NO_TOKEN3 = 'usernt3'
 
 
-def create_deploy_cfg(auth_port, arango_port):
+def create_deploy_cfg(auth_port, arango_port, workspace_port):
     cfg = ConfigParser()
     ss = 'SampleService'
     cfg.add_section(ss)
@@ -76,6 +85,9 @@ def create_deploy_cfg(auth_port, arango_port):
     cfg[ss]['arango-db'] = TEST_DB_NAME
     cfg[ss]['arango-user'] = TEST_USER
     cfg[ss]['arango-pwd'] = TEST_PWD
+
+    cfg[ss]['workspace-url'] = f'http://localhost:{workspace_port}'  # currently unused
+    cfg[ss]['workspace-read-admin-token'] = 'foo'  # currently unused
 
     cfg[ss]['sample-collection'] = TEST_COL_SAMPLE
     cfg[ss]['version-collection'] = TEST_COL_VERSION
@@ -147,6 +159,7 @@ def mongo():
 @fixture(scope='module')
 def auth(mongo):
     global TOKEN_SERVICE
+    global TOKEN_WS_ADMIN
     global TOKEN1
     global TOKEN2
     global TOKEN3
@@ -154,16 +167,22 @@ def auth(mongo):
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
     auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
-    print(f'running KBase Auth2 {auth.version} on port {auth.port} in dir {auth.temp_dir}')
+    print(f'Started KBase Auth2 {auth.version} on port {auth.port} ' +
+          f'in dir {auth.temp_dir} in {auth.startup_count}s')
     url = f'http://localhost:{auth.port}'
 
     test_utils.create_auth_role(url, 'fulladmin1', 'fa1')
     test_utils.create_auth_role(url, 'fulladmin2', 'fa2')
     test_utils.create_auth_role(url, 'readadmin1', 'ra1')
     test_utils.create_auth_role(url, 'readadmin2', 'ra2')
+    test_utils.create_auth_role(url, WS_READ_ADMIN, 'ws')
 
     test_utils.create_auth_user(url, USER_SERVICE, 'serv')
     TOKEN_SERVICE = test_utils.create_auth_login_token(url, USER_SERVICE)
+
+    test_utils.create_auth_user(url, USER_WS_ADMIN, 'wsa')
+    TOKEN_WS_ADMIN = test_utils.create_auth_login_token(url, USER_WS_ADMIN)
+    test_utils.set_custom_roles(url, USER_WS_ADMIN, [WS_READ_ADMIN])
 
     test_utils.create_auth_user(url, USER1, 'display1')
     TOKEN1 = test_utils.create_auth_login_token(url, USER1)
@@ -189,6 +208,27 @@ def auth(mongo):
     del_temp = test_utils.get_delete_temp_files()
     print(f'shutting down auth, delete_temp_files={del_temp}')
     auth.destroy(del_temp)
+
+
+@fixture(scope='module')
+def workspace(auth, mongo):
+    jd = test_utils.get_jars_dir()
+    tempdir = test_utils.get_temp_dir()
+    ws = WorkspaceController(
+        jd,
+        f'localhost:{mongo.port}',
+        _WS_DB,
+        _WS_TYPE_DB,
+        f'http://localhost:{auth.port}/testmode',
+        tempdir)
+    print(f'Started KBase Workspace {ws.version} on port {ws.port} ' +
+          f'in dir {ws.temp_dir} in {ws.startup_count}s')
+
+    yield ws
+
+    del_temp = test_utils.get_delete_temp_files()
+    print(f'shutting down workspace, delete_temp_files={del_temp}')
+    ws.destroy(del_temp)
 
 
 @fixture(scope='module')
@@ -225,12 +265,12 @@ def clear_db_and_recreate(arango):
 
 
 @fixture(scope='module')
-def service(auth, arango):
+def service(auth, arango, workspace):
     portint = test_utils.find_free_port()
     clear_db_and_recreate(arango)
     # this is completely stupid. The state is calculated on import so there's no way to
     # test the state creation normally.
-    cfgpath = create_deploy_cfg(auth.port, arango.port)
+    cfgpath = create_deploy_cfg(auth.port, arango.port, workspace.port)
     os.environ['KB_DEPLOYMENT_CONFIG'] = cfgpath
     from SampleService import SampleServiceServer
     Thread(target=SampleServiceServer.start_server, kwargs={'port': portint}, daemon=True).start()
@@ -1391,3 +1431,14 @@ def _is_admin_fail(userlookup, user, expected):
     with raises(Exception) as got:
         userlookup.is_admin(user)
     assert_exception_correct(got.value, expected)
+
+
+# ###########################
+# Workspace wrapper tests
+# ###########################
+
+
+def test_workspace_wrapper_has_permission(sample_port, workspace):
+    wscli = Workspace(f'http://localhost:{workspace.port}', token=TOKEN_WS_ADMIN)
+    ws = WS(wscli)
+    # TODO NOW actually write a test. This ensures that the token is an admin token though

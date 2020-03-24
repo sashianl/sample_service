@@ -1,5 +1,6 @@
 kbase/workspace/WorkspaceService-0.11.2.jar
 
+# server code
 kbase/common/kbase-common-0.0.24.jar
 ini4j/ini4j-0.5.2.jar
 jetty/jetty-all-7.0.0.jar
@@ -16,6 +17,7 @@ jackson/jackson-annotations-2.2.3.jar
 jackson/jackson-core-2.2.3.jar
 jackson/jackson-databind-2.2.3.jar
 
+# shock client
 kbase/shock/shock-client-0.0.16.jar
 apache_commons/commons-logging-1.1.1.jar
 apache_commons/http/httpclient-4.3.1.jar
