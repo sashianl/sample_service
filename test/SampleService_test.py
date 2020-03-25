@@ -2,7 +2,7 @@
 # what unit tests are for. As such, typically each method will get a single happy path test and
 # a single unhappy path test unless otherwise warranted.
 
-# Tests of the auth user lookup code is at the bottom of the file.
+# Tests of the auth user lookup and workspace wrapper code are at the bottom of the file.
 
 import os
 import tempfile
@@ -17,7 +17,9 @@ from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import MissingParameterError
 from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
-from SampleService.core.workspace import WS
+from SampleService.core.workspace import WS, WorkspaceAccessType
+from SampleService.core.errors import UnauthorizedError
+
 from installed_clients.WorkspaceClient import Workspace as Workspace
 
 from core import test_utils
@@ -216,7 +218,7 @@ def workspace(auth, mongo):
     tempdir = test_utils.get_temp_dir()
     ws = WorkspaceController(
         jd,
-        f'localhost:{mongo.port}',
+        mongo,
         _WS_DB,
         _WS_TYPE_DB,
         f'http://localhost:{auth.port}/testmode',
@@ -285,8 +287,9 @@ def service(auth, arango, workspace):
 
 
 @fixture
-def sample_port(service, arango):
+def sample_port(service, arango, workspace):
     clear_db_and_recreate(arango)
+    workspace.clear_db()
     yield service
 
 
@@ -1439,6 +1442,15 @@ def _is_admin_fail(userlookup, user, expected):
 
 
 def test_workspace_wrapper_has_permission(sample_port, workspace):
-    wscli = Workspace(f'http://localhost:{workspace.port}', token=TOKEN_WS_ADMIN)
+    url = f'http://localhost:{workspace.port}'
+    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
     ws = WS(wscli)
-    # TODO NOW actually write a test. This ensures that the token is an admin token though
+
+    wscli2 = Workspace(url, token=TOKEN2)
+    wscli2.create_workspace({'workspace': 'foo'})
+
+    ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
+
+    with raises(Exception) as got:
+        ws.has_permissions(USER1, WorkspaceAccessType.READ, 1)
+    assert_exception_correct(got.value, UnauthorizedError('User user1 cannot read workspace 1'))
