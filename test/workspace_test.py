@@ -8,9 +8,12 @@ from core.test_utils import assert_exception_correct
 from SampleService.core.errors import UnauthorizedError
 from SampleService.core.errors import MissingParameterError
 from SampleService.core.errors import IllegalParameterError
+from SampleService.core.errors import NoSuchWorkspaceDataError
 
 # this test mocks the workspace client, so integration tests are important to check for
 # incompatible changes in the workspace api
+
+# TODO NOW move
 
 
 def test_init_fail():
@@ -75,6 +78,27 @@ def test_has_permission_fail_unauthorized():
         'User a cannot administrate upa 890/44/1'))
 
 
+def test_has_permission_fail_no_workspace():
+    _has_permission_fail_ws_exception(
+        ServerError('JSONRPCError', -32500, 'No workspace with id 22 exists'),
+        NoSuchWorkspaceDataError('No workspace with id 22 exists')
+    )
+
+
+def test_has_permission_fail_deleted_workspace():
+    _has_permission_fail_ws_exception(
+        ServerError('JSONRPCError', -32500, 'Workspace 22 is deleted'),
+        NoSuchWorkspaceDataError('Workspace 22 is deleted')
+    )
+
+
+def test_has_permission_fail_server_error():
+    _has_permission_fail_ws_exception(
+        ServerError('JSONRPCError', -32500, "Things is f'up"),
+        ServerError('JSONRPCError', -32500, "Things is f'up")
+    )
+
+
 def _has_permission(user, wsid, upa, perm, expected_wsid):
     wsc = create_autospec(Workspace, spec_set=True, instance=True)
 
@@ -95,6 +119,20 @@ def _has_permission(user, wsid, upa, perm, expected_wsid):
 def _has_permission_fail(user, wsid, upa, perm, expected):
     with raises(Exception) as got:
         _has_permission(user, wsid, upa, perm, None)
+    assert_exception_correct(got.value, expected)
+
+
+def _has_permission_fail_ws_exception(ws_exception, expected):
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    wsc.administer.side_effect = ws_exception
+
+    with raises(Exception) as got:
+        ws.has_permissions('foo', WorkspaceAccessType.READ, 22)
     assert_exception_correct(got.value, expected)
 
 

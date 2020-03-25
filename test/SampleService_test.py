@@ -14,7 +14,7 @@ from pytest import fixture, raises
 from threading import Thread
 
 from SampleService.SampleServiceImpl import SampleService
-from SampleService.core.errors import MissingParameterError
+from SampleService.core.errors import MissingParameterError, NoSuchWorkspaceDataError
 from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
 from SampleService.core.workspace import WS, WorkspaceAccessType
@@ -1451,6 +1451,29 @@ def test_workspace_wrapper_has_permission(sample_port, workspace):
 
     ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
 
+
+def test_workspace_wrapper_fail_bad_args(sample_port, workspace):
+    url = f'http://localhost:{workspace.port}'
+    wscli2 = Workspace(url, token=TOKEN2)
+    wscli2.create_workspace({'workspace': 'foo'})
+
+    _workspace_wrapper_has_permission_fail(workspace.port, USER1, 1, UnauthorizedError(
+        'User user1 cannot read workspace 1'))
+    _workspace_wrapper_has_permission_fail(workspace.port, 'fakeuser', 1, UnauthorizedError(
+        'User fakeuser cannot read workspace 1'))
+    _workspace_wrapper_has_permission_fail(workspace.port, USER2, 2, NoSuchWorkspaceDataError(
+        'No workspace with id 2 exists'))
+
+    wscli2.delete_workspace({'id': 1})
+    _workspace_wrapper_has_permission_fail(workspace.port, USER2, 1, NoSuchWorkspaceDataError(
+        'Workspace 1 is deleted'))
+
+
+def _workspace_wrapper_has_permission_fail(ws_port, user, wsid, expected):
+    url = f'http://localhost:{ws_port}'
+    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    ws = WS(wscli)
+
     with raises(Exception) as got:
-        ws.has_permissions(USER1, WorkspaceAccessType.READ, 1)
-    assert_exception_correct(got.value, UnauthorizedError('User user1 cannot read workspace 1'))
+        ws.has_permissions(user, WorkspaceAccessType.READ, wsid)
+    assert_exception_correct(got.value, expected)
