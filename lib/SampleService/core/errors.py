@@ -48,6 +48,9 @@ class ErrorType(Enum):
     NO_SUCH_SAMPLE_VERSION = (50020, "No such sample version")  # noqa: E222 @IgnorePep8
     """ The requested sample version does not exist. """
 
+    NO_SUCH_WORKSPACE_DATA = (50030, "No such workspace data")  # noqa: E222 @IgnorePep8
+    """ The requested workspace or workspace data does not exist. """
+
     UNSUPPORTED_OP =         (60000, "Unsupported operation")  # noqa: E222 @IgnorePep8
     """ The requested operation is not supported. """
 
@@ -100,6 +103,15 @@ class NoSuchUserError(NoDataException):
 
     def __init__(self, message: str) -> None:
         super().__init__(ErrorType.NO_SUCH_USER, message)
+
+
+class NoSuchWorkspaceDataError(NoDataException):
+    """
+    An error thrown when a workspace or workspace data does not exist.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.NO_SUCH_WORKSPACE_DATA, message)
 
 
 class UnauthorizedError(SampleError):

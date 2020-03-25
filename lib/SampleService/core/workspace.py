@@ -6,10 +6,12 @@ from enum import IntEnum
 from typing import List
 
 from installed_clients.WorkspaceClient import Workspace
+from installed_clients.baseclient import ServerError as _ServerError
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
+from SampleService.core.errors import NoSuchWorkspaceDataError as _NoSuchWorkspaceDataError
 
 
 class WorkspaceAccessType(IntEnum):
@@ -58,6 +60,8 @@ class WS:
         Check if a user can read a workspace resource. Exactly one of workspace_id or upa must
         be supplied - if both are supplied workspace_id takes precedence.
 
+        The user is not checked for existence.
+
         :param user: The user's user name.
         :param perm: The requested permission
         :param workspace_id: The ID of the workspace.
@@ -81,13 +85,19 @@ class WS:
         if wsid < 1:
             raise _IllegalParameterError(f'{wsid} is not a valid workspace ID')
 
-        # TODO handle no such / deleted workspace, should throw IllegalParameter
-        # easier to do in integration test
-        p = self.ws.administer({'command': 'getPermissionsMass',
-                                'params': {'workspaces': [{'id': wsid}]}})
+        try:
+            p = self.ws.administer({'command': 'getPermissionsMass',
+                                    'params': {'workspaces': [{'id': wsid}]}})
+        except _ServerError as se:
+            # this is pretty ugly, need error codes
+            if 'No workspace' in se.args[0] or 'is deleted' in se.args[0]:
+                raise _NoSuchWorkspaceDataError(se.args[0]) from se
+            else:
+                raise
         if p['perms'][0].get(user) not in _PERM_TO_PERM_SET[perm]:
             raise _UnauthorizedError(
                 f'User {user} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
+        # TODO NOW check UPA for existence
 
     # returns ws id
     def _check_upa(self, upa):
