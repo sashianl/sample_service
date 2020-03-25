@@ -61,8 +61,6 @@ class AuthController:
         root_temp_dir = root_temp_dir.absolute()
         os.makedirs(root_temp_dir, exist_ok=True)
         self.temp_dir = Path(tempfile.mkdtemp(prefix='AuthController-', dir=str(root_temp_dir)))
-        data_dir = self.temp_dir.joinpath('data')
-        os.makedirs(data_dir)
 
         self.port = test_utils.find_free_port()
 
@@ -82,7 +80,7 @@ class AuthController:
 
         self._proc = subprocess.Popen(command, stdout=self._outfile, stderr=subprocess.STDOUT)
 
-        for _ in range(40):
+        for count in range(40):
             err = None
             time.sleep(1)  # wait for server to start
             try:
@@ -97,6 +95,7 @@ class AuthController:
                 err.__cause__ = e
         if err:
             raise err
+        self.startup_count = count + 1
 
     def destroy(self, delete_temp_files: bool = True):
         '''
