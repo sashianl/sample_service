@@ -100,8 +100,11 @@ class WS:
         if p['perms'][0].get(user) not in _PERM_TO_PERM_SET[perm]:
             raise _UnauthorizedError(
                 f'User {user} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
-        if upa:  # TODO NOW integration tests
+        if upa:
             # Allow any server errors to percolate upwards
+            # theoretically the workspace could've been deleted between the last call and this
+            # one, but that'll just result in a different error and is extremely unlikely to
+            # happen, so don't worry about it
             ret = self.ws.administer({'command': 'getObjectInfo',
                                       'params': {'objects': [{'ref': upa}],
                                                  'ignoreErrors': 1}

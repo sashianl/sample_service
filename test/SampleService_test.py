@@ -48,9 +48,12 @@ TEST_COL_SCHEMA = 'schema'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
 
-USER_WS_ADMIN = 'wsadmin'
-TOKEN_WS_ADMIN = None
+USER_WS_READ_ADMIN = 'wsreadadmin'
+TOKEN_WS_READ_ADMIN = None
+USER_WS_FULL_ADMIN = 'wsfulladmin'
+TOKEN_WS_FULL_ADMIN = None
 WS_READ_ADMIN = 'WS_READ_ADMIN'
+WS_FULL_ADMIN = 'WS_FULL_ADMIN'
 
 USER_SERVICE = 'serviceuser'
 TOKEN_SERVICE = None
@@ -161,7 +164,8 @@ def mongo():
 @fixture(scope='module')
 def auth(mongo):
     global TOKEN_SERVICE
-    global TOKEN_WS_ADMIN
+    global TOKEN_WS_FULL_ADMIN
+    global TOKEN_WS_READ_ADMIN
     global TOKEN1
     global TOKEN2
     global TOKEN3
@@ -177,14 +181,19 @@ def auth(mongo):
     test_utils.create_auth_role(url, 'fulladmin2', 'fa2')
     test_utils.create_auth_role(url, 'readadmin1', 'ra1')
     test_utils.create_auth_role(url, 'readadmin2', 'ra2')
-    test_utils.create_auth_role(url, WS_READ_ADMIN, 'ws')
+    test_utils.create_auth_role(url, WS_READ_ADMIN, 'wsr')
+    test_utils.create_auth_role(url, WS_FULL_ADMIN, 'wsf')
 
     test_utils.create_auth_user(url, USER_SERVICE, 'serv')
     TOKEN_SERVICE = test_utils.create_auth_login_token(url, USER_SERVICE)
 
-    test_utils.create_auth_user(url, USER_WS_ADMIN, 'wsa')
-    TOKEN_WS_ADMIN = test_utils.create_auth_login_token(url, USER_WS_ADMIN)
-    test_utils.set_custom_roles(url, USER_WS_ADMIN, [WS_READ_ADMIN])
+    test_utils.create_auth_user(url, USER_WS_READ_ADMIN, 'wsra')
+    TOKEN_WS_READ_ADMIN = test_utils.create_auth_login_token(url, USER_WS_READ_ADMIN)
+    test_utils.set_custom_roles(url, USER_WS_READ_ADMIN, [WS_READ_ADMIN])
+
+    test_utils.create_auth_user(url, USER_WS_FULL_ADMIN, 'wsrf')
+    TOKEN_WS_FULL_ADMIN = test_utils.create_auth_login_token(url, USER_WS_FULL_ADMIN)
+    test_utils.set_custom_roles(url, USER_WS_FULL_ADMIN, [WS_FULL_ADMIN])
 
     test_utils.create_auth_user(url, USER1, 'display1')
     TOKEN1 = test_utils.create_auth_login_token(url, USER1)
@@ -225,6 +234,24 @@ def workspace(auth, mongo):
         tempdir)
     print(f'Started KBase Workspace {ws.version} on port {ws.port} ' +
           f'in dir {ws.temp_dir} in {ws.startup_count}s')
+
+    wsc = Workspace(f'http://localhost:{ws.port}', token=TOKEN_WS_FULL_ADMIN)
+    wsc.request_module_ownership('Trivial')
+    wsc.administer({'command': 'approveModRequest', 'module': 'Trivial'})
+    wsc.register_typespec({
+        'spec': '''
+                module Trivial {
+
+                    /* @optional dontusethisfieldorifyoudomakesureitsastring */
+                    typedef structure {
+                        string dontusethisfieldorifyoudomakesureitsastring;
+                    } Object;
+                };
+                ''',
+        'dryrun': 0,
+        'new_types': ['Object']
+    })
+    wsc.release_module('Trivial')
 
     yield ws
 
@@ -1443,45 +1470,79 @@ def _is_admin_fail(userlookup, user, expected):
 
 def test_workspace_wrapper_has_permission(sample_port, workspace):
     url = f'http://localhost:{workspace.port}'
-    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    wscli = Workspace(url, token=TOKEN_WS_READ_ADMIN)
     ws = WS(wscli)
 
     wscli2 = Workspace(url, token=TOKEN2)
     wscli2.create_workspace({'workspace': 'foo'})
+    wscli2.save_objects({'id': 1,
+                         'objects': [{'name': 'bar', 'type': 'Trivial.Object-1.0', 'data': {}}]})
+    wscli2.save_objects({'id': 1,
+                         'objects': [{'name': 'foo', 'type': 'Trivial.Object-1.0', 'data': {}}]})
+    wscli2.save_objects({'id': 1,
+                         'objects': [{'name': 'foo', 'type': 'Trivial.Object-1.0', 'data': {}}]})
 
     ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
+    ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, upa='1/2/2')  # Shouldn't fail
 
 
 def test_workspace_wrapper_has_permission_fail_bad_args(sample_port, workspace):
     url = f'http://localhost:{workspace.port}'
     wscli2 = Workspace(url, token=TOKEN2)
     wscli2.create_workspace({'workspace': 'foo'})
+    wscli2.save_objects({'id': 1,
+                         'objects': [{'name': 'bar', 'type': 'Trivial.Object-1.0', 'data': {}}]})
+    wscli2.save_objects({'id': 1,
+                         'objects': [{'name': 'foo', 'type': 'Trivial.Object-1.0', 'data': {}}]})
 
-    _workspace_wrapper_has_permission_fail(workspace.port, USER1, 1, UnauthorizedError(
+    _workspace_wrapper_has_permission_fail(workspace.port, USER1, 1, None, UnauthorizedError(
         'User user1 cannot read workspace 1'))
-    _workspace_wrapper_has_permission_fail(workspace.port, 'fakeuser', 1, UnauthorizedError(
+    _workspace_wrapper_has_permission_fail(workspace.port, USER1, None, '1/2/1', UnauthorizedError(
+        'User user1 cannot read upa 1/2/1'))
+    _workspace_wrapper_has_permission_fail(workspace.port, 'fakeuser', 1, None, UnauthorizedError(
         'User fakeuser cannot read workspace 1'))
-    _workspace_wrapper_has_permission_fail(workspace.port, USER2, 2, NoSuchWorkspaceDataError(
-        'No workspace with id 2 exists'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, 'fakeuser', None, '1/2/1',
+        UnauthorizedError('User fakeuser cannot read upa 1/2/1'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, 2, None,
+        NoSuchWorkspaceDataError('No workspace with id 2 exists'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, None, '2/1/1',
+        NoSuchWorkspaceDataError('No workspace with id 2 exists'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, None, '1/2/2',
+        NoSuchWorkspaceDataError('Object 1/2/2 does not exist'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, None, '1/3/1',
+        NoSuchWorkspaceDataError('Object 1/3/1 does not exist'))
+
+    wscli2.delete_objects([{'ref': '1/2'}])
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, None, '1/2/1',
+        NoSuchWorkspaceDataError('Object 1/2/1 does not exist'))
 
     wscli2.delete_workspace({'id': 1})
-    _workspace_wrapper_has_permission_fail(workspace.port, USER2, 1, NoSuchWorkspaceDataError(
-        'Workspace 1 is deleted'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, None, '1/1/1',
+        NoSuchWorkspaceDataError('Workspace 1 is deleted'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER2, 1, None, NoSuchWorkspaceDataError('Workspace 1 is deleted'))
 
 
-def _workspace_wrapper_has_permission_fail(ws_port, user, wsid, expected):
+def _workspace_wrapper_has_permission_fail(ws_port, user, wsid, upa, expected):
     url = f'http://localhost:{ws_port}'
-    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    wscli = Workspace(url, token=TOKEN_WS_READ_ADMIN)
     ws = WS(wscli)
 
     with raises(Exception) as got:
-        ws.has_permissions(user, WorkspaceAccessType.READ, wsid)
+        ws.has_permissions(user, WorkspaceAccessType.READ, wsid, upa)
     assert_exception_correct(got.value, expected)
 
 
 def test_workspace_wrapper_get_workspaces(sample_port, workspace):
     url = f'http://localhost:{workspace.port}'
-    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    wscli = Workspace(url, token=TOKEN_WS_READ_ADMIN)
     ws = WS(wscli)
 
     wscli1 = Workspace(url, token=TOKEN1)
@@ -1501,7 +1562,7 @@ def test_workspace_wrapper_get_workspaces(sample_port, workspace):
 
 def test_workspace_wrapper_get_workspaces_fail_no_user(sample_port, workspace):
     url = f'http://localhost:{workspace.port}'
-    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    wscli = Workspace(url, token=TOKEN_WS_READ_ADMIN)
     ws = WS(wscli)
 
     with raises(Exception) as got:
