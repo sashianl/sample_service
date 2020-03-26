@@ -156,7 +156,7 @@ def _get_user_workspaces(workspaces, pub, expected):
 
     wsc.administer.assert_called_with({'command': 'listWorkspaceIDs',
                                        'user': 'usera',
-                                       'params': {'perm': 'r'}})
+                                       'params': {'perm': 'r', 'excludeGlobal': 0}})
 
     assert wsc.administer.call_count == 2
 

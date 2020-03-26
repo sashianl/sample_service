@@ -149,7 +149,7 @@ class WorkspaceController:
             'backend-type': 'GridFS',
             'auth-service-url': auth_url + '/api/legacy/KBase',
             'auth-service-url-allow-insecure': 'true',
-            'auth2-service-url': auth_url,
+            'auth2-service-url': auth_url + '/',  # TODO WS should not be necessary
             'temp-dir': str(ws_temp_dir),
             'ignore-handle-service': 'true',
             'auth2-ws-admin-read-only-roles': 'WS_READ_ADMIN',

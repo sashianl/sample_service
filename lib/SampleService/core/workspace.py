@@ -12,6 +12,7 @@ from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import NoSuchWorkspaceDataError as _NoSuchWorkspaceDataError
+# from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
 
 
 class WorkspaceAccessType(IntEnum):
@@ -68,7 +69,8 @@ class WS:
         :param upa: a workspace service UPA.
         :raises IllegalParameterError: if the parameters are incorrect, such as a missing user
             or improper UPA.
-        :raises UnauthorizedError if the user doesn't have the requested permission.
+        :raises UnauthorizedError: if the user doesn't have the requested permission.
+        :raises NoSuchWorkspaceDataError: if the workspace or UPA doesn't exist.
         '''
         _check_string(user, 'user')
         _not_falsy(perm, 'perm')
@@ -124,12 +126,18 @@ class WS:
         :param user: The username of the user whose workspaces will be returned.
         :returns: A list of workspace IDs.
         :raises IllegalParameterError: if the parameters are incorrect, such as a missing user.
+        :raises NoSuchUserError: if the user does not exist.
         '''
         # May also want write / admin / no public ws
         _check_string(user, 'user')
-        # TODO handle no such user, should throw IllegalParameter
-        # easier to do in integration test
+        # try:
         ids = self.ws.administer({'command': 'listWorkspaceIDs',
                                   'user': user,
-                                  'params': {'perm': 'r'}})
+                                  'params': {'perm': 'r', 'excludeGlobal': 0}})
+        # except _ServerError as se:
+        #     # this is pretty ugly, need error codes
+        #     if 'No workspace' in se.args[0]:
+        #         raise _NoSuchUserError(se.args[0]) from se
+        #     else:
+        #         raise
         return sorted(ids['workspaces'] + ids['pub'])

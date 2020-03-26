@@ -1452,7 +1452,7 @@ def test_workspace_wrapper_has_permission(sample_port, workspace):
     ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
 
 
-def test_workspace_wrapper_fail_bad_args(sample_port, workspace):
+def test_workspace_wrapper_has_permission_fail_bad_args(sample_port, workspace):
     url = f'http://localhost:{workspace.port}'
     wscli2 = Workspace(url, token=TOKEN2)
     wscli2.create_workspace({'workspace': 'foo'})
@@ -1477,3 +1477,23 @@ def _workspace_wrapper_has_permission_fail(ws_port, user, wsid, expected):
     with raises(Exception) as got:
         ws.has_permissions(user, WorkspaceAccessType.READ, wsid)
     assert_exception_correct(got.value, expected)
+
+
+def test_workspace_wrapper_get_workspaces(sample_port, workspace):
+    url = f'http://localhost:{workspace.port}'
+    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    ws = WS(wscli)
+
+    wscli1 = Workspace(url, token=TOKEN1)
+    wscli1.create_workspace({'workspace': 'baz'})
+
+    wscli2 = Workspace(url, token=TOKEN2)
+    wscli2.create_workspace({'workspace': 'foo'})
+    wscli2.set_global_permission({'id': 2, 'new_permission': 'r'})
+
+    wscli3 = Workspace(url, token=TOKEN3)
+    wscli3.create_workspace({'workspace': 'bar'})
+    wscli3.set_permissions({'id': 3, 'users': [USER1], 'new_permission': 'r'})
+    wscli3.create_workspace({'workspace': 'invisible'})
+
+    assert ws.get_user_workspaces(USER1) == [1, 2, 3]  # not 4
