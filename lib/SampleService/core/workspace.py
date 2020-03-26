@@ -78,6 +78,7 @@ class WS:
             wsid = workspace_id
             name = 'workspace'
             target = str(workspace_id)
+            upa = None
         elif upa:
             wsid = self._check_upa(upa)
             name = 'upa'
@@ -99,7 +100,14 @@ class WS:
         if p['perms'][0].get(user) not in _PERM_TO_PERM_SET[perm]:
             raise _UnauthorizedError(
                 f'User {user} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
-        # TODO NOW check UPA for existence
+        if upa:  # TODO NOW integration tests
+            # Allow any server errors to percolate upwards
+            ret = self.ws.administer({'command': 'getObjectInfo',
+                                      'params': {'objects': [{'ref': upa}],
+                                                 'ignoreErrors': 1}
+                                      })
+            if not ret['infos'][0]:
+                raise _NoSuchWorkspaceDataError(f'Object {upa} does not exist')
 
     # returns ws id
     def _check_upa(self, upa):
