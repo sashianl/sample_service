@@ -9,6 +9,7 @@ from SampleService.core.errors import UnauthorizedError
 from SampleService.core.errors import MissingParameterError
 from SampleService.core.errors import IllegalParameterError
 from SampleService.core.errors import NoSuchWorkspaceDataError
+from SampleService.core.errors import NoSuchUserError
 
 # this test mocks the workspace client, so integration tests are important to check for
 # incompatible changes in the workspace api
@@ -175,4 +176,32 @@ def _get_user_workspaces_fail(user, expected):
 
     with raises(Exception) as got:
         ws.get_user_workspaces(user)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_user_workspaces_fail_no_user():
+    _get_user_workspaces_fail_ws_exception(
+        ServerError('JSONRPCError', -32500, 'User foo is not a valid user'),
+        NoSuchUserError('User foo is not a valid user')
+    )
+
+
+def test_get_user_workspaces_fail_server_error():
+    _get_user_workspaces_fail_ws_exception(
+        ServerError('JSONRPCError', -32500, 'aw crapadoodles'),
+        ServerError('JSONRPCError', -32500, 'aw crapadoodles')
+    )
+
+
+def _get_user_workspaces_fail_ws_exception(ws_exception, expected):
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    wsc.administer.side_effect = ws_exception
+
+    with raises(Exception) as got:
+        ws.get_user_workspaces('foo')
     assert_exception_correct(got.value, expected)

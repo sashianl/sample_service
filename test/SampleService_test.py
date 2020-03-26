@@ -18,7 +18,7 @@ from SampleService.core.errors import MissingParameterError, NoSuchWorkspaceData
 from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
 from SampleService.core.workspace import WS, WorkspaceAccessType
-from SampleService.core.errors import UnauthorizedError
+from SampleService.core.errors import UnauthorizedError, NoSuchUserError
 
 from installed_clients.WorkspaceClient import Workspace as Workspace
 
@@ -1497,3 +1497,13 @@ def test_workspace_wrapper_get_workspaces(sample_port, workspace):
     wscli3.create_workspace({'workspace': 'invisible'})
 
     assert ws.get_user_workspaces(USER1) == [1, 2, 3]  # not 4
+
+
+def test_workspace_wrapper_get_workspaces_fail_no_user(sample_port, workspace):
+    url = f'http://localhost:{workspace.port}'
+    wscli = Workspace(url, token=TOKEN_WS_ADMIN)
+    ws = WS(wscli)
+
+    with raises(Exception) as got:
+        ws.get_user_workspaces('fakeuser')
+    assert_exception_correct(got.value, NoSuchUserError('User fakeuser is not a valid user'))

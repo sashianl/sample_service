@@ -12,7 +12,7 @@ from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import NoSuchWorkspaceDataError as _NoSuchWorkspaceDataError
-# from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
+from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
 
 
 class WorkspaceAccessType(IntEnum):
@@ -130,14 +130,14 @@ class WS:
         '''
         # May also want write / admin / no public ws
         _check_string(user, 'user')
-        # try:
-        ids = self.ws.administer({'command': 'listWorkspaceIDs',
-                                  'user': user,
-                                  'params': {'perm': 'r', 'excludeGlobal': 0}})
-        # except _ServerError as se:
-        #     # this is pretty ugly, need error codes
-        #     if 'No workspace' in se.args[0]:
-        #         raise _NoSuchUserError(se.args[0]) from se
-        #     else:
-        #         raise
+        try:
+            ids = self.ws.administer({'command': 'listWorkspaceIDs',
+                                      'user': user,
+                                      'params': {'perm': 'r', 'excludeGlobal': 0}})
+        except _ServerError as se:
+            # this is pretty ugly, need error codes
+            if 'not a valid user' in se.args[0]:
+                raise _NoSuchUserError(se.args[0]) from se
+            else:
+                raise
         return sorted(ids['workspaces'] + ids['pub'])
