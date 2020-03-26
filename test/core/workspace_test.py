@@ -14,8 +14,6 @@ from SampleService.core.errors import NoSuchUserError
 # this test mocks the workspace client, so integration tests are important to check for
 # incompatible changes in the workspace api
 
-# TODO NOW move
-
 
 def test_init_fail():
     _init_fail(None, ValueError('client cannot be a value that evaluates to false'))
@@ -79,42 +77,81 @@ def test_has_permission_fail_unauthorized():
         'User a cannot administrate upa 890/44/1'))
 
 
-def test_has_permission_fail_no_workspace():
+def test_has_permission_fail_on_get_perms_no_workspace():
     _has_permission_fail_ws_exception(
         ServerError('JSONRPCError', -32500, 'No workspace with id 22 exists'),
         NoSuchWorkspaceDataError('No workspace with id 22 exists')
     )
 
 
-def test_has_permission_fail_deleted_workspace():
+def test_has_permission_fail_on_get_perms_deleted_workspace():
     _has_permission_fail_ws_exception(
         ServerError('JSONRPCError', -32500, 'Workspace 22 is deleted'),
         NoSuchWorkspaceDataError('Workspace 22 is deleted')
     )
 
 
-def test_has_permission_fail_server_error():
+def test_has_permission_fail_on_get_perms_server_error():
     _has_permission_fail_ws_exception(
         ServerError('JSONRPCError', -32500, "Things is f'up"),
         ServerError('JSONRPCError', -32500, "Things is f'up")
     )
 
 
+def test_has_permission_fail_no_object():
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    wsc.administer.side_effect = [
+        {'perms': [{'a': 'w', 'b': 'r', 'c': 'a'}]},
+        {'infos': [None]}]
+
+    with raises(Exception) as got:
+        ws.has_permissions('b', WorkspaceAccessType.READ, upa='67/8/90')
+    assert_exception_correct(got.value, NoSuchWorkspaceDataError('Object 67/8/90 does not exist'))
+
+
+def test_has_permission_fail_on_get_info_server_error():
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    wsc.administer.side_effect = [
+        {'perms': [{'a': 'w', 'b': 'r', 'c': 'a'}]},
+        ServerError('JSONRPCError', -32500, 'Thanks Obama')]
+
+    with raises(Exception) as got:
+        ws.has_permissions('b', WorkspaceAccessType.READ, upa='67/8/90')
+    assert_exception_correct(got.value, ServerError('JSONRPCError', -32500, 'Thanks Obama'))
+
+
 def _has_permission(user, wsid, upa, perm, expected_wsid):
     wsc = create_autospec(Workspace, spec_set=True, instance=True)
 
     ws = WS(wsc)
-
     wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+    retperms = {'perms': [{'a': 'w', 'b': 'r', 'c': 'a'}]}
 
-    wsc.administer.return_value = {'perms': [{'a': 'w', 'b': 'r', 'c': 'a'}]}
+    if wsid:
+        wsc.administer.return_value = retperms
+    else:
+        wsc.administer.side_effect = [retperms, {'infos': [['objinfo goes here']]}]
 
     ws.has_permissions(user, perm, wsid, upa)
 
-    wsc.administer.assert_called_with({'command': 'getPermissionsMass',
-                                       'params': {'workspaces': [{'id': expected_wsid}]}})
+    getperms = {'command': 'getPermissionsMass', 'params': {'workspaces': [{'id': expected_wsid}]}}
+    if wsid:
+        wsc.administer.assert_called_with(getperms)
+    else:
+        wsc.administer.assert_any_call(getperms)
+        wsc.administer.assert_called_with({'command': 'getObjectInfo',
+                                           'params': {'objects': [{'ref': upa}],
+                                                      'ignoreErrors': 1}})
 
-    assert wsc.administer.call_count == 2
+    assert wsc.administer.call_count == 2 if wsid else 3
 
 
 def _has_permission_fail(user, wsid, upa, perm, expected):
