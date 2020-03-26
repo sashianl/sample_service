@@ -28,7 +28,8 @@ _JARS_FILE = _Path(__file__).resolve().parent.joinpath('wsjars')
 class WorkspaceController:
     """
     The main Workspace controller class. The Workspace will allow users with the KBase Auth
-    service WS_READ_ADMIN role to use read-only administration methods.
+    service WS_READ_ADMIN role to use read-only administration methods and WS_FULL_ADMIN role
+    to use all administration methods.
 
     Attributes:
     version - the version of the Workspace service
@@ -153,7 +154,7 @@ class WorkspaceController:
             'temp-dir': str(ws_temp_dir),
             'ignore-handle-service': 'true',
             'auth2-ws-admin-read-only-roles': 'WS_READ_ADMIN',
-            'auth2-ws-admin-full-roles': ''
+            'auth2-ws-admin-full-roles': 'WS_FULL_ADMIN'
         }
         f = temp_dir / 'test.cfg'
         with open(f, 'w') as inifile:
