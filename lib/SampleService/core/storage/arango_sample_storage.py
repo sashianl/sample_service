@@ -27,7 +27,7 @@ An ArangoDB based storage system for the Sample service.
 #   set the node and version documents for that UUID version to the index position + 1 of the UUID
 #   version in the sample document version list.
 #
-# * If not or if the sample document does not exist at all *AND* an amount time has
+# * If not or if the sample document does not exist at all *AND* an amount of time has
 #   passed such that it is reasonable that another process saving the sample has completed
 #   (hardcoded to 1h at the time of this writing), delete all the nodes and the version document
 #   with the corresponding UUID version.
@@ -247,13 +247,13 @@ class ArangoSampleStorage:
                 sampledoc = self._get_sample_doc(id_, exception=False)
                 if not sampledoc:
                     # the sample document was never saved for this version doc
-                    self._delete_version_and_node_docs(uver, ts, self._deletion_delay)
+                    self._delete_version_and_node_docs(uver, ts)
                 else:
                     version = self._get_int_version_from_sample_doc(sampledoc, str(uver))
                     if version:
                         self._update_version_and_node_docs_with_find(id_, uver, version)
                     else:
-                        self._delete_version_and_node_docs(uver, ts, self._deletion_delay)
+                        self._delete_version_and_node_docs(uver, ts)
         except _arango.exceptions.DocumentGetError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -264,7 +264,7 @@ class ArangoSampleStorage:
                 return i + 1
         return None
 
-    def _delete_version_and_node_docs(self, uuidver, savedate, deletion_delay):
+    def _delete_version_and_node_docs(self, uuidver, savedate):
         if self._now() - savedate > self._deletion_delay:
             print('deleting docs', self._now(), savedate, self._deletion_delay)
             try:
