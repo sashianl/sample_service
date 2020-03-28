@@ -71,12 +71,12 @@ class UPA:
             self.version = version
 
     def _check_upa(self, upa):
-        wsidstr = upa.split('/')
-        if len(wsidstr) != 3:
+        upastr = upa.split('/')
+        if len(upastr) != 3:
             raise _IllegalParameterError(f'{upa} is not a valid UPA')
-        return (self._get_ws_num(wsidstr[0], upa),
-                self._get_ws_num(wsidstr[1], upa),
-                self._get_ws_num(wsidstr[2], upa))
+        return (self._get_ws_num(upastr[0], upa),
+                self._get_ws_num(upastr[1], upa),
+                self._get_ws_num(upastr[2], upa))
 
     def _get_ws_num(self, int_: str, upa):
         try:
