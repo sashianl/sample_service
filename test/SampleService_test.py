@@ -17,7 +17,7 @@ from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import MissingParameterError, NoSuchWorkspaceDataError
 from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
-from SampleService.core.workspace import WS, WorkspaceAccessType
+from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
 from SampleService.core.errors import UnauthorizedError, NoSuchUserError
 
 from installed_clients.WorkspaceClient import Workspace as Workspace
@@ -1483,7 +1483,7 @@ def test_workspace_wrapper_has_permission(sample_port, workspace):
                          'objects': [{'name': 'foo', 'type': 'Trivial.Object-1.0', 'data': {}}]})
 
     ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
-    ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, upa='1/2/2')  # Shouldn't fail
+    ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, upa=UPA('1/2/2'))  # Shouldn't fail
 
 
 def test_workspace_wrapper_has_permission_fail_bad_args(sample_port, workspace):
@@ -1497,34 +1497,35 @@ def test_workspace_wrapper_has_permission_fail_bad_args(sample_port, workspace):
 
     _workspace_wrapper_has_permission_fail(workspace.port, USER1, 1, None, UnauthorizedError(
         'User user1 cannot read workspace 1'))
-    _workspace_wrapper_has_permission_fail(workspace.port, USER1, None, '1/2/1', UnauthorizedError(
-        'User user1 cannot read upa 1/2/1'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, USER1, None, UPA('1/2/1'),
+        UnauthorizedError('User user1 cannot read upa 1/2/1'))
     _workspace_wrapper_has_permission_fail(workspace.port, 'fakeuser', 1, None, UnauthorizedError(
         'User fakeuser cannot read workspace 1'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, 'fakeuser', None, '1/2/1',
+        workspace.port, 'fakeuser', None, UPA('1/2/1'),
         UnauthorizedError('User fakeuser cannot read upa 1/2/1'))
     _workspace_wrapper_has_permission_fail(
         workspace.port, USER2, 2, None,
         NoSuchWorkspaceDataError('No workspace with id 2 exists'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, '2/1/1',
+        workspace.port, USER2, None, UPA('2/1/1'),
         NoSuchWorkspaceDataError('No workspace with id 2 exists'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, '1/2/2',
+        workspace.port, USER2, None, UPA('1/2/2'),
         NoSuchWorkspaceDataError('Object 1/2/2 does not exist'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, '1/3/1',
+        workspace.port, USER2, None, UPA('1/3/1'),
         NoSuchWorkspaceDataError('Object 1/3/1 does not exist'))
 
     wscli2.delete_objects([{'ref': '1/2'}])
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, '1/2/1',
+        workspace.port, USER2, None, UPA('1/2/1'),
         NoSuchWorkspaceDataError('Object 1/2/1 does not exist'))
 
     wscli2.delete_workspace({'id': 1})
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, '1/1/1',
+        workspace.port, USER2, None, UPA('1/1/1'),
         NoSuchWorkspaceDataError('Workspace 1 is deleted'))
     _workspace_wrapper_has_permission_fail(
         workspace.port, USER2, 1, None, NoSuchWorkspaceDataError('Workspace 1 is deleted'))

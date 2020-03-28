@@ -114,7 +114,7 @@ class WS:
             user: str,
             perm: WorkspaceAccessType,
             workspace_id: int = None,
-            upa: str = None):
+            upa: UPA = None):
         '''
         Check if a user can read a workspace resource. Exactly one of workspace_id or upa must
         be supplied - if both are supplied workspace_id takes precedence.
@@ -138,9 +138,9 @@ class WS:
             target = str(workspace_id)
             upa = None
         elif upa:
-            wsid = self._check_upa(upa)
+            wsid = upa.wsid
             name = 'upa'
-            target = upa
+            target = str(upa)
         else:
             raise ValueError('Either an UPA or a workpace ID must be supplied')
         if wsid < 1:
@@ -164,29 +164,11 @@ class WS:
             # one, but that'll just result in a different error and is extremely unlikely to
             # happen, so don't worry about it
             ret = self.ws.administer({'command': 'getObjectInfo',
-                                      'params': {'objects': [{'ref': upa}],
+                                      'params': {'objects': [{'ref': str(upa)}],
                                                  'ignoreErrors': 1}
                                       })
             if not ret['infos'][0]:
                 raise _NoSuchWorkspaceDataError(f'Object {upa} does not exist')
-
-    # returns ws id
-    def _check_upa(self, upa):
-        wsidstr = upa.split('/')
-        if len(wsidstr) != 3:
-            raise _IllegalParameterError(f'{upa} is not a valid UPA')
-        self._get_ws_num(wsidstr[2], upa)
-        self._get_ws_num(wsidstr[1], upa)
-        return self._get_ws_num(wsidstr[0], upa)
-
-    def _get_ws_num(self, int_: str, upa):
-        try:
-            i = int(int_)
-            if i < 1:
-                raise _IllegalParameterError(f'{upa} is not a valid UPA')
-            return i
-        except ValueError:
-            raise _IllegalParameterError(f'{upa} is not a valid UPA')
 
     def get_user_workspaces(self, user) -> List[int]:
         '''

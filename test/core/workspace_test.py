@@ -108,11 +108,11 @@ def _init_fail(wsc, expected):
 
 
 def test_has_permission():
-    _has_permission('a', None, '42/65/3', WorkspaceAccessType.READ, 42)
-    _has_permission('b', 24, '67/2/92', WorkspaceAccessType.READ, 24)
+    _has_permission('a', None, UPA('42/65/3'), WorkspaceAccessType.READ, 42)
+    _has_permission('b', 24, UPA('67/2/92'), WorkspaceAccessType.READ, 24)
     _has_permission('c', 1, None, WorkspaceAccessType.READ, 1)
-    _has_permission('a', None, '7/45/789', WorkspaceAccessType.WRITE, 7)
-    _has_permission('c', None, '1/1/1', WorkspaceAccessType.WRITE, 1)
+    _has_permission('a', None, UPA('7/45/789'), WorkspaceAccessType.WRITE, 7)
+    _has_permission('c', None, UPA('1/1/1'), WorkspaceAccessType.WRITE, 1)
     _has_permission('c', 301, None, WorkspaceAccessType.ADMIN, 301)
 
 
@@ -123,17 +123,6 @@ def test_has_permission_fail_bad_input():
     _has_permission_fail('b', None, None, r, ValueError(
         'Either an UPA or a workpace ID must be supplied'))
     _has_permission_fail('b', 0, None, r, IllegalParameterError('0 is not a valid workspace ID'))
-    _has_permission_fail('b', None, 'foo', r, IllegalParameterError('foo is not a valid UPA'))
-    _has_permission_fail('b', None, '1', r, IllegalParameterError('1 is not a valid UPA'))
-    _has_permission_fail('b', None, '1/2', r, IllegalParameterError('1/2 is not a valid UPA'))
-    _has_permission_fail('b', None, '1/2/3/4', r, IllegalParameterError(
-        '1/2/3/4 is not a valid UPA'))
-    _has_permission_fail('b', None, '0/4/5', r, IllegalParameterError('0/4/5 is not a valid UPA'))
-    _has_permission_fail('b', None, '1/0/1', r, IllegalParameterError('1/0/1 is not a valid UPA'))
-    _has_permission_fail('b', None, '1/1/0', r, IllegalParameterError('1/1/0 is not a valid UPA'))
-    _has_permission_fail('b', None, 'f/4/5', r, IllegalParameterError('f/4/5 is not a valid UPA'))
-    _has_permission_fail('b', None, '1/f/1', r, IllegalParameterError('1/f/1 is not a valid UPA'))
-    _has_permission_fail('b', None, '1/1/f', r, IllegalParameterError('1/1/f is not a valid UPA'))
     _has_permission_fail('b', 1, None, None, ValueError(
         'perm cannot be a value that evaluates to false'))
 
@@ -145,13 +134,13 @@ def test_has_permission_fail_unauthorized():
     _has_permission_fail('d', 1, None, r, UnauthorizedError('User d cannot read workspace 1'))
     _has_permission_fail('d', 34, None, w, UnauthorizedError(
         'User d cannot write to workspace 34'))
-    _has_permission_fail('b', None, '6/7/8', w, UnauthorizedError(
+    _has_permission_fail('b', None, UPA('6/7/8'), w, UnauthorizedError(
         'User b cannot write to upa 6/7/8'))
     _has_permission_fail('d', 6, None, a, UnauthorizedError(
         'User d cannot administrate workspace 6'))
     _has_permission_fail('b', 74, None, a, UnauthorizedError(
         'User b cannot administrate workspace 74'))
-    _has_permission_fail('a', None, '890/44/1', a, UnauthorizedError(
+    _has_permission_fail('a', None, UPA('890/44/1'), a, UnauthorizedError(
         'User a cannot administrate upa 890/44/1'))
 
 
@@ -187,7 +176,7 @@ def test_has_permission_fail_no_object():
         {'infos': [None]}]
 
     with raises(Exception) as got:
-        ws.has_permissions('b', WorkspaceAccessType.READ, upa='67/8/90')
+        ws.has_permissions('b', WorkspaceAccessType.READ, upa=UPA('67/8/90'))
     assert_exception_correct(got.value, NoSuchWorkspaceDataError('Object 67/8/90 does not exist'))
 
 
@@ -202,7 +191,7 @@ def test_has_permission_fail_on_get_info_server_error():
         ServerError('JSONRPCError', -32500, 'Thanks Obama')]
 
     with raises(Exception) as got:
-        ws.has_permissions('b', WorkspaceAccessType.READ, upa='67/8/90')
+        ws.has_permissions('b', WorkspaceAccessType.READ, upa=UPA('67/8/90'))
     assert_exception_correct(got.value, ServerError('JSONRPCError', -32500, 'Thanks Obama'))
 
 
@@ -226,7 +215,7 @@ def _has_permission(user, wsid, upa, perm, expected_wsid):
     else:
         wsc.administer.assert_any_call(getperms)
         wsc.administer.assert_called_with({'command': 'getObjectInfo',
-                                           'params': {'objects': [{'ref': upa}],
+                                           'params': {'objects': [{'ref': str(upa)}],
                                                       'ignoreErrors': 1}})
 
     assert wsc.administer.call_count == 2 if wsid else 3
