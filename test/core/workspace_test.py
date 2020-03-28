@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 
 from installed_clients.WorkspaceClient import Workspace
 from installed_clients.baseclient import ServerError
-from SampleService.core.workspace import WS, WorkspaceAccessType
+from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
 from core.test_utils import assert_exception_correct
 from SampleService.core.errors import UnauthorizedError
 from SampleService.core.errors import MissingParameterError
@@ -11,8 +11,86 @@ from SampleService.core.errors import IllegalParameterError
 from SampleService.core.errors import NoSuchWorkspaceDataError
 from SampleService.core.errors import NoSuchUserError
 
-# this test mocks the workspace client, so integration tests are important to check for
+# these tests mock the workspace client, so integration tests are important to check for
 # incompatible changes in the workspace api
+
+
+def test_upa_init():
+    _upa_init_str('1/1/1', 1, 1, 1, '1/1/1')
+    _upa_init_str('64/790/17895101', 64, 790, 17895101, '64/790/17895101')
+
+    _upa_init_int(1, 1, 1, 1, 1, 1, '1/1/1')
+    _upa_init_int(89, 356, 2, 89, 356, 2, '89/356/2')
+
+
+def test_upa_init_all_args():
+    u = UPA(upa='6/3/9', wsid=7, objid=4, version=10)
+
+    assert u.wsid == 6
+    assert u.objid == 3
+    assert u.version == 9
+    assert str(u) == '6/3/9'
+
+
+def _upa_init_str(str_, wsid, objid, ver, outstr):
+    u = UPA(str_)
+
+    assert u.wsid == wsid
+    assert u.objid == objid
+    assert u.version == ver
+    assert str(u) == outstr
+
+
+def _upa_init_int(wsid, objid, ver, wside, objide, vere, outstr):
+    u = UPA(wsid=wsid, objid=objid, version=ver)
+
+    assert u.wsid == wside
+    assert u.objid == objide
+    assert u.version == vere
+    assert str(u) == outstr
+
+
+def test_upa_init_fail():
+    with raises(Exception) as got:
+        UPA()
+    assert_exception_correct(got.value, IllegalParameterError('Illegal workspace ID: None'))
+
+    _upa_init_str_fail('1', IllegalParameterError('1 is not a valid UPA'))
+    _upa_init_str_fail('1/2', IllegalParameterError('1/2 is not a valid UPA'))
+    _upa_init_str_fail('1/2/3/5', IllegalParameterError('1/2/3/5 is not a valid UPA'))
+    _upa_init_str_fail('1/2/3/', IllegalParameterError('1/2/3/ is not a valid UPA'))
+    _upa_init_str_fail('/1/2/3', IllegalParameterError('/1/2/3 is not a valid UPA'))
+    _upa_init_str_fail('f/2/3', IllegalParameterError('f/2/3 is not a valid UPA'))
+    _upa_init_str_fail('1/f/3', IllegalParameterError('1/f/3 is not a valid UPA'))
+    _upa_init_str_fail('1/2/f', IllegalParameterError('1/2/f is not a valid UPA'))
+    _upa_init_str_fail('0/2/3', IllegalParameterError('0/2/3 is not a valid UPA'))
+    _upa_init_str_fail('1/0/3', IllegalParameterError('1/0/3 is not a valid UPA'))
+    _upa_init_str_fail('1/2/0', IllegalParameterError('1/2/0 is not a valid UPA'))
+    _upa_init_str_fail('-24/2/3', IllegalParameterError('-24/2/3 is not a valid UPA'))
+    _upa_init_str_fail('1/-42/3', IllegalParameterError('1/-42/3 is not a valid UPA'))
+    _upa_init_str_fail('1/2/-10677810', IllegalParameterError('1/2/-10677810 is not a valid UPA'))
+
+    _upa_init_int_fail(None, 2, 3, IllegalParameterError('Illegal workspace ID: None'))
+    _upa_init_int_fail(1, None, 3, IllegalParameterError('Illegal object ID: None'))
+    _upa_init_int_fail(1, 2, None, IllegalParameterError('Illegal object version: None'))
+    _upa_init_int_fail(0, 2, 3, IllegalParameterError('Illegal workspace ID: 0'))
+    _upa_init_int_fail(1, 0, 3, IllegalParameterError('Illegal object ID: 0'))
+    _upa_init_int_fail(1, 2, 0, IllegalParameterError('Illegal object version: 0'))
+    _upa_init_int_fail(-98, 2, 3, IllegalParameterError('Illegal workspace ID: -98'))
+    _upa_init_int_fail(1, -6, 3, IllegalParameterError('Illegal object ID: -6'))
+    _upa_init_int_fail(1, 2, -87501, IllegalParameterError('Illegal object version: -87501'))
+
+
+def _upa_init_str_fail(upa, expected):
+    with raises(Exception) as got:
+        UPA(upa)
+    assert_exception_correct(got.value, expected)
+
+
+def _upa_init_int_fail(wsid, objid, ver, expected):
+    with raises(Exception) as got:
+        UPA(wsid=wsid, objid=objid, version=ver)
+    assert_exception_correct(got.value, expected)
 
 
 def test_init_fail():

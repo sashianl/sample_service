@@ -33,6 +33,64 @@ _PERM_TO_PERM_TEXT = {WorkspaceAccessType.READ: 'read',
                       WorkspaceAccessType.ADMIN: 'administrate'}
 
 
+class UPA:
+    '''
+    A Unique Permanent Address for a workspace object, consisting of the string 'X/Y/Z' where
+    X, Y and Z are integers greater than 0 and respectively the workspace ID, the object ID,
+    and the object version of the object.
+
+    str(upa) returns the X/Y/Z form of the UPA.
+
+    :ivar wsid: The workspace ID.
+    :ivar objid: The object ID.
+    :ivar version: The object version.
+    '''
+
+    def __init__(self, upa: str = None, wsid: int = None, objid: int = None, version: int = None):
+        '''
+        Create the UPA. Requires either the upa parameter or all of the wsid, objid, and version
+        parameters. If upa is supplied the other arguments are ignored.
+
+        :param upa: The UPA as a string.
+        :param wsid: The workspace ID.
+        :param objid: The object ID.
+        :param version: The object version.
+        :raises IllegalParameterError: if the UPA is invalid.
+        '''
+        if upa:
+            self.wsid, self.objid, self.version = self._check_upa(upa)
+        else:
+            for num, name in (
+                    (wsid, 'workspace ID'),
+                    (objid, 'object ID'),
+                    (version, 'object version')):
+                if not num or num < 1:
+                    raise _IllegalParameterError(f'Illegal {name}: {num}')
+            self.wsid = wsid
+            self.objid = objid
+            self.version = version
+
+    def _check_upa(self, upa):
+        upastr = upa.split('/')
+        if len(upastr) != 3:
+            raise _IllegalParameterError(f'{upa} is not a valid UPA')
+        return (self._get_ws_num(upastr[0], upa),
+                self._get_ws_num(upastr[1], upa),
+                self._get_ws_num(upastr[2], upa))
+
+    def _get_ws_num(self, int_: str, upa):
+        try:
+            i = int(int_)
+            if i < 1:
+                raise _IllegalParameterError(f'{upa} is not a valid UPA')
+            return i
+        except ValueError:
+            raise _IllegalParameterError(f'{upa} is not a valid UPA')
+
+    def __str__(self) -> str:
+        return f'{self.wsid}/{self.objid}/{self.version}'
+
+
 class WS:
     '''
     The workspace class.
