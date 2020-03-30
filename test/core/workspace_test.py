@@ -93,6 +93,33 @@ def _upa_init_int_fail(wsid, objid, ver, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_upa_equals():
+    assert UPA('1/2/3') == UPA(wsid=1, objid=2, version=3)
+    assert UPA('1/2/3') == UPA('1/2/3')
+    assert UPA(wsid=56, objid=90, version=211) == UPA('56/90/211')
+    assert UPA('56/90/211') == UPA('56/90/211')
+
+    assert UPA('1/2/3') != '1/2/3'
+
+    assert UPA('1/2/3') != UPA(wsid=2, objid=2, version=3)
+    assert UPA('1/3/3') != UPA('1/2/3')
+    assert UPA(wsid=1, objid=2, version=3) != UPA(wsid=1, objid=2, version=4)
+
+
+def test_upa_hash():
+    # string hashes will change from instance to instance of the python interpreter, and therefore
+    # tests can't be written that directly test the hash value. See
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    assert hash(UPA('1/2/3')) == hash(UPA(wsid=1, objid=2, version=3))
+    assert hash(UPA('1/2/3')) == hash(UPA('1/2/3'))
+    assert hash(UPA(wsid=56, objid=90, version=211)) == hash(UPA('56/90/211'))
+    assert hash(UPA('56/90/211')) == hash(UPA('56/90/211'))
+
+    assert hash(UPA('1/2/3')) != hash(UPA(wsid=2, objid=2, version=3))
+    assert hash(UPA('1/3/3')) != hash(UPA('1/2/3'))
+    assert hash(UPA(wsid=1, objid=2, version=3)) != hash(UPA(wsid=1, objid=2, version=4))
+
+
 def test_init_fail():
     _init_fail(None, ValueError('client cannot be a value that evaluates to false'))
 
