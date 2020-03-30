@@ -2,7 +2,7 @@ import datetime
 import uuid
 from pytest import raises
 from core.test_utils import assert_exception_correct
-from SampleService.core.sample import Sample, SavedSample, SampleNode, SubSampleType
+from SampleService.core.sample import Sample, SavedSample, SampleNode, SubSampleType, SampleAddress
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 
@@ -394,3 +394,65 @@ def test_sample_hash():
                                                                     id1, 'u', [sn], dt1, 'foo', 6))
     assert hash(SavedSample(id1, 'u', [sn], dt1, 'foo', 6)) != hash(SavedSample(
                                                                     id1, 'u', [sn], dt1, 'foo', 7))
+
+
+def test_sample_address_init():
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    sa = SampleAddress(id1, 1)
+    assert sa.sampleid == id2
+    assert sa.version == 1
+    assert str(sa) == '12345678-90ab-cdef-1234-567890abcdef:1'
+
+    sa = SampleAddress(id1, 394)
+    assert sa.sampleid == id2
+    assert sa.version == 394
+    assert str(sa) == '12345678-90ab-cdef-1234-567890abcdef:394'
+
+
+def test_sample_address_init_fail():
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    _sample_address_init_fail(None, 6, ValueError(
+        'sampleid cannot be a value that evaluates to false'))
+    _sample_address_init_fail(id1, None, IllegalParameterError('version must be > 0'))
+    _sample_address_init_fail(id1, 0, IllegalParameterError('version must be > 0'))
+    _sample_address_init_fail(id1, -5, IllegalParameterError('version must be > 0'))
+
+
+def _sample_address_init_fail(sid, ver, expected):
+    with raises(Exception) as got:
+        SampleAddress(sid, ver)
+    assert_exception_correct(got.value, expected)
+
+
+def test_sample_address_equals():
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    idd1 = uuid.UUID('1234567890abcdef1234567890abcded')
+    idd2 = uuid.UUID('1234567890abcdef1234567890abcded')
+
+    assert SampleAddress(id1, 7) == SampleAddress(id2, 7)
+    assert SampleAddress(idd1, 89) == SampleAddress(idd2, 89)
+
+    assert SampleAddress(id1, 6) != (id1, 6)
+
+    assert SampleAddress(id1, 42) != SampleAddress(idd1, 42)
+    assert SampleAddress(id1, 42) != SampleAddress(id1, 46)
+
+
+def test_sample_address_hash():
+    # hashes will change from instance to instance of the python interpreter, and therefore
+    # tests can't be written that directly test the hash value. See
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    idd1 = uuid.UUID('1234567890abcdef1234567890abcded')
+    idd2 = uuid.UUID('1234567890abcdef1234567890abcded')
+
+    assert hash(SampleAddress(id1, 7)) == hash(SampleAddress(id2, 7))
+    assert hash(SampleAddress(idd1, 89)) == hash(SampleAddress(idd2, 89))
+
+    assert hash(SampleAddress(id1, 42)) != hash(SampleAddress(idd1, 42))
+    assert hash(SampleAddress(id1, 42)) != hash(SampleAddress(id1, 46))
