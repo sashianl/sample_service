@@ -303,3 +303,35 @@ class SavedSample(Sample):
 
 def _xor(bool1: bool, bool2: bool):
     return bool1 ^ bool2
+
+
+class SampleAddress:
+    '''
+    A persistent address for a version of a sample.
+
+    :ivar sampleid: The ID of the sample.
+    :ivar version: The version of the sample.
+    '''
+
+    def __init__(self, sampleid: UUID, version: int):
+        '''
+        Create the address.
+
+        :param sampleid: The ID of the sample.
+        :param version: The version of the sample.
+        '''
+        self.sampleid = _not_falsy(sampleid, 'sampleid')
+        if version is None or version < 1:
+            raise IllegalParameterError('version must be > 0')
+        self.version = version
+
+    def __str__(self):
+        return f'{self.sampleid}:{self.version}'
+
+    def __eq__(self, other):
+        if type(self) is type(other):
+            return (self.sampleid, self.version) == (other.sampleid, other.version)
+        return False
+
+    def __hash__(self):
+        return hash((self.sampleid, self.version))

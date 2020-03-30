@@ -166,6 +166,9 @@ def test_duid_equals():
 
 
 def test_duid_hash():
+    # string hashes will change from instance to instance of the python interpreter, and therefore
+    # tests can't be written that directly test the hash value. See
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
     assert hash(DataUnitID(UPA('1/1/1'))) == hash(DataUnitID(UPA('1/1/1')))
     assert hash(DataUnitID(UPA('1/1/1'), 'foo')) == hash(DataUnitID(UPA('1/1/1'), 'foo'))
 
