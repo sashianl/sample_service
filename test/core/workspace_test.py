@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 
 from installed_clients.WorkspaceClient import Workspace
 from installed_clients.baseclient import ServerError
-from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
+from SampleService.core.workspace import WS, WorkspaceAccessType, UPA, DataUnitID
 from core.test_utils import assert_exception_correct
 from SampleService.core.errors import UnauthorizedError
 from SampleService.core.errors import MissingParameterError
@@ -118,6 +118,60 @@ def test_upa_hash():
     assert hash(UPA('1/2/3')) != hash(UPA(wsid=2, objid=2, version=3))
     assert hash(UPA('1/3/3')) != hash(UPA('1/2/3'))
     assert hash(UPA(wsid=1, objid=2, version=3)) != hash(UPA(wsid=1, objid=2, version=4))
+
+
+def test_duid_init():
+    duid = DataUnitID(UPA('1/2/3'))
+    assert duid.upa == UPA('1/2/3')
+    assert duid.dataid is None
+    assert str(duid) == '1/2/3'
+
+    duid = DataUnitID(UPA('1/2/3'), '')
+    assert duid.upa == UPA('1/2/3')
+    assert duid.dataid is None
+    assert str(duid) == '1/2/3'
+
+    duid = DataUnitID(UPA('1/2/3'), 'foo')
+    assert duid.upa == UPA('1/2/3')
+    assert duid.dataid == 'foo'
+    assert str(duid) == '1/2/3:foo'
+
+    duid = DataUnitID(UPA('1/2/3'), 'f' * 256)
+    assert duid.upa == UPA('1/2/3')
+    assert duid.dataid == 'f' * 256
+    assert str(duid) == '1/2/3:' + 'f' * 256
+
+
+def test_duid_init_fail():
+    with raises(Exception) as got:
+        DataUnitID(None)
+    assert_exception_correct(got.value, ValueError(
+        'upa cannot be a value that evaluates to false'))
+
+    with raises(Exception) as got:
+        DataUnitID(UPA('1/1/1'), 'a' * 257)
+    assert_exception_correct(got.value, IllegalParameterError(
+        'dataid exceeds maximum length of 256'))
+
+
+def test_duid_equals():
+    assert DataUnitID(UPA('1/1/1')) == DataUnitID(UPA('1/1/1'))
+    assert DataUnitID(UPA('1/1/1'), 'foo') == DataUnitID(UPA('1/1/1'), 'foo')
+
+    assert DataUnitID(UPA('1/1/1')) != UPA('1/1/1')
+
+    assert DataUnitID(UPA('1/1/1')) != DataUnitID(UPA('2/1/1'))
+    assert DataUnitID(UPA('1/1/1'), 'foo') != DataUnitID(UPA('2/1/1'), 'foo')
+    assert DataUnitID(UPA('1/1/1'), 'foo') != DataUnitID(UPA('1/1/1'), 'fooo')
+
+
+def test_duid_hash():
+    assert hash(DataUnitID(UPA('1/1/1'))) == hash(DataUnitID(UPA('1/1/1')))
+    assert hash(DataUnitID(UPA('1/1/1'), 'foo')) == hash(DataUnitID(UPA('1/1/1'), 'foo'))
+
+    assert hash(DataUnitID(UPA('1/1/1'))) != hash(DataUnitID(UPA('2/1/1')))
+    assert hash(DataUnitID(UPA('1/1/1'), 'foo')) != hash(DataUnitID(UPA('2/1/1'), 'foo'))
+    assert hash(DataUnitID(UPA('1/1/1'), 'foo')) != hash(DataUnitID(UPA('1/1/1'), 'fooo'))
 
 
 def test_init_fail():
