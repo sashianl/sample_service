@@ -90,6 +90,15 @@ class UPA:
     def __str__(self) -> str:
         return f'{self.wsid}/{self.objid}/{self.version}'
 
+    def __eq__(self, other) -> bool:
+        if type(self) is type(other):
+            return (self.wsid, self.objid, self.version) == (
+                other.wsid, other.objid, other.version)
+        return False
+
+    def __hash__(self):
+        return hash((self.wsid, self.objid, self.version))
+
 
 class WS:
     '''
