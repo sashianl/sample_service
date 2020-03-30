@@ -100,6 +100,44 @@ class UPA:
         return hash((self.wsid, self.objid, self.version))
 
 
+class DataUnitID:
+    '''
+    Represents a unit of data in the workspace, which may be a subpart of a workspace object.
+    A single workspace object may have many data units.
+
+    The DUID consists of an UPA and an arbitrary ID that denotes a portion of the object. If the
+    ID is None, the data unit consists of the entire object.
+
+    :ivar upa: The object UPA.
+    :ivar dataid: The ID of the data within the object, if any.
+    '''
+
+    def __init__(self, upa: UPA, dataid: str = None):
+        '''
+        Create the DUID.
+
+        :param upa: The workspace object's UPA.
+        :param dataid: The id of the data within the object that this DUID references with a
+            maximum of 256 characters. None if the data unit is the entire object.
+        '''
+        self.upa = _not_falsy(upa, 'upa')
+        self.dataid = _check_string(dataid, 'dataid', max_len=256, optional=True)
+
+    def __str__(self):
+        if self.dataid:
+            return f'{self.upa}:{self.dataid}'
+        else:
+            return str(self.upa)
+
+    def __eq__(self, other):
+        if type(self) is type(other):
+            return (self.upa, self.dataid) == (other.upa, other.dataid)
+        return False
+
+    def __hash__(self):
+        return hash((self.upa, self.dataid))
+
+
 class WS:
     '''
     The workspace class.
