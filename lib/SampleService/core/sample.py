@@ -335,3 +335,37 @@ class SampleAddress:
 
     def __hash__(self):
         return hash((self.sampleid, self.version))
+
+
+class SampleNodeAddress:
+    '''
+    A persistent address for a node of a sample.
+
+    :param sampleid: The ID of the sample.
+    :param version: The version of the sample.
+    :ivar node: The ID of the node.
+    '''
+
+    def __init__(self, sample: SampleAddress, node: str):
+        '''
+        Create the address.
+
+        :param sample: The sample address.
+        :param node: The ID of the sample node.
+        '''
+
+        self.sampleid = _not_falsy(sample, 'sample').sampleid
+        self.version = sample.version
+        self.node = _cast(str, _check_string(node, 'node', max_len=_MAX_SAMPLE_NAME_LEN))
+
+    def __str__(self):
+        return f'{self.sampleid}:{self.version}:{self.node}'
+
+    def __eq__(self, other):
+        if type(self) is type(other):
+            return (self.sampleid, self.version, self.node) == (
+                other.sampleid, other.version, other.node)
+        return False
+
+    def __hash__(self):
+        return hash((self.sampleid, self.version, self.node))

@@ -3,6 +3,7 @@ import uuid
 from pytest import raises
 from core.test_utils import assert_exception_correct
 from SampleService.core.sample import Sample, SavedSample, SampleNode, SubSampleType, SampleAddress
+from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 
@@ -456,3 +457,85 @@ def test_sample_address_hash():
 
     assert hash(SampleAddress(id1, 42)) != hash(SampleAddress(idd1, 42))
     assert hash(SampleAddress(id1, 42)) != hash(SampleAddress(id1, 46))
+
+
+def test_sample_node_address_init():
+    id_a1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id_a2 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id_b1 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    id_b2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+
+    sa = SampleNodeAddress(SampleAddress(id_a1, 5), 'somenode')
+    assert sa.sampleid == id_a2
+    assert sa.version == 5
+    assert sa.node == 'somenode'
+    assert str(sa) == '12345678-90ab-cdef-1234-567890abcdef:5:somenode'
+
+    sa = SampleNodeAddress(SampleAddress(id_b1, 1), 'e' * 256)
+    assert sa.sampleid == id_b2
+    assert sa.version == 1
+    assert sa.node == 'e' * 256
+    assert str(sa) == ('12345678-90ab-cdef-1234-567890abcdee:1:' + 'e' * 256)
+
+
+def test_sample_node_address_init_fail():
+    sa = SampleAddress(uuid.UUID('1234567890abcdef1234567890abcdef'), 5)
+
+    _sample_node_address_init_fail(None, 'f',  ValueError(
+        'sample cannot be a value that evaluates to false'))
+    _sample_node_address_init_fail(sa, None, MissingParameterError('node'))
+    _sample_node_address_init_fail(sa, '  \t \n  ', MissingParameterError('node'))
+    _sample_node_address_init_fail(sa, '3' * 257, IllegalParameterError(
+        'node exceeds maximum length of 256'))
+
+
+def _sample_node_address_init_fail(sample, node, expected):
+    with raises(Exception) as got:
+        SampleNodeAddress(sample, node)
+    assert_exception_correct(got.value, expected)
+
+
+def test_sample_node_address_equals():
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    idd1 = uuid.UUID('1234567890abcdef1234567890abcded')
+    idd2 = uuid.UUID('1234567890abcdef1234567890abcded')
+
+    sa_a1 = SampleAddress(id1, 6)
+    sa_a2 = SampleAddress(id2, 6)
+    sa_ad = SampleAddress(id1, 7)
+    sa_b1 = SampleAddress(idd1, 6)
+    sa_b2 = SampleAddress(idd2, 6)
+
+    assert SampleNodeAddress(sa_a1, 'n') == SampleNodeAddress(sa_a2, 'n')
+    assert SampleNodeAddress(sa_b1, 'this is a node') == SampleNodeAddress(sa_b2, 'this is a node')
+
+    assert SampleNodeAddress(sa_a1, 'z') != (sa_a1, 'z')
+
+    assert SampleNodeAddress(sa_a1, 'n') != SampleNodeAddress(sa_b1, 'n')
+    assert SampleNodeAddress(sa_a1, 'n') != SampleNodeAddress(sa_ad, 'n')
+    assert SampleNodeAddress(sa_a1, 'n') != SampleNodeAddress(sa_a2, 'z')
+
+
+def test_sample_node_address_hash():
+    # hashes will change from instance to instance of the python interpreter, and therefore
+    # tests can't be written that directly test the hash value. See
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    idd1 = uuid.UUID('1234567890abcdef1234567890abcded')
+    idd2 = uuid.UUID('1234567890abcdef1234567890abcded')
+
+    sa_a1 = SampleAddress(id1, 6)
+    sa_a2 = SampleAddress(id2, 6)
+    sa_ad = SampleAddress(id1, 7)
+    sa_b1 = SampleAddress(idd1, 6)
+    sa_b2 = SampleAddress(idd2, 6)
+
+    assert hash(SampleNodeAddress(sa_a1, 'n')) == hash(SampleNodeAddress(sa_a2, 'n'))
+    assert hash(SampleNodeAddress(sa_b1, 'this is a node')) == hash(
+        SampleNodeAddress(sa_b2, 'this is a node'))
+
+    assert hash(SampleNodeAddress(sa_a1, 'n')) != hash(SampleNodeAddress(sa_b1, 'n'))
+    assert hash(SampleNodeAddress(sa_a1, 'n')) != hash(SampleNodeAddress(sa_ad, 'n'))
+    assert hash(SampleNodeAddress(sa_a1, 'n')) != hash(SampleNodeAddress(sa_a2, 'z'))
