@@ -7,6 +7,7 @@ from core import test_utils
 from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
 from SampleService.core.acls import SampleACL
+from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SavedSample, SampleNode, SubSampleType, SampleNodeAddress
 from SampleService.core.sample import SampleAddress
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
@@ -1073,31 +1074,32 @@ def test_ws_data_link(samplestorage):
     assert samplestorage.save_sample(
         SavedSample(id2, 'user', [SampleNode('mynode2')], dt(3), 'foo')) is True
 
-    samplestorage.link_workspace_data(
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
-        dt(500)
+        dt(500))
     )
 
     # test different workspace object and different sample version
-    samplestorage.link_workspace_data(
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('42/42/42'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(600)
+        dt(600))
     )
 
-    # test data unit vs just UPA and different sample
-    samplestorage.link_workspace_data(
+    # test data unit vs just UPA, different sample, and expiration date
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('5/89/32'), 'dataunit2'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
-        dt(700)
+        dt(700),
+        dt(30000))
     )
 
     # test data units don't collide if they have different names
-    samplestorage.link_workspace_data(
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(800)
+        dt(800))
     )
 
     # this is naughty
@@ -1161,7 +1163,7 @@ def test_ws_data_link(samplestorage):
         'sver': verdoc3['uuidver'],
         'node': 'mynode2',
         'create': 700,
-        'expire': 9007199254740991
+        'expire': 30000
     }
 
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1206,10 +1208,10 @@ def test_ws_data_link_correct_missing_versions(samplestorage):
     samplestorage._col_version.update_match({}, {'ver': -1})
     samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
 
-    samplestorage.link_workspace_data(
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id_, 1), 'kid1'),
-        dt(500)
+        dt(500))
     )
 
     assert samplestorage._col_version.count() == 1
@@ -1224,20 +1226,9 @@ def test_ws_data_link_correct_missing_versions(samplestorage):
         assert v['ver'] == 1
 
 
-def test_ws_data_link_bad_args(samplestorage):
-    ss = samplestorage
-    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
-    d = DataUnitID(UPA('1/1/1'))
-    s = SampleNodeAddress(SampleAddress(id1, 1), 'foo')
-    t = dt(1)
-    _ws_data_link_fail(ss, None, s, t, ValueError(
-        'duid cannot be a value that evaluates to false'))
-    _ws_data_link_fail(ss, d, None, t, ValueError(
-        'sample_node_address cannot be a value that evaluates to false'))
-    _ws_data_link_fail(ss, d, s, None, ValueError(
-        'timestamp cannot be a value that evaluates to false'))
-    _ws_data_link_fail(ss, d, s, datetime.datetime.now(), ValueError(
-        'timestamp cannot be a naive datetime'))
+def test_ws_data_link_no_link(samplestorage):
+    _ws_data_link_fail(samplestorage, None, ValueError(
+        'link cannot be a value that evaluates to false'))
 
 
 def test_ws_data_link_no_sample(samplestorage):
@@ -1248,9 +1239,10 @@ def test_ws_data_link_no_sample(samplestorage):
 
     _ws_data_link_fail(
         samplestorage,
-        DataUnitID(UPA('1/1/1')),
-        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
-        dt(1),
+        DataLink(
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+            dt(1)),
         NoSuchSampleError(str(id2))
         )
 
@@ -1264,9 +1256,10 @@ def test_ws_data_link_no_sample_version(samplestorage):
 
     _ws_data_link_fail(
         samplestorage,
-        DataUnitID(UPA('1/1/1')),
-        SampleNodeAddress(SampleAddress(id1, 3), 'mynode'),
-        dt(1),
+        DataLink(
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 3), 'mynode'),
+            dt(1)),
         NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 3')
         )
 
@@ -1276,31 +1269,33 @@ def test_ws_data_link_link_exists(samplestorage):
     assert samplestorage.save_sample(
         SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
 
-    samplestorage.link_workspace_data(
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(500)
+        dt(500))
     )
 
-    samplestorage.link_workspace_data(
+    samplestorage.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/1'), 'du1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(500)
+        dt(500))
     )
 
     _ws_data_link_fail(
         samplestorage,
-        DataUnitID(UPA('1/1/1')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(1),
+        DataLink(
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(1)),
         DataLinkExistsError('1/1/1')
         )
 
     _ws_data_link_fail(
         samplestorage,
-        DataUnitID(UPA('1/1/1'), 'du1'),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(1),
+        DataLink(
+            DataUnitID(UPA('1/1/1'), 'du1'),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(1)),
         DataLinkExistsError('1/1/1:du1')
         )
 
@@ -1315,29 +1310,30 @@ def test_ws_data_link_too_many_links_from_ws_obj(samplestorage):
     assert ss.save_sample(
         SavedSample(id2, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
 
-    ss.link_workspace_data(
+    ss.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(500)
+        dt(500))
     )
 
-    ss.link_workspace_data(
+    ss.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/1'), '1'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
-        dt(500)
+        dt(500))
     )
 
-    ss.link_workspace_data(
+    ss.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/1'), '2'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(500)
+        dt(500))
     )
 
     _ws_data_link_fail(
         ss,
-        DataUnitID(UPA('1/1/1'), '3'),
-        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
-        dt(1),
+        DataLink(
+            DataUnitID(UPA('1/1/1'), '3'),
+            SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+            dt(1)),
         TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
         )
 
@@ -1350,23 +1346,24 @@ def test_ws_data_link_too_many_links_from_sample_ver(samplestorage):
         SavedSample(
             id1, 'user', [SampleNode('mynode'), SampleNode('mynode2')], dt(1), 'foo')) is True
 
-    ss.link_workspace_data(
+    ss.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(500)
+        dt(500))
     )
 
-    ss.link_workspace_data(
+    ss.link_workspace_data(DataLink(
         DataUnitID(UPA('1/1/2')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),
-        dt(500)
+        dt(500))
     )
 
     _ws_data_link_fail(
         ss,
-        DataUnitID(UPA('1/1/3')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(1),
+        DataLink(
+            DataUnitID(UPA('1/1/3')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(1)),
         TooManyDataLinksError(
             'More than 2 links from sample 12345678-90ab-cdef-1234-567890abcdef version 1')
         )
@@ -1387,7 +1384,7 @@ def _samplestorage_with_max_links(samplestorage, max_links):
         max_links=max_links)
 
 
-def _ws_data_link_fail(samplestorage, duid, sna, ts, expected):
+def _ws_data_link_fail(samplestorage, link, expected):
     with raises(Exception) as got:
-        samplestorage.link_workspace_data(duid, sna, ts)
+        samplestorage.link_workspace_data(link)
     assert_exception_correct(got.value, expected)
