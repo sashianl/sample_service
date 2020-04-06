@@ -79,11 +79,11 @@ from arango.database import StandardDatabase
 
 from SampleService.core.acls import SampleACL
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
-from SampleService.core.sample import SavedSample, SampleNodeAddress
+from SampleService.core.data_link import DataLink
+from SampleService.core.sample import SavedSample
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
-from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
@@ -756,11 +756,7 @@ class ArangoSampleStorage:
 
     # TODO change acls with more granularity
 
-    def link_workspace_data(
-            self,
-            duid: DataUnitID,
-            sample_node_address: SampleNodeAddress,
-            timestamp: datetime.datetime):
+    def link_workspace_data(self, link: DataLink):
         '''
         Link data in the workspace to a sample.
         Each data unit can be linked to only one sample at a time. Expired links may exist to
@@ -769,10 +765,7 @@ class ArangoSampleStorage:
         No checking is done on whether the user has permissions to link the data or whether the
         data or sample node exists.
 
-        :param duid: The workspace data unit to link to the sample.
-        :param sample_node_address: The sample node to which the data will be linked.
-        :param timestamp: The current timestamp. This will be used to set the creation time on the
-            link.
+        :param link: the link to save.
 
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -802,11 +795,11 @@ class ArangoSampleStorage:
         # Since _keys have a maxium length of 254 chars and the dataid of the DUID may be up to
         # 256 characters and may contain illegal characters, it is MD5'd. See
         # https://www.arangodb.com/docs/stable/data-modeling-naming-conventions-document-keys.html
-        sna = sample_node_address
-        del sample_node_address
-        _not_falsy(duid, 'duid')
-        _not_falsy(sna, 'sample_node_address')
-        _check_timestamp(timestamp, 'timestamp')
+
+        # should make a link ID? UUID? Maybe not necessary? Effectively DUID since 1:1
+
+        _not_falsy(link, 'link')
+        sna = link.sample_node_address
         # need to get the version doc to ensure the documents have been updated appropriately,
         # see comments at beginning of file
         _, versiondoc, _ = self._get_sample_and_version_doc(sna.sampleid, sna.version)
@@ -823,20 +816,20 @@ class ArangoSampleStorage:
         try:
             # makes a collection specifically for this transaction
             tdlc = tdb.collection(self._col_data_link.name)
-            if self._has_doc(tdlc, self._create_link_key(duid)):
-                raise _DataLinkExistsError(str(duid))
+            if self._has_doc(tdlc, self._create_link_key(link.duid)):
+                raise _DataLinkExistsError(str(link.duid))
 
             # TODO DATALINK should only count links coexisting with current link when expiration
             # works
-            if self._count_links_from_ws_object(tdb, duid.upa) >= self._max_links:
+            if self._count_links_from_ws_object(tdb, link.duid.upa) >= self._max_links:
                 raise _TooManyDataLinksError(
-                    f'More than {self._max_links} links from workpace object {duid.upa}')
+                    f'More than {self._max_links} links from workpace object {link.duid.upa}')
             if self._count_links_from_sample_ver(tdb, sna.sampleid, samplever) >= self._max_links:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from sample {sna.sampleid} ' +
                     f'version {sna.version}')
 
-            ldoc = self._create_link_doc(duid, sna.sampleid, samplever, sna.node, timestamp)
+            ldoc = self._create_link_doc(link, samplever)
             self._insert(tdlc, ldoc)
             try:
                 tdb.commit_transaction()
@@ -851,9 +844,6 @@ class ArangoSampleStorage:
                     # this will mask the previous error, but if this fails probably the DB
                     # connection is hosed
                     raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
-
-        # TODO DATALINK return link object
-        # TODO DATALINK make a link ID? UUID? Maybe not necessary? Effectively DUID since 1:1
 
     def _has_doc(self, col, id_):
         # may want exception thrown at some point?
@@ -904,29 +894,25 @@ class ArangoSampleStorage:
         dataid = f'_{self._md5(duid.dataid)}' if duid.dataid else ''
         return f'{duid.upa.wsid}_{duid.upa.objid}_{duid.upa.version}{dataid}'
 
-    def _create_link_doc(
-            self,
-            duid: DataUnitID,
-            sampleid: UUID,
-            samplever: UUID,
-            node: str,
-            timestamp: datetime.datetime):
-        nodeid = self._get_node_id(sampleid, samplever, node)
+    def _create_link_doc(self, link: DataLink, samplever: UUID):
+        sna = link.sample_node_address
+        upa = link.duid.upa
+        nodeid = self._get_node_id(sna.sampleid, samplever, sna.node)
         # see https://github.com/kbase/relation_engine_spec/blob/4a9dc6df2088763a9df88f0b018fa5c64f2935aa/schemas/ws/ws_object_version.yaml#L17  # noqa
-        from_ = f'{self._col_ws.name}/{duid.upa.wsid}:{duid.upa.objid}:{duid.upa.version}'
+        from_ = f'{self._col_ws.name}/{upa.wsid}:{upa.objid}:{upa.version}'
         return {
-            _FLD_ARANGO_KEY: self._create_link_key(duid),
+            _FLD_ARANGO_KEY: self._create_link_key(link.duid),
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
-            _FLD_LINK_CREATED: timestamp.timestamp(),
-            _FLD_LINK_EXPIRES: _MAX_ADB_INTEGER,
-            _FLD_LINK_WORKSPACE_ID: duid.upa.wsid,
-            _FLD_LINK_OBJECT_ID: duid.upa.objid,
-            _FLD_LINK_OBJECT_VERSION: duid.upa.version,
-            _FLD_LINK_OBJECT_DATA_UNIT: duid.dataid,
-            _FLD_LINK_SAMPLE_ID: str(sampleid),
+            _FLD_LINK_CREATED: link.create.timestamp(),
+            _FLD_LINK_EXPIRES: link.expire.timestamp() if link.expire else _MAX_ADB_INTEGER,
+            _FLD_LINK_WORKSPACE_ID: upa.wsid,
+            _FLD_LINK_OBJECT_ID: upa.objid,
+            _FLD_LINK_OBJECT_VERSION: upa.version,
+            _FLD_LINK_OBJECT_DATA_UNIT: link.duid.dataid,
+            _FLD_LINK_SAMPLE_ID: str(sna.sampleid),
             _FLD_LINK_SAMPLE_VERSION: str(samplever),
-            _FLD_LINK_SAMPLE_NODE: node
+            _FLD_LINK_SAMPLE_NODE: sna.node
         }
 
 
