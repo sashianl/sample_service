@@ -93,7 +93,6 @@ def test_startup_and_check_config_doc(samplestorage):
     # this is very naughty
     assert samplestorage._col_schema.count() == 1
     cfgdoc = samplestorage._col_schema.find({}).next()
-    print(cfgdoc)
     assert cfgdoc['_key'] == 'schema'
     assert cfgdoc['schemaver'] == 1
     assert cfgdoc['inupdate'] is False
@@ -1182,6 +1181,47 @@ def test_ws_data_link(samplestorage):
         'create': 800,
         'expire': 9007199254740991
     }
+
+
+def test_ws_data_link_correct_missing_versions(samplestorage):
+    '''
+    Checks that the version correction code runs when needed on creating a data link.
+    Since the method is tested extensively in the get_sample tests, we only run one test here
+    to ensure the method is called.
+    This test simulates a server coming up after a dirty shutdown, where version and
+    node doc integer versions have not been updated
+    '''
+    n1 = SampleNode('root')
+    n2 = SampleNode('kid1', SubSampleType.TECHNICAL_REPLICATE, 'root')
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1')
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root')
+
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    assert samplestorage.save_sample(
+        SavedSample(id_, 'user', [n1, n2, n3, n4], dt(1), 'foo')) is True
+
+    # this is very naughty
+    # checked that these modifications actually work by viewing the db contents
+    samplestorage._col_version.update_match({}, {'ver': -1})
+    samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
+
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id_, 1), 'kid1'),
+        dt(500)
+    )
+
+    assert samplestorage._col_version.count() == 1
+    assert samplestorage._col_ver_edge.count() == 1
+    assert samplestorage._col_nodes.count() == 4
+    assert samplestorage._col_node_edge.count() == 4
+
+    for v in samplestorage._col_version.all():
+        assert v['ver'] == 1
+
+    for v in samplestorage._col_nodes.all():
+        assert v['ver'] == 1
 
 
 def test_ws_data_link_bad_args(samplestorage):
