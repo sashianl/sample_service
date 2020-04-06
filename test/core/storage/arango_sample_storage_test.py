@@ -7,12 +7,15 @@ from core import test_utils
 from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
 from SampleService.core.acls import SampleACL
-from SampleService.core.sample import SavedSample, SampleNode, SubSampleType
+from SampleService.core.sample import SavedSample, SampleNode, SubSampleType, SampleNodeAddress
+from SampleService.core.sample import SampleAddress
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
-from SampleService.core.errors import NoSuchSampleVersionError
+from SampleService.core.errors import NoSuchSampleVersionError, DataLinkExistsError
+from SampleService.core.errors import TooManyDataLinksError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError
+from SampleService.core.workspace import UPA, DataUnitID
 
 TEST_NODE = SampleNode('foo')
 
@@ -22,6 +25,8 @@ TEST_COL_VERSION = 'versions'
 TEST_COL_VER_EDGE = 'ver_to_sample'
 TEST_COL_NODES = 'nodes'
 TEST_COL_NODE_EDGE = 'node_edges'
+TEST_COL_WS_OBJ_VER = 'ws_obj_ver'
+TEST_COL_DATA_LINK = 'data_link'
 TEST_COL_SCHEMA = 'schema'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
@@ -60,6 +65,8 @@ def clear_db_and_recreate(arango):
     db.create_collection(TEST_COL_VER_EDGE, edge=True)
     db.create_collection(TEST_COL_NODES)
     db.create_collection(TEST_COL_NODE_EDGE, edge=True)
+    db.create_collection(TEST_COL_WS_OBJ_VER)
+    db.create_collection(TEST_COL_DATA_LINK, edge=True)
     db.create_collection(TEST_COL_SCHEMA)
     return db
 
@@ -73,6 +80,8 @@ def samplestorage_method(arango):
         TEST_COL_VER_EDGE,
         TEST_COL_NODES,
         TEST_COL_NODE_EDGE,
+        TEST_COL_WS_OBJ_VER,
+        TEST_COL_DATA_LINK,
         TEST_COL_SCHEMA)
 
 
@@ -98,6 +107,8 @@ def test_startup_and_check_config_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name)
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
@@ -118,9 +129,11 @@ def test_startup_with_extra_config_doc(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    ws = TEST_COL_WS_OBJ_VER
+    dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitError(
+    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'Multiple config objects found ' +
         'in the database. This should not happen, something is very wrong.'))
 
@@ -135,9 +148,11 @@ def test_startup_with_bad_schema_version(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    ws = TEST_COL_WS_OBJ_VER
+    dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitError(
+    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'Incompatible database schema. Server is v1, DB is v4'))
 
 
@@ -151,9 +166,11 @@ def test_startup_in_update(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    ws = TEST_COL_WS_OBJ_VER
+    dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, sc, nw, StorageInitError(
+    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'The database is in the middle of an update from v1 of the schema. Aborting startup.'))
 
 
@@ -183,6 +200,8 @@ def test_startup_with_unupdated_version_and_node_docs(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name)
 
     assert samplestorage._col_version.count() == 1
@@ -230,6 +249,8 @@ def test_startup_with_unupdated_node_docs(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name)
 
     assert samplestorage._col_version.count() == 2
@@ -284,6 +305,8 @@ def test_startup_with_no_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(4600, tz=datetime.timezone.utc))
 
@@ -300,6 +323,8 @@ def test_startup_with_no_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(4601, tz=datetime.timezone.utc))
 
@@ -362,6 +387,8 @@ def test_startup_with_no_version_in_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(5600, tz=datetime.timezone.utc))
 
@@ -378,6 +405,8 @@ def test_startup_with_no_version_in_sample_doc(samplestorage):
         samplestorage._col_ver_edge.name,
         samplestorage._col_nodes.name,
         samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
         samplestorage._col_schema.name,
         now=lambda: datetime.datetime.fromtimestamp(5601, tz=datetime.timezone.utc))
 
@@ -403,20 +432,29 @@ def test_fail_startup_bad_args(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    ws = TEST_COL_WS_OBJ_VER
+    dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
     def nw():
         datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
-    _fail_startup(None, s, v, ve, n, ne, sc, nw,
+    _fail_startup(None, s, v, ve, n, ne, ws, dl, sc, nw,
                   ValueError('db cannot be a value that evaluates to false'))
-    _fail_startup(db, '', v, ve, n, ne, sc, nw, MissingParameterError('sample_collection'))
-    _fail_startup(db, s, '', ve, n, ne, sc, nw, MissingParameterError('version_collection'))
-    _fail_startup(db, s, v, '', n, ne, sc, nw, MissingParameterError('version_edge_collection'))
-    _fail_startup(db, s, v, ve, '', ne, sc, nw, MissingParameterError('node_collection'))
-    _fail_startup(db, s, v, ve, n, '', sc, nw, MissingParameterError('node_edge_collection'))
-    _fail_startup(db, s, v, ve, n, ne, '', nw, MissingParameterError('schema_collection'))
-    _fail_startup(db, s, v, ve, n, ne, sc, None,
+    _fail_startup(db, '', v, ve, n, ne, ws, dl, sc, nw, MissingParameterError('sample_collection'))
+    _fail_startup(db, s, '', ve, n, ne, ws, dl, sc, nw, MissingParameterError(
+        'version_collection'))
+    _fail_startup(db, s, v, '', n, ne, ws, dl, sc, nw, MissingParameterError(
+        'version_edge_collection'))
+    _fail_startup(db, s, v, ve, '', ne, ws, dl, sc, nw, MissingParameterError('node_collection'))
+    _fail_startup(db, s, v, ve, n, '', ws, dl, sc, nw, MissingParameterError(
+        'node_edge_collection'))
+    _fail_startup(db, s, v, ve, n, ne, '', dl, sc, nw, MissingParameterError(
+        'workspace_object_version_shadow_collection'))
+    _fail_startup(db, s, v, ve, n, ne, ws, '', sc, nw, MissingParameterError(
+        'data_link_collection'))
+    _fail_startup(db, s, v, ve, n, ne, ws, dl, '', nw, MissingParameterError('schema_collection'))
+    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, None,
                   ValueError('now cannot be a value that evaluates to false'))
 
 
@@ -430,23 +468,29 @@ def test_fail_startup_incorrect_collection_type(arango):
     ve = TEST_COL_VER_EDGE
     n = TEST_COL_NODES
     ne = TEST_COL_NODE_EDGE
+    ws = TEST_COL_WS_OBJ_VER
+    dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
     def nw():
         datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
-    _fail_startup(db, 'sampleedge', v, ve, n, ne, sc, nw, StorageInitError(
+    _fail_startup(db, 'sampleedge', v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'sample collection sampleedge is not a vertex collection'))
-    _fail_startup(db, s, ve, ve, n, ne, sc, nw, StorageInitError(
-                  'version collection ver_to_sample is not a vertex collection'))
-    _fail_startup(db, s, v, v, n, ne, sc, nw, StorageInitError(
-                  'version edge collection versions is not an edge collection'))
-    _fail_startup(db, s, v, ve, ne, ne, sc, nw, StorageInitError(
-                  'node collection node_edges is not a vertex collection'))
-    _fail_startup(db, s, v, ve, n, n, sc, nw, StorageInitError(
-                  'node edge collection nodes is not an edge collection'))
-    _fail_startup(db, s, v, ve, n, ne, ne, nw, StorageInitError(
-                  'schema collection node_edges is not a vertex collection'))
+    _fail_startup(db, s, ve, ve, n, ne, ws, dl, sc, nw, StorageInitError(
+        'version collection ver_to_sample is not a vertex collection'))
+    _fail_startup(db, s, v, v, n, ne, ws, dl, sc, nw, StorageInitError(
+        'version edge collection versions is not an edge collection'))
+    _fail_startup(db, s, v, ve, ne, ne, ws, dl, sc, nw, StorageInitError(
+        'node collection node_edges is not a vertex collection'))
+    _fail_startup(db, s, v, ve, n, n, ws, dl, sc, nw, StorageInitError(
+        'node edge collection nodes is not an edge collection'))
+    _fail_startup(db, s, v, ve, n, ne, dl, dl, sc, nw, StorageInitError(
+        'workspace object version shadow collection data_link is not a vertex collection'))
+    _fail_startup(db, s, v, ve, n, ne, ws, ws, sc, nw, StorageInitError(
+        'data link collection ws_obj_ver is not an edge collection'))
+    _fail_startup(db, s, v, ve, n, ne, ws, dl, ne, nw, StorageInitError(
+        'schema collection node_edges is not a vertex collection'))
 
 
 def _fail_startup(
@@ -456,18 +500,47 @@ def _fail_startup(
         colveredge,
         colnode,
         colnodeedge,
+        colws,
+        coldatalink,
         colschema,
         now,
         expected):
 
     with raises(Exception) as got:
         ArangoSampleStorage(
-            db, colsample, colver, colveredge, colnode, colnodeedge, colschema, now=now)
+            db,
+            colsample,
+            colver,
+            colveredge,
+            colnode,
+            colnodeedge,
+            colws,
+            coldatalink,
+            colschema,
+            now=now)
     assert_exception_correct(got.value, expected)
 
 
 def test_indexes_created(samplestorage):
-    # test that any non-standard indexes are created.
+    # Shoudn't reach into the internals but only testing
+    # Purpose here is to make tests fail if collections are added so devs are reminded to
+    # set up any necessary indexes and add index tests
+    cols = sorted([x['name'] for x in samplestorage._db.collections()
+                   if not x['name'].startswith('_')])
+    assert cols == [
+        'data_link',
+        'node_edges',
+        'nodes',
+        'samples',
+        'schema',
+        'ver_to_sample',
+        'versions',
+        'ws_obj_ver']
+
+    indexes = samplestorage._col_sample.indexes()
+    assert len(indexes) == 1
+    assert indexes[0]['fields'] == ['_key']
+
     indexes = samplestorage._col_nodes.indexes()
     assert len(indexes) == 3
     assert indexes[0]['fields'] == ['_key']
@@ -481,7 +554,6 @@ def test_indexes_created(samplestorage):
     _check_index(indexes[2], ['ver'])
 
     indexes = samplestorage._col_node_edge.indexes()
-    print(indexes)
     assert len(indexes) == 3
     assert indexes[0]['fields'] == ['_key']
     assert indexes[1]['fields'] == ['_from', '_to']
@@ -492,6 +564,23 @@ def test_indexes_created(samplestorage):
     assert indexes[0]['fields'] == ['_key']
     assert indexes[1]['fields'] == ['_from', '_to']
     _check_index(indexes[2], ['uuidver'])
+
+    # Don't add indexes here, Relation engine is responsible for setting up indexes
+    # Sample service doesn't use the collection other than verifying it exists
+    indexes = samplestorage._col_ws.indexes()
+    assert len(indexes) == 1
+    assert indexes[0]['fields'] == ['_key']
+
+    indexes = samplestorage._col_data_link.indexes()
+    assert len(indexes) == 4
+    assert indexes[0]['fields'] == ['_key']
+    assert indexes[1]['fields'] == ['_from', '_to']
+    _check_index(indexes[2], ['wsid', 'objid', 'over'])
+    _check_index(indexes[3], ['sid', 'sver'])
+
+    indexes = samplestorage._col_schema.indexes()
+    assert len(indexes) == 1
+    assert indexes[0]['fields'] == ['_key']
 
 
 def _check_index(index, fields):
@@ -973,3 +1062,292 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
     with raises(Exception) as got:
         samplestorage.replace_sample_acls(id_, SampleACL('user', write=['foo']))
     assert_exception_correct(got.value, OwnerChangedError())
+
+
+def test_ws_data_link(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert samplestorage.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(id1, 'user', [SampleNode('mynode1')], dt(2), 'foo')) == 2
+    assert samplestorage.save_sample(
+        SavedSample(id2, 'user', [SampleNode('mynode2')], dt(3), 'foo')) is True
+
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
+        dt(500)
+    )
+
+    # test different workspace object and different sample version
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('42/42/42'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(600)
+    )
+
+    # test data unit vs just UPA and different sample
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('5/89/32'), 'dataunit2'),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
+        dt(700)
+    )
+
+    # test data units don't collide if they have different names
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(800)
+    )
+
+    # this is naughty
+    verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
+    verdoc2 = samplestorage._col_version.find({'id': str(id1), 'ver': 2}).next()
+    verdoc3 = samplestorage._col_version.find({'id': str(id2), 'ver': 1}).next()
+    nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
+    nodedoc2 = samplestorage._col_nodes.find({'name': 'mynode1'}).next()
+    nodedoc3 = samplestorage._col_nodes.find({'name': 'mynode2'}).next()
+
+    assert samplestorage._col_data_link.count() == 4
+
+    link1 = samplestorage._col_data_link.get('42_42_42_bc7324de86d54718dd0dc29c55c6d53a')
+    assert link1 == {
+        '_key': '42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
+        '_id': 'data_link/42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': 'ws_obj_ver/42:42:42',
+        '_to': nodedoc1['_id'],
+        '_rev': link1['_rev'],  # no need to test this
+        'wsid': 42,
+        'objid': 42,
+        'over': 42,
+        'dataid': 'dataunit1',
+        'sid': str(id1),
+        'sver': verdoc1['uuidver'],
+        'node': 'mynode',
+        'create': 600,
+        'expire': 9007199254740991
+    }
+
+    link2 = samplestorage._col_data_link.get('5_89_32')
+    assert link2 == {
+        '_key': '5_89_32',
+        '_id': 'data_link/5_89_32',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc2['_id'],
+        '_rev': link2['_rev'],  # no need to test this
+        'wsid': 5,
+        'objid': 89,
+        'over': 32,
+        'dataid': None,
+        'sid': str(id1),
+        'sver': verdoc2['uuidver'],
+        'node': 'mynode1',
+        'create': 500,
+        'expire': 9007199254740991
+    }
+
+    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
+    assert link3 == {
+        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524',
+        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc3['_id'],
+        '_rev': link3['_rev'],  # no need to test this
+        'wsid': 5,
+        'objid': 89,
+        'over': 32,
+        'dataid': 'dataunit2',
+        'sid': str(id2),
+        'sver': verdoc3['uuidver'],
+        'node': 'mynode2',
+        'create': 700,
+        'expire': 9007199254740991
+    }
+
+    link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
+    assert link4 == {
+        '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc1['_id'],
+        '_rev': link4['_rev'],  # no need to test this
+        'wsid': 5,
+        'objid': 89,
+        'over': 32,
+        'dataid': 'dataunit1',
+        'sid': str(id1),
+        'sver': verdoc1['uuidver'],
+        'node': 'mynode',
+        'create': 800,
+        'expire': 9007199254740991
+    }
+
+
+def test_ws_data_link_bad_args(samplestorage):
+    ss = samplestorage
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    d = DataUnitID(UPA('1/1/1'))
+    s = SampleNodeAddress(SampleAddress(id1, 1), 'foo')
+    t = dt(1)
+    _ws_data_link_fail(ss, None, s, t, ValueError(
+        'duid cannot be a value that evaluates to false'))
+    _ws_data_link_fail(ss, d, None, t, ValueError(
+        'sample_node_address cannot be a value that evaluates to false'))
+    _ws_data_link_fail(ss, d, s, None, ValueError(
+        'timestamp cannot be a value that evaluates to false'))
+    _ws_data_link_fail(ss, d, s, datetime.datetime.now(), ValueError(
+        'timestamp cannot be a naive datetime'))
+
+
+def test_ws_data_link_no_sample(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert samplestorage.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    _ws_data_link_fail(
+        samplestorage,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+        dt(1),
+        NoSuchSampleError(str(id2))
+        )
+
+
+def test_ws_data_link_no_sample_version(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(id1, 'user', [SampleNode('mynode1')], dt(2), 'foo')) == 2
+
+    _ws_data_link_fail(
+        samplestorage,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 3), 'mynode'),
+        dt(1),
+        NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 3')
+        )
+
+
+def test_ws_data_link_link_exists(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500)
+    )
+
+    samplestorage.link_workspace_data(
+        DataUnitID(UPA('1/1/1'), 'du1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500)
+    )
+
+    _ws_data_link_fail(
+        samplestorage,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(1),
+        DataLinkExistsError('1/1/1')
+        )
+
+    _ws_data_link_fail(
+        samplestorage,
+        DataUnitID(UPA('1/1/1'), 'du1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(1),
+        DataLinkExistsError('1/1/1:du1')
+        )
+
+
+def test_ws_data_link_too_many_links_from_ws_obj(samplestorage):
+    ss = _samplestorage_with_max_links(samplestorage, 3)
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcde3')
+    assert ss.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+    assert ss.save_sample(
+        SavedSample(id2, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    ss.link_workspace_data(
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500)
+    )
+
+    ss.link_workspace_data(
+        DataUnitID(UPA('1/1/1'), '1'),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+        dt(500)
+    )
+
+    ss.link_workspace_data(
+        DataUnitID(UPA('1/1/1'), '2'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500)
+    )
+
+    _ws_data_link_fail(
+        ss,
+        DataUnitID(UPA('1/1/1'), '3'),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+        dt(1),
+        TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
+        )
+
+
+def test_ws_data_link_too_many_links_from_sample_ver(samplestorage):
+    ss = _samplestorage_with_max_links(samplestorage, 2)
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert ss.save_sample(
+        SavedSample(
+            id1, 'user', [SampleNode('mynode'), SampleNode('mynode2')], dt(1), 'foo')) is True
+
+    ss.link_workspace_data(
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500)
+    )
+
+    ss.link_workspace_data(
+        DataUnitID(UPA('1/1/2')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),
+        dt(500)
+    )
+
+    _ws_data_link_fail(
+        ss,
+        DataUnitID(UPA('1/1/3')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(1),
+        TooManyDataLinksError(
+            'More than 2 links from sample 12345678-90ab-cdef-1234-567890abcdef version 1')
+        )
+
+
+def _samplestorage_with_max_links(samplestorage, max_links):
+    # this is very naughty
+    return ArangoSampleStorage(
+        samplestorage._db,
+        samplestorage._col_sample.name,
+        samplestorage._col_version.name,
+        samplestorage._col_ver_edge.name,
+        samplestorage._col_nodes.name,
+        samplestorage._col_node_edge.name,
+        samplestorage._col_ws.name,
+        samplestorage._col_data_link.name,
+        samplestorage._col_schema.name,
+        max_links=max_links)
+
+
+def _ws_data_link_fail(samplestorage, duid, sna, ts, expected):
+    with raises(Exception) as got:
+        samplestorage.link_workspace_data(duid, sna, ts)
+    assert_exception_correct(got.value, expected)

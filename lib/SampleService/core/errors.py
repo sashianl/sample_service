@@ -51,7 +51,13 @@ class ErrorType(Enum):
     NO_SUCH_WORKSPACE_DATA = (50030, "No such workspace data")  # noqa: E222 @IgnorePep8
     """ The requested workspace or workspace data does not exist. """
 
-    UNSUPPORTED_OP =         (60000, "Unsupported operation")  # noqa: E222 @IgnorePep8
+    DATA_LINK_EXISTS =       (60000, "Data link exists for data ID")  # noqa: E222 @IgnorePep8
+    """ A link from the provided data ID already exists.. """
+
+    TOO_MANY_DATA_LINKS =    (60010, "Too many data links")  # noqa: E222 @IgnorePep8
+    """ A link from the provided data ID already exists.. """
+
+    UNSUPPORTED_OP =         (100000, "Unsupported operation")  # noqa: E222 @IgnorePep8
     """ The requested operation is not supported. """
 
     def __init__(self, error_code, error_type):
@@ -175,3 +181,21 @@ class ConcurrencyError(SampleError):
 
     def __init__(self, message: str) -> None:
         super().__init__(ErrorType.SAMPLE_CONCURRENCY, message)
+
+
+class DataLinkExistsError(SampleError):
+    """
+    An error thrown when a data link for a given data ID already exists.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.DATA_LINK_EXISTS, message)
+
+
+class TooManyDataLinksError(SampleError):
+    """
+    An error thrown when too many data links exists for a sample version or workspace object.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.TOO_MANY_DATA_LINKS, message)

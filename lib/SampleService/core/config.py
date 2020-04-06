@@ -92,6 +92,8 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
         col_ver_edge,
         col_node,
         col_node_edge,
+        'fake_ws',    # TODO DATALINK get from config
+        'fake_data',  # TODO DATALINK get from config
         col_schema,
     )
     user_lookup = KBaseUserLookup(auth_root_url, auth_token, full_roles, read_roles)

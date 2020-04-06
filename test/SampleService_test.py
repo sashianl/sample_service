@@ -289,6 +289,9 @@ def clear_db_and_recreate(arango):
     db.create_collection(TEST_COL_VER_EDGE, edge=True)
     db.create_collection(TEST_COL_NODES)
     db.create_collection(TEST_COL_NODE_EDGE, edge=True)
+    # TODO DATALINK replace with real collections
+    db.create_collection('fake_ws')
+    db.create_collection('fake_data', edge=True)
     db.create_collection(TEST_COL_SCHEMA)
     return db
 
