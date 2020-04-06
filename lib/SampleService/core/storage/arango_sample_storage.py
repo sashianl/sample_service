@@ -8,6 +8,9 @@ An ArangoDB based storage system for the Sample service.
 # There are a number of specialized steps that take place in the
 # sample saving process and sample access process in order to ensure a consistent db state.
 #
+# Note that the UUID version is internal to the database layer only and must not be exposed
+# ouside of this layer
+#
 # The process is:
 # 1) save all the node documents with the integer version = -1 and a UUID version.
 # 2) save all the node edges.
@@ -69,22 +72,26 @@ import uuid as _uuid
 from uuid import UUID
 from collections import defaultdict
 from typing import List as _List, cast as _cast, Optional as _Optional, Callable
-from typing import Dict as _Dict, Any as _Any
+from typing import Dict as _Dict, Any as _Any, Tuple as _Tuple
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
+
 from SampleService.core.acls import SampleACL
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
-from SampleService.core.sample import SavedSample
+from SampleService.core.sample import SavedSample, SampleNodeAddress
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
+from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
+from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinksError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
+from SampleService.core.workspace import DataUnitID, UPA as _UPA
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ARANGO_FROM = '_from'
@@ -119,6 +126,19 @@ _FLD_ADMIN = 'admin'
 
 _FLD_VERSIONS = 'vers'
 
+_FLD_LINK_WORKSPACE_ID = 'wsid'
+_FLD_LINK_OBJECT_ID = 'objid'
+_FLD_LINK_OBJECT_VERSION = 'over'
+_FLD_LINK_OBJECT_DATA_UNIT = 'dataid'
+_FLD_LINK_SAMPLE_ID = 'sid'
+_FLD_LINK_SAMPLE_VERSION = 'sver'
+_FLD_LINK_SAMPLE_NODE = 'node'
+_FLD_LINK_CREATED = 'create'
+_FLD_LINK_EXPIRES = 'expire'
+
+# see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
+_MAX_ADB_INTEGER = 2**53 - 1
+
 _JOB_ID = 'consistencyjob'
 
 # schema version checking constants.
@@ -146,7 +166,10 @@ class ArangoSampleStorage:
             version_edge_collection: str,
             node_collection: str,
             node_edge_collection: str,
+            workspace_object_version_shadow_collection: str,
+            data_link_collection: str,
             schema_collection: str,
+            max_links: int = 10000,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc)):
         '''
@@ -158,19 +181,28 @@ class ArangoSampleStorage:
         :param sample_collection: the name of the collection in which to store sample documents.
         :param version_collection: the name of the collection in which to store sample version
             documents.
-        :param version_edges_collection: the name of the collection in which edges from sample
+        :param version_edge_collection: the name of the collection in which edges from sample
             versions to samples will be stored.
         :param node_collection: the name of the collection in which nodes for a sample version
             will be stored.
-        :param version_edges_collection: the name of the collection in which edges from sample
+        :param node_edge_collection: the name of the collection in which edges from sample
             nodes to sample nodes (or versions in the case of root nodes) will be stored.
+        :param workspace_object_version_shadow_collection: The name of the collection where the
+            KBase Relation Engine stores shadow object versions.
+        :param data_link_collection: the name of the collection in which edges from workspace
+            object version to sample nodes will be stored, indicating data links.
+        :schema_collection: the name of the collection in which information about the database
+            schema will be stored.
         '''
-        # Don't publicize these params
+        # Don't publicize these params, for testing only
+        # :param max_links: The maximum links any one sample version or workspace object version
+        # can have.
         # :param now: A callable that returns the current time. Primarily used for testing.
         # Maybe make a configuration class...?
-        # TODO take workspace shadow object collection & check indexes exist, don't create
         self._db = _not_falsy(db, 'db')
         self._now = _not_falsy(now, 'now')
+        self._max_links = max_links
+
         self._col_sample = _init_collection(
             db, sample_collection, 'sample collection', 'sample_collection')
         self._col_version = _init_collection(
@@ -182,6 +214,13 @@ class ArangoSampleStorage:
             db, node_collection, 'node collection', 'node_collection')
         self._col_node_edge = _init_collection(
             db, node_edge_collection, 'node edge collection', 'node_edge_collection', edge=True)
+        self._col_ws = _init_collection(
+            db,
+            workspace_object_version_shadow_collection,
+            'workspace object version shadow collection',
+            'workspace_object_version_shadow_collection')
+        self._col_data_link = _init_collection(
+            db, data_link_collection, 'data link collection', 'data_link_collection', edge=True)
         self._col_schema = _init_collection(
             db, schema_collection, 'schema collection', 'schema_collection')
         self._ensure_indexes()
@@ -198,6 +237,12 @@ class ArangoSampleStorage:
             self._col_version.add_persistent_index([_FLD_VER])  # partial index would be useful
             self._col_nodes.add_persistent_index([_FLD_UUID_VER])
             self._col_nodes.add_persistent_index([_FLD_VER])  # partial index would be useful
+            # find links from objects
+            self._col_data_link.add_persistent_index(
+                [_FLD_LINK_WORKSPACE_ID, _FLD_LINK_OBJECT_ID, _FLD_LINK_OBJECT_VERSION])
+            # findn links from samples
+            self._col_data_link.add_persistent_index(
+                [_FLD_LINK_SAMPLE_ID, _FLD_LINK_SAMPLE_VERSION])
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -561,6 +606,16 @@ class ArangoSampleStorage:
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
+        doc, verdoc, version = self._get_sample_and_version_doc(id_, version)
+
+        nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
+        dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
+
+        return SavedSample(
+            UUID(doc[_FLD_ID]), verdoc[_FLD_USER], nodes, dt, verdoc[_FLD_NAME], version)
+
+    def _get_sample_and_version_doc(
+            self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, dict, int]:
         doc = _cast(dict, self._get_sample_doc(id_))
         maxver = len(doc[_FLD_VERSIONS])
         version = version if version else maxver
@@ -572,12 +627,7 @@ class ArangoSampleStorage:
             # is that the db or server lost connection before the version could be updated
             # and the reaper hasn't caught it yet, so we go ahead and fix it.
             self._update_version_and_node_docs_with_find(id_, verdoc[_FLD_UUID_VER], version)
-
-        nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
-        dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
-
-        return SavedSample(
-            UUID(doc[_FLD_ID]), verdoc[_FLD_USER], nodes, dt, verdoc[_FLD_NAME], version)
+        return (doc, verdoc, version)
 
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
@@ -589,7 +639,10 @@ class ArangoSampleStorage:
         # arango keys can be at most 254B and only a few characters are allowed, so we MD5
         # the node name for length and safe characters
         # https://www.arangodb.com/docs/stable/data-modeling-naming-conventions-document-keys.html
-        return f'{id_}_{ver}_{_hashlib.md5(node_id.encode("utf-8")).hexdigest()}'
+        return f'{id_}_{ver}_{self._md5(node_id)}'
+
+    def _md5(self, string: str):
+        return _hashlib.md5(string.encode("utf-8")).hexdigest()
 
     # assumes args are not None, and ver came from the sample doc in the db.
     def _get_version_doc(self, id_: UUID, ver: UUID) -> dict:
@@ -701,6 +754,187 @@ class ArangoSampleStorage:
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     # TODO change acls with more granularity
+
+    def link_workspace_data(
+            self,
+            duid: DataUnitID,
+            sample_node_address: SampleNodeAddress,
+            timestamp: datetime.datetime):
+        '''
+        Link data in the workspace to a sample.
+        Each data unit can be linked to only one sample at a time. Expired links may exist to
+        other samples.
+
+        No checking is done on whether the user has permissions to link the data or whether the
+        data or sample node exists.
+
+        :param duid: The workspace data unit to link to the sample.
+        :param sample_node_address: The sample node to which the data will be linked.
+        :param timestamp: The current timestamp. This will be used to set the creation time on the
+            link.
+
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        :raises DataLinkExistsError: if a link already exists from the data unit.
+        :raises TooManyDataLinksError: if there are too many links from the sample version or
+            the workspace object version.
+        '''
+        # TODO DATALINK update link
+        # TODO DATALINK expire link
+        # TODO DATALINK list samples linked to ws object
+        # TODO DATALINK list ws objects linked to sample
+        # TODO DATALINK may make sense to check for node existence here, make call after writing
+        # next layer up
+
+        # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
+
+        # Using the REST streaming api for the transaction. Might be faster with javascript
+        # server side implementation, but this is easier to read, easier to understand, and easier
+        # to implement. Switch to js if performance becomes an issue.
+
+        # Might want a bulk method for peformance improvement, should take measurements at some
+        # point.
+
+        # For the current link from the DUID, the _key is the DUID. This ensures there's only 1
+        # extant link per DUID. For expired links, the expiration time is added to the _key.
+        # Since only one link should exist at any one time, this should make the _key unique.
+        # Since _keys have a maxium length of 254 chars and the dataid of the DUID may be up to
+        # 256 characters and may contain illegal characters, it is MD5'd. See
+        # https://www.arangodb.com/docs/stable/data-modeling-naming-conventions-document-keys.html
+        sna = sample_node_address
+        del sample_node_address
+        _not_falsy(duid, 'duid')
+        _not_falsy(sna, 'sample_node_address')
+        self._check_timestamp(timestamp, 'timestamp')
+        # need to get the version doc to ensure the documents have been updated appropriately,
+        # see comments at beginning of file
+        _, versiondoc, _ = self._get_sample_and_version_doc(sna.sampleid, sna.version)
+        samplever = UUID(versiondoc[_FLD_UUID_VER])
+
+        # makes a db specifically for this transaction
+        tdb = self._db.begin_transaction(
+            read=self._col_data_link.name,
+            # Need exclusive as we're counting docs and making decisions based on that number
+            # Write only checks for write collisions on specific docs, so count could change
+            # during transaction
+            exclusive=self._col_data_link.name)
+
+        try:
+            # makes a collection specifically for this transaction
+            tdlc = tdb.collection(self._col_data_link.name)
+            if self._has_doc(tdlc, self._create_link_key(duid)):
+                raise _DataLinkExistsError(str(duid))
+
+            # TODO DATALINK should only count links coexisting with current link when expiration
+            # works
+            if self._count_links_from_ws_object(tdb, duid.upa) >= self._max_links:
+                raise _TooManyDataLinksError(
+                    f'More than {self._max_links} links from workpace object {duid.upa}')
+            if self._count_links_from_sample_ver(tdb, sna.sampleid, samplever) >= self._max_links:
+                raise _TooManyDataLinksError(
+                    f'More than {self._max_links} links from sample {sna.sampleid} ' +
+                    f'version {sna.version}')
+
+            ldoc = self._create_link_doc(duid, sna.sampleid, samplever, sna.node, timestamp)
+            self._insert(tdlc, ldoc)
+            try:
+                tdb.commit_transaction()
+            except _arango.exceptions.TransactionCommitError as e:  # dunno how to test this
+                # may want some retry logic here, YAGNI for now
+                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        finally:
+            if tdb.transaction_status() != 'committed':
+                try:
+                    tdb.abort_transaction()
+                except _arango.exceptions.TransactionAbortError as e:  # dunno how to test this
+                    # this will mask the previous error, but if this fails probably the DB
+                    # connection is hosed
+                    raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+        # TODO DATALINK return link object
+        # TODO DATALINK make a link ID? UUID? Maybe not necessary?
+
+    def _has_doc(self, col, id_):
+        # may want exception thrown at some point?
+        try:
+            return col.has(id_)
+        except _arango.exceptions.DocumentInError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _count_links_from_ws_object(self, db, upa: _UPA):
+        wsc = self._count_links(
+            db,
+            f'''
+                FILTER d.{_FLD_LINK_WORKSPACE_ID} == @wsid
+                FILTER d.{_FLD_LINK_OBJECT_ID} == @objid
+                FILTER d.{_FLD_LINK_OBJECT_VERSION} == @ver
+            ''',
+            {'wsid': upa.wsid, 'objid': upa.objid, 'ver': upa.version})
+        return wsc
+
+    def _count_links_from_sample_ver(self, db, sample: UUID, version: UUID):
+        sv = self._count_links(
+            db,
+            f'''
+                FILTER d.{_FLD_LINK_SAMPLE_ID} == @sid
+                FILTER d.{_FLD_LINK_SAMPLE_VERSION} == @sver
+            ''',
+            {'sid': str(sample), 'sver': str(version)})
+        return sv
+
+    def _count_links(self, db, filters: str, bind_vars):
+        bind_vars['@col'] = self._col_data_link.name
+        try:
+            cur = db.aql.execute(
+                f'''
+                    FOR d in @@col
+                ''' +
+                filters +
+                '''
+                        COLLECT WITH COUNT INTO linkcount
+                        RETURN linkcount
+                ''',
+                bind_vars=bind_vars)
+            return cur.next()
+        except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _create_link_key(self, duid: DataUnitID):
+        dataid = f'_{self._md5(duid.dataid)}' if duid.dataid else ''
+        return f'{duid.upa.wsid}_{duid.upa.objid}_{duid.upa.version}{dataid}'
+
+    def _create_link_doc(
+            self,
+            duid: DataUnitID,
+            sampleid: UUID,
+            samplever: UUID,
+            node: str,
+            timestamp: datetime.datetime):
+        nodeid = self._get_node_id(sampleid, samplever, node)
+        # see https://github.com/kbase/relation_engine_spec/blob/4a9dc6df2088763a9df88f0b018fa5c64f2935aa/schemas/ws/ws_object_version.yaml#L17  # noqa
+        from_ = f'{self._col_ws.name}/{duid.upa.wsid}:{duid.upa.objid}:{duid.upa.version}'
+        return {
+            _FLD_ARANGO_KEY: self._create_link_key(duid),
+            _FLD_ARANGO_FROM: from_,
+            _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
+            _FLD_LINK_CREATED: timestamp.timestamp(),
+            _FLD_LINK_EXPIRES: _MAX_ADB_INTEGER,
+            _FLD_LINK_WORKSPACE_ID: duid.upa.wsid,
+            _FLD_LINK_OBJECT_ID: duid.upa.objid,
+            _FLD_LINK_OBJECT_VERSION: duid.upa.version,
+            _FLD_LINK_OBJECT_DATA_UNIT: duid.dataid,
+            _FLD_LINK_SAMPLE_ID: str(sampleid),
+            _FLD_LINK_SAMPLE_VERSION: str(samplever),
+            _FLD_LINK_SAMPLE_NODE: node
+        }
+
+    def _check_timestamp(self, timestamp: datetime.datetime, name):
+        if _not_falsy(timestamp, 'timestamp').tzinfo is None:
+            # see https://docs.python.org/3.3/library/datetime.html#datetime.timezone
+            # The docs say you should also check savetime.tzinfo.utcoffset(savetime) is not None,
+            # but initializing a datetime with a tzinfo subclass that returns None for that method
+            # causes the constructor to throw an error
+            raise ValueError('timestamp cannot be a naive datetime')
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped
