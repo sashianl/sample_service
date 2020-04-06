@@ -83,6 +83,7 @@ from SampleService.core.sample import SavedSample, SampleNodeAddress
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
@@ -805,7 +806,7 @@ class ArangoSampleStorage:
         del sample_node_address
         _not_falsy(duid, 'duid')
         _not_falsy(sna, 'sample_node_address')
-        self._check_timestamp(timestamp, 'timestamp')
+        _check_timestamp(timestamp, 'timestamp')
         # need to get the version doc to ensure the documents have been updated appropriately,
         # see comments at beginning of file
         _, versiondoc, _ = self._get_sample_and_version_doc(sna.sampleid, sna.version)
@@ -927,14 +928,6 @@ class ArangoSampleStorage:
             _FLD_LINK_SAMPLE_VERSION: str(samplever),
             _FLD_LINK_SAMPLE_NODE: node
         }
-
-    def _check_timestamp(self, timestamp: datetime.datetime, name):
-        if _not_falsy(timestamp, 'timestamp').tzinfo is None:
-            # see https://docs.python.org/3.3/library/datetime.html#datetime.timezone
-            # The docs say you should also check savetime.tzinfo.utcoffset(savetime) is not None,
-            # but initializing a datetime with a tzinfo subclass that returns None for that method
-            # causes the constructor to throw an error
-            raise ValueError('timestamp cannot be a naive datetime')
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped

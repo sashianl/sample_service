@@ -1,6 +1,8 @@
+import datetime
 from pytest import raises
 from core.test_utils import assert_exception_correct
 from SampleService.core.arg_checkers import check_string, not_falsy, not_falsy_in_iterable
+from SampleService.core.arg_checkers import check_timestamp
 from SampleService.core.errors import MissingParameterError, IllegalParameterError
 
 LONG_STRING = 'a' * 100
@@ -97,3 +99,24 @@ def test_check_string_long_fail():
             check_string(string, 'var name', max_len=length)
         assert_exception_correct(
             got.value, IllegalParameterError(f'var name exceeds maximum length of {length}'))
+
+
+def _dt(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+
+
+def test_check_timestamp():
+    for t in [-1000000, -256, -1, 0, 1, 6, 100, 100000000000]:
+        assert check_timestamp(_dt(t), 'name') == _dt(t)
+
+
+def test_check_timestamp_fail_bad_args():
+    _check_timestamp_fail(None, 'ts', ValueError('ts cannot be a value that evaluates to false'))
+    _check_timestamp_fail(datetime.datetime.now(), 'tymestampz', ValueError(
+        'tymestampz cannot be a naive datetime'))
+
+
+def _check_timestamp_fail(ts, name, expected):
+    with raises(Exception) as got:
+        check_timestamp(ts, name)
+    assert_exception_correct(got.value, expected)
