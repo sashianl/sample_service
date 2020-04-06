@@ -13,6 +13,7 @@ from typing import Set as _Set, cast as _cast
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 
 # for now we'll assume people are nice and don't change attributes after init.
@@ -215,7 +216,6 @@ class Sample:
             if n.name in seen_names:
                 raise IllegalParameterError(f'Duplicate sample node name: {n.name}')
             if n.parent and n.parent not in seen_names:
-                print(f'seen: {seen_names}')
                 raise IllegalParameterError(f'Parent {n.parent} of node {n.name} does not ' +
                                             'appear in node list prior to node.')
             seen_names.add(n.name)
@@ -272,13 +272,7 @@ class SavedSample(Sample):
         super().__init__(nodes, name)
         self.id = _not_falsy(id_, 'id_')
         self.user = _not_falsy(user, 'user')
-        self.savetime = _not_falsy(savetime, 'savetime')
-        if savetime.tzinfo is None:
-            # see https://docs.python.org/3.3/library/datetime.html#datetime.timezone
-            # The docs say you should also check savetime.tzinfo.utcoffset(savetime) is not None,
-            # but initializing a datetime with a tzinfo subclass that returns None for that method
-            # causes the constructor to throw an error
-            raise ValueError('savetime cannot be a naive datetime')
+        self.savetime = _check_timestamp(savetime, 'savetime')
         if version is not None and version < 1:
             raise ValueError('version must be > 0')
         self.version = version

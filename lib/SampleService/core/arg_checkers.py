@@ -2,6 +2,7 @@
 Contains various miscellaneous utilies such as argument checkers.
 '''
 
+import datetime
 import unicodedata
 from typing import Optional, Iterable, TypeVar
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
@@ -98,3 +99,21 @@ def check_string(string: Optional[str], name: str, max_len: int = None, optional
     if max_len and len(string) > max_len:
         raise IllegalParameterError('{} exceeds maximum length of {}'.format(name, max_len))
     return string
+
+
+def check_timestamp(timestamp: datetime.datetime, name: str):
+    '''
+    Check that a timestamp is not None and not naive. See
+    https://docs.python.org/3.8/library/datetime.html#aware-and-naive-objects
+
+    :param timestamp: the timestamp to check.
+    :param name: the name of the variable to use in thrown errors.
+    :returns: the timestamp.
+    :raises ValueError: if the check fails.
+    '''
+    if not_falsy(timestamp, name).tzinfo is None:
+        # The docs say you should also check savetime.tzinfo.utcoffset(savetime) is not None,
+        # but initializing a datetime with a tzinfo subclass that returns None for that method
+        # causes the constructor to throw an error
+        raise ValueError(f'{name} cannot be a naive datetime')
+    return timestamp
