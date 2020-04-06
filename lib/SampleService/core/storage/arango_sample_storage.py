@@ -853,7 +853,7 @@ class ArangoSampleStorage:
                     raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
         # TODO DATALINK return link object
-        # TODO DATALINK make a link ID? UUID? Maybe not necessary?
+        # TODO DATALINK make a link ID? UUID? Maybe not necessary? Effectively DUID since 1:1
 
     def _has_doc(self, col, id_):
         # may want exception thrown at some point?
