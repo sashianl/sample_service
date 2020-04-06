@@ -96,6 +96,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
         'fake_data',  # TODO DATALINK get from config
         col_schema,
     )
+    storage.start_consistency_checker()
     user_lookup = KBaseUserLookup(auth_root_url, auth_token, full_roles, read_roles)
     return Samples(storage, user_lookup, metaval), user_lookup
 
