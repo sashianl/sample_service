@@ -1226,12 +1226,12 @@ def test_ws_data_link_correct_missing_versions(samplestorage):
         assert v['ver'] == 1
 
 
-def test_ws_data_link_no_link(samplestorage):
+def test_ws_data_link_fail_no_link(samplestorage):
     _ws_data_link_fail(samplestorage, None, ValueError(
         'link cannot be a value that evaluates to false'))
 
 
-def test_ws_data_link_no_sample(samplestorage):
+def test_ws_data_link_fail_no_sample(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
     assert samplestorage.save_sample(
@@ -1247,7 +1247,7 @@ def test_ws_data_link_no_sample(samplestorage):
         )
 
 
-def test_ws_data_link_no_sample_version(samplestorage):
+def test_ws_data_link_fail_no_sample_version(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
@@ -1264,7 +1264,7 @@ def test_ws_data_link_no_sample_version(samplestorage):
         )
 
 
-def test_ws_data_link_link_exists(samplestorage):
+def test_ws_data_link_fail_link_exists(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
@@ -1300,7 +1300,7 @@ def test_ws_data_link_link_exists(samplestorage):
         )
 
 
-def test_ws_data_link_too_many_links_from_ws_obj(samplestorage):
+def test_ws_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
     ss = _samplestorage_with_max_links(samplestorage, 3)
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
@@ -1338,7 +1338,7 @@ def test_ws_data_link_too_many_links_from_ws_obj(samplestorage):
         )
 
 
-def test_ws_data_link_too_many_links_from_sample_ver(samplestorage):
+def test_ws_data_link_fail_too_many_links_from_sample_ver_basic(samplestorage):
     ss = _samplestorage_with_max_links(samplestorage, 2)
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
@@ -1366,6 +1366,175 @@ def test_ws_data_link_too_many_links_from_sample_ver(samplestorage):
             dt(1)),
         TooManyDataLinksError(
             'More than 2 links from sample 12345678-90ab-cdef-1234-567890abcdef version 1')
+        )
+
+
+def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage):
+    # tests that links that do not co-exist with the new link are not counted against the total.
+    ss = _samplestorage_with_max_links(samplestorage, 6)
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert ss.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+    assert ss.save_sample_version(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) == 2
+
+    # completely outside the new sample time range.
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(100),
+        dt(299))
+    )
+
+    # expire matches create
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '1'),
+        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
+        dt(100),
+        dt(300))
+    )
+
+    # overlaps create
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '2'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(250),
+        dt(350))
+    )
+
+    # contained inside
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '3'),
+        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
+        dt(325),
+        dt(375))
+    )
+
+    # encloses
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '4'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(250),
+        dt(450))
+    )
+
+    # overlaps expire
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '5'),
+        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
+        dt(350),
+        dt(450))
+    )
+
+    # create matches expire
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '6'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(400),
+        dt(500))
+    )
+
+    # completely outside the new sample time range.
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1'), '7'),
+        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
+        dt(401),
+        dt(550))
+    )
+
+    _ws_data_link_fail(
+        ss,
+        DataLink(
+            DataUnitID(UPA('1/1/1'), '8'),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(300),
+            dt(400)),
+        TooManyDataLinksError('More than 6 links from workpace object 1/1/1')
+        )
+
+
+def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestorage):
+    # tests that links that do not co-exist with the new link are not counted against the total.
+    ss = _samplestorage_with_max_links(samplestorage, 6)
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert ss.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    # completely outside the new sample time range.
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(100),
+        dt(299))
+    )
+
+    # expire matches create
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/2')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(100),
+        dt(300))
+    )
+
+    # overlaps create
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/3')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(250),
+        dt(350))
+    )
+
+    # contained inside
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/4')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(325),
+        dt(375))
+    )
+
+    # encloses
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/5')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(250),
+        dt(450))
+    )
+
+    # overlaps expire
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/6')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(350),
+        dt(450))
+    )
+
+    # create matches expire
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/7')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(400),
+        dt(500))
+    )
+
+    # completely outside the new sample time range.
+    ss.link_workspace_data(DataLink(
+        DataUnitID(UPA('1/1/8')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(401),
+        dt(550))
+    )
+
+    _ws_data_link_fail(
+        ss,
+        DataLink(
+            DataUnitID(UPA('1/1/9')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(300),
+            dt(400)),
+        TooManyDataLinksError('More than 6 links from sample ' +
+                              '12345678-90ab-cdef-1234-567890abcdef version 1')
         )
 
 

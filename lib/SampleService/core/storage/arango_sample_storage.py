@@ -819,12 +819,12 @@ class ArangoSampleStorage:
             if self._has_doc(tdlc, self._create_link_key(link.duid)):
                 raise _DataLinkExistsError(str(link.duid))
 
-            # TODO DATALINK should only count links coexisting with current link when expiration
-            # works
-            if self._count_links_from_ws_object(tdb, link.duid.upa) >= self._max_links:
+            if self._count_links_from_ws_object(
+                    tdb, link.duid.upa, link.create, link.expire) >= self._max_links:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from workpace object {link.duid.upa}')
-            if self._count_links_from_sample_ver(tdb, sna.sampleid, samplever) >= self._max_links:
+            if self._count_links_from_sample_ver(
+                    tdb, sna.sampleid, samplever, link.create, link.expire) >= self._max_links:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from sample {sna.sampleid} ' +
                     f'version {sna.version}')
@@ -852,40 +852,59 @@ class ArangoSampleStorage:
         except _arango.exceptions.DocumentInError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def _count_links_from_ws_object(self, db, upa: _UPA):
+    def _count_links_from_ws_object(
+            self,
+            db,
+            upa: _UPA,
+            create: datetime.datetime,
+            expire: _Optional[datetime.datetime]):
         wsc = self._count_links(
             db,
             f'''
-                FILTER d.{_FLD_LINK_WORKSPACE_ID} == @wsid
-                FILTER d.{_FLD_LINK_OBJECT_ID} == @objid
-                FILTER d.{_FLD_LINK_OBJECT_VERSION} == @ver
-            ''',
-            {'wsid': upa.wsid, 'objid': upa.objid, 'ver': upa.version})
+                    FILTER d.{_FLD_LINK_WORKSPACE_ID} == @wsid
+                    FILTER d.{_FLD_LINK_OBJECT_ID} == @objid
+                    FILTER d.{_FLD_LINK_OBJECT_VERSION} == @ver''',
+            {'wsid': upa.wsid, 'objid': upa.objid, 'ver': upa.version},
+            create,
+            expire)
         return wsc
 
-    def _count_links_from_sample_ver(self, db, sample: UUID, version: UUID):
+    def _count_links_from_sample_ver(
+            self,
+            db,
+            sample: UUID,
+            version: UUID,
+            create: datetime.datetime,
+            expire: _Optional[datetime.datetime]):
         sv = self._count_links(
             db,
             f'''
-                FILTER d.{_FLD_LINK_SAMPLE_ID} == @sid
-                FILTER d.{_FLD_LINK_SAMPLE_VERSION} == @sver
-            ''',
-            {'sid': str(sample), 'sver': str(version)})
+                    FILTER d.{_FLD_LINK_SAMPLE_ID} == @sid
+                    FILTER d.{_FLD_LINK_SAMPLE_VERSION} == @sver''',
+            {'sid': str(sample), 'sver': str(version)},
+            create,
+            expire)
         return sv
 
-    def _count_links(self, db, filters: str, bind_vars):
+    def _count_links(self, db, filters: str, bind_vars, create, expire):
         bind_vars['@col'] = self._col_data_link.name
+        bind_vars['create'] = create.timestamp()
+        bind_vars['expire'] = expire = expire.timestamp() if expire else _MAX_ADB_INTEGER
+        # might need to include create / expire in compound indexes if we get a ton of expired
+        # links. Might not work in a NOT though. Alternate formulation is
+        # (d.create >= @create AND d.create <= @expire) OR
+        # (d.expire >= @create AND d.expire <= @expire)
+        q = (f'''
+                FOR d in @@col
+             ''' +
+             filters +
+             '''
+                    FILTER NOT (d.expire < @create OR d.create > @expire)
+                    COLLECT WITH COUNT INTO linkcount
+                    RETURN linkcount
+             ''')
         try:
-            cur = db.aql.execute(
-                f'''
-                    FOR d in @@col
-                ''' +
-                filters +
-                '''
-                        COLLECT WITH COUNT INTO linkcount
-                        RETURN linkcount
-                ''',
-                bind_vars=bind_vars)
+            cur = db.aql.execute(q, bind_vars=bind_vars)
             return cur.next()
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
