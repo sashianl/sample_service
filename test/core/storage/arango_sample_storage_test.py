@@ -1116,32 +1116,13 @@ def test_ws_data_link(samplestorage):
 
     assert samplestorage._col_data_link.count() == 4
 
-    link1 = samplestorage._col_data_link.get('42_42_42_bc7324de86d54718dd0dc29c55c6d53a')
+    link1 = samplestorage._col_data_link.get('5_89_32')
     assert link1 == {
-        '_key': '42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
-        '_id': 'data_link/42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
-        '_from': 'ws_obj_ver/42:42:42',
-        '_to': nodedoc1['_id'],
-        '_rev': link1['_rev'],  # no need to test this
-        'id': '12345678-90ab-cdef-1234-567890abcde2',
-        'wsid': 42,
-        'objid': 42,
-        'objver': 42,
-        'dataid': 'dataunit1',
-        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
-        'samplever': verdoc1['uuidver'],
-        'node': 'mynode',
-        'created': 600,
-        'expired': 9007199254740991
-    }
-
-    link2 = samplestorage._col_data_link.get('5_89_32')
-    assert link2 == {
         '_key': '5_89_32',
         '_id': 'data_link/5_89_32',
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc2['_id'],
-        '_rev': link2['_rev'],  # no need to test this
+        '_rev': link1['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',
         'wsid': 5,
         'objid': 89,
@@ -1151,6 +1132,25 @@ def test_ws_data_link(samplestorage):
         'samplever': verdoc2['uuidver'],
         'node': 'mynode1',
         'created': 500,
+        'expired': 9007199254740991
+    }
+
+    link2 = samplestorage._col_data_link.get('42_42_42_bc7324de86d54718dd0dc29c55c6d53a')
+    assert link2 == {
+        '_key': '42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
+        '_id': 'data_link/42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': 'ws_obj_ver/42:42:42',
+        '_to': nodedoc1['_id'],
+        '_rev': link2['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde2',
+        'wsid': 42,
+        'objid': 42,
+        'objver': 42,
+        'dataid': 'dataunit1',
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samplever': verdoc1['uuidver'],
+        'node': 'mynode',
+        'created': 600,
         'expired': 9007199254740991
     }
 
