@@ -968,7 +968,7 @@ class ArangoSampleStorage:
             if cur.count() == 0:
                 raise _NoSuchLinkError(str(id_))
             if cur.count() > 1:
-                raise ValueError(f'More than one data link found for ID {id_}')
+                raise _SampleStorageError(f'More than one data link found for ID {id_}')
             doc = cur.next()
             cur.close(True)
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test

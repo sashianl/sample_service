@@ -1691,12 +1691,11 @@ def test_get_data_link_fail_too_many_links(samplestorage):
     )
 
     _get_data_link_fail(
-        samplestorage, lid, ValueError(
+        samplestorage, lid, SampleStorageError(
             'More than one data link found for ID 12345678-90ab-cdef-1234-567890abcde1'))
 
 
 def _get_data_link_fail(samplestorage, id_, expected):
     with raises(Exception) as got:
         samplestorage.get_data_link(id_)
-    print(got.value)
     assert_exception_correct(got.value, expected)
