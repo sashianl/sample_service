@@ -129,13 +129,13 @@ _FLD_VERSIONS = 'vers'
 
 _FLD_LINK_WORKSPACE_ID = 'wsid'
 _FLD_LINK_OBJECT_ID = 'objid'
-_FLD_LINK_OBJECT_VERSION = 'over'
+_FLD_LINK_OBJECT_VERSION = 'objver'
 _FLD_LINK_OBJECT_DATA_UNIT = 'dataid'
-_FLD_LINK_SAMPLE_ID = 'sid'
-_FLD_LINK_SAMPLE_VERSION = 'sver'
+_FLD_LINK_SAMPLE_ID = 'sampleid'
+_FLD_LINK_SAMPLE_VERSION = 'samplever'
 _FLD_LINK_SAMPLE_NODE = 'node'
-_FLD_LINK_CREATED = 'create'
-_FLD_LINK_EXPIRES = 'expire'
+_FLD_LINK_CREATED = 'created'
+_FLD_LINK_EXPIRES = 'expired'
 
 # see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
 _MAX_ADB_INTEGER = 2**53 - 1
@@ -773,6 +773,7 @@ class ArangoSampleStorage:
         :raises TooManyDataLinksError: if there are too many links from the sample version or
             the workspace object version.
         '''
+        # TODO DATALINK get link based on DUID
         # TODO DATALINK update link
         # TODO DATALINK expire link
         # TODO DATALINK list samples linked to ws object
@@ -898,8 +899,8 @@ class ArangoSampleStorage:
                 FOR d in @@col
              ''' +
              filters +
-             '''
-                    FILTER NOT (d.expire < @create OR d.create > @expire)
+             f'''
+                    FILTER NOT (d.{_FLD_LINK_EXPIRES} < @create OR d.{_FLD_LINK_CREATED} > @expire)
                     COLLECT WITH COUNT INTO linkcount
                     RETURN linkcount
              ''')

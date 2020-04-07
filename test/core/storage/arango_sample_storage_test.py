@@ -575,8 +575,8 @@ def test_indexes_created(samplestorage):
     assert len(indexes) == 4
     assert indexes[0]['fields'] == ['_key']
     assert indexes[1]['fields'] == ['_from', '_to']
-    _check_index(indexes[2], ['wsid', 'objid', 'over'])
-    _check_index(indexes[3], ['sid', 'sver'])
+    _check_index(indexes[2], ['wsid', 'objid', 'objver'])
+    _check_index(indexes[3], ['sampleid', 'samplever'])
 
     indexes = samplestorage._col_schema.indexes()
     assert len(indexes) == 1
@@ -1121,13 +1121,13 @@ def test_ws_data_link(samplestorage):
         '_rev': link1['_rev'],  # no need to test this
         'wsid': 42,
         'objid': 42,
-        'over': 42,
+        'objver': 42,
         'dataid': 'dataunit1',
-        'sid': str(id1),
-        'sver': verdoc1['uuidver'],
+        'sampleid': str(id1),
+        'samplever': verdoc1['uuidver'],
         'node': 'mynode',
-        'create': 600,
-        'expire': 9007199254740991
+        'created': 600,
+        'expired': 9007199254740991
     }
 
     link2 = samplestorage._col_data_link.get('5_89_32')
@@ -1139,13 +1139,13 @@ def test_ws_data_link(samplestorage):
         '_rev': link2['_rev'],  # no need to test this
         'wsid': 5,
         'objid': 89,
-        'over': 32,
+        'objver': 32,
         'dataid': None,
-        'sid': str(id1),
-        'sver': verdoc2['uuidver'],
+        'sampleid': str(id1),
+        'samplever': verdoc2['uuidver'],
         'node': 'mynode1',
-        'create': 500,
-        'expire': 9007199254740991
+        'created': 500,
+        'expired': 9007199254740991
     }
 
     link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
@@ -1157,13 +1157,13 @@ def test_ws_data_link(samplestorage):
         '_rev': link3['_rev'],  # no need to test this
         'wsid': 5,
         'objid': 89,
-        'over': 32,
+        'objver': 32,
         'dataid': 'dataunit2',
-        'sid': str(id2),
-        'sver': verdoc3['uuidver'],
+        'sampleid': str(id2),
+        'samplever': verdoc3['uuidver'],
         'node': 'mynode2',
-        'create': 700,
-        'expire': 30000
+        'created': 700,
+        'expired': 30000
     }
 
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1175,13 +1175,13 @@ def test_ws_data_link(samplestorage):
         '_rev': link4['_rev'],  # no need to test this
         'wsid': 5,
         'objid': 89,
-        'over': 32,
+        'objver': 32,
         'dataid': 'dataunit1',
-        'sid': str(id1),
-        'sver': verdoc1['uuidver'],
+        'sampleid': str(id1),
+        'samplever': verdoc1['uuidver'],
         'node': 'mynode',
-        'create': 800,
-        'expire': 9007199254740991
+        'created': 800,
+        'expired': 9007199254740991
     }
 
 
