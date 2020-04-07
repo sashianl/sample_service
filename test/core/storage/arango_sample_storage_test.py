@@ -1075,6 +1075,7 @@ def test_ws_data_link(samplestorage):
         SavedSample(id2, 'user', [SampleNode('mynode2')], dt(3), 'foo')) is True
 
     samplestorage.link_workspace_data(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde1'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
         dt(500))
@@ -1082,6 +1083,7 @@ def test_ws_data_link(samplestorage):
 
     # test different workspace object and different sample version
     samplestorage.link_workspace_data(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde2'),
         DataUnitID(UPA('42/42/42'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(600))
@@ -1089,6 +1091,7 @@ def test_ws_data_link(samplestorage):
 
     # test data unit vs just UPA, different sample, and expiration date
     samplestorage.link_workspace_data(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde3'),
         DataUnitID(UPA('5/89/32'), 'dataunit2'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
         dt(700),
@@ -1097,6 +1100,7 @@ def test_ws_data_link(samplestorage):
 
     # test data units don't collide if they have different names
     samplestorage.link_workspace_data(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde4'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(800))
@@ -1123,7 +1127,7 @@ def test_ws_data_link(samplestorage):
         'objid': 42,
         'objver': 42,
         'dataid': 'dataunit1',
-        'sampleid': str(id1),
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
         'samplever': verdoc1['uuidver'],
         'node': 'mynode',
         'created': 600,
@@ -1141,7 +1145,7 @@ def test_ws_data_link(samplestorage):
         'objid': 89,
         'objver': 32,
         'dataid': None,
-        'sampleid': str(id1),
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
         'samplever': verdoc2['uuidver'],
         'node': 'mynode1',
         'created': 500,
@@ -1159,7 +1163,7 @@ def test_ws_data_link(samplestorage):
         'objid': 89,
         'objver': 32,
         'dataid': 'dataunit2',
-        'sampleid': str(id2),
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdee',
         'samplever': verdoc3['uuidver'],
         'node': 'mynode2',
         'created': 700,
@@ -1177,7 +1181,7 @@ def test_ws_data_link(samplestorage):
         'objid': 89,
         'objver': 32,
         'dataid': 'dataunit1',
-        'sampleid': str(id1),
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
         'samplever': verdoc1['uuidver'],
         'node': 'mynode',
         'created': 800,
@@ -1209,6 +1213,7 @@ def test_ws_data_link_correct_missing_versions(samplestorage):
     samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
 
     samplestorage.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id_, 1), 'kid1'),
         dt(500))
@@ -1240,6 +1245,7 @@ def test_ws_data_link_fail_no_sample(samplestorage):
     _ws_data_link_fail(
         samplestorage,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
             dt(1)),
@@ -1257,6 +1263,7 @@ def test_ws_data_link_fail_no_sample_version(samplestorage):
     _ws_data_link_fail(
         samplestorage,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 3), 'mynode'),
             dt(1)),
@@ -1270,12 +1277,14 @@ def test_ws_data_link_fail_link_exists(samplestorage):
         SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
 
     samplestorage.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500))
     )
 
     samplestorage.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), 'du1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500))
@@ -1284,6 +1293,7 @@ def test_ws_data_link_fail_link_exists(samplestorage):
     _ws_data_link_fail(
         samplestorage,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(1)),
@@ -1293,6 +1303,7 @@ def test_ws_data_link_fail_link_exists(samplestorage):
     _ws_data_link_fail(
         samplestorage,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/1'), 'du1'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(1)),
@@ -1311,18 +1322,21 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
         SavedSample(id2, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
 
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500))
     )
 
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '1'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
         dt(500))
     )
 
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '2'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500))
@@ -1331,6 +1345,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
     _ws_data_link_fail(
         ss,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/1'), '3'),
             SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
             dt(1)),
@@ -1347,12 +1362,14 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_basic(samplestorage):
             id1, 'user', [SampleNode('mynode'), SampleNode('mynode2')], dt(1), 'foo')) is True
 
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500))
     )
 
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/2')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),
         dt(500))
@@ -1361,6 +1378,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_basic(samplestorage):
     _ws_data_link_fail(
         ss,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/3')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(1)),
@@ -1381,6 +1399,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # completely outside the new sample time range.
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(100),
@@ -1389,6 +1408,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # expire matches create
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '1'),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
         dt(100),
@@ -1397,6 +1417,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # overlaps create
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '2'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(250),
@@ -1405,6 +1426,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # contained inside
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '3'),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
         dt(325),
@@ -1413,6 +1435,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # encloses
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '4'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(250),
@@ -1421,6 +1444,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # overlaps expire
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '5'),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
         dt(350),
@@ -1429,6 +1453,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # create matches expire
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '6'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(400),
@@ -1437,6 +1462,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
 
     # completely outside the new sample time range.
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1'), '7'),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
         dt(401),
@@ -1446,6 +1472,7 @@ def test_ws_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage)
     _ws_data_link_fail(
         ss,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/1'), '8'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(300),
@@ -1464,6 +1491,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # completely outside the new sample time range.
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(100),
@@ -1472,6 +1500,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # expire matches create
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/2')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(100),
@@ -1480,6 +1509,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # overlaps create
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/3')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(250),
@@ -1488,6 +1518,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # contained inside
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/4')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(325),
@@ -1496,6 +1527,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # encloses
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/5')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(250),
@@ -1504,6 +1536,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # overlaps expire
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/6')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(350),
@@ -1512,6 +1545,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # create matches expire
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/7')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(400),
@@ -1520,6 +1554,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
 
     # completely outside the new sample time range.
     ss.link_workspace_data(DataLink(
+        uuid.uuid4(),
         DataUnitID(UPA('1/1/8')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(401),
@@ -1529,6 +1564,7 @@ def test_ws_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestor
     _ws_data_link_fail(
         ss,
         DataLink(
+            uuid.uuid4(),
             DataUnitID(UPA('1/1/9')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(300),

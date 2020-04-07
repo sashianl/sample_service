@@ -170,6 +170,7 @@ class ArangoSampleStorage:
             workspace_object_version_shadow_collection: str,
             data_link_collection: str,
             schema_collection: str,
+            # See https://kbase.slack.com/archives/CNRT78G66/p1583967289053500 for justification
             max_links: int = 10000,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc)):
@@ -762,6 +763,9 @@ class ArangoSampleStorage:
         Each data unit can be linked to only one sample at a time. Expired links may exist to
         other samples.
 
+        Uniqueness of the link ID is not enforced. If the link ID must be unique, the caller
+        is responsible for enforcement.
+
         No checking is done on whether the user has permissions to link the data or whether the
         data or sample node exists.
 
@@ -773,13 +777,16 @@ class ArangoSampleStorage:
         :raises TooManyDataLinksError: if there are too many links from the sample version or
             the workspace object version.
         '''
-        # TODO DATALINK get link based on DUID
-        # TODO DATALINK update link
+        # TODO DATALINK behavior for deleted objects?
+        # TODO DATALINK notes re listing expired links - not scalable
+        # TODO DATALINK update link - do last. can temporarily do with expire + create, just
+        # need to put in transaction.
         # TODO DATALINK expire link
         # TODO DATALINK list samples linked to ws object
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
+        # TODO DATALINK NOW save link id
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -796,8 +803,6 @@ class ArangoSampleStorage:
         # Since _keys have a maxium length of 254 chars and the dataid of the DUID may be up to
         # 256 characters and may contain illegal characters, it is MD5'd. See
         # https://www.arangodb.com/docs/stable/data-modeling-naming-conventions-document-keys.html
-
-        # should make a link ID? UUID? Maybe not necessary? Effectively DUID since 1:1
 
         _not_falsy(link, 'link')
         sna = link.sample_node_address
