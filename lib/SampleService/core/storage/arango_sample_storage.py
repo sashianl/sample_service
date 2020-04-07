@@ -127,6 +127,7 @@ _FLD_ADMIN = 'admin'
 
 _FLD_VERSIONS = 'vers'
 
+_FLD_LINK_ID = 'id'
 _FLD_LINK_WORKSPACE_ID = 'wsid'
 _FLD_LINK_OBJECT_ID = 'objid'
 _FLD_LINK_OBJECT_VERSION = 'objver'
@@ -786,7 +787,7 @@ class ArangoSampleStorage:
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
-        # TODO DATALINK NOW save link id
+        # TODO DATALINK get by link id - index
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -931,6 +932,7 @@ class ArangoSampleStorage:
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
             _FLD_LINK_CREATED: link.create.timestamp(),
             _FLD_LINK_EXPIRES: link.expire.timestamp() if link.expire else _MAX_ADB_INTEGER,
+            _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
             _FLD_LINK_OBJECT_ID: upa.objid,
             _FLD_LINK_OBJECT_VERSION: upa.version,

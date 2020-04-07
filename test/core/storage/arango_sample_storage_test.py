@@ -1123,6 +1123,7 @@ def test_ws_data_link(samplestorage):
         '_from': 'ws_obj_ver/42:42:42',
         '_to': nodedoc1['_id'],
         '_rev': link1['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde2',
         'wsid': 42,
         'objid': 42,
         'objver': 42,
@@ -1141,6 +1142,7 @@ def test_ws_data_link(samplestorage):
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc2['_id'],
         '_rev': link2['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde1',
         'wsid': 5,
         'objid': 89,
         'objver': 32,
@@ -1159,6 +1161,7 @@ def test_ws_data_link(samplestorage):
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc3['_id'],
         '_rev': link3['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde3',
         'wsid': 5,
         'objid': 89,
         'objver': 32,
@@ -1177,6 +1180,7 @@ def test_ws_data_link(samplestorage):
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc1['_id'],
         '_rev': link4['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde4',
         'wsid': 5,
         'objid': 89,
         'objver': 32,
