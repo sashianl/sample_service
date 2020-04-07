@@ -82,10 +82,13 @@ from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SavedSample
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
+from SampleService.core.sample import SampleNodeAddress as _SampleNodeAddress
+from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
+from SampleService.core.errors import NoSuchLinkError as _NoSuchLinkError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
 from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinksError
@@ -133,13 +136,14 @@ _FLD_LINK_OBJECT_ID = 'objid'
 _FLD_LINK_OBJECT_VERSION = 'objver'
 _FLD_LINK_OBJECT_DATA_UNIT = 'dataid'
 _FLD_LINK_SAMPLE_ID = 'sampleid'
-_FLD_LINK_SAMPLE_VERSION = 'samplever'
+_FLD_LINK_SAMPLE_UUID_VERSION = 'samuuidver'
+_FLD_LINK_SAMPLE_INT_VERSION = 'samintver'
 _FLD_LINK_SAMPLE_NODE = 'node'
 _FLD_LINK_CREATED = 'created'
 _FLD_LINK_EXPIRES = 'expired'
 
 # see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
-_MAX_ADB_INTEGER = 2**53 - 1
+_ARANGO_MAX_INTEGER = 2**53 - 1
 
 _JOB_ID = 'consistencyjob'
 
@@ -240,12 +244,14 @@ class ArangoSampleStorage:
             self._col_version.add_persistent_index([_FLD_VER])  # partial index would be useful
             self._col_nodes.add_persistent_index([_FLD_UUID_VER])
             self._col_nodes.add_persistent_index([_FLD_VER])  # partial index would be useful
+            # find links by ID
+            self._col_data_link.add_persistent_index([_FLD_LINK_ID])
             # find links from objects
             self._col_data_link.add_persistent_index(
                 [_FLD_LINK_WORKSPACE_ID, _FLD_LINK_OBJECT_ID, _FLD_LINK_OBJECT_VERSION])
-            # findn links from samples
+            # find links from samples
             self._col_data_link.add_persistent_index(
-                [_FLD_LINK_SAMPLE_ID, _FLD_LINK_SAMPLE_VERSION])
+                [_FLD_LINK_SAMPLE_ID, _FLD_LINK_SAMPLE_UUID_VERSION])
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -689,15 +695,18 @@ class ArangoSampleStorage:
         return nodes
 
     def _get_sample_doc(self, id_: UUID, exception: bool = True) -> _Optional[dict]:
-        try:
-            doc = self._col_sample.get(str(_not_falsy(id_, 'id_')))
-        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
-            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        doc = self._get_doc(self._col_sample, str(_not_falsy(id_, 'id_')))
         if not doc:
             if exception:
                 raise _NoSuchSampleError(str(id_))
             return None
         return doc
+
+    def _get_doc(self, col, id_: str) -> _Optional[dict]:
+        try:
+            return col.get(id_)
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def get_sample_acls(self, id_: UUID) -> SampleACL:
         '''
@@ -758,14 +767,15 @@ class ArangoSampleStorage:
 
     # TODO change acls with more granularity
 
-    def link_workspace_data(self, link: DataLink):
+    def create_data_link(self, link: DataLink):
         '''
         Link data in the workspace to a sample.
         Each data unit can be linked to only one sample at a time. Expired links may exist to
         other samples.
 
-        Uniqueness of the link ID is not enforced. If the link ID must be unique, the caller
-        is responsible for enforcement.
+        Uniqueness of the link ID is required but not enforced. The caller is responsible for
+        enforcement. If this contract is violated, the get_data_link method may behave
+        unexpectedly.
 
         No checking is done on whether the user has permissions to link the data or whether the
         data or sample node exists.
@@ -787,7 +797,6 @@ class ArangoSampleStorage:
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
-        # TODO DATALINK get by link id - index
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -887,7 +896,7 @@ class ArangoSampleStorage:
             db,
             f'''
                     FILTER d.{_FLD_LINK_SAMPLE_ID} == @sid
-                    FILTER d.{_FLD_LINK_SAMPLE_VERSION} == @sver''',
+                    FILTER d.{_FLD_LINK_SAMPLE_UUID_VERSION} == @sver''',
             {'sid': str(sample), 'sver': str(version)},
             create,
             expire)
@@ -896,7 +905,7 @@ class ArangoSampleStorage:
     def _count_links(self, db, filters: str, bind_vars, create, expire):
         bind_vars['@col'] = self._col_data_link.name
         bind_vars['create'] = create.timestamp()
-        bind_vars['expire'] = expire = expire.timestamp() if expire else _MAX_ADB_INTEGER
+        bind_vars['expire'] = expire = expire.timestamp() if expire else _ARANGO_MAX_INTEGER
         # might need to include create / expire in compound indexes if we get a ton of expired
         # links. Might not work in a NOT though. Alternate formulation is
         # (d.create >= @create AND d.create <= @expire) OR
@@ -931,16 +940,58 @@ class ArangoSampleStorage:
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
             _FLD_LINK_CREATED: link.create.timestamp(),
-            _FLD_LINK_EXPIRES: link.expire.timestamp() if link.expire else _MAX_ADB_INTEGER,
+            _FLD_LINK_EXPIRES: link.expire.timestamp() if link.expire else _ARANGO_MAX_INTEGER,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
             _FLD_LINK_OBJECT_ID: upa.objid,
             _FLD_LINK_OBJECT_VERSION: upa.version,
             _FLD_LINK_OBJECT_DATA_UNIT: link.duid.dataid,
             _FLD_LINK_SAMPLE_ID: str(sna.sampleid),
-            _FLD_LINK_SAMPLE_VERSION: str(samplever),
+            _FLD_LINK_SAMPLE_UUID_VERSION: str(samplever),
+            # recording the integer version saves looking it up in the version doc and it's
+            # immutable so denormalization is ok here
+            _FLD_LINK_SAMPLE_INT_VERSION: sna.version,
             _FLD_LINK_SAMPLE_NODE: sna.node
         }
+
+    def get_data_link(self, id_: UUID) -> DataLink:
+        '''
+        Get a link by its ID.
+
+        :param id_: the link ID.
+        :returns: the link.
+        :raises NoSuchLinkError: if the link does not exist.
+        '''
+        # if delete/hid samples added may need some more logic here
+        try:
+            cur = self._col_data_link.find({_FLD_LINK_ID: str(_not_falsy(id_, 'id_'))}, limit=2)
+            if cur.count() == 0:
+                raise _NoSuchLinkError(str(id_))
+            if cur.count() > 1:
+                raise _SampleStorageError(f'More than one data link found for ID {id_}')
+            doc = cur.next()
+            cur.close(True)
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        return self._doc_to_link(doc)
+
+    def _doc_to_link(self, doc) -> DataLink:
+        ex = doc[_FLD_LINK_EXPIRES]
+        return DataLink(
+            UUID(doc[_FLD_LINK_ID]),
+            DataUnitID(
+                _UPA(wsid=doc[_FLD_LINK_WORKSPACE_ID],
+                     objid=doc[_FLD_LINK_OBJECT_ID],
+                     version=doc[_FLD_LINK_OBJECT_VERSION]),
+                doc[_FLD_LINK_OBJECT_DATA_UNIT]),
+            _SampleNodeAddress(
+                _SampleAddress(
+                    UUID(doc[_FLD_LINK_SAMPLE_ID]),
+                    doc[_FLD_LINK_SAMPLE_INT_VERSION]),
+                doc[_FLD_LINK_SAMPLE_NODE]),
+            self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
+            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex)
+        )
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped

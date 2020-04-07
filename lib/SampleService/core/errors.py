@@ -51,11 +51,14 @@ class ErrorType(Enum):
     NO_SUCH_WORKSPACE_DATA = (50030, "No such workspace data")  # noqa: E222 @IgnorePep8
     """ The requested workspace or workspace data does not exist. """
 
+    NO_SUCH_DATA_LINK =      (50040, "No such data link")  # noqa: E222 @IgnorePep8
+    """ The requested data link does not exist. """
+
     DATA_LINK_EXISTS =       (60000, "Data link exists for data ID")  # noqa: E222 @IgnorePep8
-    """ A link from the provided data ID already exists.. """
+    """ A link from the provided data ID already exists. """
 
     TOO_MANY_DATA_LINKS =    (60010, "Too many data links")  # noqa: E222 @IgnorePep8
-    """ A link from the provided data ID already exists.. """
+    """ Too many links from the sample version or workspace object version already exist. """
 
     UNSUPPORTED_OP =         (100000, "Unsupported operation")  # noqa: E222 @IgnorePep8
     """ The requested operation is not supported. """
@@ -118,6 +121,15 @@ class NoSuchWorkspaceDataError(NoDataException):
 
     def __init__(self, message: str) -> None:
         super().__init__(ErrorType.NO_SUCH_WORKSPACE_DATA, message)
+
+
+class NoSuchLinkError(NoDataException):
+    """
+    An error thrown when a data link does not exist.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorType.NO_SUCH_DATA_LINK, message)
 
 
 class UnauthorizedError(SampleError):
