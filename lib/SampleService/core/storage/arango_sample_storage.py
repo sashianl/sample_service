@@ -796,6 +796,7 @@ class ArangoSampleStorage:
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
+        # TODO DATALINK NOW don't compile server
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -835,17 +836,17 @@ class ArangoSampleStorage:
                 raise _DataLinkExistsError(str(link.duid))
 
             if self._count_links_from_ws_object(
-                    tdb, link.duid.upa, link.create, link.expire) >= self._max_links:
+                    tdb, link.duid.upa, link.created, link.expired) >= self._max_links:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from workpace object {link.duid.upa}')
             if self._count_links_from_sample_ver(
-                    tdb, samplever, link.create, link.expire) >= self._max_links:
+                    tdb, samplever, link.created, link.expired) >= self._max_links:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from sample {sna.sampleid} ' +
                     f'version {sna.version}')
 
             ldoc = self._create_link_doc(link, samplever)
-            self._insert(tdlc, ldoc)
+            self._insert(tdlc, ldoc)  # duplicate error can't happen, we're in an excl. transaction
             self._commit_transaction(tdb)
         finally:
             self._abort_transaction(tdb)
@@ -854,7 +855,7 @@ class ArangoSampleStorage:
         try:
             transaction_db.commit_transaction()
         except _arango.exceptions.TransactionCommitError as e:  # dunno how to test this
-            # may want some retry logic here, YAGNI for now
+            # TODO DATALINK if the transaction fails we may want to retry.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _abort_transaction(self, transaction_db):
@@ -877,8 +878,8 @@ class ArangoSampleStorage:
             self,
             db,
             upa: _UPA,
-            create: datetime.datetime,
-            expire: _Optional[datetime.datetime]):
+            created: datetime.datetime,
+            expired: _Optional[datetime.datetime]):
         wsc = self._count_links(
             db,
             f'''
@@ -886,39 +887,40 @@ class ArangoSampleStorage:
                     FILTER d.{_FLD_LINK_OBJECT_ID} == @objid
                     FILTER d.{_FLD_LINK_OBJECT_VERSION} == @ver''',
             {'wsid': upa.wsid, 'objid': upa.objid, 'ver': upa.version},
-            create,
-            expire)
+            created,
+            expired)
         return wsc
 
     def _count_links_from_sample_ver(
             self,
             db,
             version: UUID,
-            create: datetime.datetime,
-            expire: _Optional[datetime.datetime]):
+            created: datetime.datetime,
+            expired: _Optional[datetime.datetime]):
         sv = self._count_links(
             db,
             f'''
                     FILTER d.{_FLD_LINK_SAMPLE_UUID_VERSION} == @sver''',
             {'sver': str(version)},
-            create,
-            expire)
+            created,
+            expired)
         return sv
 
-    def _count_links(self, db, filters: str, bind_vars, create, expire):
+    def _count_links(self, db, filters: str, bind_vars, created, expired):
         bind_vars['@col'] = self._col_data_link.name
-        bind_vars['create'] = create.timestamp()
-        bind_vars['expire'] = expire = expire.timestamp() if expire else _ARANGO_MAX_INTEGER
-        # might need to include create / expire in compound indexes if we get a ton of expired
+        bind_vars['created'] = created.timestamp()
+        bind_vars['expired'] = expired = expired.timestamp() if expired else _ARANGO_MAX_INTEGER
+        # might need to include created / expired in compound indexes if we get a ton of expired
         # links. Might not work in a NOT though. Alternate formulation is
-        # (d.create >= @create AND d.create <= @expire) OR
-        # (d.expire >= @create AND d.expire <= @expire)
+        # (d.creatd >= @created AND d.created <= @expired) OR
+        # (d.expired >= @created AND d.expired <= @expired)
         q = (f'''
                 FOR d in @@col
              ''' +
              filters +
              f'''
-                    FILTER NOT (d.{_FLD_LINK_EXPIRES} < @create OR d.{_FLD_LINK_CREATED} > @expire)
+                    FILTER NOT (d.{_FLD_LINK_EXPIRES} < @created OR
+                        d.{_FLD_LINK_CREATED} > @expired)
                     COLLECT WITH COUNT INTO linkcount
                     RETURN linkcount
              ''')
@@ -938,12 +940,14 @@ class ArangoSampleStorage:
         nodeid = self._get_node_id(sna.sampleid, samplever, sna.node)
         # see https://github.com/kbase/relation_engine_spec/blob/4a9dc6df2088763a9df88f0b018fa5c64f2935aa/schemas/ws/ws_object_version.yaml#L17  # noqa
         from_ = f'{self._col_ws.name}/{upa.wsid}:{upa.objid}:{upa.version}'
+        ex = link.expired
+        key = self._create_link_key(link.duid) + (f'_{ex.timestamp()}' if ex else '')
         return {
-            _FLD_ARANGO_KEY: self._create_link_key(link.duid),
+            _FLD_ARANGO_KEY: key,
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
-            _FLD_LINK_CREATED: link.create.timestamp(),
-            _FLD_LINK_EXPIRES: link.expire.timestamp() if link.expire else _ARANGO_MAX_INTEGER,
+            _FLD_LINK_CREATED: link.created.timestamp(),
+            _FLD_LINK_EXPIRES: ex.timestamp() if ex else _ARANGO_MAX_INTEGER,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
             _FLD_LINK_OBJECT_ID: upa.objid,

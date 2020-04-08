@@ -1158,10 +1158,10 @@ def test_create_and_get_data_link(samplestorage):
         'expired': 9007199254740991
     }
 
-    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
+    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524_30000.0')
     assert link3 == {
-        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524',
-        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524',
+        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524_30000.0',
+        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524_30000.0',
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc3['_id'],
         '_rev': link3['_rev'],  # no need to test this

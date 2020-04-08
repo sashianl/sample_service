@@ -26,12 +26,12 @@ def test_init_no_expire():
     assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
     assert dl.duid == DataUnitID(UPA('2/3/4'))
     assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 5), 'foo')
-    assert dl.create == dt(500)
-    assert dl.expire is None
+    assert dl.created == dt(500)
+    assert dl.expired is None
     assert str(dl) == ('id=12345678-90ab-cdef-1234-567890abcdee ' +
                        'duid=[2/3/4] ' +
                        'sample_node_address=[12345678-90ab-cdef-1234-567890abcdef:5:foo] ' +
-                       'create=500.0 expire=None')
+                       'created=500.0 expired=None')
 
 
 def test_init_with_expire():
@@ -48,12 +48,12 @@ def test_init_with_expire():
     assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
     assert dl.duid == DataUnitID(UPA('2/6/4'), 'whee')
     assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 7), 'bar')
-    assert dl.create == dt(400)
-    assert dl.expire == dt(800)
+    assert dl.created == dt(400)
+    assert dl.expired == dt(800)
     assert str(dl) == ('id=12345678-90ab-cdef-1234-567890abcdee ' +
                        'duid=[2/6/4:whee] ' +
                        'sample_node_address=[12345678-90ab-cdef-1234-567890abcdef:7:bar] ' +
-                       'create=400.0 expire=800.0')
+                       'created=400.0 expired=800.0')
 
 
 def test_init_fail():
@@ -68,9 +68,9 @@ def test_init_fail():
     _init_fail(lid, None, s, t, t, ValueError('duid cannot be a value that evaluates to false'))
     _init_fail(lid, d, None, t, t, ValueError(
         'sample_node_address cannot be a value that evaluates to false'))
-    _init_fail(lid, d, s, None, t, ValueError('create cannot be a value that evaluates to false'))
-    _init_fail(lid, d, s, bt, t, ValueError('create cannot be a naive datetime'))
-    _init_fail(lid, d, s, t, bt, ValueError('expire cannot be a naive datetime'))
+    _init_fail(lid, d, s, None, t, ValueError('created cannot be a value that evaluates to false'))
+    _init_fail(lid, d, s, bt, t, ValueError('created cannot be a naive datetime'))
+    _init_fail(lid, d, s, t, bt, ValueError('expired cannot be a naive datetime'))
 
 
 def _init_fail(lid, duid, sna, cr, ex, expected):
