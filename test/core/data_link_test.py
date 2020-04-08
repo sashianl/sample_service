@@ -34,7 +34,7 @@ def test_init_no_expire():
                        'created=500.0 expired=None')
 
 
-def test_init_with_expire():
+def test_init_with_expire1():
     sid = uuid.UUID('1234567890abcdef1234567890abcdef')
 
     dl = DataLink(
@@ -56,6 +56,28 @@ def test_init_with_expire():
                        'created=400.0 expired=800.0')
 
 
+def test_init_with_expire2():
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    dl = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
+        dt(400),
+        dt(400)
+    )
+
+    assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert dl.duid == DataUnitID(UPA('2/6/4'), 'whee')
+    assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 7), 'bar')
+    assert dl.created == dt(400)
+    assert dl.expired == dt(400)
+    assert str(dl) == ('id=12345678-90ab-cdef-1234-567890abcdee ' +
+                       'duid=[2/6/4:whee] ' +
+                       'sample_node_address=[12345678-90ab-cdef-1234-567890abcdef:7:bar] ' +
+                       'created=400.0 expired=400.0')
+
+
 def test_init_fail():
     lid = uuid.UUID('1234567890abcdef1234567890abcdee')
     d = DataUnitID(UPA('1/1/1'))
@@ -71,11 +93,73 @@ def test_init_fail():
     _init_fail(lid, d, s, None, t, ValueError('created cannot be a value that evaluates to false'))
     _init_fail(lid, d, s, bt, t, ValueError('created cannot be a naive datetime'))
     _init_fail(lid, d, s, t, bt, ValueError('expired cannot be a naive datetime'))
+    _init_fail(lid, d, s, dt(100), dt(99), ValueError('link cannot expire before it is created'))
 
 
 def _init_fail(lid, duid, sna, cr, ex, expected):
     with raises(Exception) as got:
         DataLink(lid, duid, sna, cr, ex)
+    assert_exception_correct(got.value, expected)
+
+
+def test_expire1():
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    dl = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/3/4')),
+        SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
+        dt(500)
+    )
+
+    assert dl.expired is None
+
+    dl = dl.expire(dt(800))
+    assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert dl.duid == DataUnitID(UPA('2/3/4'))
+    assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 5), 'foo')
+    assert dl.created == dt(500)
+    assert dl.expired == dt(800)
+
+
+def test_expire2():
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    dl = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/3/4')),
+        SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
+        dt(500)
+    )
+
+    assert dl.expired is None
+
+    dl = dl.expire(dt(500))
+    assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert dl.duid == DataUnitID(UPA('2/3/4'))
+    assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 5), 'foo')
+    assert dl.created == dt(500)
+    assert dl.expired == dt(500)
+
+
+def test_expire_fail():
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    dl = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/3/4')),
+        SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
+        dt(500)
+    )
+    bt = datetime.datetime.now()
+
+    _expire_fail(dl, None, ValueError('expired cannot be a value that evaluates to false'))
+    _expire_fail(dl, bt, ValueError('expired cannot be a naive datetime'))
+    _expire_fail(dl, dt(499), ValueError('link cannot expire before it is created'))
+
+
+def _expire_fail(dl, expired, expected):
+    with raises(Exception) as got:
+        dl.expire(expired)
     assert_exception_correct(got.value, expected)
 
 
