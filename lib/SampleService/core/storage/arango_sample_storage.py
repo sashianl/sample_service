@@ -789,14 +789,12 @@ class ArangoSampleStorage:
         '''
         # TODO DATALINK behavior for deleted objects?
         # TODO DATALINK notes re listing expired links - not scalable
-        # TODO DATALINK update link - do last. can temporarily do with expire + create, just
-        # need to put in transaction.
+        # TODO DATALINK update link
         # TODO DATALINK expire link
         # TODO DATALINK list samples linked to ws object
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
-        # TODO DATALINK NOW don't compile server
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 

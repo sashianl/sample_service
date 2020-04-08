@@ -32,6 +32,7 @@ compile:
 		--out $(LIB_DIR) \
 		--pyimplname $(SERVICE_CAPS).$(SERVICE_CAPS)Impl;
 	- rm $(LIB_DIR)/$(SERVICE_CAPS)Server.py
+
 	kb-sdk compile $(SPEC_FILE) \
 		--out . \
 		--html \
