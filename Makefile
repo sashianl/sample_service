@@ -24,11 +24,15 @@ default: compile
 all: compile build build-startup-script build-executable-script build-test-script
 
 compile:
+	# Don't compile server automatically, overwrites fixes to error handling
+	# Temporarily add the next line to the command line args if recompiliation is needed to add
+	# methods.
+	# --pysrvname $(SERVICE_CAPS).$(SERVICE_CAPS)Server \
 	kb-sdk compile $(SPEC_FILE) \
 		--out $(LIB_DIR) \
-		--pysrvname $(SERVICE_CAPS).$(SERVICE_CAPS)Server \
 		--pyimplname $(SERVICE_CAPS).$(SERVICE_CAPS)Impl;
-	
+	- rm $(LIB_DIR)/$(SERVICE_CAPS)Server.py
+
 	kb-sdk compile $(SPEC_FILE) \
 		--out . \
 		--html \
