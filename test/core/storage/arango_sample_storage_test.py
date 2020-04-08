@@ -577,7 +577,7 @@ def test_indexes_created(samplestorage):
     assert indexes[1]['fields'] == ['_from', '_to']
     _check_index(indexes[2], ['id'])
     _check_index(indexes[3], ['wsid', 'objid', 'objver'])
-    _check_index(indexes[4], ['sampleid', 'samuuidver'])
+    _check_index(indexes[4], ['samuuidver'])
 
     indexes = samplestorage._col_schema.indexes()
     assert len(indexes) == 1

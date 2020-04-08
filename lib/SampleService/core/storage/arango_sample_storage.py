@@ -249,9 +249,8 @@ class ArangoSampleStorage:
             # find links from objects
             self._col_data_link.add_persistent_index(
                 [_FLD_LINK_WORKSPACE_ID, _FLD_LINK_OBJECT_ID, _FLD_LINK_OBJECT_VERSION])
-            # find links from samples
-            self._col_data_link.add_persistent_index(
-                [_FLD_LINK_SAMPLE_ID, _FLD_LINK_SAMPLE_UUID_VERSION])
+            # find links from sample versions
+            self._col_data_link.add_persistent_index([_FLD_LINK_SAMPLE_UUID_VERSION])
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -816,8 +815,8 @@ class ArangoSampleStorage:
 
         _not_falsy(link, 'link')
         sna = link.sample_node_address
-        # need to get the version doc to ensure the documents have been updated appropriately,
-        # see comments at beginning of file
+        # need to get the version doc to ensure the documents have been updated appropriately
+        # as well as getting the uuid version, see comments at beginning of file
         _, versiondoc, _ = self._get_sample_and_version_doc(sna.sampleid, sna.version)
         samplever = UUID(versiondoc[_FLD_UUID_VER])
 
@@ -840,7 +839,7 @@ class ArangoSampleStorage:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from workpace object {link.duid.upa}')
             if self._count_links_from_sample_ver(
-                    tdb, sna.sampleid, samplever, link.create, link.expire) >= self._max_links:
+                    tdb, samplever, link.create, link.expire) >= self._max_links:
                 raise _TooManyDataLinksError(
                     f'More than {self._max_links} links from sample {sna.sampleid} ' +
                     f'version {sna.version}')
@@ -888,16 +887,14 @@ class ArangoSampleStorage:
     def _count_links_from_sample_ver(
             self,
             db,
-            sample: UUID,
             version: UUID,
             create: datetime.datetime,
             expire: _Optional[datetime.datetime]):
         sv = self._count_links(
             db,
             f'''
-                    FILTER d.{_FLD_LINK_SAMPLE_ID} == @sid
                     FILTER d.{_FLD_LINK_SAMPLE_UUID_VERSION} == @sver''',
-            {'sid': str(sample), 'sver': str(version)},
+            {'sver': str(version)},
             create,
             expire)
         return sv
