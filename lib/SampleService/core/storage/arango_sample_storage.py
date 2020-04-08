@@ -846,19 +846,25 @@ class ArangoSampleStorage:
 
             ldoc = self._create_link_doc(link, samplever)
             self._insert(tdlc, ldoc)
-            try:
-                tdb.commit_transaction()
-            except _arango.exceptions.TransactionCommitError as e:  # dunno how to test this
-                # may want some retry logic here, YAGNI for now
-                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+            self._commit_transaction(tdb)
         finally:
-            if tdb.transaction_status() != 'committed':
-                try:
-                    tdb.abort_transaction()
-                except _arango.exceptions.TransactionAbortError as e:  # dunno how to test this
-                    # this will mask the previous error, but if this fails probably the DB
-                    # connection is hosed
-                    raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+            self._abort_transaction(tdb)
+
+    def _commit_transaction(self, transaction_db):
+        try:
+            transaction_db.commit_transaction()
+        except _arango.exceptions.TransactionCommitError as e:  # dunno how to test this
+            # may want some retry logic here, YAGNI for now
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _abort_transaction(self, transaction_db):
+        if transaction_db.transaction_status() != 'committed':
+            try:
+                transaction_db.abort_transaction()
+            except _arango.exceptions.TransactionAbortError as e:  # dunno how to test this
+                # this will mask the previous error, but if this fails probably the DB
+                # connection is hosed
+                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _has_doc(self, col, id_):
         # may want exception thrown at some point?
