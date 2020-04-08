@@ -18,8 +18,8 @@ class DataLink:
 
     :ivar duid: the data ID.
     :ivar sample_node_address: the sample node address.
-    :ivar create: the creation time.
-    :ivar expire: the expiration time or None if the link is not expired.
+    :ivar created: the creation time.
+    :ivar expired: the expiration time or None if the link is not expired.
     '''
 
     def __init__(
@@ -27,37 +27,37 @@ class DataLink:
             id: uuid.UUID,
             duid: DataUnitID,
             sample_node_address: SampleNodeAddress,
-            create: datetime.datetime,
-            expire: datetime.datetime = None):
+            created: datetime.datetime,
+            expired: datetime.datetime = None):
         '''
         Create the link.
 
         :param duid: the data ID.
         :param sample_node_address: the sample node address.
-        :param create: the creation time for the link.
-        :param expire: the expiration time for the link, or None if the link is not expired.
+        :param created: the creation time for the link.
+        :param expired: the expiration time for the link, or None if the link is not expired.
         '''
         # may need to make this non ws specific. YAGNI for now.
         self.id = _not_falsy(id, 'id')
         self.duid = _not_falsy(duid, 'duid')
         self.sample_node_address = _not_falsy(sample_node_address, 'sample_node_address')
-        self.create = _check_timestamp(create, 'create')
-        self.expire = None
-        if expire:
-            self.expire = _check_timestamp(expire, 'expire')
+        self.created = _check_timestamp(created, 'created')
+        self.expired = None
+        if expired:
+            self.expired = _check_timestamp(expired, 'expired')
 
     def __str__(self):
         return (f'id={self.id} ' +
                 f'duid=[{self.duid}] ' +
                 f'sample_node_address=[{self.sample_node_address}] ' +
-                f'create={self.create.timestamp()} ' +
-                f'expire={self.expire.timestamp() if self.expire else None}')
+                f'created={self.created.timestamp()} ' +
+                f'expired={self.expired.timestamp() if self.expired else None}')
 
     def __eq__(self, other):
         if type(self) == type(other):
-            return (self.id, self.duid, self.sample_node_address, self.create, self.expire) == (
-                other.id, other.duid, other.sample_node_address, other.create, other.expire)
+            return (self.id, self.duid, self.sample_node_address, self.created, self.expired) == (
+                other.id, other.duid, other.sample_node_address, other.created, other.expired)
         return False
 
     def __hash__(self):
-        return hash((self.id, self.duid, self.sample_node_address, self.create, self.expire))
+        return hash((self.id, self.duid, self.sample_node_address, self.created, self.expired))
