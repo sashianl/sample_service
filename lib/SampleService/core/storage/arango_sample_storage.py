@@ -1023,7 +1023,6 @@ class ArangoSampleStorage:
         :raises NoSuchLinkError: if the link does not exist or is already expired.
         '''
         # See notes for creating links re the transaction approach.
-        # TODO DATALINK NOW check if expired < created
         _check_timestamp(expired, 'expired')
         if not bool(id_) ^ bool(duid):  # xor:
             raise ValueError('exactly one of id_ or duid must be provided')
@@ -1038,6 +1037,9 @@ class ArangoSampleStorage:
             txtid = str(duid)
             if not linkdoc:
                 raise _NoSuchLinkError(txtid)
+
+        if expired.timestamp() < linkdoc[_FLD_LINK_CREATED]:
+            raise ValueError(f'expired is < link created time: {linkdoc[_FLD_LINK_CREATED]}')
 
         return self._expire_data_link_pt2(linkdoc, expired, txtid)
 
