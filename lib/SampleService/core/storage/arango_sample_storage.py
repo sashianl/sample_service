@@ -786,10 +786,10 @@ class ArangoSampleStorage:
         data or sample node exists.
 
         It is expected that the creation time provided in the link is later than the expire time
-        (and usually the current time) of any other links for the data unit ID. This is not
+        (and usually simply the current time) of any other links for the data unit ID. This is not
         enforced.
 
-        :param link: the link to save.
+        :param link: the link to save, which cannot be expired.
 
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -800,13 +800,11 @@ class ArangoSampleStorage:
         # TODO DATALINK behavior for deleted objects?
         # TODO DATALINK notes re listing expired links - not scalable
         # TODO DATALINK update link
-        # TODO DATALINK expire link
         # TODO DATALINK list samples linked to ws object
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
         # TODO DATALINK record user
-        # TODO DATALINK don't allow creating expired links
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -825,6 +823,8 @@ class ArangoSampleStorage:
         # https://www.arangodb.com/docs/stable/data-modeling-naming-conventions-document-keys.html
 
         _not_falsy(link, 'link')
+        if link.expired:
+            raise ValueError('link cannot be expired')
         sna = link.sample_node_address
         # need to get the version doc to ensure the documents have been updated appropriately
         # as well as getting the uuid version, see comments at beginning of file
@@ -1014,6 +1014,8 @@ class ArangoSampleStorage:
         Expire a data link. The link can be addressed by its ID or the DUID, since for a non-
         expired link the DUID is a unique identifier. Providing both IDs is an error.
 
+        It is assumed, but not enforced, that the expired time is not in the future.
+
         :param expired: the expiration time.
         :param id_: the link ID.
         :param duid: the data unit ID from which the link originates.
@@ -1021,6 +1023,7 @@ class ArangoSampleStorage:
         :raises NoSuchLinkError: if the link does not exist or is already expired.
         '''
         # See notes for creating links re the transaction approach.
+        # TODO DATALINK NOW check if expired < created
         _check_timestamp(expired, 'expired')
         if not bool(id_) ^ bool(duid):  # xor:
             raise ValueError('exactly one of id_ or duid must be provided')
