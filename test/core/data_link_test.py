@@ -102,67 +102,6 @@ def _init_fail(lid, duid, sna, cr, ex, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_expire1():
-    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
-
-    dl = DataLink(
-        uuid.UUID('1234567890abcdef1234567890abcdee'),
-        DataUnitID(UPA('2/3/4')),
-        SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
-        dt(500)
-    )
-
-    assert dl.expired is None
-
-    dl = dl.expire(dt(800))
-    assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
-    assert dl.duid == DataUnitID(UPA('2/3/4'))
-    assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 5), 'foo')
-    assert dl.created == dt(500)
-    assert dl.expired == dt(800)
-
-
-def test_expire2():
-    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
-
-    dl = DataLink(
-        uuid.UUID('1234567890abcdef1234567890abcdee'),
-        DataUnitID(UPA('2/3/4')),
-        SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
-        dt(500)
-    )
-
-    assert dl.expired is None
-
-    dl = dl.expire(dt(500))
-    assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
-    assert dl.duid == DataUnitID(UPA('2/3/4'))
-    assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 5), 'foo')
-    assert dl.created == dt(500)
-    assert dl.expired == dt(500)
-
-
-def test_expire_fail():
-    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
-    dl = DataLink(
-        uuid.UUID('1234567890abcdef1234567890abcdee'),
-        DataUnitID(UPA('2/3/4')),
-        SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
-        dt(500)
-    )
-    bt = datetime.datetime.now()
-
-    _expire_fail(dl, None, ValueError('expired cannot be a value that evaluates to false'))
-    _expire_fail(dl, bt, ValueError('expired cannot be a naive datetime'))
-    _expire_fail(dl, dt(499), ValueError('link cannot expire before it is created'))
-
-
-def _expire_fail(dl, expired, expected):
-    with raises(Exception) as got:
-        dl.expire(expired)
-    assert_exception_correct(got.value, expected)
-
-
 def test_equals():
     lid1 = uuid.UUID('1234567890abcdef1234567890abcdee')
     lid1a = uuid.UUID('1234567890abcdef1234567890abcdee')
