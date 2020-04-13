@@ -1905,6 +1905,23 @@ def test_expire_data_link_fail_no_duid(samplestorage):
         NoSuchLinkError('1/1/2:fo'))
 
 
+def test_expire_data_link_fail_expire_before_create_by_id(samplestorage):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid1 = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid1,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(100))
+    )
+
+    _expire_data_link_fail(samplestorage, dt(99), lid1, None, ValueError(
+        'expired is < link created time: 100'))
+
+
 def test_expire_data_link_fail_race_condition(samplestorage):
     '''
     Tests the case where a link is expire after pulling it from the DB in the first part of the
