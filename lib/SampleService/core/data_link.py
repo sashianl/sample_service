@@ -50,20 +50,6 @@ class DataLink:
             if expired < created:
                 raise ValueError('link cannot expire before it is created')
 
-    def expire(self, expired: datetime.datetime) -> DataLink:
-        '''
-        Create a new, expired, data link based off of this link.
-
-        :param expired: the expiration time.
-        :returns: a new, expired, link.
-        '''
-        return DataLink(
-            self.id,
-            self.duid,
-            self.sample_node_address,
-            self.created,
-            _not_falsy(expired, 'expired'))
-
     def __str__(self):
         return (f'id={self.id} ' +
                 f'duid=[{self.duid}] ' +
