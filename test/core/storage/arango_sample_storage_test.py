@@ -1095,8 +1095,7 @@ def test_create_and_get_data_link(samplestorage):
         uuid.UUID('1234567890abcdef1234567890abcde3'),
         DataUnitID(UPA('5/89/32'), 'dataunit2'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
-        dt(700),
-        dt(30000))
+        dt(700))
     )
 
     # test data units don't collide if they have different names
@@ -1158,10 +1157,10 @@ def test_create_and_get_data_link(samplestorage):
         'expired': 9007199254740991
     }
 
-    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524_700.0')
+    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
     assert link3 == {
-        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524_700.0',
-        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524_700.0',
+        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524',
+        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524',
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc3['_id'],
         '_rev': link3['_rev'],  # no need to test this
@@ -1175,7 +1174,7 @@ def test_create_and_get_data_link(samplestorage):
         'samintver': 1,
         'node': 'mynode2',
         'created': 700,
-        'expired': 30000
+        'expired': 9007199254740991
     }
 
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1227,7 +1226,6 @@ def test_create_and_get_data_link(samplestorage):
                         SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdee'), 1),
                         'mynode2'),
                     dt(700),
-                    dt(30000)
                     )
 
     dl4 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'))
@@ -1286,6 +1284,23 @@ def test_create_data_link_correct_missing_versions(samplestorage):
 def test_create_data_link_fail_no_link(samplestorage):
     _create_data_link_fail(samplestorage, None, ValueError(
         'link cannot be a value that evaluates to false'))
+
+
+def test_create_data_link_fail_expired(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    _create_data_link_fail(
+        samplestorage,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(-100),
+            dt(0)),
+        ValueError('link cannot be expired')
+        )
 
 
 def test_create_data_link_fail_no_sample(samplestorage):
@@ -1441,7 +1456,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_basic(samplestorag
 
 def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestorage):
     # tests that links that do not co-exist with the new link are not counted against the total.
-    ss = _samplestorage_with_max_links(samplestorage, 6)
+    ss = _samplestorage_with_max_links(samplestorage, 3)
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert ss.save_sample(
@@ -1450,75 +1465,47 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
         SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) == 2
 
     # completely outside the new sample time range.
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(100),
-        dt(299))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(100)),
+        dt(299)
     )
 
     # expire matches create
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '1'),
-        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
-        dt(100),
-        dt(300))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1'), '1'),
+            SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
+            dt(100)),
+        dt(300)
     )
 
     # overlaps create
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '2'),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(250),
-        dt(350))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1'), '2'),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(250)),
+        dt(350)
     )
 
     # contained inside
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '3'),
-        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
-        dt(325),
-        dt(375))
-    )
-
-    # encloses
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '4'),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(250),
-        dt(450))
-    )
-
-    # overlaps expire
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '5'),
-        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
-        dt(350),
-        dt(450))
-    )
-
-    # create matches expire
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '6'),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(400),
-        dt(500))
-    )
-
-    # completely outside the new sample time range.
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1'), '7'),
-        SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
-        dt(401),
-        dt(550))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1'), '3'),
+            SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
+            dt(325)),
+        dt(375)
     )
 
     _create_data_link_fail(
@@ -1527,90 +1514,61 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             uuid.uuid4(),
             DataUnitID(UPA('1/1/1'), '8'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-            dt(300),
-            dt(400)),
-        TooManyDataLinksError('More than 6 links from workpace object 1/1/1')
+            dt(300)),
+        TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
         )
 
 
 def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(samplestorage):
     # tests that links that do not co-exist with the new link are not counted against the total.
-    ss = _samplestorage_with_max_links(samplestorage, 6)
+    ss = _samplestorage_with_max_links(samplestorage, 3)
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert ss.save_sample(
         SavedSample(id1, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
 
     # completely outside the new sample time range.
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/1')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(100),
-        dt(299))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(100)),
+        dt(299)
     )
 
     # expire matches create
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/2')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(100),
-        dt(300))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/2')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(100)),
+        dt(300)
     )
 
     # overlaps create
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/3')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(250),
-        dt(350))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/3')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(250)),
+        dt(350)
     )
 
     # contained inside
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/4')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(325),
-        dt(375))
-    )
-
-    # encloses
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/5')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(250),
-        dt(450))
-    )
-
-    # overlaps expire
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/6')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(350),
-        dt(450))
-    )
-
-    # create matches expire
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/7')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(400),
-        dt(500))
-    )
-
-    # completely outside the new sample time range.
-    ss.create_data_link(DataLink(
-        uuid.uuid4(),
-        DataUnitID(UPA('1/1/8')),
-        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-        dt(401),
-        dt(550))
+    _create_and_expire_data_link(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/4')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+            dt(325)),
+        dt(375)
     )
 
     _create_data_link_fail(
@@ -1619,11 +1577,15 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             uuid.uuid4(),
             DataUnitID(UPA('1/1/9')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
-            dt(300),
-            dt(400)),
-        TooManyDataLinksError('More than 6 links from sample ' +
+            dt(300)),
+        TooManyDataLinksError('More than 3 links from sample ' +
                               '12345678-90ab-cdef-1234-567890abcdef version 1')
         )
+
+
+def _create_and_expire_data_link(samplestorage, link, expired):
+    samplestorage.create_data_link(link)
+    samplestorage.expire_data_link(expired, link.id)
 
 
 def _samplestorage_with_max_links(samplestorage, max_links):
@@ -1701,15 +1663,16 @@ def _get_data_link_fail(samplestorage, id_, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_expire_data_link_via_duid(samplestorage):
-    _expire_data_link_via_duid(samplestorage, 600, None, '')
+def test_expire_and_get_data_link_via_duid(samplestorage):
+    _expire_and_get_data_link_via_duid(samplestorage, 600, None, '')
 
 
-def test_expire_data_link_via_duid_with_dataid(samplestorage):
-    _expire_data_link_via_duid(samplestorage, -100, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+def test_expire_and_get_data_link_via_duid_with_dataid(samplestorage):
+    _expire_and_get_data_link_via_duid(
+        samplestorage, -100, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
 
 
-def _expire_data_link_via_duid(samplestorage, expired, dataid, expectedmd5):
+def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedmd5):
     sid = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
@@ -1766,15 +1729,15 @@ def _expire_data_link_via_duid(samplestorage, expired, dataid, expectedmd5):
     )
 
 
-def test_expire_data_link_via_id(samplestorage):
-    _expire_data_link_via_id(samplestorage, 1000, None, '')
+def test_expire_and_get_data_link_via_id(samplestorage):
+    _expire_and_get_data_link_via_id(samplestorage, 1000, None, '')
 
 
-def test_expire_data_link_via_id_with_dataid(samplestorage):
-    _expire_data_link_via_id(samplestorage, 1, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+def test_expire_and_get_data_link_via_id_with_dataid(samplestorage):
+    _expire_and_get_data_link_via_id(samplestorage, 1, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
 
 
-def _expire_data_link_via_id(samplestorage, expired, dataid, expectedmd5):
+def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5):
     sid = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
@@ -1877,9 +1840,10 @@ def test_expire_data_link_fail_with_id_expired(samplestorage):
         lid,
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(-100),
-        dt(0))
+        dt(-100))
     )
+
+    samplestorage.expire_data_link(dt(0), lid)
 
     _expire_data_link_fail(
         samplestorage, dt(1), lid, None,
