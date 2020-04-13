@@ -86,6 +86,7 @@ from SampleService.core.sample import SampleNodeAddress as _SampleNodeAddress
 from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
 from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
 from SampleService.core.errors import NoSuchLinkError as _NoSuchLinkError
@@ -140,7 +141,7 @@ _FLD_LINK_SAMPLE_UUID_VERSION = 'samuuidver'
 _FLD_LINK_SAMPLE_INT_VERSION = 'samintver'
 _FLD_LINK_SAMPLE_NODE = 'node'
 _FLD_LINK_CREATED = 'created'
-_FLD_LINK_EXPIRES = 'expired'
+_FLD_LINK_EXPIRED = 'expired'
 
 # see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
 _ARANGO_MAX_INTEGER = 2**53 - 1
@@ -624,18 +625,23 @@ class ArangoSampleStorage:
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, dict, int]:
-        doc = _cast(dict, self._get_sample_doc(id_))
-        maxver = len(doc[_FLD_VERSIONS])
-        version = version if version else maxver
-        if version > maxver:
-            raise _NoSuchSampleVersionError(f'{id_} ver {version}')
-        verdoc = self._get_version_doc(id_, doc[_FLD_VERSIONS][version - 1])
+        doc, uuidversion, version = self._get_sample_doc_and_versions(id_, version)
+        verdoc = self._get_version_doc(id_, uuidversion)
         if verdoc[_FLD_VER] == _VAL_NO_VER:
             # since the version id came from the sample doc, the implication
             # is that the db or server lost connection before the version could be updated
             # and the reaper hasn't caught it yet, so we go ahead and fix it.
             self._update_version_and_node_docs_with_find(id_, verdoc[_FLD_UUID_VER], version)
         return (doc, verdoc, version)
+
+    def _get_sample_doc_and_versions(
+            self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, UUID, int]:
+        doc = _cast(dict, self._get_sample_doc(id_))
+        maxver = len(doc[_FLD_VERSIONS])
+        version = version if version else maxver
+        if version > maxver:
+            raise _NoSuchSampleVersionError(f'{id_} ver {version}')
+        return doc, UUID(doc[_FLD_VERSIONS][version - 1]), version
 
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
@@ -779,6 +785,10 @@ class ArangoSampleStorage:
         No checking is done on whether the user has permissions to link the data or whether the
         data or sample node exists.
 
+        It is expected that the creation time provided in the link is later than the expire time
+        (and usually the current time) of any other links for the data unit ID. This is not
+        enforced.
+
         :param link: the link to save.
 
         :raises NoSuchSampleError: if the sample does not exist.
@@ -795,6 +805,8 @@ class ArangoSampleStorage:
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
+        # TODO DATALINK record user
+        # TODO DATALINK don't allow creating expired links
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -830,7 +842,7 @@ class ArangoSampleStorage:
         try:
             # makes a collection specifically for this transaction
             tdlc = tdb.collection(self._col_data_link.name)
-            if self._has_doc(tdlc, self._create_link_key(link.duid)):
+            if self._has_doc(tdlc, self._create_link_key(link)):
                 raise _DataLinkExistsError(str(link.duid))
 
             if self._count_links_from_ws_object(
@@ -844,7 +856,9 @@ class ArangoSampleStorage:
                     f'version {sna.version}')
 
             ldoc = self._create_link_doc(link, samplever)
-            self._insert(tdlc, ldoc)  # duplicate error can't happen, we're in an excl. transaction
+            self._insert(tdlc, ldoc)
+            # since transaction is exclusive write, conflicts can't happen
+            # presumably any failures are unrecoverable...? conn / db down, etc
             self._commit_transaction(tdb)
         finally:
             self._abort_transaction(tdb)
@@ -917,7 +931,7 @@ class ArangoSampleStorage:
              ''' +
              filters +
              f'''
-                    FILTER NOT (d.{_FLD_LINK_EXPIRES} < @created OR
+                    FILTER NOT (d.{_FLD_LINK_EXPIRED} < @created OR
                         d.{_FLD_LINK_CREATED} > @expired)
                     COLLECT WITH COUNT INTO linkcount
                     RETURN linkcount
@@ -928,9 +942,28 @@ class ArangoSampleStorage:
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def _create_link_key(self, duid: DataUnitID):
+    def _create_link_key(self, link: DataLink):
+        cr = f'_{link.created.timestamp()}' if link.expired else ''
+        upa = link.duid.upa
+        dataid = f'_{self._md5(link.duid.dataid)}' if link.duid.dataid else ''
+        return f'{upa.wsid}_{upa.objid}_{upa.version}{dataid}{cr}'
+
+    # only creates keys for unexpired links.
+    def _create_link_key_from_duid(self, duid: DataUnitID):
         dataid = f'_{self._md5(duid.dataid)}' if duid.dataid else ''
         return f'{duid.upa.wsid}_{duid.upa.objid}_{duid.upa.version}{dataid}'
+
+    def _create_link_key_from_link_doc(self, link: dict):
+        # arango sometimes removes trailing decimals and zeros from the number so we reformat
+        # with datetime to ensure consistency
+        cr = (f'_{self._timestamp_to_datetime(link[_FLD_LINK_CREATED]).timestamp()}'
+              if link[_FLD_LINK_EXPIRED] != _ARANGO_MAX_INTEGER else '')
+        dataid = (f'_{self._md5(link[_FLD_LINK_OBJECT_DATA_UNIT])}'
+                  if link[_FLD_LINK_OBJECT_DATA_UNIT] else '')
+        wsid = link[_FLD_LINK_WORKSPACE_ID]
+        objid = link[_FLD_LINK_OBJECT_ID]
+        version = link[_FLD_LINK_OBJECT_VERSION]
+        return f'{wsid}_{objid}_{version}{dataid}{cr}'
 
     def _create_link_doc(self, link: DataLink, samplever: UUID):
         sna = link.sample_node_address
@@ -939,13 +972,12 @@ class ArangoSampleStorage:
         # see https://github.com/kbase/relation_engine_spec/blob/4a9dc6df2088763a9df88f0b018fa5c64f2935aa/schemas/ws/ws_object_version.yaml#L17  # noqa
         from_ = f'{self._col_ws.name}/{upa.wsid}:{upa.objid}:{upa.version}'
         ex = link.expired
-        key = self._create_link_key(link.duid) + (f'_{ex.timestamp()}' if ex else '')
         return {
-            _FLD_ARANGO_KEY: key,
+            _FLD_ARANGO_KEY: self._create_link_key(link),
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
             _FLD_LINK_CREATED: link.created.timestamp(),
-            _FLD_LINK_EXPIRES: ex.timestamp() if ex else _ARANGO_MAX_INTEGER,
+            _FLD_LINK_EXPIRED: ex.timestamp() if ex else _ARANGO_MAX_INTEGER,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
             _FLD_LINK_OBJECT_ID: upa.objid,
@@ -959,15 +991,8 @@ class ArangoSampleStorage:
             _FLD_LINK_SAMPLE_NODE: sna.node
         }
 
-    def get_data_link(self, id_: UUID) -> DataLink:
-        '''
-        Get a link by its ID.
-
-        :param id_: the link ID.
-        :returns: the link.
-        :raises NoSuchLinkError: if the link does not exist.
-        '''
-        # if delete/hid samples added may need some more logic here
+    def _get_link_doc(self, id_):
+        # if delete/hide samples added may need some more logic here
         try:
             cur = self._col_data_link.find({_FLD_LINK_ID: str(_not_falsy(id_, 'id_'))}, limit=2)
             if cur.count() == 0:
@@ -976,12 +1001,110 @@ class ArangoSampleStorage:
                 raise _SampleStorageError(f'More than one data link found for ID {id_}')
             doc = cur.next()
             cur.close(True)
+            return doc
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
-        return self._doc_to_link(doc)
+
+    def expire_data_link(
+            self,
+            expired: datetime.datetime,
+            id_: UUID = None,
+            duid: DataUnitID = None) -> DataLink:
+        '''
+        Expire a data link. The link can be addressed by its ID or the DUID, since for a non-
+        expired link the DUID is a unique identifier. Providing both IDs is an error.
+
+        :param expired: the expiration time.
+        :param id_: the link ID.
+        :param duid: the data unit ID from which the link originates.
+        :returns: the updated link.
+        :raises NoSuchLinkError: if the link does not exist or is already expired.
+        '''
+        # See notes for creating links re the transaction approach.
+        _check_timestamp(expired, 'expired')
+        if not bool(id_) ^ bool(duid):  # xor:
+            raise ValueError('exactly one of id_ or duid must be provided')
+        if id_:
+            linkdoc = self._get_link_doc(id_)
+            txtid = str(id_)
+            if linkdoc[_FLD_LINK_EXPIRED] != _ARANGO_MAX_INTEGER:
+                raise _NoSuchLinkError(txtid)
+        else:
+            key = self._create_link_key_from_duid(_cast(DataUnitID, duid))
+            linkdoc = self._get_doc(self._col_data_link, key)
+            txtid = str(duid)
+            if not linkdoc:
+                raise _NoSuchLinkError(txtid)
+
+        return self._expire_data_link_pt2(linkdoc, expired, txtid)
+
+    # this split is here in order to test the race condition where a link is expired after the
+    # check above.
+    def _expire_data_link_pt2(self, linkdoc, expired, txtid) -> DataLink:
+
+        oldkey = self._create_link_key_from_link_doc(linkdoc)
+
+        linkdoc[_FLD_LINK_EXPIRED] = expired.timestamp()
+        linkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(linkdoc)
+
+        # There appears to be no way to transactionally update a document's _key.
+        # Even using a transaction, as we do here, isn't guaranteed since in a cluster parts
+        # of a transaction may fail, and so the DB may be left in an inconsistent state.
+        # TODO DATALINK do we want to add failure checking / recovery code for this transaction?
+
+        # makes a db specifically for this transaction
+        tdb = self._db.begin_transaction(
+            read=self._col_data_link.name,
+            write=self._col_data_link.name)
+
+        # TODO DATALINK Transactions in arango can allow some ops to succeed and others to fail.
+        # What do?
+        try:
+            # makes a collection specifically for this transaction
+            tdlc = tdb.collection(self._col_data_link.name)
+            # TODO DATALINK record user that expired link
+            try:
+                tdlc.insert(linkdoc, silent=True)
+            except _arango.exceptions.DocumentInsertError as e:
+                if e.error_code == 1210:  # unique constraint violation code
+                    # ok, a race condition occurred and another thread expired the link.
+                    # If an interleaving call made a new link after expiring the old one, we
+                    # should *NOT* expire that.
+                    raise _NoSuchLinkError(txtid)
+                else:  # this is a real pain to test.
+                    raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+            try:
+                tdlc.delete(oldkey, silent=True)
+            except _arango.exceptions.DocumentDeleteError as e:
+                # In the context of the transaction, since the insert above succeeded the link
+                # can't have been deleted yet, because the link hasn't been expired yet.
+                # If the overall transaction fails at this point, it means either another call
+                # expired and deleted the link, so we're done, or another call expired the link and
+                # created a new link and the transaction collided. We should probably *NOT*
+                # expire the brand new link - that was not the user's intent. Both of these
+                # cases take millisecond timing and will be extremely rare, so just throw an
+                # error and
+                # TODO DATALINK document potential failure modes for expire transaction
+
+                # this is really hard to test - maybe impossible?
+                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+            self._commit_transaction(tdb)
+            return self._doc_to_link(linkdoc)
+        finally:
+            self._abort_transaction(tdb)
+
+    def get_data_link(self, id_: UUID) -> DataLink:
+        '''
+        Get a link by its ID.
+
+        :param id_: the link ID.
+        :returns: the link.
+        :raises NoSuchLinkError: if the link does not exist.
+        '''
+        return self._doc_to_link(self._get_link_doc(id_))
 
     def _doc_to_link(self, doc) -> DataLink:
-        ex = doc[_FLD_LINK_EXPIRES]
+        ex = doc[_FLD_LINK_EXPIRED]
         return DataLink(
             UUID(doc[_FLD_LINK_ID]),
             DataUnitID(

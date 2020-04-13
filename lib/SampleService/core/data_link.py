@@ -3,6 +3,8 @@ Contains classes relevant to linking data from outside sources (e.g. the KBase w
 service) to samples.
 '''
 
+from __future__ import annotations
+
 import datetime
 import uuid
 
@@ -48,7 +50,7 @@ class DataLink:
             if expired < created:
                 raise ValueError('link cannot expire before it is created')
 
-    def expire(self, expired: datetime.datetime):
+    def expire(self, expired: datetime.datetime) -> DataLink:
         '''
         Create a new, expired, data link based off of this link.
 

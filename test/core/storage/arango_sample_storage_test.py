@@ -1158,10 +1158,10 @@ def test_create_and_get_data_link(samplestorage):
         'expired': 9007199254740991
     }
 
-    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524_30000.0')
+    link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524_700.0')
     assert link3 == {
-        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524_30000.0',
-        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524_30000.0',
+        '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524_700.0',
+        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524_700.0',
         '_from': 'ws_obj_ver/5:89:32',
         '_to': nodedoc3['_id'],
         '_rev': link3['_rev'],  # no need to test this
@@ -1698,4 +1698,281 @@ def test_get_data_link_fail_too_many_links(samplestorage):
 def _get_data_link_fail(samplestorage, id_, expected):
     with raises(Exception) as got:
         samplestorage.get_data_link(id_)
+    assert_exception_correct(got.value, expected)
+
+
+def test_expire_data_link_via_duid(samplestorage):
+    _expire_data_link_via_duid(samplestorage, 600, None, '')
+
+
+def test_expire_data_link_via_duid_with_dataid(samplestorage):
+    _expire_data_link_via_duid(samplestorage, -100, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+
+
+def _expire_data_link_via_duid(samplestorage, expired, dataid, expectedmd5):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1'), dataid),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100))
+    )
+
+    # this is naughty
+    verdoc1 = samplestorage._col_version.find({'id': str(sid), 'ver': 1}).next()
+    nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
+
+    assert samplestorage.expire_data_link(
+        dt(expired), duid=DataUnitID(UPA('1/1/1'), dataid)) == DataLink(
+            lid,
+            DataUnitID(UPA('1/1/1'), dataid),
+            SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+            dt(-100),
+            dt(expired)
+            )
+
+    assert samplestorage._col_data_link.count() == 1
+
+    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}-100.0')
+    assert link == {
+        '_key': f'1_1_1_{expectedmd5}-100.0',
+        '_id': f'data_link/1_1_1_{expectedmd5}-100.0',
+        '_from': 'ws_obj_ver/1:1:1',
+        '_to': nodedoc1['_id'],
+        '_rev': link['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde1',
+        'wsid': 1,
+        'objid': 1,
+        'objver': 1,
+        'dataid': dataid,
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode',
+        'created': -100,
+        'expired': expired
+    }
+
+    assert samplestorage.get_data_link(lid) == DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1'), dataid),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100),
+        dt(expired)
+    )
+
+
+def test_expire_data_link_via_id(samplestorage):
+    _expire_data_link_via_id(samplestorage, 1000, None, '')
+
+
+def test_expire_data_link_via_id_with_dataid(samplestorage):
+    _expire_data_link_via_id(samplestorage, 1, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+
+
+def _expire_data_link_via_id(samplestorage, expired, dataid, expectedmd5):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1'), dataid),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(.00056211))
+    )
+
+    # this is naughty
+    verdoc1 = samplestorage._col_version.find({'id': str(sid), 'ver': 1}).next()
+    nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
+
+    assert samplestorage.expire_data_link(dt(expired), id_=lid) == DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1'), dataid),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(0.00056211),
+        dt(expired)
+        )
+
+    assert samplestorage._col_data_link.count() == 1
+
+    print(samplestorage._col_data_link.find({}).next())
+
+    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}0.000562')
+    assert link == {
+        '_key': f'1_1_1_{expectedmd5}0.000562',
+        '_id': f'data_link/1_1_1_{expectedmd5}0.000562',
+        '_from': 'ws_obj_ver/1:1:1',
+        '_to': nodedoc1['_id'],
+        '_rev': link['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde1',
+        'wsid': 1,
+        'objid': 1,
+        'objver': 1,
+        'dataid': dataid,
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode',
+        'created': 0.000562,
+        'expired': expired
+    }
+
+    link = samplestorage.get_data_link(lid)
+    expected = DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1'), dataid),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(0.000562),
+        dt(expired)
+    )
+    assert link == expected
+
+
+def test_expire_data_link_fail_bad_args(samplestorage):
+    ss = samplestorage
+    e = dt(100)
+    i = uuid.uuid4()
+    d = DataUnitID('1/1/1')
+    eb = datetime.datetime.fromtimestamp(400)
+
+    _expire_data_link_fail(ss, None, i, None, ValueError(
+        'expired cannot be a value that evaluates to false'))
+    _expire_data_link_fail(ss, eb, None, d, ValueError('expired cannot be a naive datetime'))
+    _expire_data_link_fail(ss, e, i, d, ValueError('exactly one of id_ or duid must be provided'))
+    _expire_data_link_fail(ss, e, None, None, ValueError(
+        'exactly one of id_ or duid must be provided'))
+
+
+def test_expire_data_link_fail_no_id(samplestorage):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100))
+    )
+
+    _expire_data_link_fail(
+        samplestorage, dt(1), uuid.UUID('1234567890abcdef1234567890abcde2'), None,
+        NoSuchLinkError('12345678-90ab-cdef-1234-567890abcde2'))
+
+
+def test_expire_data_link_fail_with_id_expired(samplestorage):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100),
+        dt(0))
+    )
+
+    _expire_data_link_fail(
+        samplestorage, dt(1), lid, None,
+        NoSuchLinkError('12345678-90ab-cdef-1234-567890abcde1'))
+
+
+def test_expire_data_link_fail_with_id_too_many_links(samplestorage):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100))
+    )
+
+    samplestorage.expire_data_link(dt(-50), lid)
+
+    samplestorage.create_data_link(DataLink(
+        lid,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(0))
+    )
+
+    _expire_data_link_fail(samplestorage, dt(1), lid, None, SampleStorageError(
+        'More than one data link found for ID 12345678-90ab-cdef-1234-567890abcde1'))
+
+
+def test_expire_data_link_fail_no_duid(samplestorage):
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid1 = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid1,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100))
+    )
+    lid2 = uuid.UUID('1234567890abcdef1234567890abcde2')
+    samplestorage.create_data_link(DataLink(
+        lid2,
+        DataUnitID(UPA('1/1/2'), 'foo'),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100))
+    )
+
+    _expire_data_link_fail(
+        samplestorage, dt(1), None, DataUnitID(UPA('1/2/1')),
+        NoSuchLinkError('1/2/1'))
+
+    _expire_data_link_fail(
+        samplestorage, dt(1), None, DataUnitID(UPA('1/1/2'), 'fo'),
+        NoSuchLinkError('1/1/2:fo'))
+
+
+def test_expire_data_link_fail_race_condition(samplestorage):
+    '''
+    Tests the case where a link is expire after pulling it from the DB in the first part of the
+    method. See notes in the code.
+    '''
+
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, 'user', [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid1 = uuid.UUID('1234567890abcdef1234567890abcde1')
+    samplestorage.create_data_link(DataLink(
+        lid1,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+        dt(-100))
+    )
+
+    # ok, we have the link doc from the db. This is what part 1 of the code does, and then
+    # passes to part 2.
+    linkdoc = samplestorage._col_data_link.get(f'1_1_1')
+
+    # Now we simulate a race condition by expiring that link and calling part 2 of the expire
+    # method. Part 2 should fail without modifying the links collection.
+    samplestorage.expire_data_link(dt(200), lid1)
+
+    with raises(Exception) as got:
+        samplestorage._expire_data_link_pt2(linkdoc, dt(300), 'some id')
+    assert_exception_correct(got.value, NoSuchLinkError('some id'))
+
+
+def _expire_data_link_fail(samplestorage, expire, id_, duid, expected):
+    with raises(Exception) as got:
+        samplestorage.expire_data_link(expire, id_, duid)
     assert_exception_correct(got.value, expected)
