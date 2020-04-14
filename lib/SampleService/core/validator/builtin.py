@@ -14,7 +14,7 @@ If an exception is not thrown, and a falsy value is returned, the validation suc
 '''
 
 import ranges
-from typing import Dict, Any, Callable, Optional, cast as _cast
+from typing import Dict, Any, Callable, Optional, cast as _cast, Set as _Set
 from pint import UnitRegistry as _UnitRegistry
 from pint import DimensionalityError as _DimensionalityError
 from pint import UndefinedUnitError as _UndefinedUnitError
@@ -30,17 +30,20 @@ def _check_unknown_keys(d, expected):
         raise ValueError(f'Unexpected configuration parameter: {sorted(d2)[0]}')
 
 
-def noop(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+def noop(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that allows any value for the metadata key.
     :params d: The configuration parameters for the callable. Unused.
     :returns: a callable that validates metadata maps.
     '''
     _check_unknown_keys(d, [])
-    return lambda key, val: None
+
+    def f(key: str, val: Dict[str, PrimitiveType]) -> Optional[str]:
+        return None
+    return f  # mypy had trouble detecting the lambda type
 
 
-def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+def string(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that performs string checking based on the following rules:
 
@@ -82,22 +85,24 @@ def string(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
                 v = d1.get(k)
                 if v is not None and type(v) != str:
                     return f'Metadata value at key {k} is not a string'
-                if v and maxlen and len(v) > maxlen:
+                if v and maxlen and len(_cast(str, v)) > maxlen:
                     return f'Metadata value at key {k} is longer than max length of {maxlen}'
+            return None
     elif maxlen:
         def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
-                if len(k) > maxlen:
+                if len(k) > _cast(int, maxlen):
                     return f'Metadata contains key longer than max length of {maxlen}'
                 if type(v) == str:
-                    if len(_cast(str, v)) > maxlen:
+                    if len(_cast(str, v)) > _cast(int, maxlen):
                         return f'Metadata value at key {k} is longer than max length of {maxlen}'
+            return None
     else:
         raise ValueError('If the keys parameter is not specified, max-len must be specified')
     return strlen
 
 
-def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+def enum(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that checks that values are one of a set of specified values.
 
@@ -112,16 +117,16 @@ def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
     :returns: a callable that validates metadata maps.
     '''
     _check_unknown_keys(d, {'allowed-values', 'keys'})
-    allowed = d.get('allowed-values')
-    if not allowed:
+    tmpallowed = d.get('allowed-values')
+    if not tmpallowed:
         raise ValueError('allowed-values is a required parameter')
-    if type(allowed) != list:
+    if type(tmpallowed) != list:
         raise ValueError('allowed-values parameter must be a list')
-    for i, a in enumerate(allowed):
+    for i, a in enumerate(tmpallowed):
         if _not_primitive(a):
             raise ValueError(
                 f'allowed-values parameter contains a non-primitive type entry at index {i}')
-    allowed = set(allowed)
+    allowed: _Set[PrimitiveType] = set(tmpallowed)
     keys = _get_keys(d)
     if keys:
 
@@ -129,12 +134,14 @@ def enum(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str
             for k in keys:
                 if d1.get(k) not in allowed:
                     return f'Metadata value at key {k} is not in the allowed list of values'
+            return None
     else:
 
         def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
                 if v not in allowed:
                     return f'Metadata value at key {k} is not in the allowed list of values'
+            return None
     return enumval
 
 
@@ -159,7 +166,7 @@ def _get_keys(d):
 _UNIT_REG = _UnitRegistry()
 
 
-def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that checks that values are equivalent to a provided example
     unit. E.g., if the example units are N, lb * ft / s^2 is also accepted.
@@ -192,7 +199,7 @@ def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[st
         raise ValueError(f"unable to parse units '{u}': syntax error: {e.args[0]}")
 
     def unitval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
-        unitstr = d1.get(k)
+        unitstr = d1.get(_cast(str, k))
         if not unitstr:
             return f'metadata value key {k} is required'
         if type(unitstr) != str:
@@ -208,10 +215,11 @@ def units(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[st
         except _DimensionalityError as e:
             return (f"Units at key {k}, '{unitstr}', are not equivalent to " +
                     f"required units, '{u}': {e}")
+        return None
     return unitval
 
 
-def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[str]]:
+def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
     '''
     Build a validation callable that checks that values are numerical, and optionally within a
     given range.
@@ -253,6 +261,7 @@ def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
                     return f'Metadata value at key {k} is not an accepted number type'
                 if v is not None and v not in range_:
                     return f'Metadata value at key {k} is not within the range {range_}'
+            return None
     else:
         def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
             for k, v in d1.items():
@@ -261,6 +270,7 @@ def number(d: Dict[str, Any]) -> Callable[[Dict[str, PrimitiveType]], Optional[s
                     return f'Metadata value at key {k} is not an accepted number type'
                 if v is not None and v not in range_:
                     return f'Metadata value at key {k} is not within the range {range_}'
+            return None
     return strlen
 
 
