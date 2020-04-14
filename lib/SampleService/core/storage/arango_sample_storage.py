@@ -141,6 +141,7 @@ _FLD_LINK_SAMPLE_UUID_VERSION = 'samuuidver'
 _FLD_LINK_SAMPLE_INT_VERSION = 'samintver'
 _FLD_LINK_SAMPLE_NODE = 'node'
 _FLD_LINK_CREATED = 'created'
+_FLD_LINK_CREATED_BY = 'createby'
 _FLD_LINK_EXPIRED = 'expired'
 
 # see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
@@ -977,6 +978,7 @@ class ArangoSampleStorage:
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
             _FLD_LINK_CREATED: link.created.timestamp(),
+            _FLD_LINK_CREATED_BY: link.created_by,
             _FLD_LINK_EXPIRED: ex.timestamp() if ex else _ARANGO_MAX_INTEGER,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
@@ -1123,6 +1125,7 @@ class ArangoSampleStorage:
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
             self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
+            doc[_FLD_LINK_CREATED_BY],
             None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex)
         )
 
