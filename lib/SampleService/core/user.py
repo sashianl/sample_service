@@ -3,6 +3,9 @@
 from SampleService.core.arg_checkers import check_string as _check_string
 
 
+# TODO CODE When you see a bare username, replace with this class
+
+
 class UserID:
     '''
     A users's unique name / identifier.

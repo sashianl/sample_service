@@ -96,6 +96,7 @@ from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinks
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
+from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA as _UPA
 
 _FLD_ARANGO_KEY = '_key'
@@ -978,7 +979,7 @@ class ArangoSampleStorage:
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
             _FLD_LINK_CREATED: link.created.timestamp(),
-            _FLD_LINK_CREATED_BY: link.created_by,
+            _FLD_LINK_CREATED_BY: link.created_by.id,
             _FLD_LINK_EXPIRED: ex.timestamp() if ex else _ARANGO_MAX_INTEGER,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
@@ -1125,7 +1126,7 @@ class ArangoSampleStorage:
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
             self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
-            doc[_FLD_LINK_CREATED_BY],
+            UserID(doc[_FLD_LINK_CREATED_BY]),
             None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex)
         )
 

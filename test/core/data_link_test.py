@@ -5,8 +5,8 @@ from pytest import raises
 
 from core.test_utils import assert_exception_correct
 from SampleService.core.data_link import DataLink
-from SampleService.core.errors import MissingParameterError, IllegalParameterError
 from SampleService.core.sample import SampleNodeAddress, SampleAddress
+from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA
 
 
@@ -22,14 +22,14 @@ def test_init_no_expire():
         DataUnitID(UPA('2/3/4')),
         SampleNodeAddress(SampleAddress(sid, 5), 'foo'),
         dt(500),
-        'usera'
+        UserID('usera')
     )
 
     assert dl.id == uuid.UUID('1234567890abcdef1234567890abcdee')
     assert dl.duid == DataUnitID(UPA('2/3/4'))
     assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 5), 'foo')
     assert dl.created == dt(500)
-    assert dl.created_by == 'usera'
+    assert dl.created_by == UserID('usera')
     assert dl.expired is None
     assert str(dl) == ('id=12345678-90ab-cdef-1234-567890abcdee ' +
                        'duid=[2/3/4] ' +
@@ -45,7 +45,7 @@ def test_init_with_expire1():
         DataUnitID(UPA('2/6/4'), 'whee'),
         SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
         dt(400),
-        'u',
+        UserID('u'),
         dt(800)
     )
 
@@ -53,7 +53,7 @@ def test_init_with_expire1():
     assert dl.duid == DataUnitID(UPA('2/6/4'), 'whee')
     assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 7), 'bar')
     assert dl.created == dt(400)
-    assert dl.created_by == 'u'
+    assert dl.created_by == UserID('u')
     assert dl.expired == dt(800)
     assert str(dl) == ('id=12345678-90ab-cdef-1234-567890abcdee ' +
                        'duid=[2/6/4:whee] ' +
@@ -69,7 +69,7 @@ def test_init_with_expire2():
         DataUnitID(UPA('2/6/4'), 'whee'),
         SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
         dt(400),
-        'myuserᚥnameisHank',
+        UserID('myuserᚥnameisHank'),
         dt(400)
     )
 
@@ -77,7 +77,7 @@ def test_init_with_expire2():
     assert dl.duid == DataUnitID(UPA('2/6/4'), 'whee')
     assert dl.sample_node_address == SampleNodeAddress(SampleAddress(sid, 7), 'bar')
     assert dl.created == dt(400)
-    assert dl.created_by == 'myuserᚥnameisHank'
+    assert dl.created_by == UserID('myuserᚥnameisHank')
     assert dl.expired == dt(400)
     assert str(dl) == ('id=12345678-90ab-cdef-1234-567890abcdee ' +
                        'duid=[2/6/4:whee] ' +
@@ -91,7 +91,7 @@ def test_init_fail():
     sid = uuid.UUID('1234567890abcdef1234567890abcdef')
     s = SampleNodeAddress(SampleAddress(sid, 1), 'a')
     t = dt(1)
-    u = 'u'
+    u = UserID('u')
     bt = datetime.datetime.now()
 
     _init_fail(None, d, s, t, u, t, ValueError('id cannot be a value that evaluates to false'))
@@ -101,11 +101,8 @@ def test_init_fail():
     _init_fail(lid, d, s, None, u, t, ValueError(
         'created cannot be a value that evaluates to false'))
     _init_fail(lid, d, s, bt, u, t, ValueError('created cannot be a naive datetime'))
-    # this also kinda points to a user name class
-    _init_fail(lid, d, s, t, None, t, MissingParameterError('created_by'))
-    _init_fail(lid, d, s, t, '', t, MissingParameterError('created_by'))
-    _init_fail(lid, d, s, t, 'foo \t bar', t, IllegalParameterError(
-        'created_by contains control characters'))
+    _init_fail(lid, d, s, t, None, t, ValueError(
+        'created_by cannot be a value that evaluates to false'))
     _init_fail(lid, d, s, t, u, bt, ValueError('expired cannot be a naive datetime'))
     _init_fail(lid, d, s, dt(100), u, dt(99), ValueError(
         'link cannot expire before it is created'))
@@ -135,10 +132,10 @@ def test_equals():
     t1a = dt(500)
     t2 = dt(600)
     t2a = dt(600)
-    u1 = 'u'
-    u1a = 'u'
-    u2 = 'y'
-    u2a = 'y'
+    u1 = UserID('u')
+    u1a = UserID('u')
+    u2 = UserID('y')
+    u2a = UserID('y')
 
     assert DataLink(lid1, d1, s1, t1, u1) == DataLink(lid1a, d1a, s1a, t1a, u1a)
     assert DataLink(lid1, d1, s1, t1, u1, None) == DataLink(lid1a, d1a, s1a, t1a, u1a, None)
@@ -178,10 +175,10 @@ def test_hash():
     t1a = dt(500)
     t2 = dt(600)
     t2a = dt(600)
-    u1 = 'u'
-    u1a = 'u'
-    u2 = 'y'
-    u2a = 'y'
+    u1 = UserID('u')
+    u1a = UserID('u')
+    u2 = UserID('y')
+    u2a = UserID('y')
 
     assert hash(DataLink(lid1, d1, s1, t1, u1)) == hash(DataLink(lid1a, d1a, s1a, t1a, u1a))
     assert hash(DataLink(lid1, d1, s1, t1, u1, None)) == hash(
