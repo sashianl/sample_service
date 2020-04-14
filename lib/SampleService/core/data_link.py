@@ -8,10 +8,11 @@ from __future__ import annotations
 import datetime
 import uuid
 
-from SampleService.core.arg_checkers import not_falsy as _not_falsy, check_string as _check_string
+from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
-from SampleService.core.workspace import DataUnitID
 from SampleService.core.sample import SampleNodeAddress
+from SampleService.core.user import UserID
+from SampleService.core.workspace import DataUnitID
 
 
 class DataLink:
@@ -32,7 +33,7 @@ class DataLink:
             duid: DataUnitID,
             sample_node_address: SampleNodeAddress,
             created: datetime.datetime,
-            created_by: str,
+            created_by: UserID,
             expired: datetime.datetime = None):
         # expired_by: str = None):  # TODO DATALINK NOW add expired by
         '''
@@ -51,7 +52,7 @@ class DataLink:
         self.duid = _not_falsy(duid, 'duid')
         self.sample_node_address = _not_falsy(sample_node_address, 'sample_node_address')
         self.created = _check_timestamp(created, 'created')
-        self.created_by = _check_string(created_by, 'created_by')
+        self.created_by = _not_falsy(created_by, 'created_by')
         self.expired = None
         self.expired_by = None
         if expired:

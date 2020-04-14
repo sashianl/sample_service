@@ -16,6 +16,7 @@ from SampleService.core.errors import TooManyDataLinksError, NoSuchLinkError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError
+from SampleService.core.user import UserID
 from SampleService.core.workspace import UPA, DataUnitID
 
 TEST_NODE = SampleNode('foo')
@@ -1080,7 +1081,7 @@ def test_create_and_get_data_link(samplestorage):
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
         dt(500),
-        'usera')
+        UserID('usera'))
     )
 
     # test different workspace object and different sample version
@@ -1089,7 +1090,7 @@ def test_create_and_get_data_link(samplestorage):
         DataUnitID(UPA('42/42/42'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(600),
-        'userb')
+        UserID('userb'))
     )
 
     # test data unit vs just UPA, different sample, and expiration date
@@ -1098,7 +1099,7 @@ def test_create_and_get_data_link(samplestorage):
         DataUnitID(UPA('5/89/32'), 'dataunit2'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
         dt(700),
-        'u')
+        UserID('u'))
     )
 
     # test data units don't collide if they have different names
@@ -1107,7 +1108,7 @@ def test_create_and_get_data_link(samplestorage):
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(800),
-        'userd')
+        UserID('userd'))
     )
 
     # this is naughty
@@ -1214,7 +1215,7 @@ def test_create_and_get_data_link(samplestorage):
                         SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 2),
                         'mynode1'),
                     dt(500),
-                    'usera'
+                    UserID('usera')
                     )
 
     dl2 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'))
@@ -1225,7 +1226,7 @@ def test_create_and_get_data_link(samplestorage):
                         SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
                         'mynode'),
                     dt(600),
-                    'userb'
+                    UserID('userb')
                     )
 
     dl3 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'))
@@ -1236,7 +1237,7 @@ def test_create_and_get_data_link(samplestorage):
                         SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdee'), 1),
                         'mynode2'),
                     dt(700),
-                    'u'
+                    UserID('u')
                     )
 
     dl4 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'))
@@ -1247,7 +1248,7 @@ def test_create_and_get_data_link(samplestorage):
                         SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
                         'mynode'),
                     dt(800),
-                    'userd'
+                    UserID('userd')
                     )
 
 
@@ -1279,7 +1280,7 @@ def test_create_data_link_correct_missing_versions(samplestorage):
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id_, 1), 'kid1'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     assert samplestorage._col_version.count() == 1
@@ -1311,7 +1312,7 @@ def test_create_data_link_fail_expired(samplestorage):
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(-100),
-            'user',
+            UserID('user'),
             dt(0)),
         ValueError('link cannot be expired')
         )
@@ -1330,7 +1331,7 @@ def test_create_data_link_fail_no_sample(samplestorage):
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
             dt(1),
-            'user'),
+            UserID('user')),
         NoSuchSampleError(str(id2))
         )
 
@@ -1349,7 +1350,7 @@ def test_create_data_link_fail_no_sample_version(samplestorage):
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 3), 'mynode'),
             dt(1),
-            'user'),
+            UserID('user')),
         NoSuchSampleVersionError('12345678-90ab-cdef-1234-567890abcdef ver 3')
         )
 
@@ -1364,7 +1365,7 @@ def test_create_data_link_fail_link_exists(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     samplestorage.create_data_link(DataLink(
@@ -1372,7 +1373,7 @@ def test_create_data_link_fail_link_exists(samplestorage):
         DataUnitID(UPA('1/1/1'), 'du1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     _create_data_link_fail(
@@ -1382,7 +1383,7 @@ def test_create_data_link_fail_link_exists(samplestorage):
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(1),
-            'user'),
+            UserID('user')),
         DataLinkExistsError('1/1/1')
         )
 
@@ -1393,7 +1394,7 @@ def test_create_data_link_fail_link_exists(samplestorage):
             DataUnitID(UPA('1/1/1'), 'du1'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(1),
-            'user'),
+            UserID('user')),
         DataLinkExistsError('1/1/1:du1')
         )
 
@@ -1413,7 +1414,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     ss.create_data_link(DataLink(
@@ -1421,7 +1422,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
         DataUnitID(UPA('1/1/1'), '1'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     ss.create_data_link(DataLink(
@@ -1429,7 +1430,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
         DataUnitID(UPA('1/1/1'), '2'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     _create_data_link_fail(
@@ -1439,7 +1440,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
             DataUnitID(UPA('1/1/1'), '3'),
             SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
             dt(1),
-            'user'),
+            UserID('user')),
         TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
         )
 
@@ -1457,7 +1458,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_basic(samplestorag
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     ss.create_data_link(DataLink(
@@ -1465,7 +1466,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_basic(samplestorag
         DataUnitID(UPA('1/1/2')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),
         dt(500),
-        'user')
+        UserID('user'))
     )
 
     _create_data_link_fail(
@@ -1475,7 +1476,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_basic(samplestorag
             DataUnitID(UPA('1/1/3')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(1),
-            'user'),
+            UserID('user')),
         TooManyDataLinksError(
             'More than 2 links from sample 12345678-90ab-cdef-1234-567890abcdef version 1')
         )
@@ -1499,7 +1500,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(100),
-            'user'),
+            UserID('user')),
         dt(299)
     )
 
@@ -1511,7 +1512,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             DataUnitID(UPA('1/1/1'), '1'),
             SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
             dt(100),
-            'user'),
+            UserID('user')),
         dt(300)
     )
 
@@ -1523,7 +1524,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             DataUnitID(UPA('1/1/1'), '2'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(250),
-            'user'),
+            UserID('user')),
         dt(350)
     )
 
@@ -1535,7 +1536,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             DataUnitID(UPA('1/1/1'), '3'),
             SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
             dt(325),
-            'user'),
+            UserID('user')),
         dt(375)
     )
 
@@ -1546,7 +1547,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             DataUnitID(UPA('1/1/1'), '8'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(300),
-            'user'),
+            UserID('user')),
         TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
         )
 
@@ -1567,7 +1568,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             DataUnitID(UPA('1/1/1')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(100),
-            'user'),
+            UserID('user')),
         dt(299)
     )
 
@@ -1579,7 +1580,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             DataUnitID(UPA('1/1/2')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(100),
-            'user'),
+            UserID('user')),
         dt(300)
     )
 
@@ -1591,7 +1592,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             DataUnitID(UPA('1/1/3')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(250),
-            'user'),
+            UserID('user')),
         dt(350)
     )
 
@@ -1603,7 +1604,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             DataUnitID(UPA('1/1/4')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(325),
-            'user'),
+            UserID('user')),
         dt(375)
     )
 
@@ -1614,7 +1615,7 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             DataUnitID(UPA('1/1/9')),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(300),
-            'user'),
+            UserID('user')),
         TooManyDataLinksError('More than 3 links from sample ' +
                               '12345678-90ab-cdef-1234-567890abcdef version 1')
         )
@@ -1662,7 +1663,7 @@ def test_get_data_link_fail_no_link(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(100),
-        'user')
+        UserID('user'))
     )
 
     _get_data_link_fail(
@@ -1682,14 +1683,14 @@ def test_get_data_link_fail_too_many_links(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(100),
-        'user')
+        UserID('user'))
     )
     samplestorage.create_data_link(DataLink(
         lid,
         DataUnitID(UPA('1/1/2')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(100),
-        'user')
+        UserID('user'))
     )
 
     _get_data_link_fail(
@@ -1723,7 +1724,7 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'userb')
+        UserID('userb'))
     )
 
     # this is naughty
@@ -1736,7 +1737,7 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
             DataUnitID(UPA('1/1/1'), dataid),
             SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
             dt(-100),
-            'userb',
+            UserID('userb'),
             dt(expired)
             )
 
@@ -1768,7 +1769,7 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'userb',
+        UserID('userb'),
         dt(expired)
     )
 
@@ -1792,7 +1793,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(.00056211),
-        'usera')
+        UserID('usera'))
     )
 
     # this is naughty
@@ -1804,7 +1805,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(0.00056211),
-        'usera',
+        UserID('usera'),
         dt(expired)
         )
 
@@ -1839,7 +1840,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(0.000562),
-        'usera',
+        UserID('usera'),
         dt(expired)
     )
     assert link == expected
@@ -1871,7 +1872,7 @@ def test_expire_data_link_fail_no_id(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'user')
+        UserID('user'))
     )
 
     _expire_data_link_fail(
@@ -1890,7 +1891,7 @@ def test_expire_data_link_fail_with_id_expired(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'user')
+        UserID('user'))
     )
 
     samplestorage.expire_data_link(dt(0), lid)
@@ -1911,7 +1912,7 @@ def test_expire_data_link_fail_with_id_too_many_links(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'usera')
+        UserID('usera'))
     )
 
     samplestorage.expire_data_link(dt(-50), lid)
@@ -1921,7 +1922,7 @@ def test_expire_data_link_fail_with_id_too_many_links(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(0),
-        'usera')
+        UserID('usera'))
     )
 
     _expire_data_link_fail(samplestorage, dt(1), lid, None, SampleStorageError(
@@ -1939,7 +1940,7 @@ def test_expire_data_link_fail_no_duid(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'usera')
+        UserID('usera'))
     )
     lid2 = uuid.UUID('1234567890abcdef1234567890abcde2')
     samplestorage.create_data_link(DataLink(
@@ -1947,7 +1948,7 @@ def test_expire_data_link_fail_no_duid(samplestorage):
         DataUnitID(UPA('1/1/2'), 'foo'),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'usera')
+        UserID('usera'))
     )
 
     _expire_data_link_fail(
@@ -1970,7 +1971,7 @@ def test_expire_data_link_fail_expire_before_create_by_id(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(100),
-        'someuser')
+        UserID('someuser'))
     )
 
     _expire_data_link_fail(samplestorage, dt(99), lid1, None, ValueError(
@@ -1993,7 +1994,7 @@ def test_expire_data_link_fail_race_condition(samplestorage):
         DataUnitID(UPA('1/1/1')),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
-        'usera')
+        UserID('usera'))
     )
 
     # ok, we have the link doc from the db. This is what part 1 of the code does, and then
