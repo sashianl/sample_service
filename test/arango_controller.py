@@ -33,8 +33,8 @@ class ArangoController:
         :param root_temp_dir: A temporary directory in which to store ArangoDB data and log files.
             The files will be stored inside a child directory that is unique per invocation.
         '''
-        arangoexe = os.path.expanduser(arangoexe)
-        arangojs = os.path.expanduser(arangojs)
+        arangoexe = Path(os.path.expanduser(arangoexe))
+        arangojs = Path(os.path.expanduser(arangojs))
         if not arangoexe or not os.access(arangoexe, os.X_OK):
             raise TestException('arangodb executable path {} does not exist or is not executable.'
                                 .format(arangoexe))
