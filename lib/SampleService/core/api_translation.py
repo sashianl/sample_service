@@ -183,7 +183,7 @@ def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
               }
              for n in _not_falsy(sample, 'sample').nodes]
     return {'id': str(sample.id),
-            'user': sample.user,
+            'user': sample.user.id,
             'name': sample.name,
             'node_tree': nodes,
             'save_date': datetime_to_epochmilliseconds(sample.savetime),

@@ -16,6 +16,7 @@ from SampleService.core.errors import IllegalParameterError, MissingParameterErr
 from SampleService.core.errors import UnauthorizedError
 from SampleService.core.acls import AdminPermission
 from SampleService.core.user_lookup import KBaseUserLookup
+from SampleService.core.user import UserID
 
 from core.test_utils import assert_exception_correct
 
@@ -303,7 +304,7 @@ def test_sample_to_dict_minimal():
 
     id_ = UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
 
-    s = sample_to_dict(SavedSample(id_, 'user2', [SampleNode('foo')], dt(87.8971)))
+    s = sample_to_dict(SavedSample(id_, UserID('user2'), [SampleNode('foo')], dt(87.8971)))
 
     assert s == expected
 
@@ -336,7 +337,7 @@ def test_sample_to_dict_maximal():
     s = sample_to_dict(
         SavedSample(
             id_,
-            'user3',
+            UserID('user3'),
             [SampleNode('foo'),
              SampleNode(
                  'bar',
