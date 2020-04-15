@@ -22,6 +22,7 @@ from SampleService.core import user_lookup as _user_lookup_mod
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
+from SampleService.core.user import UserID
 
 
 # TODO remove own acls.
@@ -59,7 +60,7 @@ class Samples:
     def save_sample(
             self,
             sample: Sample,
-            user: str,
+            user: UserID,
             id_: UUID = None,
             prior_version: Optional[int] = None) -> Tuple[UUID, int]:
         '''
@@ -107,7 +108,7 @@ class Samples:
     def _check_perms(
             self,
             id_: UUID,
-            user: str,
+            user: UserID,
             access: _SampleAccessType,
             acls: SampleACL = None,
             as_admin: bool = False):
@@ -124,21 +125,22 @@ class Samples:
                       _SampleAccessType.WRITE: 'cannot write to',
                       _SampleAccessType.READ: 'cannot read'}
 
-    def _get_access_level(self, acls: SampleACL, user: str):
-        if user == acls.owner:
+    def _get_access_level(self, acls: SampleACL, user: UserID):
+        u = user.id
+        if u == acls.owner:
             return _SampleAccessType.OWNER
-        if user in acls.admin:
+        if u in acls.admin:
             return _SampleAccessType.ADMIN
-        if user in acls.write:
+        if u in acls.write:
             return _SampleAccessType.WRITE
-        if user in acls.read:
+        if u in acls.read:
             return _SampleAccessType.READ
         return _SampleAccessType.NONE
 
     def get_sample(
             self,
             id_: UUID,
-            user: str,
+            user: UserID,
             version: int = None,
             as_admin: bool = False) -> SavedSample:
         '''
@@ -161,7 +163,7 @@ class Samples:
                           _SampleAccessType.READ, as_admin=as_admin)
         return self._storage.get_sample(id_, version)
 
-    def get_sample_acls(self, id_: UUID, user: str, as_admin: bool = False) -> SampleACL:
+    def get_sample_acls(self, id_: UUID, user: UserID, as_admin: bool = False) -> SampleACL:
         '''
         Get a sample's acls.
         :param id_: the ID of the sample.
@@ -180,7 +182,7 @@ class Samples:
     def replace_sample_acls(
             self,
             id_: UUID,
-            user: str,
+            user: UserID,
             new_acls: SampleACLOwnerless,
             as_admin: bool = False) -> None:
         '''

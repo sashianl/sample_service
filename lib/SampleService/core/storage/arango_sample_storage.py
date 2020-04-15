@@ -96,7 +96,7 @@ from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinks
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
-from SampleService.core.user import UserID
+from SampleService.core.user import UserID as _UserID
 from SampleService.core.workspace import DataUnitID, UPA as _UPA
 
 _FLD_ARANGO_KEY = '_key'
@@ -389,7 +389,7 @@ class ArangoSampleStorage:
                   # yes, this is redundant. It'll match the ver & node collectons though
                   _FLD_ID: str(sample.id),  # TODO test this is saved
                   _FLD_VERSIONS: [str(versionid)],
-                  _FLD_ACLS: {_FLD_OWNER: sample.user,
+                  _FLD_ACLS: {_FLD_OWNER: sample.user.id,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
                               _FLD_READ: []
@@ -467,7 +467,7 @@ class ArangoSampleStorage:
         # save version document
         verdoc = {_FLD_ARANGO_KEY: verdocid,
                   _FLD_ID: str(sample.id),
-                  _FLD_USER: sample.user,
+                  _FLD_USER: sample.user.id,
                   _FLD_VER: _VAL_NO_VER,
                   _FLD_UUID_VER: str(versionid),
                   _FLD_SAVE_TIME: sample.savetime.timestamp(),
@@ -623,7 +623,7 @@ class ArangoSampleStorage:
         dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
 
         return SavedSample(
-            UUID(doc[_FLD_ID]), verdoc[_FLD_USER], nodes, dt, verdoc[_FLD_NAME], version)
+            UUID(doc[_FLD_ID]), _UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, dict, int]:
@@ -1126,7 +1126,7 @@ class ArangoSampleStorage:
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
             self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
-            UserID(doc[_FLD_LINK_CREATED_BY]),
+            _UserID(doc[_FLD_LINK_CREATED_BY]),
             None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex)
         )
 

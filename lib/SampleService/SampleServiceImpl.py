@@ -14,6 +14,7 @@ from SampleService.core.api_translation import (
     get_static_key_metadata_params as _get_static_key_metadata_params)
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.user import UserID as _UserID
 
 _CTX_USER = 'user_id'
 _CTX_TOKEN = 'token'
@@ -130,8 +131,10 @@ Note that usage of the administration flags will be logged by the service.
         admin = _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
+            # TODO NOW should supply as_user param
             'create_sample', ctx.log_info, skip_check=not user)
-        ret = self._samples.save_sample(s, user if admin else ctx[_CTX_USER], id_, pv)
+        ret = self._samples.save_sample(
+            s, _UserID(user) if admin else _UserID(ctx[_CTX_USER]), id_, pv)
         address = {'id': str(ret[0]), 'version': ret[1]}
         #END create_sample
 
@@ -208,7 +211,7 @@ Note that usage of the administration flags will be logged by the service.
         admin = _check_admin(self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
                              # pretty annoying to test ctx.log_info is working, do it manually
                              'get_sample', ctx.log_info, skip_check=not params.get('as_admin'))
-        s = self._samples.get_sample(id_, ctx[_CTX_USER], ver, as_admin=admin)
+        s = self._samples.get_sample(id_, _UserID(ctx[_CTX_USER]), ver, as_admin=admin)
         sample = _sample_to_dict(s)
         #END get_sample
 
@@ -249,7 +252,7 @@ Note that usage of the administration flags will be logged by the service.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
             'get_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
-        acls_ret = self._samples.get_sample_acls(id_, ctx[_CTX_USER], as_admin=admin)
+        acls_ret = self._samples.get_sample_acls(id_, _UserID(ctx[_CTX_USER]), as_admin=admin)
         acls = _acls_to_dict(acls_ret)
         #END get_sample_acls
 
@@ -292,7 +295,7 @@ Note that usage of the administration flags will be logged by the service.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
             'replace_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
-        self._samples.replace_sample_acls(id_, ctx[_CTX_USER], acls, as_admin=admin)
+        self._samples.replace_sample_acls(id_, _UserID(ctx[_CTX_USER]), acls, as_admin=admin)
         #END replace_sample_acls
         pass
 

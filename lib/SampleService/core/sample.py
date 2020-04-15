@@ -15,6 +15,7 @@ from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
+from SampleService.core.user import UserID
 
 # for now we'll assume people are nice and don't change attributes after init.
 # if that doesn't hold true, override __setattr__.
@@ -246,7 +247,7 @@ class SavedSample(Sample):
     def __init__(
             self,
             id_: UUID,
-            user: str,
+            user: UserID,
             nodes: List[SampleNode],
             savetime: datetime.datetime,
             name: Optional[str] = None,

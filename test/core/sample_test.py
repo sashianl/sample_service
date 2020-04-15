@@ -5,6 +5,7 @@ from core.test_utils import assert_exception_correct
 from SampleService.core.sample import Sample, SavedSample, SampleNode, SubSampleType, SampleAddress
 from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
+from SampleService.core.user import UserID
 
 
 def test_sample_node_build():
@@ -216,41 +217,41 @@ def test_sample_build():
     assert s.name == 'a' * 256
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    s = SavedSample(id_, 'user', [sn], dt(6))
+    s = SavedSample(id_, UserID('user'), [sn], dt(6))
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert s.user == 'user'
+    assert s.user == UserID('user')
     assert s.nodes == (sndup,)
     assert s.savetime == dt(6)
     assert s.name is None
     assert s.version is None
 
-    s = SavedSample(id_, 'user2', [sn], dt(6), 'foo')
+    s = SavedSample(id_, UserID('user2'), [sn], dt(6), 'foo')
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert s.user == 'user2'
+    assert s.user == UserID('user2')
     assert s.nodes == (sndup,)
     assert s.savetime == dt(6)
     assert s.name == 'foo'
     assert s.version is None
 
-    s = SavedSample(id_, 'user', [sn], dt(6), 'foo', 1)
+    s = SavedSample(id_, UserID('user'), [sn], dt(6), 'foo', 1)
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert s.user == 'user'
+    assert s.user == UserID('user')
     assert s.nodes == (sndup,)
     assert s.savetime == dt(6)
     assert s.name == 'foo'
     assert s.version == 1
 
-    s = SavedSample(id_, 'user', [sn], dt(6), 'foo', 8)
+    s = SavedSample(id_, UserID('user'), [sn], dt(6), 'foo', 8)
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert s.user == 'user'
+    assert s.user == UserID('user')
     assert s.nodes == (sndup,)
     assert s.savetime == dt(6)
     assert s.name == 'foo'
     assert s.version == 8
 
-    s = SavedSample(id_, 'user', [sn], dt(6), version=8)
+    s = SavedSample(id_, UserID('user'), [sn], dt(6), version=8)
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert s.user == 'user'
+    assert s.user == UserID('user')
     assert s.nodes == (sndup,)
     assert s.savetime == dt(6)
     assert s.name is None
@@ -262,7 +263,7 @@ def test_sample_build_fail():
     # it's there
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    u = 'user'
+    u = UserID('user')
     sn = SampleNode('foo')
     tn = SampleNode('bar', SubSampleType.TECHNICAL_REPLICATE, 'foo')
     sn2 = SampleNode('baz')
@@ -283,7 +284,7 @@ def test_sample_build_fail():
 
     _sample_with_id_build_fail(None, u, [sn], d, None, None,
                                ValueError('id_ cannot be a value that evaluates to false'))
-    _sample_with_id_build_fail(id_, '', [sn], d, None, None,
+    _sample_with_id_build_fail(id_, None, [sn], d, None, None,
                                ValueError('user cannot be a value that evaluates to false'))
     _sample_with_id_build_fail(id_, u, [sn], None, None, None, ValueError(
                                'savetime cannot be a value that evaluates to false'))
@@ -300,9 +301,9 @@ def test_sample_build_fail_sample_count():
     assert s.name is None
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
-    s = SavedSample(id_, 'u', nodes, dt(8))
+    s = SavedSample(id_, UserID('u'), nodes, dt(8))
     assert s.id == uuid.UUID('1234567890abcdef1234567890abcdef')
-    assert s.user == 'u'
+    assert s.user == UserID('u')
     assert s.nodes == tuple(nodes)
     assert s.savetime == dt(8)
     assert s.name is None
@@ -320,7 +321,7 @@ def _sample_build_fail(nodes, name, expected):
 
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     with raises(Exception) as got:
-        SavedSample(id_, 'u', nodes, dt(8), name)
+        SavedSample(id_, UserID('u'), nodes, dt(8), name)
     assert_exception_correct(got.value, expected)
 
 
@@ -343,21 +344,23 @@ def test_sample_eq():
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
     dt1 = dt(5)
     dt2 = dt(8)
+    u = UserID('u')
+    u2 = UserID('u2')
 
-    assert SavedSample(id1, 'u', [sn], dt1) == SavedSample(id1, 'u', [sn], dt(5))
-    assert SavedSample(id1, 'u', [sn], dt1) != SavedSample(id2, 'u', [sn], dt1)
-    assert SavedSample(id1, 'u', [sn], dt1) != SavedSample(id1, 'u2', [sn], dt1)
-    assert SavedSample(id1, 'u', [sn], dt1) != SavedSample(id1, 'u', [sn2], dt1)
-    assert SavedSample(id1, 'u', [sn], dt1) != SavedSample(id1, 'u', [sn], dt2)
+    assert SavedSample(id1, u, [sn], dt1) == SavedSample(id1, u, [sn], dt(5))
+    assert SavedSample(id1, u, [sn], dt1) != SavedSample(id2, u, [sn], dt1)
+    assert SavedSample(id1, u, [sn], dt1) != SavedSample(id1, u2, [sn], dt1)
+    assert SavedSample(id1, u, [sn], dt1) != SavedSample(id1, u, [sn2], dt1)
+    assert SavedSample(id1, u, [sn], dt1) != SavedSample(id1, u, [sn], dt2)
 
-    assert SavedSample(id1, 'u', [sn], dt1, 'yay') == SavedSample(id1, 'u', [sn], dt1, 'yay')
-    assert SavedSample(id1, 'u', [sn], dt1, 'yay') != SavedSample(id1, 'u', [sn], dt1, 'yooo')
+    assert SavedSample(id1, u, [sn], dt1, 'yay') == SavedSample(id1, u, [sn], dt1, 'yay')
+    assert SavedSample(id1, u, [sn], dt1, 'yay') != SavedSample(id1, u, [sn], dt1, 'yooo')
 
-    assert SavedSample(id1, 'u', [sn], dt2, 'yay', 6) == SavedSample(id1, 'u', [sn], dt2, 'yay', 6)
-    assert SavedSample(id1, 'u', [sn], dt1, 'yay', 6) != SavedSample(id1, 'u', [sn], dt1, 'yay', 7)
+    assert SavedSample(id1, u, [sn], dt2, 'yay', 6) == SavedSample(id1, u, [sn], dt2, 'yay', 6)
+    assert SavedSample(id1, u, [sn], dt1, 'yay', 6) != SavedSample(id1, u, [sn], dt1, 'yay', 7)
 
-    assert SavedSample(id1, 'u', [sn], dt1, 'yay') != Sample([sn], 'yay')
-    assert Sample([sn], 'yay') != SavedSample(id1, 'u', [sn], dt1, 'yay')
+    assert SavedSample(id1, u, [sn], dt1, 'yay') != Sample([sn], 'yay')
+    assert Sample([sn], 'yay') != SavedSample(id1, u, [sn], dt1, 'yay')
 
 
 def test_sample_hash():
@@ -371,30 +374,32 @@ def test_sample_hash():
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
     dt1 = dt(5)
     dt2 = dt(8)
+    u = UserID('u')
+    u2 = UserID('u2')
 
     assert hash(Sample([sn], 'yay')) == hash(Sample([sn], 'yay'))
     assert hash(Sample([sn], 'foo')) == hash(Sample([sn], 'foo'))
     assert hash(Sample([sn], 'yay')) != hash(Sample([sn2], 'yay'))
     assert hash(Sample([sn], 'yay')) != hash(Sample([sn], 'yo'))
 
-    assert hash(SavedSample(id1, 'u', [sn], dt1, 'yay')) == hash(SavedSample(
-                                                                 id1, 'u', [sn], dt(5), 'yay'))
-    assert hash(SavedSample(id2, 'u', [sn], dt1, 'foo')) == hash(SavedSample(
-                                                                 id2, 'u', [sn], dt1, 'foo'))
-    assert hash(SavedSample(id1, 'u', [sn], dt1, 'foo')) != hash(SavedSample(
-                                                                 id2, 'u', [sn], dt1, 'foo'))
-    assert hash(SavedSample(id1, 'u', [sn], dt1, 'foo')) != hash(SavedSample(
-                                                                 id1, 'u2', [sn], dt1, 'foo'))
-    assert hash(SavedSample(id2, 'u', [sn], dt1, 'foo')) != hash(SavedSample(
-                                                                 id2, 'u', [sn2], dt1, 'foo'))
-    assert hash(SavedSample(id2, 'u', [sn], dt1, 'foo')) != hash(SavedSample(
-                                                                 id2, 'u', [sn], dt2, 'foo'))
-    assert hash(SavedSample(id2, 'u', [sn], dt1, 'foo')) != hash(SavedSample(
-                                                                 id2, 'u', [sn], dt1, 'bar'))
-    assert hash(SavedSample(id1, 'u', [sn], dt1, 'foo', 6)) == hash(SavedSample(
-                                                                    id1, 'u', [sn], dt1, 'foo', 6))
-    assert hash(SavedSample(id1, 'u', [sn], dt1, 'foo', 6)) != hash(SavedSample(
-                                                                    id1, 'u', [sn], dt1, 'foo', 7))
+    assert hash(SavedSample(id1, u, [sn], dt1, 'yay')) == hash(SavedSample(
+                                                                 id1, u, [sn], dt(5), 'yay'))
+    assert hash(SavedSample(id2, u, [sn], dt1, 'foo')) == hash(SavedSample(
+                                                                 id2, u, [sn], dt1, 'foo'))
+    assert hash(SavedSample(id1, u, [sn], dt1, 'foo')) != hash(SavedSample(
+                                                                 id2, u, [sn], dt1, 'foo'))
+    assert hash(SavedSample(id1, u, [sn], dt1, 'foo')) != hash(SavedSample(
+                                                                 id1, u2, [sn], dt1, 'foo'))
+    assert hash(SavedSample(id2, u, [sn], dt1, 'foo')) != hash(SavedSample(
+                                                                 id2, u, [sn2], dt1, 'foo'))
+    assert hash(SavedSample(id2, u, [sn], dt1, 'foo')) != hash(SavedSample(
+                                                                 id2, u, [sn], dt2, 'foo'))
+    assert hash(SavedSample(id2, u, [sn], dt1, 'foo')) != hash(SavedSample(
+                                                                 id2, u, [sn], dt1, 'bar'))
+    assert hash(SavedSample(id1, u, [sn], dt1, 'foo', 6)) == hash(SavedSample(
+                                                                    id1, u, [sn], dt1, 'foo', 6))
+    assert hash(SavedSample(id1, u, [sn], dt1, 'foo', 6)) != hash(SavedSample(
+                                                                    id1, u, [sn], dt1, 'foo', 7))
 
 
 def test_sample_address_init():

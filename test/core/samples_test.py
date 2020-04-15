@@ -11,6 +11,7 @@ from SampleService.core.errors import MetadataValidationError
 from SampleService.core.sample import Sample, SampleNode, SavedSample
 from SampleService.core.samples import Samples
 from SampleService.core.storage.errors import OwnerChangedError
+from SampleService.core.user import UserID
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core import user_lookup
@@ -99,13 +100,13 @@ def _save_sample_with_name(name):
 
 
 def test_save_sample_version():
-    _save_sample_version_per_user('someuser', None, None)
-    _save_sample_version_per_user('otheruser', 'sample name', 2)
+    _save_sample_version_per_user(UserID('someuser'), None, None)
+    _save_sample_version_per_user(UserID('otheruser'), 'sample name', 2)
     # this one should really fail based on the mock output... but it's a mock so it won't
-    _save_sample_version_per_user('anotheruser', 'ur dad yeah', 1)
+    _save_sample_version_per_user(UserID('anotheruser'), 'ur dad yeah', 1)
 
 
-def _save_sample_version_per_user(user, name, prior_version):
+def _save_sample_version_per_user(user: UserID, name, prior_version):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -147,13 +148,14 @@ def test_save_sample_fail_bad_args():
 
     s = Sample([SampleNode('foo')])
     id_ = UUID('1234567890abcdef1234567890abcdef')
+    u = UserID('u')
 
     _save_sample_fail(
-        samples, None, 'a', id_, 1, ValueError('sample cannot be a value that evaluates to false'))
+        samples, None, u, id_, 1, ValueError('sample cannot be a value that evaluates to false'))
     _save_sample_fail(
-        samples, s, '', id_, 1, ValueError('user cannot be a value that evaluates to false'))
+        samples, s, None, id_, 1, ValueError('user cannot be a value that evaluates to false'))
     _save_sample_fail(
-        samples, s, 'a', id_, 0, IllegalParameterError('Prior version must be > 0'))
+        samples, s, u, id_, 0, IllegalParameterError('Prior version must be > 0'))
 
 
 def test_save_sample_fail_no_metadata_validator():
@@ -175,7 +177,7 @@ def test_save_sample_fail_no_metadata_validator():
                     )
                 ],
                 'foo'),
-            'auser')
+            UserID('auser'))
     assert_exception_correct(got.value, MetadataValidationError(
         'Node at index 0: No validator for key3'))
 
@@ -202,17 +204,17 @@ def test_save_sample_fail_metadata_validator_exception():
                     )
                 ],
                 'foo'),
-            'auser')
+            UserID('auser'))
     assert_exception_correct(got.value, MetadataValidationError(
         'Node at index 1: key2: u suk lol'))
 
 
 def test_save_sample_fail_unauthorized():
-    _save_sample_fail_unauthorized('x')
-    _save_sample_fail_unauthorized('nouserhere')
+    _save_sample_fail_unauthorized(UserID('x'))
+    _save_sample_fail_unauthorized(UserID('nouserhere'))
 
 
-def _save_sample_fail_unauthorized(user):
+def _save_sample_fail_unauthorized(user: UserID):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -242,11 +244,11 @@ def _save_sample_fail(samples, sample, user, id_, prior_version, expected):
 
 def test_get_sample():
     # sample versions other than 4 don't really make sense but the mock doesn't care
-    _get_sample('someuser', None, False)
-    _get_sample('otheruser', None, False)
-    _get_sample('anotheruser', None, False)
-    _get_sample('x', None, False)
-    _get_sample('notinacl', None, True)
+    _get_sample(UserID('someuser'), None, False)
+    _get_sample(UserID('otheruser'), None, False)
+    _get_sample(UserID('anotheruser'), None, False)
+    _get_sample(UserID('x'), None, False)
+    _get_sample(UserID('notinacl'), None, True)
 
 
 def _get_sample(user, version, as_admin):
@@ -293,11 +295,11 @@ def test_get_sample_fail_bad_args():
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcdef')
 
-    _get_sample_fail(samples, None, 'foo', 1, ValueError(
+    _get_sample_fail(samples, None, UserID('foo'), 1, ValueError(
         'id_ cannot be a value that evaluates to false'))
-    _get_sample_fail(samples, id_, '', 1, ValueError(
+    _get_sample_fail(samples, id_, None, 1, ValueError(
         'user cannot be a value that evaluates to false'))
-    _get_sample_fail(samples, id_, 'a', 0, IllegalParameterError('Version must be > 0'))
+    _get_sample_fail(samples, id_, UserID('a'), 0, IllegalParameterError('Version must be > 0'))
 
 
 def test_get_sample_fail_unauthorized():
@@ -311,7 +313,7 @@ def test_get_sample_fail_unauthorized():
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
     _get_sample_fail(
-        samples, UUID('1234567890abcdef1234567890abcdef'), 'y', 3,
+        samples, UUID('1234567890abcdef1234567890abcdef'), UserID('y'), 3,
         UnauthorizedError('User y cannot read sample 12345678-90ab-cdef-1234-567890abcdef'))
 
     assert storage.get_sample_acls.call_args_list == [
@@ -325,11 +327,11 @@ def _get_sample_fail(samples, id_, user, version, expected):
 
 
 def test_get_sample_acls():
-    _get_sample_acls('someuser', False)
-    _get_sample_acls('otheruser', False)
-    _get_sample_acls('anotheruser', False)
-    _get_sample_acls('x', False)
-    _get_sample_acls('no_rights_here', True)
+    _get_sample_acls(UserID('someuser'), False)
+    _get_sample_acls(UserID('otheruser'), False)
+    _get_sample_acls(UserID('anotheruser'), False)
+    _get_sample_acls(UserID('x'), False)
+    _get_sample_acls(UserID('no_rights_here'), True)
 
 
 def _get_sample_acls(user, as_admin):
@@ -358,9 +360,9 @@ def test_get_sample_acls_fail_bad_args():
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcdef')
 
-    _get_sample_acls_fail(samples, None, 'foo', ValueError(
+    _get_sample_acls_fail(samples, None, UserID('foo'), ValueError(
         'id_ cannot be a value that evaluates to false'))
-    _get_sample_acls_fail(samples, id_, '', ValueError(
+    _get_sample_acls_fail(samples, id_, None, ValueError(
         'user cannot be a value that evaluates to false'))
 
 
@@ -375,7 +377,7 @@ def test_get_sample_acls_fail_unauthorized():
         'someuser', ['otheruser'], ['anotheruser', 'ur mum'], ['Fungus J. Pustule Jr.', 'x'])
 
     _get_sample_acls_fail(
-        samples, UUID('1234567890abcdef1234567890abcdea'), 'y',
+        samples, UUID('1234567890abcdef1234567890abcdea'), UserID('y'),
         UnauthorizedError('User y cannot read sample 12345678-90ab-cdef-1234-567890abcdea'))
 
     assert storage.get_sample_acls.call_args_list == [
@@ -389,12 +391,12 @@ def _get_sample_acls_fail(samples, id_, user, expected):
 
 
 def test_replace_sample_acls():
-    _replace_sample_acls('someuser', False)
-    _replace_sample_acls('otheruser', False)
-    _replace_sample_acls('super_admin_man', True)
+    _replace_sample_acls(UserID('someuser'), False)
+    _replace_sample_acls(UserID('otheruser'), False)
+    _replace_sample_acls(UserID('super_admin_man'), True)
 
 
-def _replace_sample_acls(user, as_admin):
+def _replace_sample_acls(user: UserID, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -440,7 +442,7 @@ def test_replace_sample_acls_with_owner_change():
 
     storage.replace_sample_acls.side_effect = [OwnerChangedError, None]
 
-    samples.replace_sample_acls(id_, 'otheruser', SampleACL('someuser', ['a']))
+    samples.replace_sample_acls(id_, UserID('otheruser'), SampleACL('someuser', ['a']))
 
     assert lu.are_valid_users.call_args_list == [((['a'],), {})]
 
@@ -475,7 +477,7 @@ def test_replace_sample_acls_with_owner_change_fail_lost_perms():
     storage.replace_sample_acls.side_effect = [OwnerChangedError, None]
 
     _replace_sample_acls_fail(
-        samples, id_, 'otheruser', SampleACL('someuser', write=['b']),
+        samples, id_, UserID('otheruser'), SampleACL('someuser', write=['b']),
         UnauthorizedError(f'User otheruser cannot administrate sample {id_}'))
 
     assert lu.are_valid_users.call_args_list == [((['b'],), {})]
@@ -507,7 +509,7 @@ def test_replace_sample_acls_with_owner_change_fail_5_times():
     storage.replace_sample_acls.side_effect = OwnerChangedError
 
     _replace_sample_acls_fail(
-        samples, id_, 'otheruser', SampleACL('someuser', read=['c']),
+        samples, id_, UserID('otheruser'), SampleACL('someuser', read=['c']),
         ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}'))
 
     assert lu.are_valid_users.call_args_list == [((['c'],), {})]
@@ -529,12 +531,13 @@ def test_replace_sample_acls_fail_bad_input():
     samples = Samples(
         storage, lu, meta, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
+    u = UserID('u')
 
-    _replace_sample_acls_fail(samples, None, 'y', SampleACL('foo'), ValueError(
+    _replace_sample_acls_fail(samples, None, u, SampleACL('foo'), ValueError(
         'id_ cannot be a value that evaluates to false'))
-    _replace_sample_acls_fail(samples, id_, '', SampleACL('foo'), ValueError(
+    _replace_sample_acls_fail(samples, id_, None, SampleACL('foo'), ValueError(
         'user cannot be a value that evaluates to false'))
-    _replace_sample_acls_fail(samples, id_, 'y', None, ValueError(
+    _replace_sample_acls_fail(samples, id_, u, None, ValueError(
         'new_acls cannot be a value that evaluates to false'))
 
 
@@ -550,7 +553,8 @@ def test_replace_sample_acls_fail_nonexistent_user_4_users():
 
     acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w'])
 
-    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w'))
+    _replace_sample_acls_fail(
+        samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w'))
 
     assert lu.are_valid_users.call_args_list == [
         ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w'],), {})]
@@ -568,7 +572,8 @@ def test_replace_sample_acls_fail_nonexistent_user_5_users():
 
     acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w', 'c'])
 
-    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+    _replace_sample_acls_fail(
+        samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
 
     assert lu.are_valid_users.call_args_list == [
         ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w', 'c'],), {})]
@@ -586,7 +591,8 @@ def test_replace_sample_acls_fail_nonexistent_user_6_users():
 
     acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z', 'w', 'c', 'whee'])
 
-    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+    _replace_sample_acls_fail(
+        samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
 
     assert lu.are_valid_users.call_args_list == [
         ((['x', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z', 'w', 'c', 'whee'],), {})]
@@ -604,7 +610,7 @@ def test_replace_sample_acls_fail_invalid_user():
 
     acls = SampleACL('foo', ['o shit waddup', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z'])
 
-    _replace_sample_acls_fail(samples, id_, 'foo', acls, NoSuchUserError('o shit waddup'))
+    _replace_sample_acls_fail(samples, id_, UserID('foo'), acls, NoSuchUserError('o shit waddup'))
 
     assert lu.are_valid_users.call_args_list == [
         ((['o shit waddup', 'whoo', 'yay', 'fwew', 'y', 'bugga', 'z'],), {})]
@@ -622,7 +628,7 @@ def test_replace_sample_acls_fail_invalid_token():
 
     acls = SampleACL('foo', ['x', 'whoo'], ['yay', 'fwew'], ['y', 'bugga', 'z'])
 
-    _replace_sample_acls_fail(samples, id_, 'foo', acls, ValueError(
+    _replace_sample_acls_fail(samples, id_, UserID('foo'), acls, ValueError(
         'user lookup token for KBase auth server is invalid, cannot continue'))
 
     assert lu.are_valid_users.call_args_list == [
@@ -630,12 +636,12 @@ def test_replace_sample_acls_fail_invalid_token():
 
 
 def test_replace_sample_acls_fail_unauthorized():
-    _replace_sample_acls_fail_unauthorized('anotheruser')
-    _replace_sample_acls_fail_unauthorized('x')
-    _replace_sample_acls_fail_unauthorized('MrsEntity')
+    _replace_sample_acls_fail_unauthorized(UserID('anotheruser'))
+    _replace_sample_acls_fail_unauthorized(UserID('x'))
+    _replace_sample_acls_fail_unauthorized(UserID('MrsEntity'))
 
 
-def _replace_sample_acls_fail_unauthorized(user):
+def _replace_sample_acls_fail_unauthorized(user: UserID):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
