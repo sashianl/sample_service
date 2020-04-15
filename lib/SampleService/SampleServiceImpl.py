@@ -131,8 +131,7 @@ Note that usage of the administration flags will be logged by the service.
         admin = _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
-            # TODO NOW should supply as_user param
-            'create_sample', ctx.log_info, skip_check=not user)
+            'create_sample', ctx.log_info, as_user=user, skip_check=not user)
         ret = self._samples.save_sample(
             s, _UserID(user) if admin else _UserID(ctx[_CTX_USER]), id_, pv)
         address = {'id': str(ret[0]), 'version': ret[1]}
