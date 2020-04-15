@@ -16,6 +16,7 @@ from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
+from SampleService.core.user import UserID as _UserID
 
 ID = 'id'
 ''' The ID of a sample. '''
@@ -205,10 +206,10 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
     :param acls: The ACLs to convert.
     :return: the ACLs as a dict.
     '''
-    return {'owner': _not_falsy(acls, 'acls').owner,
-            'admin': acls.admin,
-            'write': acls.write,
-            'read': acls.read,
+    return {'owner': _not_falsy(acls, 'acls').owner.id,
+            'admin': tuple(u.id for u in acls.admin),
+            'write': tuple(u.id for u in acls.write),
+            'read': tuple(u.id for u in acls.read),
             }
 
 
@@ -224,14 +225,15 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     if d.get('acls') is None or type(d['acls']) != dict:
         raise _IllegalParameterError('ACLs must be supplied in the acls key and must be a mapping')
     acls = d['acls']
-    _check_acl(acls, 'admin')
-    _check_acl(acls, 'write')
-    _check_acl(acls, 'read')
 
-    return SampleACLOwnerless(acls.get('admin'), acls.get('write'), acls.get('read'))
+    return SampleACLOwnerless(
+        _get_acl(acls, 'admin'),
+        _get_acl(acls, 'write'),
+        _get_acl(acls, 'read'))
 
 
-def _check_acl(acls, type_):
+def _get_acl(acls, type_):
+    ret = []
     if acls.get(type_) is not None:
         acl = acls[type_]
         if not type(acl) == list:
@@ -239,6 +241,8 @@ def _check_acl(acls, type_):
         for i, item, in enumerate(acl):
             if not type(item) == str:
                 raise _IllegalParameterError(f'Index {i} of {type_} ACL does not contain a string')
+            ret.append(_UserID(item))
+    return ret
 
 
 def check_admin(

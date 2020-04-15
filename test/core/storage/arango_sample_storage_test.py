@@ -687,7 +687,7 @@ def test_save_and_get_sample(samplestorage):
     assert samplestorage.get_sample(id_) == SavedSample(
         id_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1)
 
-    assert samplestorage.get_sample_acls(id_) == SampleACL('auser')
+    assert samplestorage.get_sample_acls(id_) == SampleACL(UserID('auser'))
 
 
 def test_save_sample_fail_bad_input(samplestorage):
@@ -1029,19 +1029,25 @@ def test_replace_sample_acls(samplestorage):
         SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
 
     samplestorage.replace_sample_acls(id_, SampleACL(
-        'user', ['foo', 'bar'], ['baz', 'bat'], ['whoo']))
+        UserID('user'),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')]))
 
     assert samplestorage.get_sample_acls(id_) == SampleACL(
-        'user', ['foo', 'bar'], ['baz', 'bat'], ['whoo'])
+        UserID('user'),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')])
 
-    samplestorage.replace_sample_acls(id_, SampleACL('user', write=['baz']))
+    samplestorage.replace_sample_acls(id_, SampleACL(UserID('user'), write=[UserID('baz')]))
 
-    assert samplestorage.get_sample_acls(id_) == SampleACL('user', write=['baz'])
+    assert samplestorage.get_sample_acls(id_) == SampleACL(UserID('user'), write=[UserID('baz')])
 
 
 def test_replace_sample_acls_fail_bad_args(samplestorage):
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(None, SampleACL('user'))
+        samplestorage.replace_sample_acls(None, SampleACL(UserID('user')))
     assert_exception_correct(got.value, ValueError(
         'id_ cannot be a value that evaluates to false'))
 
@@ -1060,7 +1066,7 @@ def test_replace_sample_acls_fail_no_sample(samplestorage):
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
 
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(id2, SampleACL('user'))
+        samplestorage.replace_sample_acls(id2, SampleACL(UserID('user')))
     assert_exception_correct(got.value, NoSuchSampleError(str(id2)))
 
 
@@ -1079,7 +1085,7 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
         bind_vars={'@col': 'samples', 'acls': {'owner': 'user2'}})
 
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(id_, SampleACL('user', write=['foo']))
+        samplestorage.replace_sample_acls(id_, SampleACL(UserID('user'), write=[UserID('foo')]))
     assert_exception_correct(got.value, OwnerChangedError())
 
 

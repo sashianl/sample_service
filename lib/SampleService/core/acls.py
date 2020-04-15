@@ -8,6 +8,7 @@ from typing import Sequence
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
+from SampleService.core.user import UserID
 
 
 class SampleAccessType(IntEnum):
@@ -42,9 +43,9 @@ class SampleACLOwnerless:
 
     def __init__(
             self,
-            admin: Sequence[str] = None,
-            write: Sequence[str] = None,
-            read: Sequence[str] = None):
+            admin: Sequence[UserID] = None,
+            write: Sequence[UserID] = None,
+            read: Sequence[UserID] = None):
         '''
         Create the ACLs.
 
@@ -90,10 +91,10 @@ class SampleACL(SampleACLOwnerless):
 
     def __init__(
             self,
-            owner: str,
-            admin: Sequence[str] = None,
-            write: Sequence[str] = None,
-            read: Sequence[str] = None):
+            owner: UserID,
+            admin: Sequence[UserID] = None,
+            write: Sequence[UserID] = None,
+            read: Sequence[UserID] = None):
         '''
         Create the ACLs.
 

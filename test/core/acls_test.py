@@ -3,6 +3,11 @@ from pytest import raises
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from core.test_utils import assert_exception_correct
 from SampleService.core.errors import IllegalParameterError
+from SampleService.core.user import UserID
+
+
+def u(user):
+    return UserID(user)
 
 
 def test_build_ownerless():
@@ -13,27 +18,32 @@ def test_build_ownerless():
 
     # test duplicates are removed and order maintained
     a = SampleACLOwnerless(
-        ['baz', 'bat', 'baz'], read=['wheee', 'wheee'], write=['wugga', 'a', 'b', 'a'])
-    assert a.admin == ('baz', 'bat')
-    assert a.write == ('wugga', 'a', 'b')
-    assert a.read == ('wheee',)
+        [u('baz'), u('bat'), u('baz')],
+        read=[u('wheee'), u('wheee')],
+        write=[u('wugga'), u('a'), u('b'), u('a')])
+    assert a.admin == (u('baz'), u('bat'))
+    assert a.write == (u('wugga'), u('a'), u('b'))
+    assert a.read == (u('wheee'),)
 
 
 def test_build_fail_ownerless():
-    _build_fail_ownerless(['a', ''], None, None, ValueError(
+    _build_fail_ownerless([u('a'), None], None, None, ValueError(
         'Index 1 of iterable admin cannot be a value that evaluates to false'))
-    _build_fail_ownerless(None, ['', ''], None, ValueError(
+    _build_fail_ownerless(None, [None, None], None, ValueError(
         'Index 0 of iterable write cannot be a value that evaluates to false'))
-    _build_fail_ownerless(None, None, ['a', 'b', ''], ValueError(
+    _build_fail_ownerless(None, None, [u('a'), u('b'), None], ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
 
     # test that you cannot have a user in 2 acls
-    _build_fail_ownerless(['a', 'z'], ['a', 'c'], ['w', 'b'], IllegalParameterError(
-        'User a appears in two ACLs'))
-    _build_fail_ownerless(['a', 'z'], ['b', 'c'], ['w', 'a'], IllegalParameterError(
-        'User a appears in two ACLs'))
-    _build_fail_ownerless(['x', 'z'], ['b', 'c', 'w'], ['w', 'a'], IllegalParameterError(
-        'User w appears in two ACLs'))
+    _build_fail_ownerless(
+        [u('a'), u('z')], [u('a'), u('c')], [u('w'), u('b')],
+        IllegalParameterError('User a appears in two ACLs'))
+    _build_fail_ownerless(
+        [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('a')],
+        IllegalParameterError('User a appears in two ACLs'))
+    _build_fail_ownerless(
+        [u('x'), u('z')], [u('b'), u('c'), u('w')], [u('w'), u('a')],
+        IllegalParameterError('User w appears in two ACLs'))
 
 
 def _build_fail_ownerless(admin, write, read, expected):
@@ -43,17 +53,17 @@ def _build_fail_ownerless(admin, write, read, expected):
 
 
 def test_eq_ownerless():
-    assert SampleACLOwnerless(['bar']) == SampleACLOwnerless(['bar'])
-    assert SampleACLOwnerless(['bar']) != SampleACLOwnerless(['baz'])
+    assert SampleACLOwnerless([u('bar')]) == SampleACLOwnerless([u('bar')])
+    assert SampleACLOwnerless([u('bar')]) != SampleACLOwnerless([u('baz')])
 
-    assert SampleACLOwnerless(write=['bar']) == SampleACLOwnerless(write=['bar'])
-    assert SampleACLOwnerless(write=['bar']) != SampleACLOwnerless(write=['baz'])
+    assert SampleACLOwnerless(write=[u('bar')]) == SampleACLOwnerless(write=[u('bar')])
+    assert SampleACLOwnerless(write=[u('bar')]) != SampleACLOwnerless(write=[u('baz')])
 
-    assert SampleACLOwnerless(read=['bar']) == SampleACLOwnerless(read=['bar'])
-    assert SampleACLOwnerless(read=['bar']) != SampleACLOwnerless(read=['baz'])
+    assert SampleACLOwnerless(read=[u('bar')]) == SampleACLOwnerless(read=[u('bar')])
+    assert SampleACLOwnerless(read=[u('bar')]) != SampleACLOwnerless(read=[u('baz')])
 
-    assert SampleACLOwnerless('foo') != 1
-    assert 'foo' != SampleACLOwnerless('foo')
+    assert SampleACLOwnerless([u('foo')]) != 1
+    assert u('foo') != SampleACLOwnerless([u('foo')])
 
 
 def test_hash_ownerless():
@@ -61,56 +71,65 @@ def test_hash_ownerless():
     # tests can't be written that directly test the hash value. See
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
 
-    assert hash(SampleACLOwnerless(['bar'])) == hash(SampleACLOwnerless(['bar']))
-    assert hash(SampleACLOwnerless(['bar'])) != hash(SampleACLOwnerless(['baz']))
+    assert hash(SampleACLOwnerless([u('bar')])) == hash(SampleACLOwnerless([u('bar')]))
+    assert hash(SampleACLOwnerless([u('bar')])) != hash(SampleACLOwnerless([u('baz')]))
 
-    assert hash(SampleACLOwnerless(write=['bar'])) == hash(SampleACLOwnerless(write=['bar']))
-    assert hash(SampleACLOwnerless(write=['bar'])) != hash(SampleACLOwnerless(write=['baz']))
+    assert hash(SampleACLOwnerless(write=[u('bar')])) == hash(SampleACLOwnerless(write=[u('bar')]))
+    assert hash(SampleACLOwnerless(write=[u('bar')])) != hash(SampleACLOwnerless(write=[u('baz')]))
 
-    assert hash(SampleACLOwnerless(read=['bar'])) == hash(SampleACLOwnerless(read=['bar']))
-    assert hash(SampleACLOwnerless(read=['bar'])) != hash(SampleACLOwnerless(read=['baz']))
+    assert hash(SampleACLOwnerless(read=[u('bar')])) == hash(SampleACLOwnerless(read=[u('bar')]))
+    assert hash(SampleACLOwnerless(read=[u('bar')])) != hash(SampleACLOwnerless(read=[u('baz')]))
 
 
 def test_build():
-    a = SampleACL('foo')
-    assert a.owner == 'foo'
+    a = SampleACL(u('foo'))
+    assert a.owner == u('foo')
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
 
     a = SampleACL(
-        'foo', ['baz', 'bat', 'baz'], read=['wheee', 'wheee'], write=['wugga', 'a', 'b', 'wugga'])
-    assert a.owner == 'foo'
-    assert a.admin == ('baz', 'bat')
-    assert a.write == ('wugga', 'a', 'b')
-    assert a.read == ('wheee',)
+        u('foo'),
+        [u('baz'), u('bat'), u('baz')],
+        read=[u('wheee'), u('wheee')],
+        write=[u('wugga'), u('a'), u('b'), u('wugga')])
+    assert a.owner == u('foo')
+    assert a.admin == (u('baz'), u('bat'))
+    assert a.write == (u('wugga'), u('a'), u('b'))
+    assert a.read == (u('wheee'),)
 
 
 def test_build_fail():
-    _build_fail('', None, None, None, ValueError(
+    _build_fail(None, None, None, None, ValueError(
         'owner cannot be a value that evaluates to false'))
-    _build_fail('foo', ['a', ''], None, None, ValueError(
+    _build_fail(u('foo'), [u('a'), None], None, None, ValueError(
         'Index 1 of iterable admin cannot be a value that evaluates to false'))
-    _build_fail('foo', None, ['', ''], None, ValueError(
+    _build_fail(u('foo'), None, [None, None], None, ValueError(
         'Index 0 of iterable write cannot be a value that evaluates to false'))
-    _build_fail('foo', None, None, ['a', 'b', ''], ValueError(
+    _build_fail(u('foo'), None, None, [u('a'), u('b'), None], ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
 
     # test that you cannot have an owner in another ACL
-    _build_fail('foo', ['c', 'd', 'foo'], None, ['a', 'b', 'x'], IllegalParameterError(
-        'The owner cannot be in any other ACL'))
-    _build_fail('foo', None, ['a', 'b', 'foo'], ['x'], IllegalParameterError(
-        'The owner cannot be in any other ACL'))
-    _build_fail('foo', ['y'], None, ['a', 'b', 'foo'], IllegalParameterError(
-        'The owner cannot be in any other ACL'))
+    _build_fail(
+        u('foo'), [u('c'), u('d'), u('foo')], None, [u('a'), u('b'), u('x')],
+        IllegalParameterError('The owner cannot be in any other ACL'))
+    _build_fail(
+        u('foo'), None, [u('a'), u('b'), u('foo')], [u('x')],
+        IllegalParameterError('The owner cannot be in any other ACL'))
+    _build_fail(
+        u('foo'), [u('y')], None, [u('a'), u('b'), u('foo')],
+        IllegalParameterError('The owner cannot be in any other ACL'))
 
     # test that you cannot have a user in 2 acls
-    _build_fail('foo', ['a', 'z'], ['a', 'c'], ['w', 'b'], IllegalParameterError(
-        'User a appears in two ACLs'))
-    _build_fail('foo', ['a', 'z'], ['b', 'c'], ['w', 'a'], IllegalParameterError(
-        'User a appears in two ACLs'))
-    _build_fail('foo', ['x', 'z'], ['b', 'c', 'w'], ['w', 'a'], IllegalParameterError(
-        'User w appears in two ACLs'))
+    _build_fail(
+        u('foo'), [u('a'), u('z')], [u('a'), u('c')], [u('w'), u('b')],
+        IllegalParameterError('User a appears in two ACLs'))
+    _build_fail(
+        u('foo'), [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('a')],
+        IllegalParameterError('User a appears in two ACLs'))
+    _build_fail(
+        u('foo'), [u('x'), u('z')], [u('b'), u('c'), u('w')], [u('w'), u('a')],
+        IllegalParameterError('User w appears in two ACLs'))
 
 
 def _build_fail(owner, admin, write, read, expected):
@@ -120,20 +139,20 @@ def _build_fail(owner, admin, write, read, expected):
 
 
 def test_eq():
-    assert SampleACL('foo') == SampleACL('foo')
-    assert SampleACL('foo') != SampleACL('bar')
+    assert SampleACL(u('foo')) == SampleACL(u('foo'))
+    assert SampleACL(u('foo')) != SampleACL(u('bar'))
 
-    assert SampleACL('foo', ['bar']) == SampleACL('foo', ['bar'])
-    assert SampleACL('foo', ['bar']) != SampleACL('foo', ['baz'])
+    assert SampleACL(u('foo'), [u('bar')]) == SampleACL(u('foo'), [u('bar')])
+    assert SampleACL(u('foo'), [u('bar')]) != SampleACL(u('foo'), [u('baz')])
 
-    assert SampleACL('foo', write=['bar']) == SampleACL('foo', write=['bar'])
-    assert SampleACL('foo', write=['bar']) != SampleACL('foo', write=['baz'])
+    assert SampleACL(u('foo'), write=[u('bar')]) == SampleACL(u('foo'), write=[u('bar')])
+    assert SampleACL(u('foo'), write=[u('bar')]) != SampleACL(u('foo'), write=[u('baz')])
 
-    assert SampleACL('foo', read=['bar']) == SampleACL('foo', read=['bar'])
-    assert SampleACL('foo', read=['bar']) != SampleACL('foo', read=['baz'])
+    assert SampleACL(u('foo'), read=[u('bar')]) == SampleACL(u('foo'), read=[u('bar')])
+    assert SampleACL(u('foo'), read=[u('bar')]) != SampleACL(u('foo'), read=[u('baz')])
 
-    assert SampleACL('foo') != 1
-    assert 'foo' != SampleACL('foo')
+    assert SampleACL(u('foo')) != 1
+    assert u('foo') != SampleACL(u('foo'))
 
 
 def test_hash():
@@ -141,15 +160,17 @@ def test_hash():
     # tests can't be written that directly test the hash value. See
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
 
-    assert hash(SampleACL('foo')) == hash(SampleACL('foo'))
-    assert hash(SampleACL('bar')) == hash(SampleACL('bar'))
-    assert hash(SampleACL('foo')) != hash(SampleACL('bar'))
+    assert hash(SampleACL(u('foo'))) == hash(SampleACL(u('foo')))
+    assert hash(SampleACL(u('bar'))) == hash(SampleACL(u('bar')))
+    assert hash(SampleACL(u('foo'))) != hash(SampleACL(u('bar')))
 
-    assert hash(SampleACL('foo', ['bar'])) == hash(SampleACL('foo', ['bar']))
-    assert hash(SampleACL('foo', ['bar'])) != hash(SampleACL('foo', ['baz']))
+    assert hash(SampleACL(u('foo'), [u('bar')])) == hash(SampleACL(u('foo'), [u('bar')]))
+    assert hash(SampleACL(u('foo'), [u('bar')])) != hash(SampleACL(u('foo'), [u('baz')]))
 
-    assert hash(SampleACL('foo', write=['bar'])) == hash(SampleACL('foo', write=['bar']))
-    assert hash(SampleACL('foo', write=['bar'])) != hash(SampleACL('foo', write=['baz']))
+    assert hash(SampleACL(u('foo'), write=[u('bar')])) == hash(
+        SampleACL(u('foo'), write=[u('bar')]))
+    assert hash(SampleACL(u('foo'), write=[u('bar')])) != hash(
+        SampleACL(u('foo'), write=[u('baz')]))
 
-    assert hash(SampleACL('foo', read=['bar'])) == hash(SampleACL('foo', read=['bar']))
-    assert hash(SampleACL('foo', read=['bar'])) != hash(SampleACL('foo', read=['baz']))
+    assert hash(SampleACL(u('foo'), read=[u('bar')])) == hash(SampleACL(u('foo'), read=[u('bar')]))
+    assert hash(SampleACL(u('foo'), read=[u('bar')])) != hash(SampleACL(u('foo'), read=[u('baz')]))

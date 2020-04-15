@@ -10,6 +10,7 @@ from typing import List, Sequence, Tuple
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _no_falsy_in_iterable
 from SampleService.core.acls import AdminPermission
+from SampleService.core.user import UserID
 
 
 class KBaseUserLookup:
@@ -74,7 +75,7 @@ class KBaseUserLookup:
             # worry about it later.
             raise IOError('Error from KBase auth server: ' + j['error']['message'])
 
-    def are_valid_users(self, usernames: Sequence[str]) -> List[str]:
+    def are_valid_users(self, usernames: Sequence[UserID]) -> List[UserID]:
         '''
         Check whether users exist in the authentication service.
 
@@ -90,12 +91,12 @@ class KBaseUserLookup:
             return []
         _no_falsy_in_iterable(usernames, 'usernames')
 
-        r = requests.get(self._user_url + ','.join(usernames),
+        r = requests.get(self._user_url + ','.join([u.id for u in usernames]),
                          headers={'Authorization': self._token})
         self._check_error(r)
         good_users = r.json()
         # TODO ACL cache
-        return [u for u in usernames if u not in good_users]
+        return [u for u in usernames if u.id not in good_users]
 
     def is_admin(self, token: str) -> Tuple[AdminPermission, str]:
         '''
