@@ -726,7 +726,11 @@ class ArangoSampleStorage:
         # return no class for now, might need later
         doc = _cast(dict, self._get_sample_doc(id_))
         acls = doc[_FLD_ACLS]
-        return SampleACL(acls[_FLD_OWNER], acls[_FLD_ADMIN], acls[_FLD_WRITE], acls[_FLD_READ])
+        return SampleACL(
+            _UserID(acls[_FLD_OWNER]),
+            [_UserID(u) for u in acls[_FLD_ADMIN]],
+            [_UserID(u) for u in acls[_FLD_WRITE]],
+            [_UserID(u) for u in acls[_FLD_READ]])
 
     def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
@@ -757,10 +761,10 @@ class ArangoSampleStorage:
             '''
         bind_vars = {'@col': self._col_sample.name,
                      'id': str(id_),
-                     'owner': acls.owner,
-                     'acls': {_FLD_ADMIN: acls.admin,
-                              _FLD_WRITE: acls.write,
-                              _FLD_READ: acls.read
+                     'owner': acls.owner.id,
+                     'acls': {_FLD_ADMIN: [u.id for u in acls.admin],
+                              _FLD_WRITE: [u.id for u in acls.write],
+                              _FLD_READ: [u.id for u in acls.read]
                               }
                      }
         try:

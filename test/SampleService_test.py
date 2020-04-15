@@ -19,6 +19,7 @@ from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
 from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
 from SampleService.core.errors import UnauthorizedError, NoSuchUserError
+from SampleService.core.user import UserID
 
 from installed_clients.WorkspaceClient import Workspace as Workspace
 
@@ -1389,19 +1390,20 @@ def _user_lookup_build_fail(url, token, expected):
 def test_user_lookup(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode', TOKEN1)
     assert ul.are_valid_users([]) == []
-    assert ul.are_valid_users([USER1, USER2, USER3]) == []
+    assert ul.are_valid_users([UserID(USER1), UserID(USER2), UserID(USER3)]) == []
 
 
 def test_user_lookup_bad_users(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
     assert ul.are_valid_users(
-        ['nouserhere', USER1, USER2, 'whooptydoo', USER3]) == ['nouserhere', 'whooptydoo']
+        [UserID('nouserhere'), UserID(USER1), UserID(USER2), UserID('whooptydoo'),
+         UserID(USER3)]) == [UserID('nouserhere'), UserID('whooptydoo')]
 
 
 def test_user_lookup_fail_bad_args(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
     _user_lookup_fail(ul, None, ValueError('usernames cannot be None'))
-    _user_lookup_fail(ul, ['foo', 'bar', ''], ValueError(
+    _user_lookup_fail(ul, [UserID('foo'), UserID('bar'), None], ValueError(
         'Index 2 of iterable usernames cannot be a value that evaluates to false'))
 
 
@@ -1409,7 +1411,7 @@ def test_user_lookup_fail_bad_username(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
     # maybe possibly this error should be shortened
     # definitely clear the user name is illegal though, there's no question about that
-    _user_lookup_fail(ul, ['1'], InvalidUserError(
+    _user_lookup_fail(ul, [UserID('1')], InvalidUserError(
         'The KBase auth server is being very assertive about one of the usernames being ' +
         'illegal: 30010 Illegal user name: Illegal user name [1]: 30010 Illegal user name: ' +
         'Username must start with a letter'))

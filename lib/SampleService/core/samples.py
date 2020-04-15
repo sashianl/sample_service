@@ -116,7 +116,8 @@ class Samples:
             return
         if not acls:
             acls = self._storage.get_sample_acls(id_)
-        if self._get_access_level(acls, user) < access:
+        level = self._get_access_level(acls, user)
+        if level < access:
             errmsg = f'User {user} {self._unauth_errmap[access]} sample {id_}'
             raise _UnauthorizedError(errmsg)
 
@@ -126,14 +127,13 @@ class Samples:
                       _SampleAccessType.READ: 'cannot read'}
 
     def _get_access_level(self, acls: SampleACL, user: UserID):
-        u = user.id
-        if u == acls.owner:
+        if user == acls.owner:
             return _SampleAccessType.OWNER
-        if u in acls.admin:
+        if user in acls.admin:
             return _SampleAccessType.ADMIN
-        if u in acls.write:
+        if user in acls.write:
             return _SampleAccessType.WRITE
-        if u in acls.read:
+        if user in acls.read:
             return _SampleAccessType.READ
         return _SampleAccessType.NONE
 
@@ -203,7 +203,7 @@ class Samples:
         _not_falsy(new_acls, 'new_acls')
         try:
             bad_users = self._user_lookup.are_valid_users(
-                _cast(List[str], []) + list(new_acls.admin) +
+                _cast(List[UserID], []) + list(new_acls.admin) +
                 list(new_acls.write) + list(new_acls.read))
             # let authentication errors propagate, not much to do
             # could add retries to the client
@@ -212,7 +212,7 @@ class Samples:
         except _user_lookup_mod.InvalidTokenError:
             raise ValueError('user lookup token for KBase auth server is invalid, cannot continue')
         if bad_users:
-            raise _NoSuchUserError(', '.join(bad_users[:5]))
+            raise _NoSuchUserError(', '.join([u.id for u in bad_users[:5]]))
 
         count = 0
         while count >= 0:
