@@ -124,6 +124,76 @@ def _init_fail(lid, duid, sna, cr, cru, ex, eu, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_is_equivalent_link():
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    _is_equivalent(
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
+        True
+    )
+
+    _is_equivalent(
+        DataUnitID(UPA('2/6/4'), 'wheo'),
+        SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
+        False
+    )
+
+    _is_equivalent(
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 8), 'bar'),
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 7), 'bar'),
+        False
+    )
+
+
+def _is_equivalent(duid1, sna1, duid2, sna2, expected):
+    dl1 = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdee'),
+        duid1,
+        sna1,
+        dt(400),
+        UserID('myuserᚥnameisHank'),
+        dt(400),
+        UserID('yay')
+    )
+
+    dl2 = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdef'),
+        duid2,
+        sna2,
+        dt(500),
+        UserID('waaaahrrgg'),
+        dt(8900),
+        UserID('go faster stripes')
+    )
+
+    assert dl1.is_equivalent(dl2) is expected
+    assert dl2.is_equivalent(dl1) is expected
+
+
+def test_is_equivalent_fail():
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    dl1 = DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/6/4'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid, 8), 'bar'),
+        dt(400),
+        UserID('myuserᚥnameisHank'),
+        dt(400),
+        UserID('yay')
+    )
+    with raises(Exception) as got:
+        dl1.is_equivalent(None)
+    assert_exception_correct(got.value, ValueError(
+        'link cannot be a value that evaluates to false'))
+
+
 def test_equals():
     lid1 = uuid.UUID('1234567890abcdef1234567890abcdee')
     lid1a = uuid.UUID('1234567890abcdef1234567890abcdee')
