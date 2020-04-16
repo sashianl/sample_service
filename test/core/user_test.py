@@ -12,10 +12,10 @@ def test_init():
     assert u.id == 'foo'
     assert str(u) == 'foo'
 
-    u = UserID('u')
+    u = UserID('u' * 256)
 
-    assert u.id == 'u'
-    assert str(u) == 'u'
+    assert u.id == 'u' * 256
+    assert str(u) == 'u' * 256
 
     u = UserID('u⎇a')
 
@@ -27,6 +27,7 @@ def test_init_fail():
     _init_fail(None, MissingParameterError('userid'))
     _init_fail('   \t    ', MissingParameterError('userid'))
     _init_fail('foo \t bar', IllegalParameterError('userid contains control characters'))
+    _init_fail('u' * 257, IllegalParameterError('userid exceeds maximum length of 256'))
 
 
 def _init_fail(u, expected):

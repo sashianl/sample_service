@@ -1845,7 +1845,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         dt(0.00056211),
         UserID('usera'),
         dt(expired),
-        UserID('user')  # TODO NOW max len for user 256 should be plenty
+        UserID('user')
         )
 
     assert samplestorage._col_data_link.count() == 1

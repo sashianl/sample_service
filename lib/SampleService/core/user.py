@@ -17,9 +17,9 @@ class UserID:
         '''
         Create the user id.
 
-        :param id: the user's id.
+        :param id: the user's id, a maximum of 256 unicode characters.
         '''
-        self.id = _check_string(userid, 'userid')
+        self.id = _check_string(userid, 'userid', max_len=256)
 
     def __str__(self):
         return self.id
