@@ -34,8 +34,8 @@ class DataLink:
             sample_node_address: SampleNodeAddress,
             created: datetime.datetime,
             created_by: UserID,
-            expired: datetime.datetime = None):
-        # expired_by: str = None):  # TODO DATALINK NOW add expired by
+            expired: datetime.datetime = None,
+            expired_by: UserID = None):
         '''
         Create the link. If expired is provided expired_by must also be provided. If expired
         is falsy expired_by is ignored.
@@ -59,7 +59,7 @@ class DataLink:
             self.expired = _check_timestamp(expired, 'expired')
             if expired < created:
                 raise ValueError('link cannot expire before it is created')
-            # self.expired_by = _check_string(expired_by, 'expired_by')
+            self.expired_by = _not_falsy(expired_by, 'expired_by')
 
     def __str__(self):
         return (f'id={self.id} ' +
@@ -67,8 +67,8 @@ class DataLink:
                 f'sample_node_address=[{self.sample_node_address}] ' +
                 f'created={self.created.timestamp()} ' +
                 f'created_by={self.created_by} ' +
-                f'expired={self.expired.timestamp() if self.expired else None}')
-        # f'expired_by={self.expired_by}')
+                f'expired={self.expired.timestamp() if self.expired else None} ' +
+                f'expired_by={self.expired_by}')
 
     def __eq__(self, other):
         if type(self) == type(other):

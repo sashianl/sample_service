@@ -96,7 +96,7 @@ from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinks
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
-from SampleService.core.user import UserID as _UserID
+from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA as _UPA
 
 _FLD_ARANGO_KEY = '_key'
@@ -144,6 +144,7 @@ _FLD_LINK_SAMPLE_NODE = 'node'
 _FLD_LINK_CREATED = 'created'
 _FLD_LINK_CREATED_BY = 'createby'
 _FLD_LINK_EXPIRED = 'expired'
+_FLD_LINK_EXPIRED_BY = 'expireby'
 
 # see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
 _ARANGO_MAX_INTEGER = 2**53 - 1
@@ -623,7 +624,7 @@ class ArangoSampleStorage:
         dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
 
         return SavedSample(
-            UUID(doc[_FLD_ID]), _UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
+            UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, dict, int]:
@@ -727,10 +728,10 @@ class ArangoSampleStorage:
         doc = _cast(dict, self._get_sample_doc(id_))
         acls = doc[_FLD_ACLS]
         return SampleACL(
-            _UserID(acls[_FLD_OWNER]),
-            [_UserID(u) for u in acls[_FLD_ADMIN]],
-            [_UserID(u) for u in acls[_FLD_WRITE]],
-            [_UserID(u) for u in acls[_FLD_READ]])
+            UserID(acls[_FLD_OWNER]),
+            [UserID(u) for u in acls[_FLD_ADMIN]],
+            [UserID(u) for u in acls[_FLD_WRITE]],
+            [UserID(u) for u in acls[_FLD_READ]])
 
     def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
@@ -810,7 +811,6 @@ class ArangoSampleStorage:
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
-        # TODO DATALINK record user
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -977,14 +977,14 @@ class ArangoSampleStorage:
         nodeid = self._get_node_id(sna.sampleid, samplever, sna.node)
         # see https://github.com/kbase/relation_engine_spec/blob/4a9dc6df2088763a9df88f0b018fa5c64f2935aa/schemas/ws/ws_object_version.yaml#L17  # noqa
         from_ = f'{self._col_ws.name}/{upa.wsid}:{upa.objid}:{upa.version}'
-        ex = link.expired
         return {
             _FLD_ARANGO_KEY: self._create_link_key(link),
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
             _FLD_LINK_CREATED: link.created.timestamp(),
             _FLD_LINK_CREATED_BY: link.created_by.id,
-            _FLD_LINK_EXPIRED: ex.timestamp() if ex else _ARANGO_MAX_INTEGER,
+            _FLD_LINK_EXPIRED: link.expired.timestamp() if link.expired else _ARANGO_MAX_INTEGER,
+            _FLD_LINK_EXPIRED_BY: link.expired_by.id if link.expired_by else None,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
             _FLD_LINK_OBJECT_ID: upa.objid,
@@ -1015,6 +1015,7 @@ class ArangoSampleStorage:
     def expire_data_link(
             self,
             expired: datetime.datetime,
+            expired_by: UserID,
             id_: UUID = None,
             duid: DataUnitID = None) -> DataLink:
         '''
@@ -1031,6 +1032,7 @@ class ArangoSampleStorage:
         '''
         # See notes for creating links re the transaction approach.
         _check_timestamp(expired, 'expired')
+        _not_falsy(expired_by, 'expired_by')
         if not bool(id_) ^ bool(duid):  # xor:
             raise ValueError('exactly one of id_ or duid must be provided')
         if id_:
@@ -1048,15 +1050,16 @@ class ArangoSampleStorage:
         if expired.timestamp() < linkdoc[_FLD_LINK_CREATED]:
             raise ValueError(f'expired is < link created time: {linkdoc[_FLD_LINK_CREATED]}')
 
-        return self._expire_data_link_pt2(linkdoc, expired, txtid)
+        return self._expire_data_link_pt2(linkdoc, expired, expired_by, txtid)
 
     # this split is here in order to test the race condition where a link is expired after the
     # check above.
-    def _expire_data_link_pt2(self, linkdoc, expired, txtid) -> DataLink:
+    def _expire_data_link_pt2(self, linkdoc, expired, expired_by, txtid) -> DataLink:
 
         oldkey = self._create_link_key_from_link_doc(linkdoc)
 
         linkdoc[_FLD_LINK_EXPIRED] = expired.timestamp()
+        linkdoc[_FLD_LINK_EXPIRED_BY] = expired_by.id
         linkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(linkdoc)
 
         # There appears to be no way to transactionally update a document's _key.
@@ -1074,7 +1077,6 @@ class ArangoSampleStorage:
         try:
             # makes a collection specifically for this transaction
             tdlc = tdb.collection(self._col_data_link.name)
-            # TODO DATALINK record user that expired link
             try:
                 tdlc.insert(linkdoc, silent=True)
             except _arango.exceptions.DocumentInsertError as e:
@@ -1130,8 +1132,9 @@ class ArangoSampleStorage:
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
             self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
-            _UserID(doc[_FLD_LINK_CREATED_BY]),
-            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex)
+            UserID(doc[_FLD_LINK_CREATED_BY]),
+            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex),
+            UserID(doc[_FLD_LINK_EXPIRED_BY]) if doc[_FLD_LINK_EXPIRED_BY] else None
         )
 
 
