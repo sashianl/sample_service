@@ -40,6 +40,7 @@ class DataLink:
         Create the link. If expired is provided expired_by must also be provided. If expired
         is falsy expired_by is ignored.
 
+        :param id: the link ID. This is generally expected to be unique per link.
         :param duid: the data ID.
         :param sample_node_address: the sample node address.
         :param created: the creation time for the link.
@@ -60,6 +61,17 @@ class DataLink:
             if expired < created:
                 raise ValueError('link cannot expire before it is created')
             self.expired_by = _not_falsy(expired_by, 'expired_by')
+
+    def is_equivalent(self, link: DataLink):
+        '''
+        Check whether this link is equivalent to another link. Equivalent means that the
+        DUID and sample node address are identical.
+
+        :param link: The link to check.
+        :returns: True if the links are equivalent, False otherwise.
+        '''
+        _not_falsy(link, 'link')
+        return (self.duid, self.sample_node_address) == (link.duid, link.sample_node_address)
 
     def __str__(self):
         return (f'id={self.id} ' +
