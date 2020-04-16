@@ -1163,7 +1163,8 @@ def test_create_and_get_data_link(samplestorage):
         'node': 'mynode1',
         'created': 500,
         'createby': 'usera',
-        'expired': 9007199254740991
+        'expired': 9007199254740991,
+        'expireby': None
     }
 
     link2 = samplestorage._col_data_link.get('42_42_42_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1184,7 +1185,8 @@ def test_create_and_get_data_link(samplestorage):
         'node': 'mynode',
         'created': 600,
         'createby': 'userb',
-        'expired': 9007199254740991
+        'expired': 9007199254740991,
+        'expireby': None
     }
 
     link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
@@ -1205,7 +1207,8 @@ def test_create_and_get_data_link(samplestorage):
         'node': 'mynode2',
         'created': 700,
         'createby': 'u',
-        'expired': 9007199254740991
+        'expired': 9007199254740991,
+        'expireby': None
     }
 
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1226,7 +1229,8 @@ def test_create_and_get_data_link(samplestorage):
         'node': 'mynode',
         'created': 800,
         'createby': 'userd',
-        'expired': 9007199254740991
+        'expired': 9007199254740991,
+        'expireby': None
     }
 
     # test get method
@@ -1336,7 +1340,8 @@ def test_create_data_link_fail_expired(samplestorage):
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(-100),
             UserID('user'),
-            dt(0)),
+            dt(0),
+            UserID('user')),
         ValueError('link cannot be expired')
         )
 
@@ -1523,7 +1528,8 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(100),
             UserID('user')),
-        dt(299)
+        dt(299),
+        UserID('user')
     )
 
     # expire matches create
@@ -1535,7 +1541,8 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
             dt(100),
             UserID('user')),
-        dt(300)
+        dt(300),
+        UserID('user')
     )
 
     # overlaps create
@@ -1547,7 +1554,8 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(250),
             UserID('user')),
-        dt(350)
+        dt(350),
+        UserID('user')
     )
 
     # contained inside
@@ -1559,7 +1567,8 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             SampleNodeAddress(SampleAddress(id1, 2), 'mynode'),
             dt(325),
             UserID('user')),
-        dt(375)
+        dt(375),
+        UserID('user')
     )
 
     _create_data_link_fail(
@@ -1591,7 +1600,8 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(100),
             UserID('user')),
-        dt(299)
+        dt(299),
+        UserID('user')
     )
 
     # expire matches create
@@ -1603,7 +1613,8 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(100),
             UserID('user')),
-        dt(300)
+        dt(300),
+        UserID('user')
     )
 
     # overlaps create
@@ -1615,7 +1626,8 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(250),
             UserID('user')),
-        dt(350)
+        dt(350),
+        UserID('user')
     )
 
     # contained inside
@@ -1627,7 +1639,8 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(325),
             UserID('user')),
-        dt(375)
+        dt(375),
+        UserID('user')
     )
 
     _create_data_link_fail(
@@ -1643,9 +1656,9 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
         )
 
 
-def _create_and_expire_data_link(samplestorage, link, expired):
+def _create_and_expire_data_link(samplestorage, link, expired, user):
     samplestorage.create_data_link(link)
-    samplestorage.expire_data_link(expired, link.id)
+    samplestorage.expire_data_link(expired, user, link.id)
 
 
 def _samplestorage_with_max_links(samplestorage, max_links):
@@ -1754,13 +1767,14 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
     nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
 
     assert samplestorage.expire_data_link(
-        dt(expired), duid=DataUnitID(UPA('1/1/1'), dataid)) == DataLink(
+        dt(expired), UserID('yay'), duid=DataUnitID(UPA('1/1/1'), dataid)) == DataLink(
             lid,
             DataUnitID(UPA('1/1/1'), dataid),
             SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
             dt(-100),
             UserID('userb'),
-            dt(expired)
+            dt(expired),
+            UserID('yay')
             )
 
     assert samplestorage._col_data_link.count() == 1
@@ -1783,7 +1797,8 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         'node': 'mynode',
         'created': -100,
         'createby': 'userb',
-        'expired': expired
+        'expired': expired,
+        'expireby': 'yay'
     }
 
     assert samplestorage.get_data_link(lid) == DataLink(
@@ -1792,7 +1807,8 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(-100),
         UserID('userb'),
-        dt(expired)
+        dt(expired),
+        UserID('yay')
     )
 
 
@@ -1822,18 +1838,17 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
     verdoc1 = samplestorage._col_version.find({'id': str(sid), 'ver': 1}).next()
     nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
 
-    assert samplestorage.expire_data_link(dt(expired), id_=lid) == DataLink(
+    assert samplestorage.expire_data_link(dt(expired), UserID('user'), id_=lid) == DataLink(
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(0.00056211),
         UserID('usera'),
-        dt(expired)
+        dt(expired),
+        UserID('user')  # TODO NOW max len for user 256 should be plenty
         )
 
     assert samplestorage._col_data_link.count() == 1
-
-    print(samplestorage._col_data_link.find({}).next())
 
     link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}0.000562')
     assert link == {
@@ -1853,7 +1868,8 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         'node': 'mynode',
         'created': 0.000562,
         'createby': 'usera',
-        'expired': expired
+        'expired': expired,
+        'expireby': 'user'
     }
 
     link = samplestorage.get_data_link(lid)
@@ -1863,7 +1879,8 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(0.000562),
         UserID('usera'),
-        dt(expired)
+        dt(expired),
+        UserID('user')
     )
     assert link == expected
 
@@ -1874,12 +1891,16 @@ def test_expire_data_link_fail_bad_args(samplestorage):
     i = uuid.uuid4()
     d = DataUnitID('1/1/1')
     eb = datetime.datetime.fromtimestamp(400)
+    u = UserID('u')
 
-    _expire_data_link_fail(ss, None, i, None, ValueError(
+    _expire_data_link_fail(ss, None, u, i, None, ValueError(
         'expired cannot be a value that evaluates to false'))
-    _expire_data_link_fail(ss, eb, None, d, ValueError('expired cannot be a naive datetime'))
-    _expire_data_link_fail(ss, e, i, d, ValueError('exactly one of id_ or duid must be provided'))
-    _expire_data_link_fail(ss, e, None, None, ValueError(
+    _expire_data_link_fail(ss, eb, u, None, d, ValueError('expired cannot be a naive datetime'))
+    _expire_data_link_fail(ss, e, None, None, d, ValueError(
+        'expired_by cannot be a value that evaluates to false'))
+    _expire_data_link_fail(ss, e, u, i, d, ValueError(
+        'exactly one of id_ or duid must be provided'))
+    _expire_data_link_fail(ss, e, u, None, None, ValueError(
         'exactly one of id_ or duid must be provided'))
 
 
@@ -1898,7 +1919,7 @@ def test_expire_data_link_fail_no_id(samplestorage):
     )
 
     _expire_data_link_fail(
-        samplestorage, dt(1), uuid.UUID('1234567890abcdef1234567890abcde2'), None,
+        samplestorage, dt(1), UserID('u'), uuid.UUID('1234567890abcdef1234567890abcde2'), None,
         NoSuchLinkError('12345678-90ab-cdef-1234-567890abcde2'))
 
 
@@ -1916,10 +1937,10 @@ def test_expire_data_link_fail_with_id_expired(samplestorage):
         UserID('user'))
     )
 
-    samplestorage.expire_data_link(dt(0), lid)
+    samplestorage.expire_data_link(dt(0), UserID('u'), lid)
 
     _expire_data_link_fail(
-        samplestorage, dt(1), lid, None,
+        samplestorage, dt(1), UserID('u'), lid, None,
         NoSuchLinkError('12345678-90ab-cdef-1234-567890abcde1'))
 
 
@@ -1937,7 +1958,7 @@ def test_expire_data_link_fail_with_id_too_many_links(samplestorage):
         UserID('usera'))
     )
 
-    samplestorage.expire_data_link(dt(-50), lid)
+    samplestorage.expire_data_link(dt(-50), UserID('u'), lid)
 
     samplestorage.create_data_link(DataLink(
         lid,
@@ -1947,7 +1968,7 @@ def test_expire_data_link_fail_with_id_too_many_links(samplestorage):
         UserID('usera'))
     )
 
-    _expire_data_link_fail(samplestorage, dt(1), lid, None, SampleStorageError(
+    _expire_data_link_fail(samplestorage, dt(1), UserID('u'), lid, None, SampleStorageError(
         'More than one data link found for ID 12345678-90ab-cdef-1234-567890abcde1'))
 
 
@@ -1974,11 +1995,11 @@ def test_expire_data_link_fail_no_duid(samplestorage):
     )
 
     _expire_data_link_fail(
-        samplestorage, dt(1), None, DataUnitID(UPA('1/2/1')),
+        samplestorage, dt(1), UserID('u'), None, DataUnitID(UPA('1/2/1')),
         NoSuchLinkError('1/2/1'))
 
     _expire_data_link_fail(
-        samplestorage, dt(1), None, DataUnitID(UPA('1/1/2'), 'fo'),
+        samplestorage, dt(1), UserID('u'), None, DataUnitID(UPA('1/1/2'), 'fo'),
         NoSuchLinkError('1/1/2:fo'))
 
 
@@ -1996,7 +2017,7 @@ def test_expire_data_link_fail_expire_before_create_by_id(samplestorage):
         UserID('someuser'))
     )
 
-    _expire_data_link_fail(samplestorage, dt(99), lid1, None, ValueError(
+    _expire_data_link_fail(samplestorage, dt(99), UserID('u'), lid1, None, ValueError(
         'expired is < link created time: 100'))
 
 
@@ -2025,14 +2046,14 @@ def test_expire_data_link_fail_race_condition(samplestorage):
 
     # Now we simulate a race condition by expiring that link and calling part 2 of the expire
     # method. Part 2 should fail without modifying the links collection.
-    samplestorage.expire_data_link(dt(200), lid1)
+    samplestorage.expire_data_link(dt(200), UserID('foo'), lid1)
 
     with raises(Exception) as got:
-        samplestorage._expire_data_link_pt2(linkdoc, dt(300), 'some id')
+        samplestorage._expire_data_link_pt2(linkdoc, dt(300), UserID('foo'), 'some id')
     assert_exception_correct(got.value, NoSuchLinkError('some id'))
 
 
-def _expire_data_link_fail(samplestorage, expire, id_, duid, expected):
+def _expire_data_link_fail(samplestorage, expire, user, id_, duid, expected):
     with raises(Exception) as got:
-        samplestorage.expire_data_link(expire, id_, duid)
+        samplestorage.expire_data_link(expire, user, id_, duid)
     assert_exception_correct(got.value, expected)
