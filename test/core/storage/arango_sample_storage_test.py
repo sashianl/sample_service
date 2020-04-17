@@ -2594,3 +2594,260 @@ def _expire_data_link_fail(samplestorage, expire, user, id_, duid, expected):
     with raises(Exception) as got:
         samplestorage.expire_data_link(expire, user, id_, duid)
     assert_exception_correct(got.value, expected)
+
+
+def test_get_links_from_sample(samplestorage):
+    sid1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    sid2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert samplestorage.save_sample(SavedSample(
+        sid1, UserID('user'), [SampleNode('mynode'), SampleNode('XmynodeX')], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(sid1, UserID('user'), [SampleNode('mynode1')], dt(2), 'foo')) == 2
+    assert samplestorage.save_sample(
+        SavedSample(sid2, UserID('user'), [SampleNode('mynode2')], dt(3), 'foo')) is True
+
+    # shouldn't be found, different sample
+    l1 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid2, 1), 'mynode2'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l1)
+
+    # shouldn't be found, different version
+    l2 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/2')),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l2)
+
+    # shouldn't be found, expired
+    l3id = uuid.uuid4()
+    _create_and_expire_data_link(
+        samplestorage,
+        DataLink(
+            l3id,
+            DataUnitID(UPA('1/1/3')),
+            SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+            dt(-100),
+            UserID('usera')),
+        dt(100),
+        UserID('userb')
+    )
+    l3 = DataLink(
+        l3id,
+        DataUnitID(UPA('1/1/3')),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(-100),
+        UserID('usera'),
+        dt(100),
+        UserID('userb'))
+
+    # shouldn't be found, not created yet
+    l4 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/4')),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(1000),
+        UserID('usera'))
+    samplestorage.create_data_link(l4)
+
+    # shouldn't be found, not in ws list
+    l5 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('10/1/1')),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l5)
+
+    l6 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/5')),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l6)
+
+    l7 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/2'), 'whee'),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'XmynodeX'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l7)
+
+    l8id = uuid.uuid4()
+    _create_and_expire_data_link(
+        samplestorage,
+        DataLink(
+            l8id,
+            DataUnitID(UPA('2/1/6'),),
+            SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+            dt(-100),
+            UserID('usera')),
+        dt(800),
+        UserID('usera')
+    )
+    l8 = DataLink(
+        l8id,
+        DataUnitID(UPA('2/1/6'),),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(-100),
+        UserID('usera'),
+        dt(800),
+        UserID('usera'))
+
+    # test lower bound for expired
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(100.001)
+    )
+    assert set(got) == {l6, l7, l8}  # order is undefined
+
+    # test lower expired
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(100)
+    )
+    assert set(got) == {l6, l7, l8, l3}  # order is undefined
+
+    # test upper bound for expired
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(800)
+    )
+    assert set(got) == {l6, l7, l8}  # order is undefined
+
+    # test upper expired
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(800.001)
+    )
+    assert set(got) == {l6, l7}  # order is undefined
+
+    # test lower bound for created
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(999.999)
+    )
+    assert set(got) == {l6, l7}  # order is undefined
+
+    # test created
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(1000)
+    )
+    assert set(got) == {l6, l7, l4}  # order is undefined
+
+    # test limiting workspace ids
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1],
+        dt(500)
+    )
+    assert set(got) == {l6, l7}  # order is undefined
+
+    # test limiting workspace ids
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1],
+        dt(500)
+    )
+    assert set(got) == {l6, l7}  # order is undefined
+
+    # no results, no matching wsids
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [4, 5, 6],
+        dt(500)
+    )
+    assert got == []
+
+    # no results, no wsids
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [],
+        dt(500)
+    )
+    assert got == []
+
+    # no results, prior to expired
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        [1, 2, 3],
+        dt(-100.001)
+    )
+    assert got == []
+
+    # test different sample
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid2, 1),
+        [1, 2, 3],
+        dt(500)
+    )
+    assert got == [l1]
+
+    # test different sample version
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 2),
+        [1, 2, 3],
+        dt(500)
+    )
+    assert got == [l2]
+
+
+def test_get_links_from_sample_fail_bad_args(samplestorage):
+    ss = samplestorage
+    sa = SampleAddress(uuid.uuid4(), 1)
+    ws = [1]
+    ts = dt(1)
+    tb = datetime.datetime.fromtimestamp(1)
+
+    _get_links_from_sample_fail(ss, None, ws, ts, ValueError(
+        'sample cannot be a value that evaluates to false'))
+    _get_links_from_sample_fail(ss, sa, None, ts, ValueError(
+        'readable_wsids cannot be None'))
+    _get_links_from_sample_fail(ss, sa, None, ts, ValueError(
+        'readable_wsids cannot be None'))
+    _get_links_from_sample_fail(ss, sa, [1, None], ts, ValueError(
+        'Index 1 of iterable readable_wsids cannot be a value that evaluates to false'))
+    _get_links_from_sample_fail(ss, sa, ws, None, ValueError(
+        'timestamp cannot be a value that evaluates to false'))
+    _get_links_from_sample_fail(ss, sa, ws, tb, ValueError(
+        'timestamp cannot be a naive datetime'))
+
+
+def test_get_links_from_sample_fail_no_sample(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert samplestorage.save_sample(
+        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    _get_links_from_sample_fail(
+        samplestorage, SampleAddress(id2, 1), [1], dt(1), NoSuchSampleError(str(id2)))
+
+
+def test_get_links_from_sample_fail_no_sample_version(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    _get_links_from_sample_fail(
+        samplestorage, SampleAddress(id1, 2), [1], dt(1), NoSuchSampleVersionError(f'{id1} ver 2'))
+
+
+def _get_links_from_sample_fail(
+        samplestorage, sample_address, wsids, timestamp, expected):
+    with raises(Exception) as got:
+        samplestorage.get_links_from_sample(sample_address, wsids, timestamp)
+    assert_exception_correct(got.value, expected)
