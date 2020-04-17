@@ -875,28 +875,14 @@ class ArangoSampleStorage:
                 # ws object. Not true for the sample, which could be different.
                 oldsna = oldlink.sample_node_address
                 if sna.sampleid != oldsna.sampleid or sna.version != oldsna.version:
-                    print('checking ver links')
                     # it doesn't matter if only the node is different since the traversal from
                     # sample -> workspace objects starts at a version, so the count/version
                     # of extant links won't change
                     # Could support starting at a node later
-                    # TODO NOW fix code duplication and reduce arg lists
-                    if self._count_links_from_sample_ver(
-                            tdb, samplever, link.created, link.expired) >= self._max_links:
-                        raise _TooManyDataLinksError(
-                            f'More than {self._max_links} links from sample {sna.sampleid} ' +
-                            f'version {sna.version}')
-
+                    self._check_link_count_from_sample_ver(tdb, samplever, link)
             else:
-                if self._count_links_from_ws_object(
-                        tdb, link.duid.upa, link.created, link.expired) >= self._max_links:
-                    raise _TooManyDataLinksError(
-                        f'More than {self._max_links} links from workspace object {link.duid.upa}')
-                if self._count_links_from_sample_ver(
-                        tdb, samplever, link.created, link.expired) >= self._max_links:
-                    raise _TooManyDataLinksError(
-                        f'More than {self._max_links} links from sample {sna.sampleid} ' +
-                        f'version {sna.version}')
+                self._check_link_count_from_ws_object(tdb, link)
+                self._check_link_count_from_sample_ver(tdb, samplever, link)
 
             if oldlinkdoc:
                 self._insert(tdlc, oldlinkdoc)
@@ -924,6 +910,12 @@ class ArangoSampleStorage:
                 # connection is hosed
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
+    def _check_link_count_from_ws_object(self, db, link: DataLink):
+        if self._count_links_from_ws_object(
+                db, link.duid.upa, link.created, link.expired) >= self._max_links:
+            raise _TooManyDataLinksError(
+                f'More than {self._max_links} links from workspace object {link.duid.upa}')
+
     def _count_links_from_ws_object(
             self,
             db,
@@ -940,6 +932,14 @@ class ArangoSampleStorage:
             created,
             expired)
         return wsc
+
+    def _check_link_count_from_sample_ver(self, db, samplever: UUID, link: DataLink):
+        if self._count_links_from_sample_ver(
+                db, samplever, link.created, link.expired) >= self._max_links:
+            sna = link.sample_node_address
+            raise _TooManyDataLinksError(
+                f'More than {self._max_links} links from sample {sna.sampleid} ' +
+                f'version {sna.version}')
 
     def _count_links_from_sample_ver(
             self,
