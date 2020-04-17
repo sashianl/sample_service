@@ -54,3 +54,7 @@ samples stored in the KBase Sample Service.
   saves.
 * The data will continue to be linked to the sample on a copy.
 * A new version of data must be saved to add or update links.
+
+## Decision
+
+On 2020/1/28, the decision was made to go with option 1 by the KBase APS Samples group.
