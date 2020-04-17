@@ -508,9 +508,9 @@ class ArangoSampleStorage:
             ret[m[_FLD_NODE_META_OUTER_KEY]][m[_FLD_NODE_META_KEY]] = m[_FLD_NODE_META_VALUE]
         return dict(ret)  # some libs don't play nice with default dict, in particular maps
 
-    def _insert(self, col, doc):
+    def _insert(self, col, doc, upsert=False):
         try:
-            col.insert(doc, silent=True)
+            col.insert(doc, silent=True, overwrite=upsert)
         except _arango.exceptions.DocumentInsertError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
@@ -522,7 +522,7 @@ class ArangoSampleStorage:
 
     def _update(self, col, doc):
         try:
-            col.update(doc, silent=True)
+            col.update(doc, silent=True, keep_none=True)
         except _arango.exceptions.DocumentUpdateError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
@@ -779,7 +779,7 @@ class ArangoSampleStorage:
 
     # TODO change acls with more granularity
 
-    def create_data_link(self, link: DataLink):
+    def create_data_link(self, link: DataLink, update: bool = False):
         '''
         Link data in the workspace to a sample.
         Each data unit can be linked to only one sample at a time. Expired links may exist to
@@ -793,10 +793,12 @@ class ArangoSampleStorage:
         data or sample node exists.
 
         It is expected that the creation time provided in the link is later than the expire time
-        (and usually simply the current time) of any other links for the data unit ID. This is not
-        enforced.
+        (and usually it's simply the current time) of any other links for the data unit ID.
+        This is not enforced.
 
         :param link: the link to save, which cannot be expired.
+        :param update: if the link from the object already exists and is linked to a different
+            sample, update the link. If it is linked to the same sample take no action.
 
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -806,7 +808,6 @@ class ArangoSampleStorage:
         '''
         # TODO DATALINK behavior for deleted objects?
         # TODO DATALINK notes re listing expired links - not scalable
-        # TODO DATALINK update link
         # TODO DATALINK list samples linked to ws object
         # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
@@ -828,6 +829,7 @@ class ArangoSampleStorage:
         # 256 characters and may contain illegal characters, it is MD5'd. See
         # https://www.arangodb.com/docs/stable/data-modeling-naming-conventions-document-keys.html
 
+        # TODO CODE this method is too long, try to split up
         _not_falsy(link, 'link')
         if link.expired:
             raise ValueError('link cannot be expired')
@@ -848,21 +850,58 @@ class ArangoSampleStorage:
         try:
             # makes a collection specifically for this transaction
             tdlc = tdb.collection(self._col_data_link.name)
-            if self._has_doc(tdlc, self._create_link_key(link)):
-                raise _DataLinkExistsError(str(link.duid))
+            oldlinkdoc = self._get_doc(tdlc, self._create_link_key(link))
+            if oldlinkdoc:
+                if not update:
+                    raise _DataLinkExistsError(str(link.duid))
+                oldlink = self._doc_to_link(oldlinkdoc)
+                if link.is_equivalent(oldlink):
+                    self._abort_transaction(tdb)
+                    return  # I don't like having a return in the middle of the method, but
+                    # the alternative seems to be worse
 
-            if self._count_links_from_ws_object(
-                    tdb, link.duid.upa, link.created, link.expired) >= self._max_links:
-                raise _TooManyDataLinksError(
-                    f'More than {self._max_links} links from workpace object {link.duid.upa}')
-            if self._count_links_from_sample_ver(
-                    tdb, samplever, link.created, link.expired) >= self._max_links:
-                raise _TooManyDataLinksError(
-                    f'More than {self._max_links} links from sample {sna.sampleid} ' +
-                    f'version {sna.version}')
+                # See the notes in the expire method, many are relevant here.
+                # However, since this is an exclusive lock and at this point we know the old
+                # linkdoc exists, there's no need to check for key collisions on insert.
+                # The entire transaction may fail, but not the individual inserts.
+                oldlinkdoc[_FLD_LINK_EXPIRED_BY] = link.created_by.id
+                # I'm not a fan of this, but a millisecond gap seems safe and most systems
+                # should have millisecond resolution.
+                # Consider rounding to millisecond resolution for consistency? Make a class?
+                oldlinkdoc[_FLD_LINK_EXPIRED] = link.created.timestamp() - 0.001
+                oldlinkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(oldlinkdoc)
 
+                # since we're replacing a link we don't need to worry about counting links from
+                # ws object. Not true for the sample, which could be different.
+                oldsna = oldlink.sample_node_address
+                if sna.sampleid != oldsna.sampleid or sna.version != oldsna.version:
+                    print('checking ver links')
+                    # it doesn't matter if only the node is different since the traversal from
+                    # sample -> workspace objects starts at a version, so the count/version
+                    # of extant links won't change
+                    # Could support starting at a node later
+                    # TODO NOW fix code duplication and reduce arg lists
+                    if self._count_links_from_sample_ver(
+                            tdb, samplever, link.created, link.expired) >= self._max_links:
+                        raise _TooManyDataLinksError(
+                            f'More than {self._max_links} links from sample {sna.sampleid} ' +
+                            f'version {sna.version}')
+
+            else:
+                if self._count_links_from_ws_object(
+                        tdb, link.duid.upa, link.created, link.expired) >= self._max_links:
+                    raise _TooManyDataLinksError(
+                        f'More than {self._max_links} links from workspace object {link.duid.upa}')
+                if self._count_links_from_sample_ver(
+                        tdb, samplever, link.created, link.expired) >= self._max_links:
+                    raise _TooManyDataLinksError(
+                        f'More than {self._max_links} links from sample {sna.sampleid} ' +
+                        f'version {sna.version}')
+
+            if oldlinkdoc:
+                self._insert(tdlc, oldlinkdoc)
             ldoc = self._create_link_doc(link, samplever)
-            self._insert(tdlc, ldoc)
+            self._insert(tdlc, ldoc, upsert=bool(oldlinkdoc))
             # since transaction is exclusive write, conflicts can't happen
             # presumably any failures are unrecoverable...? conn / db down, etc
             self._commit_transaction(tdb)
@@ -884,13 +923,6 @@ class ArangoSampleStorage:
                 # this will mask the previous error, but if this fails probably the DB
                 # connection is hosed
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
-
-    def _has_doc(self, col, id_):
-        # may want exception thrown at some point?
-        try:
-            return col.has(id_)
-        except _arango.exceptions.DocumentInError as e:  # this is a pain to test
-            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _count_links_from_ws_object(
             self,

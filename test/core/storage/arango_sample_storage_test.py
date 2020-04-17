@@ -1236,47 +1236,452 @@ def test_create_and_get_data_link(samplestorage):
     # test get method
     dl1 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'))
     assert dl1 == DataLink(
-                    uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'),
-                    DataUnitID(UPA('5/89/32')),
-                    SampleNodeAddress(
-                        SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 2),
-                        'mynode1'),
-                    dt(500),
-                    UserID('usera')
-                    )
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 2),
+            'mynode1'),
+        dt(500),
+        UserID('usera')
+        )
 
     dl2 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'))
     assert dl2 == DataLink(
-                    uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'),
-                    DataUnitID(UPA('42/42/42'), 'dataunit1'),
-                    SampleNodeAddress(
-                        SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
-                        'mynode'),
-                    dt(600),
-                    UserID('userb')
-                    )
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'),
+        DataUnitID(UPA('42/42/42'), 'dataunit1'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
+            'mynode'),
+        dt(600),
+        UserID('userb')
+        )
 
     dl3 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'))
     assert dl3 == DataLink(
-                    uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'),
-                    DataUnitID(UPA('5/89/32'), 'dataunit2'),
-                    SampleNodeAddress(
-                        SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdee'), 1),
-                        'mynode2'),
-                    dt(700),
-                    UserID('u')
-                    )
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'),
+        DataUnitID(UPA('5/89/32'), 'dataunit2'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdee'), 1),
+            'mynode2'),
+        dt(700),
+        UserID('u')
+        )
 
     dl4 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'))
     assert dl4 == DataLink(
-                    uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'),
-                    DataUnitID(UPA('5/89/32'), 'dataunit1'),
-                    SampleNodeAddress(
-                        SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
-                        'mynode'),
-                    dt(800),
-                    UserID('userd')
-                    )
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
+            'mynode'),
+        dt(800),
+        UserID('userd')
+        )
+
+
+def test_creaate_data_link_with_update_no_extant_link(samplestorage):
+    '''
+    Tests the case where an update is requested but is not necessary.
+    '''
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(SavedSample(
+        id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1')], dt(1), 'foo')) is True
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500),
+        UserID('usera')),
+        update=True
+    )
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde2'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
+        dt(550),
+        UserID('user')),
+        update=True
+    )
+
+    # this is naughty
+    verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
+    nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
+    nodedoc2 = samplestorage._col_nodes.find({'name': 'mynode1'}).next()
+
+    assert samplestorage._col_data_link.count() == 2
+
+    # check arango documents correct, particularly _* values
+    link1 = samplestorage._col_data_link.get('5_89_32')
+    assert link1 == {
+        '_key': '5_89_32',
+        '_id': 'data_link/5_89_32',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc1['_id'],
+        '_rev': link1['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde1',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': None,
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode',
+        'created': 500,
+        'createby': 'usera',
+        'expired': 9007199254740991,
+        'expireby': None
+    }
+
+    link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
+    assert link2 == {
+        '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc2['_id'],
+        '_rev': link2['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde2',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': 'dataunit1',
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode1',
+        'created': 550,
+        'createby': 'user',
+        'expired': 9007199254740991,
+        'expireby': None
+    }
+
+    # test get method
+    dl1 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'))
+    assert dl1 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
+            'mynode'),
+        dt(500),
+        UserID('usera')
+        )
+
+    dl2 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'))
+    assert dl2 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
+            'mynode1'),
+        dt(550),
+        UserID('user')
+        )
+
+
+def test_create_data_link_with_update_noop(samplestorage):
+    '''
+    Tests the case where a link update is requested but an equivalent link already exists.
+    '''
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(SavedSample(
+        id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1')], dt(1), 'foo')) is True
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500),
+        UserID('usera'))
+    )
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde2'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
+        dt(550),
+        UserID('user'))
+    )
+
+    # expect noop
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde3'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(600),
+        UserID('userb')),
+        update=True
+    )
+
+    # expect noop
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde4'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
+        dt(700),
+        UserID('userc')),
+        update=True
+    )
+
+    # this is naughty
+    verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
+    nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
+    nodedoc2 = samplestorage._col_nodes.find({'name': 'mynode1'}).next()
+
+    assert samplestorage._col_data_link.count() == 2
+
+    # check arango documents correct, particularly _* values
+    link1 = samplestorage._col_data_link.get('5_89_32')
+    assert link1 == {
+        '_key': '5_89_32',
+        '_id': 'data_link/5_89_32',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc1['_id'],
+        '_rev': link1['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde1',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': None,
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode',
+        'created': 500,
+        'createby': 'usera',
+        'expired': 9007199254740991,
+        'expireby': None
+    }
+
+    link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
+    assert link2 == {
+        '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc2['_id'],
+        '_rev': link2['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde2',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': 'dataunit1',
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode1',
+        'created': 550,
+        'createby': 'user',
+        'expired': 9007199254740991,
+        'expireby': None
+    }
+
+    # test get method
+    dl1 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'))
+    assert dl1 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
+            'mynode'),
+        dt(500),
+        UserID('usera')
+        )
+
+    dl2 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'))
+    assert dl2 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1),
+            'mynode1'),
+        dt(550),
+        UserID('user')
+        )
+
+
+def test_create_data_link_with_update(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(SavedSample(
+        id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1'), SampleNode('mynode2')],
+        dt(1), 'foo')) is True
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500),
+        UserID('usera'))
+    )
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde2'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
+        dt(550),
+        UserID('user'))
+    )
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde3'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),  # update the node
+        dt(600),
+        UserID('userb')),
+        update=True
+    )
+
+    samplestorage.create_data_link(DataLink(
+        uuid.UUID('1234567890abcdef1234567890abcde4'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),  # update the node
+        dt(700),
+        UserID('userc')),
+        update=True
+    )
+
+    # this is naughty
+    verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
+    nodedoc1 = samplestorage._col_nodes.find({'name': 'mynode'}).next()
+    nodedoc2 = samplestorage._col_nodes.find({'name': 'mynode1'}).next()
+    nodedoc3 = samplestorage._col_nodes.find({'name': 'mynode2'}).next()
+
+    assert samplestorage._col_data_link.count() == 4
+
+    # check arango documents correct, particularly _* values
+    link1 = samplestorage._col_data_link.get('5_89_32_500.0')
+    assert link1 == {
+        '_key': '5_89_32_500.0',
+        '_id': 'data_link/5_89_32_500.0',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc1['_id'],
+        '_rev': link1['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde1',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': None,
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode',
+        'created': 500,
+        'createby': 'usera',
+        'expired': 599.999,
+        'expireby': 'userb'
+    }
+
+    link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0')
+    assert link2 == {
+        '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0',
+        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc2['_id'],
+        '_rev': link2['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde2',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': 'dataunit1',
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode1',
+        'created': 550,
+        'createby': 'user',
+        'expired': 699.999,
+        'expireby': 'userc'
+    }
+
+    link3 = samplestorage._col_data_link.get('5_89_32')
+    assert link3 == {
+        '_key': '5_89_32',
+        '_id': 'data_link/5_89_32',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc2['_id'],
+        '_rev': link3['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde3',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': None,
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode1',
+        'created': 600,
+        'createby': 'userb',
+        'expired': 9007199254740991,
+        'expireby': None
+    }
+
+    link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
+    assert link4 == {
+        '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': 'ws_obj_ver/5:89:32',
+        '_to': nodedoc3['_id'],
+        '_rev': link4['_rev'],  # no need to test this
+        'id': '12345678-90ab-cdef-1234-567890abcde4',
+        'wsid': 5,
+        'objid': 89,
+        'objver': 32,
+        'dataid': 'dataunit1',
+        'sampleid': '12345678-90ab-cdef-1234-567890abcdef',
+        'samuuidver': verdoc1['uuidver'],
+        'samintver': 1,
+        'node': 'mynode2',
+        'created': 700,
+        'createby': 'userc',
+        'expired': 9007199254740991,
+        'expireby': None
+    }
+
+    # test get method
+    dl1 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'))
+    assert dl1 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1), 'mynode'),
+        dt(500),
+        UserID('usera'),
+        dt(599.999),
+        UserID('userb')
+        )
+
+    dl2 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'))
+    assert dl2 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1), 'mynode1'),
+        dt(550),
+        UserID('user'),
+        dt(699.999),
+        UserID('userc')
+        )
+
+    dl3 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'))
+    assert dl3 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'),
+        DataUnitID(UPA('5/89/32')),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1), 'mynode1'),
+        dt(600),
+        UserID('userb')
+        )
+
+    dl3 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'))
+    assert dl3 == DataLink(
+        uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'),
+        DataUnitID(UPA('5/89/32'), 'dataunit1'),
+        SampleNodeAddress(
+            SampleAddress(uuid.UUID('12345678-90ab-cdef-1234-567890abcdef'), 1), 'mynode2'),
+        dt(700),
+        UserID('userc'),
+        )
 
 
 def test_create_data_link_correct_missing_versions(samplestorage):
@@ -1469,7 +1874,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_basic(samplestorage):
             SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
             dt(1),
             UserID('user')),
-        TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
+        TooManyDataLinksError('More than 3 links from workspace object 1/1/1')
         )
 
 
@@ -1579,7 +1984,7 @@ def test_create_data_link_fail_too_many_links_from_ws_obj_time_travel(samplestor
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(300),
             UserID('user')),
-        TooManyDataLinksError('More than 3 links from workpace object 1/1/1')
+        TooManyDataLinksError('More than 3 links from workspace object 1/1/1')
         )
 
 
@@ -1656,6 +2061,138 @@ def test_create_data_link_fail_too_many_links_from_sample_ver_time_travel(sample
         )
 
 
+def test_create_data_link_update_links_from_ws_object_count_limit(samplestorage):
+    '''
+    Tests that replacing a link doesn't trigger the link count limit from ws objects when
+    it's at the max
+    '''
+    ss = _samplestorage_with_max_links(samplestorage, 2)
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcde3')
+    assert ss.save_sample(
+        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+    assert ss.save_sample(
+        SavedSample(id2, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500),
+        UserID('user'))
+    )
+
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1'), '1'),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+        dt(500),
+        UserID('user'))
+    )
+
+    # should pass. Changing the data ID causes a fail
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1'), '1'),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+        dt(500),
+        UserID('user')),
+        update=True
+    )
+
+    _create_data_link_fail(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1'), '2'),
+            SampleNodeAddress(SampleAddress(id2, 1), 'mynode'),
+            dt(500),
+            UserID('user')),
+        TooManyDataLinksError('More than 2 links from workspace object 1/1/1')
+        )
+
+
+def test_create_data_link_update_links_from_sample_ver_count_limit(samplestorage):
+    '''
+    Tests updating a link with regard to the limit on number of links to a sample version.
+    Specifically, updating a link to a different node of the same sample version should not
+    cause an error, while violating the limit for a new sample version should cause an error.
+    '''
+    ss = _samplestorage_with_max_links(samplestorage, 1)
+
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert samplestorage.save_sample(SavedSample(
+        id1, UserID('user'), [SampleNode('mynode'), SampleNode('XmynodeX')], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(id1, UserID('user'), [SampleNode('mynode1')], dt(2), 'foo')) == 2
+    assert samplestorage.save_sample(
+        SavedSample(id2, UserID('user'), [SampleNode('mynode2')], dt(3), 'foo')) is True
+
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
+        dt(500),
+        UserID('user'))
+    )
+
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/2')),
+        SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
+        dt(500),
+        UserID('user'))
+    )
+
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/3')),
+        SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
+        dt(500),
+        UserID('user'))
+    )
+
+    # Should not trigger an error - replacing a link to the same sample version.
+    ss.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(id1, 1), 'XmynodeX'),
+        dt(600),
+        UserID('user')),
+        update=True
+    )
+
+    # fail on version change
+    _create_data_link_fail(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
+            dt(700),
+            UserID('user')),
+        TooManyDataLinksError(
+            'More than 1 links from sample 12345678-90ab-cdef-1234-567890abcdef version 2'),
+        update=True
+        )
+
+    # fail on sample change
+    _create_data_link_fail(
+        ss,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
+            dt(700),
+            UserID('user')),
+        TooManyDataLinksError(
+            'More than 1 links from sample 12345678-90ab-cdef-1234-567890abcdee version 1'),
+        update=True
+        )
+
+
 def _create_and_expire_data_link(samplestorage, link, expired, user):
     samplestorage.create_data_link(link)
     samplestorage.expire_data_link(expired, user, link.id)
@@ -1676,9 +2213,9 @@ def _samplestorage_with_max_links(samplestorage, max_links):
         max_links=max_links)
 
 
-def _create_data_link_fail(samplestorage, link, expected):
+def _create_data_link_fail(samplestorage, link, expected, update=False):
     with raises(Exception) as got:
-        samplestorage.create_data_link(link)
+        samplestorage.create_data_link(link, update)
     assert_exception_correct(got.value, expected)
 
 
