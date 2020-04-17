@@ -71,8 +71,8 @@ import hashlib as _hashlib
 import uuid as _uuid
 from uuid import UUID
 from collections import defaultdict
-from typing import List as _List, cast as _cast, Optional as _Optional, Callable
-from typing import Dict as _Dict, Any as _Any, Tuple as _Tuple
+from typing import List, Tuple, Callable, cast as _cast, Optional as _Optional
+from typing import Dict as _Dict, Any as _Any
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
@@ -83,8 +83,9 @@ from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SavedSample
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.sample import SampleNodeAddress as _SampleNodeAddress
-from SampleService.core.sample import SampleAddress as _SampleAddress
+from SampleService.core.sample import SampleAddress
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
+from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
@@ -408,7 +409,7 @@ class ArangoSampleStorage:
         return True
 
     def _update_version_and_node_docs(self, sample: SavedSample, versionid: UUID, version: int):
-        nodeupdates: _List[dict] = []
+        nodeupdates: List[dict] = []
         for n in sample.nodes:
             ndoc = {_FLD_ARANGO_KEY: self._get_node_id(sample.id, versionid, n.name),
                     _FLD_NODE_VER: version,
@@ -432,8 +433,8 @@ class ArangoSampleStorage:
     def _save_version_and_node_docs(self, sample: SavedSample, versionid: UUID):
         verdocid = self._get_version_id(sample.id, versionid)
 
-        nodedocs: _List[dict] = []
-        nodeedgedocs: _List[dict] = []
+        nodedocs: List[dict] = []
+        nodeedgedocs: List[dict] = []
         for index, n in enumerate(sample.nodes):
             key = self._get_node_id(sample.id, versionid, n.name)
             ndoc = {_FLD_ARANGO_KEY: key,
@@ -492,7 +493,7 @@ class ArangoSampleStorage:
     # Maybe need a doc for each metadata value, which implies going through the whole
     # save / version update routine the other docs go through
     # But that means you can't query for metadata on traversals
-    def _meta_to_list(self, m: _Dict[str, _Dict[str, _PrimitiveType]]) -> _List[_Dict[str, _Any]]:
+    def _meta_to_list(self, m: _Dict[str, _Dict[str, _PrimitiveType]]) -> List[_Dict[str, _Any]]:
         ret = []
         for k in m:
             ret.extend([{_FLD_NODE_META_OUTER_KEY: k,
@@ -502,7 +503,7 @@ class ArangoSampleStorage:
                        )
         return ret
 
-    def _list_to_meta(self, l: _List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
+    def _list_to_meta(self, l: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
         ret: _Dict[str, _Dict[str, _PrimitiveType]] = defaultdict(dict)
         for m in l:
             ret[m[_FLD_NODE_META_OUTER_KEY]][m[_FLD_NODE_META_KEY]] = m[_FLD_NODE_META_VALUE]
@@ -627,7 +628,7 @@ class ArangoSampleStorage:
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
     def _get_sample_and_version_doc(
-            self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, dict, int]:
+            self, id_: UUID, version: _Optional[int] = None) -> Tuple[dict, dict, int]:
         doc, uuidversion, version = self._get_sample_doc_and_versions(id_, version)
         verdoc = self._get_version_doc(id_, uuidversion)
         if verdoc[_FLD_VER] == _VAL_NO_VER:
@@ -638,7 +639,7 @@ class ArangoSampleStorage:
         return (doc, verdoc, version)
 
     def _get_sample_doc_and_versions(
-            self, id_: UUID, version: _Optional[int] = None) -> _Tuple[dict, UUID, int]:
+            self, id_: UUID, version: _Optional[int] = None) -> Tuple[dict, UUID, int]:
         doc = _cast(dict, self._get_sample_doc(id_))
         maxver = len(doc[_FLD_VERSIONS])
         version = version if version else maxver
@@ -672,7 +673,7 @@ class ArangoSampleStorage:
         return doc
 
     # assumes ver came from the sample doc in the db.
-    def _get_nodes(self, id_: UUID, ver: UUID, version: int) -> _List[_SampleNode]:
+    def _get_nodes(self, id_: UUID, ver: UUID, version: int) -> List[_SampleNode]:
         # this class controls the version ID, and since it's a UUID we can assume it's unique
         # across all versions of all samples
         try:
@@ -807,9 +808,9 @@ class ArangoSampleStorage:
             the workspace object version.
         '''
         # TODO DATALINK behavior for deleted objects?
-        # TODO DATALINK notes re listing expired links - not scalable
+        # TODO DATALINK notes re listing expired links - not scalable - or is it?
+        # index on endpoint and creation time, page by creation time
         # TODO DATALINK list samples linked to ws object
-        # TODO DATALINK list ws objects linked to sample
         # TODO DATALINK may make sense to check for node existence here, make call after writing
         # next layer up
 
@@ -881,6 +882,10 @@ class ArangoSampleStorage:
                     # Could support starting at a node later
                     self._check_link_count_from_sample_ver(tdb, samplever, link)
             else:
+                # might be able to get rid of these limits if it turns out the link queries
+                # can be done without a traversal, which means the links can be looked up with
+                # an index
+                # but then paging is needed, so need to implement that
                 self._check_link_count_from_ws_object(tdb, link)
                 self._check_link_count_from_sample_ver(tdb, samplever, link)
 
@@ -1153,13 +1158,9 @@ class ArangoSampleStorage:
         ex = doc[_FLD_LINK_EXPIRED]
         return DataLink(
             UUID(doc[_FLD_LINK_ID]),
-            DataUnitID(
-                _UPA(wsid=doc[_FLD_LINK_WORKSPACE_ID],
-                     objid=doc[_FLD_LINK_OBJECT_ID],
-                     version=doc[_FLD_LINK_OBJECT_VERSION]),
-                doc[_FLD_LINK_OBJECT_DATA_UNIT]),
+            self._doc_to_dataunit_id(doc),
             _SampleNodeAddress(
-                _SampleAddress(
+                SampleAddress(
                     UUID(doc[_FLD_LINK_SAMPLE_ID]),
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
@@ -1168,6 +1169,67 @@ class ArangoSampleStorage:
             None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex),
             UserID(doc[_FLD_LINK_EXPIRED_BY]) if doc[_FLD_LINK_EXPIRED_BY] else None
         )
+
+    def _doc_to_dataunit_id(self, doc) -> DataUnitID:
+        return DataUnitID(
+            _UPA(wsid=doc[_FLD_LINK_WORKSPACE_ID],
+                 objid=doc[_FLD_LINK_OBJECT_ID],
+                 version=doc[_FLD_LINK_OBJECT_VERSION]),
+            doc[_FLD_LINK_OBJECT_DATA_UNIT])
+
+    def get_links_from_sample(
+            self,
+            sample: SampleAddress,
+            readable_wsids: List[int],
+            timestamp: datetime.datetime) -> List[DataLink]:
+        '''
+        Get the links from a sample at a particular time.
+
+        :param sample: the sample of interest.
+        :param readable_wsids: IDs of workspaces for which the user has read permissions.
+        :param timestamp: the time to use to determine which links are active.
+        :returns: a list of tuples consisting of the dataunit ID and the name of the sample node
+            to which the data unit is linked.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        '''
+        # TODO DATALINK has link from ws object to sample method for get sample via object
+        # - handle ref path?
+        # TODO DATALINK what about deleted objects?
+        # may want to make this work on non-ws objects at some point. YAGNI for now.
+        _not_falsy(sample, 'sample')
+        _check_timestamp(timestamp, 'timestamp')
+        _not_falsy_in_iterable(readable_wsids, 'readable_wsids')
+        if not readable_wsids:
+            return []
+        # need to get the version doc to ensure the documents have been updated appropriately
+        # as well as getting the uuid version, see comments at beginning of file
+        # note that testing version updating has been done for at least 2 other methods
+        # the tests are not repeated here
+        _, versiondoc, _ = self._get_sample_and_version_doc(sample.sampleid, sample.version)
+        q = f'''
+            FOR d in @@col
+                FILTER d.{_FLD_LINK_SAMPLE_UUID_VERSION} == @samplever
+                FILTER d.{_FLD_LINK_WORKSPACE_ID} IN @wsids
+                FILTER d.{_FLD_LINK_CREATED} <= @ts
+                FILTER d.{_FLD_LINK_EXPIRED} >= @ts
+                RETURN d
+            '''
+        bind_vars = {'@col': self._col_data_link.name,
+                     'wsids': readable_wsids,
+                     'samplever': versiondoc[_FLD_UUID_VER],
+                     'ts': timestamp.timestamp()}
+        # may need an index on version + created and expired? Assume for now links aren't
+        # expired very often.
+        # may also want a sample ver / wsid index? Max 10k items per version though, and
+        # probably much less. YAGNI for now.
+        duids = []
+        try:
+            for l in self._db.aql.execute(q, bind_vars=bind_vars):
+                duids.append(self._doc_to_link(l))
+        except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        return duids  # a maxium of 10k can be returned based on the link creation function
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped
