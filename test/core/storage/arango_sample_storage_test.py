@@ -2757,14 +2757,6 @@ def test_get_links_from_sample(samplestorage):
     )
     assert set(got) == {l6, l7}  # order is undefined
 
-    # test limiting workspace ids
-    got = samplestorage.get_links_from_sample(
-        SampleAddress(sid1, 1),
-        [1],
-        dt(500)
-    )
-    assert set(got) == {l6, l7}  # order is undefined
-
     # no results, no matching wsids
     got = samplestorage.get_links_from_sample(
         SampleAddress(sid1, 1),
@@ -2781,7 +2773,7 @@ def test_get_links_from_sample(samplestorage):
     )
     assert got == []
 
-    # no results, prior to expired
+    # no results, prior to created
     got = samplestorage.get_links_from_sample(
         SampleAddress(sid1, 1),
         [1, 2, 3],
