@@ -98,7 +98,7 @@ from SampleService.core.storage.errors import SampleStorageError as _SampleStora
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 from SampleService.core.user import UserID
-from SampleService.core.workspace import DataUnitID, UPA as _UPA
+from SampleService.core.workspace import DataUnitID, UPA
 
 _FLD_ARANGO_KEY = '_key'
 _FLD_ARANGO_FROM = '_from'
@@ -924,7 +924,7 @@ class ArangoSampleStorage:
     def _count_links_from_ws_object(
             self,
             db,
-            upa: _UPA,
+            upa: UPA,
             created: datetime.datetime,
             expired: _Optional[datetime.datetime]):
         wsc = self._count_links(
@@ -1172,9 +1172,9 @@ class ArangoSampleStorage:
 
     def _doc_to_dataunit_id(self, doc) -> DataUnitID:
         return DataUnitID(
-            _UPA(wsid=doc[_FLD_LINK_WORKSPACE_ID],
-                 objid=doc[_FLD_LINK_OBJECT_ID],
-                 version=doc[_FLD_LINK_OBJECT_VERSION]),
+            UPA(wsid=doc[_FLD_LINK_WORKSPACE_ID],
+                objid=doc[_FLD_LINK_OBJECT_ID],
+                version=doc[_FLD_LINK_OBJECT_VERSION]),
             doc[_FLD_LINK_OBJECT_DATA_UNIT])
 
     def get_links_from_sample(
@@ -1188,8 +1188,7 @@ class ArangoSampleStorage:
         :param sample: the sample of interest.
         :param readable_wsids: IDs of workspaces for which the user has read permissions.
         :param timestamp: the time to use to determine which links are active.
-        :returns: a list of tuples consisting of the dataunit ID and the name of the sample node
-            to which the data unit is linked.
+        :returns: a list of links.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         '''
@@ -1223,13 +1222,45 @@ class ArangoSampleStorage:
         # expired very often.
         # may also want a sample ver / wsid index? Max 10k items per version though, and
         # probably much less. YAGNI for now.
+        return self._find_links_via_aql(q, bind_vars)
+
+    def _find_links_via_aql(self, query, bind_vars):
         duids = []
         try:
-            for l in self._db.aql.execute(q, bind_vars=bind_vars):
+            for l in self._db.aql.execute(query, bind_vars=bind_vars):
                 duids.append(self._doc_to_link(l))
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         return duids  # a maxium of 10k can be returned based on the link creation function
+
+    def get_links_from_data(self, upa: UPA, timestamp: datetime.datetime) -> List[DataLink]:
+        '''
+        Get links originating from a data object. The data object is not checked for existence.
+
+        :param upa: the address of the data object.
+        :param timestamp: the time to use to determine which links are active.
+        :returns: a list of links.
+        '''
+        # the UPA makes it workspace specific, may need to make it generic later. YAGNI for now.
+        _not_falsy(upa, 'upa')
+        _check_timestamp(timestamp, 'timestamp')
+        q = f'''
+            FOR d in @@col
+                FILTER d.{_FLD_LINK_WORKSPACE_ID} == @wsid
+                FILTER d.{_FLD_LINK_OBJECT_ID} == @objid
+                FILTER d.{_FLD_LINK_OBJECT_VERSION} == @ver
+                FILTER d.{_FLD_LINK_CREATED} <= @ts
+                FILTER d.{_FLD_LINK_EXPIRED} >= @ts
+                RETURN d
+            '''
+        bind_vars = {'@col': self._col_data_link.name,
+                     'wsid': upa.wsid,
+                     'objid': upa.objid,
+                     'ver': upa.version,
+                     'ts': timestamp.timestamp()}
+        # may need an index on upa + created and expired? Assume for now links aren't
+        # expired very often.
+        return self._find_links_via_aql(q, bind_vars)
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped
