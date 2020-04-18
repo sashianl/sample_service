@@ -2600,7 +2600,8 @@ def test_get_links_from_sample(samplestorage):
     sid1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     sid2 = uuid.UUID('1234567890abcdef1234567890abcdee')
     assert samplestorage.save_sample(SavedSample(
-        sid1, UserID('user'), [SampleNode('mynode'), SampleNode('XmynodeX')], dt(1), 'foo')) is True
+        sid1, UserID('user'),
+        [SampleNode('mynode'), SampleNode('XmynodeX')], dt(1), 'foo')) is True
     assert samplestorage.save_sample_version(
         SavedSample(sid1, UserID('user'), [SampleNode('mynode1')], dt(2), 'foo')) == 2
     assert samplestorage.save_sample(
@@ -2694,7 +2695,7 @@ def test_get_links_from_sample(samplestorage):
     )
     l8 = DataLink(
         l8id,
-        DataUnitID(UPA('2/1/6'),),
+        DataUnitID(UPA('2/1/6')),
         SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
         dt(-100),
         UserID('usera'),
@@ -2842,4 +2843,179 @@ def _get_links_from_sample_fail(
         samplestorage, sample_address, wsids, timestamp, expected):
     with raises(Exception) as got:
         samplestorage.get_links_from_sample(sample_address, wsids, timestamp)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_links_from_data(samplestorage):
+    sid1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    sid2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    assert samplestorage.save_sample(SavedSample(
+        sid1, UserID('user'),
+        [SampleNode('mynode'), SampleNode('XmynodeX')], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(sid1, UserID('user'), [SampleNode('mynode1')], dt(2), 'foo')) == 2
+    assert samplestorage.save_sample(
+        SavedSample(sid2, UserID('user'), [SampleNode('mynode2')], dt(3), 'foo')) is True
+
+    # shouldn't be found, different ws
+    l1 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('10/1/1')),
+        SampleNodeAddress(SampleAddress(sid2, 1), 'mynode2'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l1)
+
+    # shouldn't be found, different object
+    l2 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/10/1')),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l2)
+
+    # shouldn't be found, different version
+    l3 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/10')),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l3)
+
+    # shouldn't be found, expired
+    l4id = uuid.uuid4()
+    _create_and_expire_data_link(
+        samplestorage,
+        DataLink(
+            l4id,
+            DataUnitID(UPA('1/1/1'), 'expired'),
+            SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+            dt(-100),
+            UserID('usera')),
+        dt(100),
+        UserID('userb')
+    )
+    l4 = DataLink(
+        l4id,
+        DataUnitID(UPA('1/1/1'), 'expired'),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(-100),
+        UserID('usera'),
+        dt(100),
+        UserID('userb'))
+
+    # shouldn't be found, not created yet
+    l5 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1'), 'not created'),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'mynode'),
+        dt(1000),
+        UserID('usera'))
+    samplestorage.create_data_link(l5)
+
+    l6 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode1'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l6)
+
+    l7 = DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1'), '1'),
+        SampleNodeAddress(SampleAddress(sid1, 1), 'XmynodeX'),
+        dt(-100),
+        UserID('usera'))
+    samplestorage.create_data_link(l7)
+
+    l8id = uuid.uuid4()
+    _create_and_expire_data_link(
+        samplestorage,
+        DataLink(
+            l8id,
+            DataUnitID(UPA('1/1/1'), '2'),
+            SampleNodeAddress(SampleAddress(sid2, 1), 'mynode1'),
+            dt(-100),
+            UserID('usera')),
+        dt(800),
+        UserID('usera')
+    )
+    l8 = DataLink(
+        l8id,
+        DataUnitID(UPA('1/1/1'), '2'),
+        SampleNodeAddress(SampleAddress(sid2, 1), 'mynode1'),
+        dt(-100),
+        UserID('usera'),
+        dt(800),
+        UserID('usera'))
+
+    # test lower bound for expired
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(100.001))
+    assert set(got) == {l6, l7, l8}  # order is undefined
+
+    # test lower expired
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(100))
+    assert set(got) == {l6, l7, l8, l4}  # order is undefined
+
+    # test upper bound for expired
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(800))
+    assert set(got) == {l6, l7, l8}  # order is undefined
+
+    # test upper expired
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(800.001))
+    assert set(got) == {l6, l7}  # order is undefined
+
+    # test lower bound for created
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(999.999))
+    assert set(got) == {l6, l7}  # order is undefined
+
+    # test created
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(1000))
+    assert set(got) == {l6, l7, l5}  # order is undefined
+
+    # different wsid
+    got = samplestorage.get_links_from_data(UPA('10/1/1'), dt(500))
+    assert got == [l1]
+
+    # different objid
+    got = samplestorage.get_links_from_data(UPA('1/10/1'), dt(500))
+    assert got == [l2]
+
+    # different ver
+    got = samplestorage.get_links_from_data(UPA('1/1/10'), dt(500))
+    assert got == [l3]
+
+    # no results, no matching objects
+    got = samplestorage.get_links_from_data(UPA('9/1/1'), dt(500))
+    assert got == []
+    got = samplestorage.get_links_from_data(UPA('1/9/1'), dt(500))
+    assert got == []
+    got = samplestorage.get_links_from_data(UPA('1/1/9'), dt(500))
+    assert got == []
+
+    # no results, prior to created
+    got = samplestorage.get_links_from_data(UPA('1/1/1'), dt(-100.001))
+    assert got == []
+
+
+def test_get_links_from_data_fail_bad_args(samplestorage):
+    ss = samplestorage
+    u = UPA('1/1/1')
+    ts = dt(1)
+    td = datetime.datetime.fromtimestamp(1)
+
+    _get_links_from_data_fail(ss, None, ts, ValueError(
+        'upa cannot be a value that evaluates to false'))
+    _get_links_from_data_fail(ss, u, None, ValueError(
+        'timestamp cannot be a value that evaluates to false'))
+    _get_links_from_data_fail(ss, u, td, ValueError(
+        'timestamp cannot be a naive datetime'))
+
+
+def _get_links_from_data_fail(samplestorage, upa, ts, expected):
+    with raises(Exception) as got:
+        samplestorage.get_links_from_data(upa, ts)
     assert_exception_correct(got.value, expected)
