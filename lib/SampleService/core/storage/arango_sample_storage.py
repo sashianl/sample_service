@@ -1273,8 +1273,6 @@ class ArangoSampleStorage:
         :param sample: the sample to check.
         :returns: True if a link has ever existed between the sample and the object, or False
             otherwise.
-        :raises NoSuchSampleError: if the sample does not exist.
-        :raises NoSuchSampleVersionError: if the sample version does not exist.
         '''
         # Again, this is fairly workspace specific. May want to generalize at some point.
         # YAGNI for now.
