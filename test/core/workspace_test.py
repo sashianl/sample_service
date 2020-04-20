@@ -6,10 +6,10 @@ from installed_clients.baseclient import ServerError
 from SampleService.core.workspace import WS, WorkspaceAccessType, UPA, DataUnitID
 from core.test_utils import assert_exception_correct
 from SampleService.core.errors import UnauthorizedError
-from SampleService.core.errors import MissingParameterError
 from SampleService.core.errors import IllegalParameterError
 from SampleService.core.errors import NoSuchWorkspaceDataError
 from SampleService.core.errors import NoSuchUserError
+from SampleService.core.user import UserID
 
 # these tests mock the workspace client, so integration tests are important to check for
 # incompatible changes in the workspace api
@@ -192,22 +192,23 @@ def _init_fail(wsc, expected):
 
 
 def test_has_permission():
-    _has_permission('a', None, UPA('42/65/3'), WorkspaceAccessType.READ, 42)
-    _has_permission('b', 24, UPA('67/2/92'), WorkspaceAccessType.READ, 24)
-    _has_permission('c', 1, None, WorkspaceAccessType.READ, 1)
-    _has_permission('a', None, UPA('7/45/789'), WorkspaceAccessType.WRITE, 7)
-    _has_permission('c', None, UPA('1/1/1'), WorkspaceAccessType.WRITE, 1)
-    _has_permission('c', 301, None, WorkspaceAccessType.ADMIN, 301)
+    _has_permission(UserID('a'), None, UPA('42/65/3'), WorkspaceAccessType.READ, 42)
+    _has_permission(UserID('b'), 24, UPA('67/2/92'), WorkspaceAccessType.READ, 24)
+    _has_permission(UserID('c'), 1, None, WorkspaceAccessType.READ, 1)
+    _has_permission(UserID('a'), None, UPA('7/45/789'), WorkspaceAccessType.WRITE, 7)
+    _has_permission(UserID('c'), None, UPA('1/1/1'), WorkspaceAccessType.WRITE, 1)
+    _has_permission(UserID('c'), 301, None, WorkspaceAccessType.ADMIN, 301)
 
 
 def test_has_permission_fail_bad_input():
     r = WorkspaceAccessType.READ
-    _has_permission_fail(None, 1, None, r, MissingParameterError('user'))
-    _has_permission_fail('', 1, None, r, MissingParameterError('user'))
-    _has_permission_fail('b', None, None, r, ValueError(
+    u = UserID('b')
+    _has_permission_fail(None, 1, None, r, ValueError(
+        'user cannot be a value that evaluates to false'))
+    _has_permission_fail(u, None, None, r, ValueError(
         'Either an UPA or a workpace ID must be supplied'))
-    _has_permission_fail('b', 0, None, r, IllegalParameterError('0 is not a valid workspace ID'))
-    _has_permission_fail('b', 1, None, None, ValueError(
+    _has_permission_fail(u, 0, None, r, IllegalParameterError('0 is not a valid workspace ID'))
+    _has_permission_fail(u, 1, None, None, ValueError(
         'perm cannot be a value that evaluates to false'))
 
 
@@ -215,16 +216,17 @@ def test_has_permission_fail_unauthorized():
     r = WorkspaceAccessType.READ
     w = WorkspaceAccessType.WRITE
     a = WorkspaceAccessType.ADMIN
-    _has_permission_fail('d', 1, None, r, UnauthorizedError('User d cannot read workspace 1'))
-    _has_permission_fail('d', 34, None, w, UnauthorizedError(
+    _has_permission_fail(UserID('d'), 1, None, r, UnauthorizedError(
+        'User d cannot read workspace 1'))
+    _has_permission_fail(UserID('d'), 34, None, w, UnauthorizedError(
         'User d cannot write to workspace 34'))
-    _has_permission_fail('b', None, UPA('6/7/8'), w, UnauthorizedError(
+    _has_permission_fail(UserID('b'), None, UPA('6/7/8'), w, UnauthorizedError(
         'User b cannot write to upa 6/7/8'))
-    _has_permission_fail('d', 6, None, a, UnauthorizedError(
+    _has_permission_fail(UserID('d'), 6, None, a, UnauthorizedError(
         'User d cannot administrate workspace 6'))
-    _has_permission_fail('b', 74, None, a, UnauthorizedError(
+    _has_permission_fail(UserID('b'), 74, None, a, UnauthorizedError(
         'User b cannot administrate workspace 74'))
-    _has_permission_fail('a', None, UPA('890/44/1'), a, UnauthorizedError(
+    _has_permission_fail(UserID('a'), None, UPA('890/44/1'), a, UnauthorizedError(
         'User a cannot administrate upa 890/44/1'))
 
 
@@ -260,7 +262,7 @@ def test_has_permission_fail_no_object():
         {'infos': [None]}]
 
     with raises(Exception) as got:
-        ws.has_permissions('b', WorkspaceAccessType.READ, upa=UPA('67/8/90'))
+        ws.has_permission(UserID('b'), WorkspaceAccessType.READ, upa=UPA('67/8/90'))
     assert_exception_correct(got.value, NoSuchWorkspaceDataError('Object 67/8/90 does not exist'))
 
 
@@ -275,7 +277,7 @@ def test_has_permission_fail_on_get_info_server_error():
         ServerError('JSONRPCError', -32500, 'Thanks Obama')]
 
     with raises(Exception) as got:
-        ws.has_permissions('b', WorkspaceAccessType.READ, upa=UPA('67/8/90'))
+        ws.has_permission(UserID('b'), WorkspaceAccessType.READ, upa=UPA('67/8/90'))
     assert_exception_correct(got.value, ServerError('JSONRPCError', -32500, 'Thanks Obama'))
 
 
@@ -291,7 +293,7 @@ def _has_permission(user, wsid, upa, perm, expected_wsid):
     else:
         wsc.administer.side_effect = [retperms, {'infos': [['objinfo goes here']]}]
 
-    ws.has_permissions(user, perm, wsid, upa)
+    ws.has_permission(user, perm, wsid, upa)
 
     getperms = {'command': 'getPermissionsMass', 'params': {'workspaces': [{'id': expected_wsid}]}}
     if wsid:
@@ -321,7 +323,7 @@ def _has_permission_fail_ws_exception(ws_exception, expected):
     wsc.administer.side_effect = ws_exception
 
     with raises(Exception) as got:
-        ws.has_permissions('foo', WorkspaceAccessType.READ, 22)
+        ws.has_permission('foo', WorkspaceAccessType.READ, 22)
     assert_exception_correct(got.value, expected)
 
 
@@ -341,7 +343,7 @@ def _get_user_workspaces(workspaces, pub, expected):
 
     wsc.administer.return_value = {'workspaces': workspaces, 'pub': pub}
 
-    assert ws.get_user_workspaces('usera') == expected
+    assert ws.get_user_workspaces(UserID('usera')) == expected
 
     wsc.administer.assert_called_with({'command': 'listWorkspaceIDs',
                                        'user': 'usera',
@@ -351,8 +353,7 @@ def _get_user_workspaces(workspaces, pub, expected):
 
 
 def test_get_user_workspaces_fail_bad_input():
-    _get_user_workspaces_fail(None, MissingParameterError('user'))
-    _get_user_workspaces_fail('', MissingParameterError('user'))
+    _get_user_workspaces_fail(None, ValueError('user cannot be a value that evaluates to false'))
 
 
 def _get_user_workspaces_fail(user, expected):
@@ -391,5 +392,5 @@ def _get_user_workspaces_fail_ws_exception(ws_exception, expected):
     wsc.administer.side_effect = ws_exception
 
     with raises(Exception) as got:
-        ws.get_user_workspaces('foo')
+        ws.get_user_workspaces(UserID('foo'))
     assert_exception_correct(got.value, expected)

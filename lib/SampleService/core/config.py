@@ -22,6 +22,9 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.user_lookup import KBaseUserLookup
+from SampleService.core.workspace import WS as _WS
+
+from installed_clients.WorkspaceClient import Workspace as _Workspace
 
 
 def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
@@ -52,12 +55,16 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
 
     auth_root_url = _check_string_req(config.get('auth-root-url'), 'config param auth-root-url')
     auth_token = _check_string_req(config.get('auth-token'), 'config param auth-token')
+    full_roles = split_value(config, 'auth-full-admin-roles')
+    read_roles = split_value(config, 'auth-read-admin-roles')
+
+    ws_url = _check_string_req(config.get('workspace-url'), 'config param workspace-url')
+    ws_token = _check_string_req(config.get('workspace-read-admin-token'),
+                                 'config param workspace-read-admin-token')
 
     metaval_url = _check_string(config.get('metadata-validator-config-url'),
                                 'config param metadata-validator-config-url',
                                 optional=True)
-    full_roles = split_value(config, 'auth-full-admin-roles')
-    read_roles = split_value(config, 'auth-read-admin-roles')
 
     # build the validators before trying to connect to arango
     metaval = get_validators(metaval_url) if metaval_url else MetadataValidatorSet()
@@ -65,7 +72,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     # meta params may have info that shouldn't be logged so don't log any for now.
     # Add code to deal with this later if needed
     print(f'''
-        Starting server with config (metadata validator params excluded):
+        Starting server with config:
             arango-url: {arango_url}
             arango-db: {arango_db}
             arango-user: {arango_user}
@@ -80,6 +87,9 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
             auth-token: [REDACTED FOR YOUR CONVENIENCE AND ENJOYMENT]
             auth-full-admin-roles: {', '.join(full_roles)}
             auth-read-admin-roles: {', '.join(read_roles)}
+            workspace-url: {ws_url}
+            workspace-read-admin-token: [REDACATED FOR YOUR PLEASURE]
+            metadata-validators-config-url: {metaval_url}
     ''')
 
     arangoclient = _arango.ArangoClient(hosts=arango_url)
@@ -98,7 +108,8 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     )
     storage.start_consistency_checker()
     user_lookup = KBaseUserLookup(auth_root_url, auth_token, full_roles, read_roles)
-    return Samples(storage, user_lookup, metaval), user_lookup
+    ws = _WS(_Workspace(ws_url, token=ws_token))
+    return Samples(storage, user_lookup, metaval, ws), user_lookup
 
 
 def split_value(d: Dict[str, str], key: str):

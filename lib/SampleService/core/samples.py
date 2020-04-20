@@ -23,6 +23,7 @@ from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 from SampleService.core.user import UserID
+from SampleService.core.workspace import WS
 
 
 # TODO remove own acls.
@@ -37,6 +38,7 @@ class Samples:
             storage: ArangoSampleStorage,
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
             metadata_validator: MetadataValidatorSet,
+            workspace: WS,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -54,6 +56,7 @@ class Samples:
         self._storage = _not_falsy(storage, 'storage')
         self._user_lookup = _not_falsy(user_lookup, 'user_lookup')
         self._metaval = _not_falsy(metadata_validator, 'metadata_validator')
+        self._ws = _not_falsy(workspace, 'workspace')
         self._now = _not_falsy(now, 'now')
         self._uuid_gen = _not_falsy(uuid_gen, 'uuid_gen')
 
