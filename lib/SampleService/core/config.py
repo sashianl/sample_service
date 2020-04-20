@@ -88,7 +88,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
             auth-full-admin-roles: {', '.join(full_roles)}
             auth-read-admin-roles: {', '.join(read_roles)}
             workspace-url: {ws_url}
-            workspace-read-admin-token: [REDACATED FOR YOUR PLEASURE]
+            workspace-read-admin-token: [REDACTED FOR YOUR PLEASURE]
             metadata-validators-config-url: {metaval_url}
     ''')
 
