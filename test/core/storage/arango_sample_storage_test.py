@@ -573,12 +573,13 @@ def test_indexes_created(samplestorage):
     assert indexes[0]['fields'] == ['_key']
 
     indexes = samplestorage._col_data_link.indexes()
-    assert len(indexes) == 5
+    assert len(indexes) == 6
     assert indexes[0]['fields'] == ['_key']
     assert indexes[1]['fields'] == ['_from', '_to']
     _check_index(indexes[2], ['id'])
     _check_index(indexes[3], ['wsid', 'objid', 'objver'])
     _check_index(indexes[4], ['samuuidver'])
+    _check_index(indexes[5], ['sampleid'])
 
     indexes = samplestorage._col_schema.indexes()
     assert len(indexes) == 1
@@ -3018,4 +3019,65 @@ def test_get_links_from_data_fail_bad_args(samplestorage):
 def _get_links_from_data_fail(samplestorage, upa, ts, expected):
     with raises(Exception) as got:
         samplestorage.get_links_from_data(upa, ts)
+    assert_exception_correct(got.value, expected)
+
+
+def test_has_data_link(samplestorage):
+    sid1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    sid2 = uuid.UUID('1234567890abcdef1234567890abcdee')
+    sid3 = uuid.UUID('1234567890abcdef1234567890abcded')
+    assert samplestorage.save_sample(SavedSample(
+        sid1, UserID('user'),
+        [SampleNode('mynode'), SampleNode('XmynodeX')], dt(1), 'foo')) is True
+    assert samplestorage.save_sample_version(
+        SavedSample(sid1, UserID('user'), [SampleNode('mynode1')], dt(2), 'foo')) == 2
+    assert samplestorage.save_sample(
+        SavedSample(sid2, UserID('user'), [SampleNode('mynode2')], dt(3), 'foo')) is True
+    assert samplestorage.save_sample(
+        SavedSample(sid3, UserID('user'), [SampleNode('mynode4')], dt(3), 'foo')) is True
+
+    samplestorage.create_data_link(DataLink(
+        uuid.uuid4(),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(sid2, 1), 'mynode2'),
+        dt(-100),
+        UserID('usera')))
+
+    _create_and_expire_data_link(
+        samplestorage,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/2/1'), '2'),
+            SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+            dt(-100),
+            UserID('usera')),
+        dt(800),
+        UserID('usera'))
+
+    assert samplestorage.has_data_link(UPA('1/1/1'), sid2) is True
+    # sample version & expired state shouldn't matter
+    assert samplestorage.has_data_link(UPA('1/2/1'), sid1) is True
+    # wrong sample
+    assert samplestorage.has_data_link(UPA('1/2/1'), sid3) is False
+    # wrong object id
+    assert samplestorage.has_data_link(UPA('1/2/1'), sid2) is False
+    # wrong version
+    assert samplestorage.has_data_link(UPA('1/2/2'), sid1) is False
+    # wrong wsid
+    assert samplestorage.has_data_link(UPA('2/2/1'), sid1) is False
+
+
+def test_has_data_link_fail_bad_args(samplestorage):
+    u = UPA('1/1/1')
+    s = uuid.UUID('1234567890abcdef1234567890abcdef')
+
+    _has_data_link_fail(samplestorage, None, s, ValueError(
+        'upa cannot be a value that evaluates to false'))
+    _has_data_link_fail(samplestorage, u, None, ValueError(
+        'sample cannot be a value that evaluates to false'))
+
+
+def _has_data_link_fail(samplestorage, upa, sample, expected):
+    with raises(Exception) as got:
+        samplestorage.has_data_link(upa, sample)
     assert_exception_correct(got.value, expected)

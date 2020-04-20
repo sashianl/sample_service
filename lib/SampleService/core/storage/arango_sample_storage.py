@@ -256,6 +256,8 @@ class ArangoSampleStorage:
                 [_FLD_LINK_WORKSPACE_ID, _FLD_LINK_OBJECT_ID, _FLD_LINK_OBJECT_VERSION])
             # find links from sample versions
             self._col_data_link.add_persistent_index([_FLD_LINK_SAMPLE_UUID_VERSION])
+            # find links from samples
+            self._col_data_link.add_persistent_index([_FLD_LINK_SAMPLE_ID])
         except _arango.exceptions.IndexCreateError as e:
             # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -1261,6 +1263,40 @@ class ArangoSampleStorage:
         # may need an index on upa + created and expired? Assume for now links aren't
         # expired very often.
         return self._find_links_via_aql(q, bind_vars)
+
+    def has_data_link(self, upa: UPA, sample: UUID) -> bool:
+        '''
+        Check if a link exists or has ever existed between an object and a sample. The sample and
+        object are not checked for existence.
+
+        :param upa: the object to check.
+        :param sample: the sample to check.
+        :returns: True if a link has ever existed between the sample and the object, or False
+            otherwise.
+        '''
+        # Again, this is fairly workspace specific. May want to generalize at some point.
+        # YAGNI for now.
+        _not_falsy(upa, 'upa')
+        _not_falsy(sample, 'sample')
+        q = f'''
+            FOR d in @@col
+                FILTER d.{_FLD_LINK_SAMPLE_ID} == @sampleid
+                FILTER d.{_FLD_LINK_WORKSPACE_ID} == @wsid
+                FILTER d.{_FLD_LINK_OBJECT_ID} == @objid
+                FILTER d.{_FLD_LINK_OBJECT_VERSION} == @ver
+                LIMIT 1
+                RETURN d
+            '''
+        bind_vars = {'@col': self._col_data_link.name,
+                     'sampleid': str(sample),
+                     'wsid': upa.wsid,
+                     'objid': upa.objid,
+                     'ver': upa.version}
+        # may want a sample / wsid index? Max 10k items per version though, and
+        # probably much less. YAGNI for now.
+        # not super efficient - could save some bandwidth by not returning the link.
+        # likely trivial, though, so don't worry about it for now.
+        return bool(self._find_links_via_aql(q, bind_vars))
 
 
 # if an edge is inserted into a non-edge collection _from and _to are silently dropped
