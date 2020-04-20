@@ -175,6 +175,7 @@ def get_validators(url: str) -> MetadataValidatorSet:
     :param url: The URL for a config file for the metadata validators.
     :returns: A set of metadata validators.
     '''
+    # TODO VALIDATOR make validator CLI
     try:
         with _urllib.request.urlopen(url) as res:
             cfg = _yaml.safe_load(res)
