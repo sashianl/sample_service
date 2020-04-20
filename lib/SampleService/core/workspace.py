@@ -13,6 +13,7 @@ from SampleService.core.errors import IllegalParameterError as _IllegalParameter
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import NoSuchWorkspaceDataError as _NoSuchWorkspaceDataError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
+from SampleService.core.user import UserID
 
 
 class WorkspaceAccessType(IntEnum):
@@ -150,15 +151,15 @@ class WS:
         Attempts to contact the endpoint of the workspace in administration mode and does not
         catch any exceptions encountered.
 
-        :param client: An SDK workspace client with administrator permissions.
+        :param client: An SDK workspace client with administrator read permissions.
         '''
-        self.ws = _not_falsy(client, 'client')
+        self._ws = _not_falsy(client, 'client')
         # check token is a valid admin token
-        self.ws.administer({'command': 'listModRequests'})
+        self._ws.administer({'command': 'listModRequests'})
 
-    def has_permissions(
+    def has_permission(
             self,
-            user: str,
+            user: UserID,
             perm: WorkspaceAccessType,
             workspace_id: int = None,
             upa: UPA = None):
@@ -177,7 +178,7 @@ class WS:
         :raises UnauthorizedError: if the user doesn't have the requested permission.
         :raises NoSuchWorkspaceDataError: if the workspace or UPA doesn't exist.
         '''
-        _check_string(user, 'user')
+        _not_falsy(user, 'user')
         _not_falsy(perm, 'perm')
         if workspace_id is not None:
             wsid = workspace_id
@@ -194,7 +195,7 @@ class WS:
             raise _IllegalParameterError(f'{wsid} is not a valid workspace ID')
 
         try:
-            p = self.ws.administer({'command': 'getPermissionsMass',
+            p = self._ws.administer({'command': 'getPermissionsMass',
                                     'params': {'workspaces': [{'id': wsid}]}})
         except _ServerError as se:
             # this is pretty ugly, need error codes
@@ -202,7 +203,7 @@ class WS:
                 raise _NoSuchWorkspaceDataError(se.args[0]) from se
             else:
                 raise
-        if p['perms'][0].get(user) not in _PERM_TO_PERM_SET[perm]:
+        if p['perms'][0].get(user.id) not in _PERM_TO_PERM_SET[perm]:
             raise _UnauthorizedError(
                 f'User {user} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
         if upa:
@@ -210,14 +211,14 @@ class WS:
             # theoretically the workspace could've been deleted between the last call and this
             # one, but that'll just result in a different error and is extremely unlikely to
             # happen, so don't worry about it
-            ret = self.ws.administer({'command': 'getObjectInfo',
-                                      'params': {'objects': [{'ref': str(upa)}],
-                                                 'ignoreErrors': 1}
-                                      })
+            ret = self._ws.administer({'command': 'getObjectInfo',
+                                       'params': {'objects': [{'ref': str(upa)}],
+                                                  'ignoreErrors': 1}
+                                       })
             if not ret['infos'][0]:
                 raise _NoSuchWorkspaceDataError(f'Object {upa} does not exist')
 
-    def get_user_workspaces(self, user) -> List[int]:
+    def get_user_workspaces(self, user: UserID) -> List[int]:
         '''
         Get a list of IDs of workspaces a user can read, including public workspaces.
 
@@ -227,11 +228,10 @@ class WS:
         :raises NoSuchUserError: if the user does not exist.
         '''
         # May also want write / admin / no public ws
-        _check_string(user, 'user')
         try:
-            ids = self.ws.administer({'command': 'listWorkspaceIDs',
-                                      'user': user,
-                                      'params': {'perm': 'r', 'excludeGlobal': 0}})
+            ids = self._ws.administer({'command': 'listWorkspaceIDs',
+                                       'user': _not_falsy(user, 'user').id,
+                                       'params': {'perm': 'r', 'excludeGlobal': 0}})
         except _ServerError as se:
             # this is pretty ugly, need error codes
             if 'not a valid user' in se.args[0]:

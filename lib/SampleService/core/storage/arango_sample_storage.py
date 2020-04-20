@@ -813,8 +813,7 @@ class ArangoSampleStorage:
         # TODO DATALINK notes re listing expired links - not scalable - or is it?
         # index on endpoint and creation time, page by creation time
         # TODO DATALINK list samples linked to ws object
-        # TODO DATALINK may make sense to check for node existence here, make call after writing
-        # next layer up
+        # TODO DATALINK check node exists
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 

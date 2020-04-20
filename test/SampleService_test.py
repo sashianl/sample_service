@@ -92,8 +92,8 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port):
     cfg[ss]['arango-user'] = TEST_USER
     cfg[ss]['arango-pwd'] = TEST_PWD
 
-    cfg[ss]['workspace-url'] = f'http://localhost:{workspace_port}'  # currently unused
-    cfg[ss]['workspace-read-admin-token'] = 'foo'  # currently unused
+    cfg[ss]['workspace-url'] = f'http://localhost:{workspace_port}'
+    cfg[ss]['workspace-read-admin-token'] = TOKEN_WS_READ_ADMIN
 
     cfg[ss]['sample-collection'] = TEST_COL_SAMPLE
     cfg[ss]['version-collection'] = TEST_COL_VERSION
@@ -354,6 +354,10 @@ def test_init_fail():
     cfg['auth-root-url'] = 'crap'
     init_fail(cfg, MissingParameterError('config param auth-token'))
     cfg['auth-token'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param workspace-url'))
+    cfg['workspace-url'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param workspace-read-admin-token'))
+    cfg['workspace-read-admin-token'] = 'crap'
     # get_validators is tested elsewhere, just make sure it'll error out
     cfg['metadata-validator-config-url'] = 'https://kbase.us/services'
     init_fail(cfg, ValueError(
@@ -1487,8 +1491,8 @@ def test_workspace_wrapper_has_permission(sample_port, workspace):
     wscli2.save_objects({'id': 1,
                          'objects': [{'name': 'foo', 'type': 'Trivial.Object-1.0', 'data': {}}]})
 
-    ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
-    ws.has_permissions(USER2, WorkspaceAccessType.ADMIN, upa=UPA('1/2/2'))  # Shouldn't fail
+    ws.has_permission(UserID(USER2), WorkspaceAccessType.ADMIN, 1)  # Shouldn't fail
+    ws.has_permission(UserID(USER2), WorkspaceAccessType.ADMIN, upa=UPA('1/2/2'))  # Shouldn't fail
 
 
 def test_workspace_wrapper_has_permission_fail_bad_args(sample_port, workspace):
@@ -1500,40 +1504,42 @@ def test_workspace_wrapper_has_permission_fail_bad_args(sample_port, workspace):
     wscli2.save_objects({'id': 1,
                          'objects': [{'name': 'foo', 'type': 'Trivial.Object-1.0', 'data': {}}]})
 
-    _workspace_wrapper_has_permission_fail(workspace.port, USER1, 1, None, UnauthorizedError(
-        'User user1 cannot read workspace 1'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER1, None, UPA('1/2/1'),
+        workspace.port, UserID(USER1), 1, None, UnauthorizedError(
+            'User user1 cannot read workspace 1'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, UserID(USER1), None, UPA('1/2/1'),
         UnauthorizedError('User user1 cannot read upa 1/2/1'))
-    _workspace_wrapper_has_permission_fail(workspace.port, 'fakeuser', 1, None, UnauthorizedError(
-        'User fakeuser cannot read workspace 1'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, 'fakeuser', None, UPA('1/2/1'),
+        workspace.port, UserID('fakeuser'), 1, None, UnauthorizedError(
+            'User fakeuser cannot read workspace 1'))
+    _workspace_wrapper_has_permission_fail(
+        workspace.port, UserID('fakeuser'), None, UPA('1/2/1'),
         UnauthorizedError('User fakeuser cannot read upa 1/2/1'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, 2, None,
+        workspace.port, UserID(USER2), 2, None,
         NoSuchWorkspaceDataError('No workspace with id 2 exists'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, UPA('2/1/1'),
+        workspace.port, UserID(USER2), None, UPA('2/1/1'),
         NoSuchWorkspaceDataError('No workspace with id 2 exists'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, UPA('1/2/2'),
+        workspace.port, UserID(USER2), None, UPA('1/2/2'),
         NoSuchWorkspaceDataError('Object 1/2/2 does not exist'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, UPA('1/3/1'),
+        workspace.port, UserID(USER2), None, UPA('1/3/1'),
         NoSuchWorkspaceDataError('Object 1/3/1 does not exist'))
 
     wscli2.delete_objects([{'ref': '1/2'}])
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, UPA('1/2/1'),
+        workspace.port, UserID(USER2), None, UPA('1/2/1'),
         NoSuchWorkspaceDataError('Object 1/2/1 does not exist'))
 
     wscli2.delete_workspace({'id': 1})
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, None, UPA('1/1/1'),
+        workspace.port, UserID(USER2), None, UPA('1/1/1'),
         NoSuchWorkspaceDataError('Workspace 1 is deleted'))
     _workspace_wrapper_has_permission_fail(
-        workspace.port, USER2, 1, None, NoSuchWorkspaceDataError('Workspace 1 is deleted'))
+        workspace.port, UserID(USER2), 1, None, NoSuchWorkspaceDataError('Workspace 1 is deleted'))
 
 
 def _workspace_wrapper_has_permission_fail(ws_port, user, wsid, upa, expected):
@@ -1542,7 +1548,7 @@ def _workspace_wrapper_has_permission_fail(ws_port, user, wsid, upa, expected):
     ws = WS(wscli)
 
     with raises(Exception) as got:
-        ws.has_permissions(user, WorkspaceAccessType.READ, wsid, upa)
+        ws.has_permission(user, WorkspaceAccessType.READ, wsid, upa)
     assert_exception_correct(got.value, expected)
 
 
@@ -1563,7 +1569,7 @@ def test_workspace_wrapper_get_workspaces(sample_port, workspace):
     wscli3.set_permissions({'id': 3, 'users': [USER1], 'new_permission': 'r'})
     wscli3.create_workspace({'workspace': 'invisible'})
 
-    assert ws.get_user_workspaces(USER1) == [1, 2, 3]  # not 4
+    assert ws.get_user_workspaces(UserID(USER1)) == [1, 2, 3]  # not 4
 
 
 def test_workspace_wrapper_get_workspaces_fail_no_user(sample_port, workspace):
@@ -1572,5 +1578,5 @@ def test_workspace_wrapper_get_workspaces_fail_no_user(sample_port, workspace):
     ws = WS(wscli)
 
     with raises(Exception) as got:
-        ws.get_user_workspaces('fakeuser')
+        ws.get_user_workspaces(UserID('fakeuser'))
     assert_exception_correct(got.value, NoSuchUserError('User fakeuser is not a valid user'))
