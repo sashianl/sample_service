@@ -93,6 +93,7 @@ from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsErro
 from SampleService.core.errors import NoSuchLinkError as _NoSuchLinkError
 from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
 from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
+from SampleService.core.errors import NoSuchSampleNodeError as _NoSuchSampleNodeError
 from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinksError
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
@@ -793,7 +794,7 @@ class ArangoSampleStorage:
         unexpectedly.
 
         No checking is done on whether the user has permissions to link the data or whether the
-        data or sample node exists.
+        data exists.
 
         It is expected that the creation time provided in the link is later than the expire time
         (and usually it's simply the current time) of any other links for the data unit ID.
@@ -805,15 +806,14 @@ class ArangoSampleStorage:
 
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
+        :raises NoSuchSampleNodeError: if the sample node does not exist.
         :raises DataLinkExistsError: if a link already exists from the data unit.
         :raises TooManyDataLinksError: if there are too many links from the sample version or
             the workspace object version.
         '''
-        # TODO DATALINK behavior for deleted objects?
         # TODO DATALINK notes re listing expired links - not scalable - or is it?
         # index on endpoint and creation time, page by creation time
         # TODO DATALINK list samples linked to ws object
-        # TODO DATALINK check node exists
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -840,6 +840,9 @@ class ArangoSampleStorage:
         # as well as getting the uuid version, see comments at beginning of file
         _, versiondoc, _ = self._get_sample_and_version_doc(sna.sampleid, sna.version)
         samplever = UUID(versiondoc[_FLD_UUID_VER])
+        nodeid = self._get_node_id(sna.sampleid, samplever, sna.node)
+        if not self._get_doc(self._col_nodes, nodeid):
+            raise _NoSuchSampleNodeError(f'{sna.sampleid} ver {sna.version} {sna.node}')
 
         # makes a db specifically for this transaction
         tdb = self._db.begin_transaction(

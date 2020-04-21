@@ -12,7 +12,7 @@ from SampleService.core.sample import SavedSample, SampleNode, SubSampleType, Sa
 from SampleService.core.sample import SampleAddress
 from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
 from SampleService.core.errors import NoSuchSampleVersionError, DataLinkExistsError
-from SampleService.core.errors import TooManyDataLinksError, NoSuchLinkError
+from SampleService.core.errors import TooManyDataLinksError, NoSuchLinkError, NoSuchSampleNodeError
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError
@@ -1789,6 +1789,23 @@ def test_create_data_link_fail_no_sample_version(samplestorage):
         )
 
 
+def test_create_data_link_fail_no_sample_node(samplestorage):
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(SavedSample(
+        id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1')], dt(1), 'foo')) is True
+
+    _create_data_link_fail(
+        samplestorage,
+        DataLink(
+            uuid.uuid4(),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),
+            dt(1),
+            UserID('user')),
+        NoSuchSampleNodeError('12345678-90ab-cdef-1234-567890abcdef ver 1 mynode2')
+        )
+
+
 def test_create_data_link_fail_link_exists(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
@@ -2621,7 +2638,7 @@ def test_get_links_from_sample(samplestorage):
     l2 = DataLink(
         uuid.uuid4(),
         DataUnitID(UPA('1/1/2')),
-        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode1'),
         dt(-100),
         UserID('usera'))
     samplestorage.create_data_link(l2)
@@ -2871,7 +2888,7 @@ def test_get_links_from_data(samplestorage):
     l2 = DataLink(
         uuid.uuid4(),
         DataUnitID(UPA('1/10/1')),
-        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode1'),
         dt(-100),
         UserID('usera'))
     samplestorage.create_data_link(l2)
@@ -2880,7 +2897,7 @@ def test_get_links_from_data(samplestorage):
     l3 = DataLink(
         uuid.uuid4(),
         DataUnitID(UPA('1/1/10')),
-        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+        SampleNodeAddress(SampleAddress(sid1, 2), 'mynode1'),
         dt(-100),
         UserID('usera'))
     samplestorage.create_data_link(l3)
@@ -2938,7 +2955,7 @@ def test_get_links_from_data(samplestorage):
         DataLink(
             l8id,
             DataUnitID(UPA('1/1/1'), '2'),
-            SampleNodeAddress(SampleAddress(sid2, 1), 'mynode1'),
+            SampleNodeAddress(SampleAddress(sid2, 1), 'mynode2'),
             dt(-100),
             UserID('usera')),
         dt(800),
@@ -2947,7 +2964,7 @@ def test_get_links_from_data(samplestorage):
     l8 = DataLink(
         l8id,
         DataUnitID(UPA('1/1/1'), '2'),
-        SampleNodeAddress(SampleAddress(sid2, 1), 'mynode1'),
+        SampleNodeAddress(SampleAddress(sid2, 1), 'mynode2'),
         dt(-100),
         UserID('usera'),
         dt(800),
@@ -3048,7 +3065,7 @@ def test_has_data_link(samplestorage):
         DataLink(
             uuid.uuid4(),
             DataUnitID(UPA('1/2/1'), '2'),
-            SampleNodeAddress(SampleAddress(sid1, 2), 'mynode'),
+            SampleNodeAddress(SampleAddress(sid1, 2), 'mynode1'),
             dt(-100),
             UserID('usera')),
         dt(800),
