@@ -29,7 +29,7 @@ class DataLink:
 
     def __init__(
             self,
-            id: uuid.UUID,
+            id_: uuid.UUID,
             duid: DataUnitID,
             sample_node_address: SampleNodeAddress,
             created: datetime.datetime,
@@ -40,7 +40,7 @@ class DataLink:
         Create the link. If expired is provided expired_by must also be provided. If expired
         is falsy expired_by is ignored.
 
-        :param id: the link ID. This is generally expected to be unique per link.
+        :param id_: the link ID. This is generally expected to be unique per link.
         :param duid: the data ID.
         :param sample_node_address: the sample node address.
         :param created: the creation time for the link.
@@ -49,7 +49,7 @@ class DataLink:
         :param expired_by: the user that expired the link or None if the link is not expired.
         '''
         # may need to make this non ws specific. YAGNI for now.
-        self.id = _not_falsy(id, 'id')
+        self.id = _not_falsy(id_, 'id_')
         self.duid = _not_falsy(duid, 'duid')
         self.sample_node_address = _not_falsy(sample_node_address, 'sample_node_address')
         self.created = _check_timestamp(created, 'created')

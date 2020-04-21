@@ -194,6 +194,7 @@ def get_validators(url: str) -> MetadataValidatorSet:
     :returns: A set of metadata validators.
     '''
     # TODO VALIDATOR make validator CLI
+    # TODO VALIDATOR make a list of validators that can be referenced elsewhere in the json
     try:
         with _urllib.request.urlopen(url) as res:
             cfg = _yaml.safe_load(res)

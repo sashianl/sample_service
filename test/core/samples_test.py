@@ -6,16 +6,18 @@ from unittest.mock import create_autospec
 
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL
+from SampleService.core.data_link import DataLink
 from SampleService.core.errors import IllegalParameterError, UnauthorizedError, NoSuchUserError
 from SampleService.core.errors import MetadataValidationError
-from SampleService.core.sample import Sample, SampleNode, SavedSample
+from SampleService.core.sample import Sample, SampleNode, SavedSample, SampleAddress
+from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.samples import Samples
 from SampleService.core.storage.errors import OwnerChangedError
 from SampleService.core.user import UserID
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core import user_lookup
-from SampleService.core.workspace import WS
+from SampleService.core.workspace import WS, UPA, DataUnitID, WorkspaceAccessType
 from core.test_utils import assert_exception_correct
 
 
@@ -25,6 +27,10 @@ def u(user):
 
 def nw():
     return datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc)
+
+
+def dt(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
 
 def test_init_fail_bad_args():
@@ -818,3 +824,160 @@ def test_get_prefix_key_fail_bad_args():
     with raises(Exception) as got:
         s.get_key_static_metadata(None)
     assert_exception_correct(got.value, ValueError('keys cannot be None'))
+
+
+def test_create_data_link():
+    _create_data_link(UserID('someuser'))
+    _create_data_link(UserID('otheruser'))
+    _create_data_link(UserID('y'))
+
+
+def _create_data_link(user):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    s.create_data_link(
+        user,
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'))
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+    ws.has_permission.assert_called_once_with(user, WorkspaceAccessType.WRITE, upa=UPA('1/1/1'))
+
+    dl = DataLink(
+        UUID('1234567890abcdef1234567890abcdef'),
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        dt(6),
+        user
+    )
+
+    storage.create_data_link.assert_called_once_with(dl, update=False)
+
+
+def test_create_data_link_with_data_id_and_update():
+    '''
+    Test with a data id in the DUID and update=True.
+    '''
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(u('someuser'))
+
+    s.create_data_link(
+        UserID('someuser'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        update=True)
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('someuser'), WorkspaceAccessType.WRITE, upa=UPA('1/1/1'))
+
+    dl = DataLink(
+        UUID('1234567890abcdef1234567890abcdef'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        dt(6),
+        UserID('someuser')
+    )
+
+    storage.create_data_link.assert_called_once_with(dl, update=True)
+
+
+def test_create_data_link_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    u = UserID('u')
+    d = DataUnitID(UPA('1/1/1'))
+    sna = SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'node')
+
+    _create_data_link_fail(s, None, d, sna, ValueError(
+        'user cannot be a value that evaluates to false'))
+    _create_data_link_fail(s, u, None, sna, ValueError(
+        'duid cannot be a value that evaluates to false'))
+    _create_data_link_fail(s, u, d, None, ValueError(
+        'sna cannot be a value that evaluates to false'))
+
+
+def test_create_data_link_fail_no_sample_access():
+    _create_data_link_fail_no_sample_access(UserID('writeonly'))
+    _create_data_link_fail_no_sample_access(UserID('readonly'))
+    _create_data_link_fail_no_sample_access(UserID('noaccess'))
+
+
+def _create_data_link_fail_no_sample_access(user):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('writeonly')],
+        [u('readonly'), u('x')])
+
+    _create_data_link_fail(
+        s,
+        user,
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        UnauthorizedError(
+            f'User {user} cannot administrate sample 12345678-90ab-cdef-1234-567890abcdee'))
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+
+def test_create_data_link_fail_no_ws_access():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(u('someuser'))
+
+    ws.has_permission.side_effect = UnauthorizedError('nope. uh uh')
+
+    _create_data_link_fail(
+        s,
+        UserID('someuser'),
+        DataUnitID(UPA('7/3/2'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        UnauthorizedError('nope. uh uh'))
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('someuser'), WorkspaceAccessType.WRITE, upa=UPA('7/3/2'))
+
+
+def _create_data_link_fail(samplestorage, user, duid, sna, expected):
+    with raises(Exception) as got:
+        samplestorage.create_data_link(user, duid, sna)
+    assert_exception_correct(got.value, expected)

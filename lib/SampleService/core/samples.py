@@ -12,18 +12,20 @@ from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.core_types import PrimitiveType
+from SampleService.core.data_link import DataLink
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
-from SampleService.core.sample import Sample, SavedSample
+from SampleService.core.sample import Sample, SavedSample, SampleNodeAddress
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 from SampleService.core.user import UserID
-from SampleService.core.workspace import WS
+from SampleService.core.workspace import WS, WorkspaceAccessType as _WorkspaceAccessType
+from SampleService.core.workspace import DataUnitID
 
 
 # TODO remove own acls.
@@ -251,3 +253,44 @@ class Samples:
             return self._metaval.key_metadata(keys)
         else:
             return self._metaval.prefix_key_metadata(keys, exact_match=not bool(prefix))
+
+    def create_data_link(
+            self,
+            user: UserID,
+            duid: DataUnitID,
+            sna: SampleNodeAddress,
+            update: bool = False):
+        '''
+        Create a link from a data unit to a sample. The user must have admin access to the sample,
+        since linking data grants permissions: once linked, if a user
+        has access to the data unit, the user also has access to the sample. The user must have
+        write access to the data since adding a sample to the data effectively modifies the data,
+        but doesn't grant any additional access.
+
+        Each data unit can be linked to only one sample at a time. Expired links may exist to
+        other samples.
+
+        :param user: the user creating the link.
+        :param duid: the data unit to link the the sample.
+        :param sna: the sample node to link to the data unit.
+        :param update: True to expire any extant link if it does not link to the provided sample.
+            If False and a link from the data unit already exists, link creation will fail.
+        :raises UnauthorizedError: if the user does not have read permission for the sample.
+        :raises IllegalParameterError: if the parameters are incorrect, such as an improper UPA.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        :raises NoSuchSampleNodeError: if the sample node does not exist.
+        :raises NoSuchWorkspaceDataError: if the workspace or UPA doesn't exist.
+        :raises DataLinkExistsError: if a link already exists from the data unit.
+        :raises TooManyDataLinksError: if there are too many links from the sample version or
+            the workspace object version.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        '''
+        # TODO ADMIN admin mode
+        # TODO DATALINK expire link
+        _not_falsy(user, 'user')
+        _not_falsy(duid, 'duid')
+        self._check_perms(_not_falsy(sna, 'sna').sampleid, user, _SampleAccessType.ADMIN)
+        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, upa=duid.upa)
+        dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
+        self._storage.create_data_link(dl, update=update)

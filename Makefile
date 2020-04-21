@@ -49,6 +49,7 @@ build-executable-script:
 	chmod +x $(LBIN_DIR)/$(EXECUTABLE_SCRIPT_NAME)
 
 build-startup-script:
+	# TODO SERVER switch to gunicorn
 	mkdir -p $(LBIN_DIR)
 	echo '#!/bin/bash' > $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
 	echo 'script_dir=$$(dirname "$$(readlink -f "$$0")")' >> $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
