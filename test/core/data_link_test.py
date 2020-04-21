@@ -101,7 +101,7 @@ def test_init_fail():
     bt = datetime.datetime.now()
     n = None
 
-    _init_fail(None, d, s, t, u, n, n, ValueError('id cannot be a value that evaluates to false'))
+    _init_fail(None, d, s, t, u, n, n, ValueError('id_ cannot be a value that evaluates to false'))
     _init_fail(lid, None, s, t, u, n, n, ValueError(
         'duid cannot be a value that evaluates to false'))
     _init_fail(lid, d, None, t, u, n, n, ValueError(
