@@ -261,9 +261,11 @@ class Samples:
             sna: SampleNodeAddress,
             update: bool = False):
         '''
-        Create a link from a data unit to a sample. The user must have admin access to the sample
-        and the data unit, since linking data grants permissions: once linked, if a user
-        has access to the data unit, the user also has access to the sample.
+        Create a link from a data unit to a sample. The user must have admin access to the sample,
+        since linking data grants permissions: once linked, if a user
+        has access to the data unit, the user also has access to the sample. The user must have
+        write access to the data since adding a sample to the data effectively modifies the data,
+        but doesn't grant any additional access.
 
         Each data unit can be linked to only one sample at a time. Expired links may exist to
         other samples.
@@ -289,6 +291,6 @@ class Samples:
         _not_falsy(user, 'user')
         _not_falsy(duid, 'duid')
         self._check_perms(_not_falsy(sna, 'sna').sampleid, user, _SampleAccessType.ADMIN)
-        self._ws.has_permission(user, _WorkspaceAccessType.ADMIN, upa=duid.upa)
+        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, upa=duid.upa)
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
         self._storage.create_data_link(dl, update=update)

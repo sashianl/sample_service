@@ -853,7 +853,7 @@ def _create_data_link(user):
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
-    ws.has_permission.assert_called_once_with(user, WorkspaceAccessType.ADMIN, upa=UPA('1/1/1'))
+    ws.has_permission.assert_called_once_with(user, WorkspaceAccessType.WRITE, upa=UPA('1/1/1'))
 
     dl = DataLink(
         UUID('1234567890abcdef1234567890abcdef'),
@@ -888,7 +888,7 @@ def test_create_data_link_with_data_id_and_update():
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
     ws.has_permission.assert_called_once_with(
-        UserID('someuser'), WorkspaceAccessType.ADMIN, upa=UPA('1/1/1'))
+        UserID('someuser'), WorkspaceAccessType.WRITE, upa=UPA('1/1/1'))
 
     dl = DataLink(
         UUID('1234567890abcdef1234567890abcdef'),
@@ -974,7 +974,7 @@ def test_create_data_link_fail_no_ws_access():
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
     ws.has_permission.assert_called_once_with(
-        UserID('someuser'), WorkspaceAccessType.ADMIN, upa=UPA('7/3/2'))
+        UserID('someuser'), WorkspaceAccessType.WRITE, upa=UPA('7/3/2'))
 
 
 def _create_data_link_fail(samplestorage, user, duid, sna, expected):
