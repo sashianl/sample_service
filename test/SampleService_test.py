@@ -45,6 +45,8 @@ TEST_COL_VERSION = 'versions'
 TEST_COL_VER_EDGE = 'ver_to_sample'
 TEST_COL_NODES = 'nodes'
 TEST_COL_NODE_EDGE = 'node_edges'
+TEST_COL_DATA_LINK = 'data_link'
+TEST_COL_WS_OBJ_VER = 'ws_obj_ver_shadow'
 TEST_COL_SCHEMA = 'schema'
 TEST_USER = 'user1'
 TEST_PWD = 'password1'
@@ -100,6 +102,8 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port):
     cfg[ss]['version-edge-collection'] = TEST_COL_VER_EDGE
     cfg[ss]['node-collection'] = TEST_COL_NODES
     cfg[ss]['node-edge-collection'] = TEST_COL_NODE_EDGE
+    cfg[ss]['data-link-collection'] = TEST_COL_DATA_LINK
+    cfg[ss]['workspace-object-version-shadow-collection'] = TEST_COL_WS_OBJ_VER
     cfg[ss]['schema-collection'] = TEST_COL_SCHEMA
 
     metacfg = {
@@ -290,9 +294,8 @@ def clear_db_and_recreate(arango):
     db.create_collection(TEST_COL_VER_EDGE, edge=True)
     db.create_collection(TEST_COL_NODES)
     db.create_collection(TEST_COL_NODE_EDGE, edge=True)
-    # TODO DATALINK replace with real collections
-    db.create_collection('fake_ws')
-    db.create_collection('fake_data', edge=True)
+    db.create_collection(TEST_COL_DATA_LINK, edge=True)
+    db.create_collection(TEST_COL_WS_OBJ_VER)
     db.create_collection(TEST_COL_SCHEMA)
     return db
 
@@ -348,6 +351,11 @@ def test_init_fail():
     cfg['node-collection'] = 'crap'
     init_fail(cfg, MissingParameterError('config param node-edge-collection'))
     cfg['node-edge-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError('config param data-link-collection'))
+    cfg['data-link-collection'] = 'crap'
+    init_fail(cfg, MissingParameterError(
+        'config param workspace-object-version-shadow-collection'))
+    cfg['workspace-object-version-shadow-collection'] = 'crap'
     init_fail(cfg, MissingParameterError('config param schema-collection'))
     cfg['schema-collection'] = 'crap'
     init_fail(cfg, MissingParameterError('config param auth-root-url'))

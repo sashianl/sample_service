@@ -50,6 +50,11 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     col_node = _check_string_req(config.get('node-collection'), 'config param node-collection')
     col_node_edge = _check_string_req(
         config.get('node-edge-collection'), 'config param node-edge-collection')
+    col_data_link = _check_string_req(
+        config.get('data-link-collection'), 'config param data-link-collection')
+    col_ws_obj_ver = _check_string_req(
+        config.get('workspace-object-version-shadow-collection'),
+        'config param workspace-object-version-shadow-collection')
     col_schema = _check_string_req(config.get('schema-collection'),
                                    'config param schema-collection')
 
@@ -82,6 +87,8 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
             version-edge-collection: {col_ver_edge}
             node-collection: {col_node}
             node-edge-collection: {col_node_edge}
+            data-link-collection: {col_data_link}
+            workspace-object-version-shadow-collection: {col_ws_obj_ver}
             schema-collection: {col_schema}
             auth-root-url: {auth_root_url}
             auth-token: [REDACTED FOR YOUR CONVENIENCE AND ENJOYMENT]
@@ -102,8 +109,8 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
         col_ver_edge,
         col_node,
         col_node_edge,
-        'fake_ws',    # TODO DATALINK get from config
-        'fake_data',  # TODO DATALINK get from config
+        col_ws_obj_ver,
+        col_data_link,
         col_schema,
     )
     storage.start_consistency_checker()
