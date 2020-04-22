@@ -813,7 +813,6 @@ class ArangoSampleStorage:
         '''
         # TODO DATALINK notes re listing expired links - not scalable - or is it?
         # index on endpoint and creation time, page by creation time
-        # TODO DATALINK list samples linked to ws object
 
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
@@ -1196,9 +1195,6 @@ class ArangoSampleStorage:
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         '''
-        # TODO DATALINK has link from ws object to sample method for get sample via object
-        # - handle ref path?
-        # TODO DATALINK what about deleted objects?
         # may want to make this work on non-ws objects at some point. YAGNI for now.
         _not_falsy(sample, 'sample')
         _check_timestamp(timestamp, 'timestamp')

@@ -9,6 +9,7 @@ from uuid import UUID
 from typing import Optional, Callable, Tuple, List, Dict, Union, cast as _cast
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
+from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.core_types import PrimitiveType
@@ -17,7 +18,7 @@ from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
 from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
-from SampleService.core.sample import Sample, SavedSample, SampleNodeAddress
+from SampleService.core.sample import Sample, SavedSample, SampleAddress, SampleNodeAddress
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
@@ -161,7 +162,6 @@ class Samples:
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
-        # TODO get sample via a workspace object linking to it, SampleSet or linked object
         if version is not None and version < 1:
             raise _IllegalParameterError('Version must be > 0')
         self._check_perms(_not_falsy(id_, 'id_'), _not_falsy(user, 'user'),
@@ -287,10 +287,45 @@ class Samples:
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
         # TODO ADMIN admin mode
-        # TODO DATALINK expire link
         _not_falsy(user, 'user')
         _not_falsy(duid, 'duid')
         self._check_perms(_not_falsy(sna, 'sna').sampleid, user, _SampleAccessType.ADMIN)
         self._ws.has_permission(user, _WorkspaceAccessType.WRITE, upa=duid.upa)
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
         self._storage.create_data_link(dl, update=update)
+
+    # TODO DATALINK expire link
+
+    def get_links_from_sample(
+            self,
+            user: UserID,
+            sample: SampleAddress,
+            timestamp: datetime.datetime = None) -> List[DataLink]:
+        '''
+        Get a set of data links originating from a sample at a particular time.
+
+        :param user: the user requesting the links.
+        :param sample: the sample from which the links originate.
+        :param timestamp: the timestamp during which the links should be active, defaulting to
+            the current time.
+        :returns: a list of links.
+        :raises UnauthorizedError: if the user does not have read permission for the sample.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        :raises NoSuchUserError: if the user does not exist.
+        '''
+        # TODO ADMIN admin mode
+        _not_falsy(user, 'user')
+        _not_falsy(sample, 'sample')
+        if timestamp:
+            _check_timestamp(timestamp, 'timestamp')
+        else:
+            timestamp = self._now()
+        self._check_perms(sample.sampleid, user, _SampleAccessType.READ)
+        wsids = self._ws.get_user_workspaces(user)
+        # TODO DATALINK what about deleted objects? Currently not handled
+        return self._storage.get_links_from_sample(sample, wsids, timestamp)
+
+    # TODO DATALINK get links from data
+    # TODO DATALINK has link from ws object to sample method for get sample via object
+    # - handle ref path?

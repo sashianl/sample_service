@@ -104,7 +104,6 @@ class SampleACL(SampleACLOwnerless):
         :param read: the list of usernames with read privileges.
         :raises IllegalParameterError: If a user appears in more than one ACL
         '''
-        # TODO may want a class for user name rather than using raw strings
         self.owner = _not_falsy(owner, 'owner')
         super().__init__(admin, write, read)
         all_ = (self.admin, self.write, self.read)

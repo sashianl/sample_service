@@ -981,3 +981,142 @@ def _create_data_link_fail(samplestorage, user, duid, sna, expected):
     with raises(Exception) as got:
         samplestorage.create_data_link(user, duid, sna)
     assert_exception_correct(got.value, expected)
+
+
+def test_get_links_from_sample():
+    _get_links_from_sample(UserID('someuser'))
+    _get_links_from_sample(UserID('otheruser'))
+    _get_links_from_sample(UserID('ur mum'))
+    _get_links_from_sample(UserID('x'))
+
+
+def _get_links_from_sample(user):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    ws.get_user_workspaces.return_value = [7, 90, 106]
+
+    dl1 = DataLink(
+        UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        dt(5),
+        UserID('userb')
+    )
+
+    dl2 = DataLink(
+        UUID('1234567890abcdef1234567890abcdec'),
+        DataUnitID(UPA('1/2/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode3'),
+        dt(5),
+        UserID('usera')
+    )
+
+    storage.get_links_from_sample.return_value = [dl1, dl2]
+
+    assert s.get_links_from_sample(
+        user, SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3)) == [dl1, dl2]
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+    ws.get_user_workspaces.assert_called_once_with(user)
+
+    storage.get_links_from_sample.assert_called_once_with(
+        SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
+        [7, 90, 106],
+        dt(6)
+    )
+
+
+def test_get_links_from_sample_with_timestamp():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    storage.get_sample_acls.return_value = SampleACL(u('someuser'))
+
+    ws.get_user_workspaces.return_value = [3]
+
+    dl1 = DataLink(
+        UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        dt(5),
+        UserID('userb')
+    )
+
+    storage.get_links_from_sample.return_value = [dl1]
+
+    assert s.get_links_from_sample(
+        UserID('someuser'),
+        SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
+        dt(40)) == [dl1]
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+    ws.get_user_workspaces.assert_called_once_with(UserID('someuser'))
+
+    storage.get_links_from_sample.assert_called_once_with(
+        SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
+        [3],
+        dt(40)
+    )
+
+
+def test_get_links_from_sample_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    u = UserID('u')
+    sa = SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3)
+    bt = datetime.datetime.fromtimestamp(1)
+
+    _get_links_from_sample_fail(s, None, sa, None, ValueError(
+        'user cannot be a value that evaluates to false'))
+    _get_links_from_sample_fail(s, u, None, None, ValueError(
+        'sample cannot be a value that evaluates to false'))
+    _get_links_from_sample_fail(s, u, sa, bt, ValueError(
+        'timestamp cannot be a naive datetime'))
+
+
+def test_get_links_from_sample_fail_unauthorized():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    _get_links_from_sample_fail(
+        s,
+        UserID('z'),
+        SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
+        None,
+        UnauthorizedError('User z cannot read sample 12345678-90ab-cdef-1234-567890abcdee'))
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
+
+
+def _get_links_from_sample_fail(samplestorage, user, sample, ts, expected):
+    with raises(Exception) as got:
+        samplestorage.get_links_from_sample(user, sample, ts)
+    assert_exception_correct(got.value, expected)
