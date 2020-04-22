@@ -276,9 +276,10 @@ def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
 
 def _get_types(d):
     types = [float, int]
-    if d.get('type') == 'int':
+    t = d.get('type')
+    if t == 'int':
         types = [int]
-    elif d.get('type') is not None:
+    elif t is not None and t != 'float':
         raise ValueError(f"Illegal value for type parameter: {d.get('type')}")
     return types
 

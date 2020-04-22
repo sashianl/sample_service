@@ -232,6 +232,10 @@ def _units_validate_fail(cfg, meta, expected):
 
 def test_number():
     _number_success({}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
+    # null type should allow floats
+    _number_success({'type': None}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
+    # float type should allow floats
+    _number_success({'type': 'float'}, {'whee': 1, '2': 2.3, '3': 10312.5677, '4': 682})
     # required should be ignored
     _number_success({'required': True}, {'whee': 1, '2': 2.3, '3': 10312.567, '4': 682, '5': None})
     # test none is ok and ints are ok

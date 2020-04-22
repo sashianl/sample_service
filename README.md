@@ -438,7 +438,7 @@ Ensures all values are integers or floats.
 * If `required` is specified, the keys in the `keys` list must exist in the metadata value map,
   although their value may be `null`.
 * `type` specifies that the number or numbers must be integers if set to `int` or any number if
-  omitted or `null`.
+  omitted or set to `float` or `null`.
 * `gt`, `gte`, `lt`, and `lte` are respectively greater than, greater than or equal,
   less than, and less than or equal, and specify a range in which the number or numbers must exist.
   If `gt` or `lt` are specified, `gte` or `lte` cannot be specified, respectively, and vice versa.
