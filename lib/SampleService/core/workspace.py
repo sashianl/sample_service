@@ -223,7 +223,6 @@ class WS:
 
         :param user: The username of the user whose workspaces will be returned.
         :returns: A list of workspace IDs.
-        :raises IllegalParameterError: if the parameters are incorrect, such as a missing user.
         :raises NoSuchUserError: if the user does not exist.
         '''
         # May also want write / admin / no public ws
