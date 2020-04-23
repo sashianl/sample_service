@@ -275,8 +275,7 @@ class Samples:
         :param sna: the sample node to link to the data unit.
         :param update: True to expire any extant link if it does not link to the provided sample.
             If False and a link from the data unit already exists, link creation will fail.
-        :raises UnauthorizedError: if the user does not have read permission for the sample.
-        :raises IllegalParameterError: if the parameters are incorrect, such as an improper UPA.
+        :raises UnauthorizedError: if the user does not have acceptable permissions.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises NoSuchSampleNodeError: if the sample node does not exist.

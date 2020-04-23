@@ -11,9 +11,14 @@ from SampleService.core.api_translation import sample_to_dict as _sample_to_dict
 from SampleService.core.api_translation import create_sample_params as _create_sample_params
 from SampleService.core.api_translation import check_admin as _check_admin
 from SampleService.core.api_translation import (
-    get_static_key_metadata_params as _get_static_key_metadata_params)
+    get_static_key_metadata_params as _get_static_key_metadata_params,
+    create_data_link_params as _create_data_link_params,
+    get_datetime_from_epochmilliseconds_in_object as _get_datetime_from_epochmillseconds_in_object,
+    links_to_dicts as _links_to_dicts
+    )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.user import UserID as _UserID
 
 _CTX_USER = 'user_id'
@@ -42,7 +47,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha5"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "239a7e19168fd517b98e001f1aadc6c1f1eae9e7"
+    GIT_COMMIT_HASH = "8b7c538b9aa281ef33d2b31018f01265111244d6"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -337,6 +342,104 @@ Note that usage of the administration flags will be logged by the service.
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
             raise ValueError('Method get_metadata_key_static_metadata return value ' +
+                             'results is not type dict as required.')
+        # return the results
+        return [results]
+
+    def create_data_link(self, ctx, params):
+        """
+        Create a link from a KBase Workspace object to a sample.
+                The user must have admin permissions for the sample and write permissions for the
+                Workspace object.
+        :param params: instance of type "CreateDataLinkParams"
+           (create_data_link parameters. upa - the workspace UPA of the
+           object to be linked. dataid - the dataid of the data to be linked,
+           if any, within the object. If omitted the entire object is linked
+           to the sample. id - the sample id. version - the sample version.
+           node - the sample node. update - if false (the default), fail if a
+           link already exists from the data unit (the combination of the UPA
+           and dataid). if true, expire the old link and create the new link
+           unless the link is already to the requested sample node, in which
+           case the operation is a no-op.) -> structure: parameter "upa" of
+           type "ws_upa" (A KBase Workspace service Unique Permanent Address
+           (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the object ID,
+           and 7 the object version.), parameter "dataid" of type "data_id"
+           (An id for a unit of data within a KBase Workspace object. A
+           single object may contain many data units. A dataid is expected to
+           be unique within a single object. Must be less than 255
+           characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "update" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
+        """
+        # ctx is the context object
+        #BEGIN create_data_link
+        duid, sna, update = _create_data_link_params(params)
+        # TODO ADMIN mode
+        self._samples.create_data_link(_UserID(ctx[_CTX_USER]), duid, sna, update)
+        #END create_data_link
+        pass
+
+    def get_data_links_from_sample(self, ctx, params):
+        """
+        Get data links to Workspace objects originating from a sample.
+                The user must have read permissions to the sample. Only Workspace objects the user
+                can read are returned.
+        :param params: instance of type "GetDataLinksFromSampleParams"
+           (get_data_links_from_sample parameters. id - the sample ID.
+           version - the sample version. effective_time - the effective time
+           at which the query should be run - the default is the current
+           time. Providing a time allows for reproducibility of previous
+           results.) -> structure: parameter "id" of type "sample_id" (A
+           Sample ID. Must be globally unique. Always assigned by the Sample
+           service.), parameter "version" of type "version" (The version of a
+           sample. Always > 0.), parameter "effective_time" of type
+           "timestamp" (A timestamp in epoch milliseconds.)
+        :returns: instance of type "GetDataLinksFromSampleResults"
+           (get_data_links_from_sample_results output. links - the links.) ->
+           structure: parameter "links" of list of type "DataLink" (A data
+           link from a KBase workspace object to a sample. upa - the
+           workspace UPA of the linked object. dataid - the dataid of the
+           linked data, if any, within the object. If omitted the entire
+           object is linked to the sample. id - the sample id. version - the
+           sample version. node - the sample node. createdby - the user that
+           created the link. created - the time the link was created.
+           expiredby - the user that expired the link, if any. expired - the
+           time the link was expired, if at all.) -> structure: parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "createdby" of type "user" (A user's username.),
+           parameter "created" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "expiredby" of type "user" (A user's
+           username.), parameter "expired" of type "timestamp" (A timestamp
+           in epoch milliseconds.)
+        """
+        # ctx is the context object
+        # return variables are: results
+        #BEGIN get_data_links_from_sample
+        sid, ver = _get_sample_address_from_object(params, version_required=True)
+        dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
+        # TODO ADMIN mode
+        links = self._samples.get_links_from_sample(
+            _UserID(ctx[_CTX_USER]), _SampleAddress(sid, ver), dt)
+        results = {'links': _links_to_dicts(links)}
+        #END get_data_links_from_sample
+
+        # At some point might do deeper type checking...
+        if not isinstance(results, dict):
+            raise ValueError('Method get_data_links_from_sample return value ' +
                              'results is not type dict as required.')
         # return the results
         return [results]

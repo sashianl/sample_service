@@ -51,6 +51,15 @@ module SampleService {
      */
     typedef mapping<metadata_key, mapping<metadata_value_key, UnspecifiedObject>> metadata;
 
+    /* A KBase Workspace service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+        workspace ID, 6 the object ID, and 7 the object version. */
+    typedef string ws_upa;
+
+    /* An id for a unit of data within a KBase Workspace object. A single object may contain
+        many data units. A dataid is expected to be unique within a single object. Must be less
+        than 255 characters. */
+    typedef string data_id;
+
     /* A node in a sample tree.
         id - the ID of the node.
         parent - the id of the parent node for the current node. BioReplicate nodes, and only
@@ -216,5 +225,88 @@ module SampleService {
      */
     funcdef get_metadata_key_static_metadata(GetMetadataKeyStaticMetadataParams params)
         returns(GetMetadataKeyStaticMetadataResults results) authentication none;
+
+    /* create_data_link parameters.
+    
+        upa - the workspace UPA of the object to be linked.
+        dataid - the dataid of the data to be linked, if any, within the object. If omitted the
+            entire object is linked to the sample.
+        id - the sample id.
+        version - the sample version.
+        node - the sample node.
+        update - if false (the default), fail if a link already exists from the data unit (the
+            combination of the UPA and dataid). if true, expire the old link and create the new
+            link unless the link is already to the requested sample node, in which case the
+            operation is a no-op.
+        */
+    typedef structure {
+        ws_upa upa;
+        data_id dataid;
+        sample_id id;
+        version version;
+        node_id node;
+        boolean update;
+    } CreateDataLinkParams;
+
+    /* Create a link from a KBase Workspace object to a sample.
+
+        The user must have admin permissions for the sample and write permissions for the
+        Workspace object.
+     */
+    funcdef create_data_link(CreateDataLinkParams params) returns() authentication required;
+
+    /* get_data_links_from_sample parameters.
+
+        id - the sample ID.
+        version - the sample version.
+        effective_time - the effective time at which the query should be run - the default is
+            the current time. Providing a time allows for reproducibility of previous results.
+    */
+    typedef structure {
+        sample_id id;
+        version version;
+        timestamp effective_time;
+    } GetDataLinksFromSampleParams;
+
+    /* A data link from a KBase workspace object to a sample.
+    
+        upa - the workspace UPA of the linked object.
+        dataid - the dataid of the linked data, if any, within the object. If omitted the
+            entire object is linked to the sample.
+        id - the sample id.
+        version - the sample version.
+        node - the sample node.
+        createdby - the user that created the link.
+        created - the time the link was created.
+        expiredby - the user that expired the link, if any.
+        expired - the time the link was expired, if at all.
+     */
+    typedef structure {
+        ws_upa upa;
+        data_id dataid;
+        sample_id id;
+        version version;
+        node_id node;
+        user createdby;
+        timestamp created;
+        user expiredby;
+        timestamp expired;
+    } DataLink;
+
+    /* get_data_links_from_sample_results output.
+
+        links - the links.
+    */
+    typedef structure {
+        list<DataLink> links;
+    } GetDataLinksFromSampleResults;
+
+    /* Get data links to Workspace objects originating from a sample.
+
+        The user must have read permissions to the sample. Only Workspace objects the user
+        can read are returned.
+     */
+    funcdef get_data_links_from_sample(GetDataLinksFromSampleParams params)
+        returns(GetDataLinksFromSampleResults results) authentication required;
 
 };

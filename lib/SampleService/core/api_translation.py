@@ -368,7 +368,6 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
     upa - workspace object UPA
     dataid - ID of the data within the workspace object
     update - whether the link should be updated
-    The keys 'id' and 'version' are used.
 
     :param params: the parameters.
     :returns: a tuple consisting of:
