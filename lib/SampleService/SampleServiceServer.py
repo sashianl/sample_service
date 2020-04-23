@@ -364,6 +364,14 @@ class Application(object):
                              name='SampleService.get_metadata_key_static_metadata',
                              types=[dict])
         self.method_authentication['SampleService.get_metadata_key_static_metadata'] = 'none'  # noqa
+        self.rpc_service.add(impl_SampleService.create_data_link,
+                             name='SampleService.create_data_link',
+                             types=[dict])
+        self.method_authentication['SampleService.create_data_link'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.get_data_links_from_sample,
+                             name='SampleService.get_data_links_from_sample',
+                             types=[dict])
+        self.method_authentication['SampleService.get_data_links_from_sample'] = 'required'  # noqa
         self.rpc_service.add(impl_SampleService.status,
                              name='SampleService.status',
                              types=[dict])
