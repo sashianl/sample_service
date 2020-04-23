@@ -12,7 +12,8 @@ from SampleService.core.api_translation import create_sample_params, get_sample_
 from SampleService.core.api_translation import (
     check_admin,
     get_static_key_metadata_params,
-    create_data_link_params
+    create_data_link_params,
+    get_datetime_from_epochmilliseconds_in_object
 )
 from SampleService.core.sample import (
     Sample,
@@ -661,4 +662,32 @@ def test_create_data_link_params_fail_bad_args():
 def _create_data_link_params_fail(params, expected):
     with raises(Exception) as got:
         create_data_link_params(params)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_datetime_from_epochmilliseconds_in_object():
+    gt = get_datetime_from_epochmilliseconds_in_object
+    assert gt({}, 'foo') is None
+    assert gt({'bar': 1}, 'foo') is None
+    assert gt({'foo': 0}, 'foo') == dt(0)
+    assert gt({'foo': 1}, 'foo') == dt(0.001)
+    assert gt({'foo': -1}, 'foo') == dt(-0.001)
+    assert gt({'bar': 1234877807185}, 'bar') == dt(1234877807.185)
+    assert gt({'bar': -1234877807185}, 'bar') == dt(-1234877807.185)
+    # should really test overflow but that's system dependent, no reliable test
+
+
+def test_get_datetime_from_epochmilliseconds_in_object_fail_bad_args():
+    gt = _get_datetime_from_epochmilliseconds_in_object_fail
+
+    gt(None, 'bar', ValueError('params cannot be None'))
+    gt({'foo': 'a'}, 'foo', IllegalParameterError(
+        "key 'foo' value of 'a' is not a valid epoch millisecond timestamp"))
+    gt({'ts': 1.2}, 'ts', IllegalParameterError(
+        "key 'ts' value of '1.2' is not a valid epoch millisecond timestamp"))
+
+
+def _get_datetime_from_epochmilliseconds_in_object_fail(params, key, expected):
+    with raises(Exception) as got:
+        get_datetime_from_epochmilliseconds_in_object(params, key)
     assert_exception_correct(got.value, expected)

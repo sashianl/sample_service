@@ -64,6 +64,25 @@ def datetime_to_epochmilliseconds(d: datetime.datetime) -> int:
     return round(_not_falsy(d, 'd').timestamp() * 1000)
 
 
+def get_datetime_from_epochmilliseconds_in_object(
+        params: Dict[str, Any], key: str) -> Optional[datetime.datetime]:
+    '''
+    Get a non-naive datetime from a field in an object where the value is epoch milliseconds.
+
+    :param params: the object.
+    :param key: the key in the object for which the value is an epoch millisecond timestamp.
+    :returns: the datatime or None if none was provided.
+    :raises IllegalParameterError: if the timestamp is missing or illegal.
+    '''
+    t = _check_params(params).get(key)
+    if t is None:
+        return None
+    if type(t) != int:
+        raise _IllegalParameterError(
+            f"key '{key}' value of '{t}' is not a valid epoch millisecond timestamp")
+    return datetime.datetime.fromtimestamp(t / 1000, tz=datetime.timezone.utc)
+
+
 def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID], Optional[int]]:
     '''
     Process the input from the create_sample API call and translate it into standard types.
@@ -144,6 +163,7 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
 def _check_params(params):
     if params is None:
         raise ValueError('params cannot be None')
+    return params
 
 
 def get_version_from_object(params: Dict[str, Any], required: bool = False) -> Optional[int]:
@@ -333,7 +353,7 @@ def get_static_key_metadata_params(params: Dict[str, Any]) -> Tuple[List[str], O
 
 def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleNodeAddress, bool]:
     '''
-    Given a dict, extract the parameters to create paramters for creating a data link.
+    Given a dict, extract the parameters to create parameters for creating a data link.
 
     Expected keys:
     id - sample id

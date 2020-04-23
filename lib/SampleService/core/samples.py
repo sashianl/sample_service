@@ -327,5 +327,4 @@ class Samples:
         return self._storage.get_links_from_sample(sample, wsids, timestamp)
 
     # TODO DATALINK get links from data
-    # TODO DATALINK has link from ws object to sample method for get sample via object
-    # - handle ref path?
+    # TODO DATALINK get sample via object - handle ref path?
