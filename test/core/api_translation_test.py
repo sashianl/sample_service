@@ -9,14 +9,26 @@ from SampleService.core.api_translation import datetime_to_epochmilliseconds, ge
 from SampleService.core.api_translation import get_version_from_object, sample_to_dict
 from SampleService.core.api_translation import acls_to_dict, acls_from_dict
 from SampleService.core.api_translation import create_sample_params, get_sample_address_from_object
-from SampleService.core.api_translation import check_admin, get_static_key_metadata_params
-from SampleService.core.sample import Sample, SampleNode, SubSampleType, SavedSample
+from SampleService.core.api_translation import (
+    check_admin,
+    get_static_key_metadata_params,
+    create_data_link_params
+)
+from SampleService.core.sample import (
+    Sample,
+    SampleNode,
+    SampleAddress,
+    SampleNodeAddress,
+    SubSampleType,
+    SavedSample
+)
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 from SampleService.core.errors import UnauthorizedError
 from SampleService.core.acls import AdminPermission
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.user import UserID
+from SampleService.core.workspace import DataUnitID, UPA
 
 from core.test_utils import assert_exception_correct
 
@@ -232,23 +244,27 @@ def create_sample_params_fail(params, expected):
 def test_get_version_from_object():
     assert get_version_from_object({}) is None
     assert get_version_from_object({'version': None}) is None
-    assert get_version_from_object({'version': 3}) == 3
+    assert get_version_from_object({'version': 3}, True) == 3
     assert get_version_from_object({'version': 1}) == 1
 
 
 def test_get_version_from_object_fail_bad_args():
-    get_version_from_object_fail(None, ValueError('params cannot be None'))
+    get_version_from_object_fail(None, False, ValueError('params cannot be None'))
     get_version_from_object_fail(
-        {'version': 'whee'}, IllegalParameterError('Illegal version argument: whee'))
+        {}, True, IllegalParameterError('version is required'))
     get_version_from_object_fail(
-        {'version': 0}, IllegalParameterError('Illegal version argument: 0'))
+        {'version': None}, True, IllegalParameterError('version is required'))
     get_version_from_object_fail(
-        {'version': -3}, IllegalParameterError('Illegal version argument: -3'))
+        {'version': 'whee'}, False, IllegalParameterError('Illegal version argument: whee'))
+    get_version_from_object_fail(
+        {'version': 0}, True, IllegalParameterError('Illegal version argument: 0'))
+    get_version_from_object_fail(
+        {'version': -3}, False, IllegalParameterError('Illegal version argument: -3'))
 
 
-def get_version_from_object_fail(params, expected):
+def get_version_from_object_fail(params, required, expected):
     with raises(Exception) as got:
-        get_version_from_object(params)
+        get_version_from_object(params, required)
     assert_exception_correct(got.value, expected)
 
 
@@ -274,11 +290,13 @@ def test_get_sample_address_from_object_fail_bad_args():
 
     id_ = 'f5bd78c3-823e-40b2-9f93-20e78680e41e'
     get_version_from_object_fail(
-        {'id': id_, 'version': 'whee'}, IllegalParameterError('Illegal version argument: whee'))
+        {'id': id_, 'version': 'whee'},
+        True,
+        IllegalParameterError('Illegal version argument: whee'))
     get_version_from_object_fail(
-        {'id': id_, 'version': 0}, IllegalParameterError('Illegal version argument: 0'))
+        {'id': id_, 'version': 0}, True, IllegalParameterError('Illegal version argument: 0'))
     get_version_from_object_fail(
-        {'id': id_, 'version': -3}, IllegalParameterError('Illegal version argument: -3'))
+        {'id': id_, 'version': -3}, True, IllegalParameterError('Illegal version argument: -3'))
 
 
 def get_sample_address_from_object_fail(params, expected):
@@ -552,4 +570,95 @@ def test_get_static_key_metadata_params_fail_bad_args():
 def _get_static_key_metadata_params_fail(params, expected):
     with raises(Exception) as got:
         get_static_key_metadata_params(params)
+    assert_exception_correct(got.value, expected)
+
+
+def test_create_data_link_params_missing_update_key():
+    params = {
+        'id': '706fe9e1-70ef-4feb-bbd9-32295104a119',
+        'version': 78,
+        'node': 'mynode',
+        'upa': '6/7/29',
+        'dataid': 'mydata'
+    }
+
+    assert create_data_link_params(params) == (
+        DataUnitID(UPA('6/7/29'), 'mydata'),
+        SampleNodeAddress(
+            SampleAddress(UUID('706fe9e1-70ef-4feb-bbd9-32295104a119'), 78), 'mynode'),
+        False
+    )
+
+
+def test_create_data_link_params_with_update():
+    _create_data_link_params_with_update(None, False)
+    _create_data_link_params_with_update(False, False)  # doesn't work with SDK
+    _create_data_link_params_with_update(0, False)
+    _create_data_link_params_with_update([], False)  # illegal value theoretically
+    _create_data_link_params_with_update('', False)  # illegal value theoretically
+    _create_data_link_params_with_update(1, True)
+    # rest of these are theoretically illegal values
+    _create_data_link_params_with_update(100, True)
+    _create_data_link_params_with_update(-1, True)
+    _create_data_link_params_with_update('m', True)
+    _create_data_link_params_with_update({'a': 'b'}, True)
+
+
+def _create_data_link_params_with_update(update, expected):
+    params = {
+        'id': '706fe9e1-70ef-4feb-bbd9-32295104a119',
+        'version': 1,
+        'node': 'm',
+        'upa': '1/1/1',
+        'update': update
+    }
+
+    assert create_data_link_params(params) == (
+        DataUnitID(UPA('1/1/1')),
+        SampleNodeAddress(
+            SampleAddress(UUID('706fe9e1-70ef-4feb-bbd9-32295104a119'), 1), 'm'),
+        expected
+    )
+
+
+def test_create_data_link_params_fail_bad_args():
+    id_ = '706fe9e1-70ef-4feb-bbd9-32295104a119'
+    _create_data_link_params_fail(None, ValueError('params cannot be None'))
+    _create_data_link_params_fail({}, MissingParameterError('Sample ID'))
+    _create_data_link_params_fail({'id': 6}, IllegalParameterError(
+        'Sample ID 6 must be a UUID string'))
+    _create_data_link_params_fail({'id': id_[:-1]}, IllegalParameterError(
+        'Sample ID 706fe9e1-70ef-4feb-bbd9-32295104a11 must be a UUID string'))
+    _create_data_link_params_fail(
+        {'id': id_},
+        IllegalParameterError('version is required'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 'ver'},
+        IllegalParameterError('Illegal version argument: ver'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': -1},
+        IllegalParameterError('Illegal version argument: -1'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 1},
+        IllegalParameterError('node key is not a string as required'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 1, 'node': 'foo\tbar'},
+        IllegalParameterError('node contains control characters'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 1, 'node': 'm'},
+        IllegalParameterError('upa key is not a string as required'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 1, 'node': 'm', 'upa': '1/0/1'},
+        IllegalParameterError('1/0/1 is not a valid UPA'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 1, 'node': 'm', 'upa': '1/1/1', 'dataid': 6},
+        IllegalParameterError('dataid key is not a string as required'))
+    _create_data_link_params_fail(
+        {'id': id_, 'version': 1, 'node': 'm', 'upa': '1/1/1', 'dataid': 'yay\nyo'},
+        IllegalParameterError('dataid contains control characters'))
+
+
+def _create_data_link_params_fail(params, expected):
+    with raises(Exception) as got:
+        create_data_link_params(params)
     assert_exception_correct(got.value, expected)

@@ -8,8 +8,14 @@ from typing import Dict, Any, Optional, Tuple, List, Callable, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.sample import Sample, SampleNode as _SampleNode, SavedSample
-from SampleService.core.sample import SubSampleType as _SubSampleType
+from SampleService.core.sample import (
+    Sample,
+    SampleNode as _SampleNode,
+    SavedSample,
+    SampleAddress as _SampleAddress,
+    SampleNodeAddress,
+    SubSampleType as _SubSampleType
+)
 from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
@@ -17,6 +23,7 @@ from SampleService.core.errors import IllegalParameterError as _IllegalParameter
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.user import UserID as _UserID
+from SampleService.core.workspace import DataUnitID, UPA as _UPA
 
 ID = 'id'
 ''' The ID of a sample. '''
@@ -139,16 +146,19 @@ def _check_params(params):
         raise ValueError('params cannot be None')
 
 
-def get_version_from_object(params: Dict[str, Any]) -> Optional[int]:
+def get_version_from_object(params: Dict[str, Any], required: bool = False) -> Optional[int]:
     '''
     Given a dict, get a sample version from the dict if it exists, using the key 'version'.
 
-    :param params: The unmarshalled JSON recieved from the API as part of the API call.
+    :param params: the unmarshalled JSON recieved from the API as part of the API call.
+    :param required: if True, throw and exception if the version is not supplied.
     :returns: the version or None if no version was provided.
     :raises IllegalParameterError: if the version is not an integer or < 1.
     '''
     _check_params(params)
     ver = params.get('version')
+    if ver is None and required:
+        raise _IllegalParameterError('version is required')
     if ver is not None and (type(ver) != int or ver < 1):
         raise _IllegalParameterError(f'Illegal version argument: {ver}')
     return ver
@@ -183,7 +193,7 @@ def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
               'meta_user': _unfreeze_meta(n.user_metadata)
               }
              for n in _not_falsy(sample, 'sample').nodes]
-    return {'id': str(sample.id),
+    return {ID: str(sample.id),
             'user': sample.user.id,
             'name': sample.name,
             'node_tree': nodes,
@@ -267,7 +277,7 @@ def check_admin(
     :param skip_check: Skip the administration permission check and return false.
     :returns: true if the user has the required administration permission, false if skip_check
         is true.
-    :throws UnauthorizedError: if the user does not have the permission required.
+    :raises UnauthorizedError: if the user does not have the permission required.
     '''
     if skip_check:
         return False
@@ -299,6 +309,7 @@ def get_static_key_metadata_params(params: Dict[str, Any]) -> Tuple[List[str], O
         indicates that prefix keys should be interrogated but only exact matches should be
         considered, and True indicates that prefix keys should be interrogated but prefix matches
         should be included in the results.
+    :raises IllegalParameterError: if any of the arguments are illegal.
     '''
     _check_params(params)
     keys = params.get('keys')
@@ -318,3 +329,45 @@ def get_static_key_metadata_params(params: Dict[str, Any]) -> Tuple[List[str], O
     else:
         raise _IllegalParameterError(f'Unexpected value for prefix: {prefix}')
     return _cast(List[str], keys), pre
+
+
+def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleNodeAddress, bool]:
+    '''
+    Given a dict, extract the parameters to create paramters for creating a data link.
+
+    Expected keys:
+    id - sample id
+    version - sample version
+    node - sample node
+    upa - workspace object UPA
+    dataid - ID of the data within the workspace object
+    update - whether the link should be updated
+    The keys 'id' and 'version' are used.
+
+    :param params: the parameters.
+    :returns: a tuple consisting of:
+        1) The data unit ID that is the target of the link,
+        2) The sample node that is the target of the link,
+        3) A boolean that indicates whether the link should be updated if it already exists.
+    :raises IllegalParameterError: if any of the arguments are illegal.
+    '''
+    _check_params(params)
+    sna = SampleNodeAddress(
+        _SampleAddress(
+            _cast(UUID, get_id_from_object(params, required=True)),
+            _cast(int, get_version_from_object(params, required=True))),
+        _cast(str, _check_string(params, 'node', True))
+    )
+    duid = DataUnitID(
+        _UPA(_cast(str, _check_string(params, 'upa', True))),
+        _check_string(params, 'dataid'))
+    return (duid, sna, bool(params.get('update')))
+
+
+def _check_string(params: Dict[str, Any], key: str, required=False) -> Optional[str]:
+    v = params.get(key)
+    if v is None and not required:
+        return None
+    if type(v) != str:
+        raise _IllegalParameterError(f'{key} key is not a string as required')
+    return _cast(str, v)
