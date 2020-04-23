@@ -188,19 +188,21 @@ def get_version_from_object(params: Dict[str, Any], required: bool = False) -> O
     return ver
 
 
-def get_sample_address_from_object(params: Dict[str, Any]) -> Tuple[UUID, Optional[int]]:
+def get_sample_address_from_object(
+            params: Dict[str, Any], version_required: bool = False) -> Tuple[UUID, Optional[int]]:
     '''
     Given a dict, get a sample ID and version from the dict. The sample ID is required but
     the version is not. The keys 'id' and 'version' are used.
 
-    :param params: The unmarshalled JSON recieved from the API as part of the API call.
-    :returns: A tuple containing the ID and the version or None if no version was provided.
-    :raises MissingParameterError: If the ID is missing.
+    :param params: the unmarshalled JSON recieved from the API as part of the API call.
+    :param version_required: require the version as well as the ID.
+    :returns: a tuple containing the ID and the version or None if no version was provided.
+    :raises MissingParameterError: if the ID is missing.
     :raises IllegalParameterError: if the ID is malformed or if the version is not an
         integer or < 1.
     '''
     return (_cast(UUID, get_id_from_object(params, required=True)),
-            get_version_from_object(params))
+            get_version_from_object(params, version_required))
 
 
 def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
