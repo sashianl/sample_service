@@ -276,22 +276,26 @@ def test_get_sample_address_from_object():
         UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e'), None)
     assert get_sample_address_from_object({
         'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
-        'version': 1}) == (
+        'version': 1}, version_required=True) == (
         UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e'), 1)
 
 
 def test_get_sample_address_from_object_fail_bad_args():
-    get_sample_address_from_object_fail(None, MissingParameterError('Sample ID'))
-    get_sample_address_from_object_fail({}, MissingParameterError('Sample ID'))
-    get_sample_address_from_object_fail({'id': None}, MissingParameterError('Sample ID'))
-    get_sample_address_from_object_fail({'id': 6}, IllegalParameterError(
+    get_sample_address_from_object_fail(None, False, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail({}, False, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail({'id': None}, False, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail({'id': 6}, False, IllegalParameterError(
         'Sample ID 6 must be a UUID string'))
-    get_sample_address_from_object_fail({
-        'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'},
+    get_sample_address_from_object_fail(
+        {'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'}, False,
         IllegalParameterError(
             'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
-
     id_ = 'f5bd78c3-823e-40b2-9f93-20e78680e41e'
+    get_sample_address_from_object_fail(
+        {'id': id_}, True, IllegalParameterError('version is required'))
+    get_sample_address_from_object_fail(
+        {'id': id_, 'version': [1]}, False, IllegalParameterError('Illegal version argument: [1]'))
+
     get_version_from_object_fail(
         {'id': id_, 'version': 'whee'},
         True,
@@ -302,9 +306,9 @@ def test_get_sample_address_from_object_fail_bad_args():
         {'id': id_, 'version': -3}, True, IllegalParameterError('Illegal version argument: -3'))
 
 
-def get_sample_address_from_object_fail(params, expected):
+def get_sample_address_from_object_fail(params, required, expected):
     with raises(Exception) as got:
-        get_sample_address_from_object(params)
+        get_sample_address_from_object(params, required)
     assert_exception_correct(got.value, expected)
 
 
