@@ -18,7 +18,11 @@ from SampleService.core.sample import (
 )
 from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission
 from SampleService.core.user_lookup import KBaseUserLookup
-from SampleService.core.arg_checkers import not_falsy as _not_falsy
+from SampleService.core.arg_checkers import (
+    not_falsy as _not_falsy,
+    not_falsy_in_iterable as _not_falsy_in_iterable
+)
+from SampleService.core.data_link import DataLink
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
@@ -391,3 +395,28 @@ def _check_string(params: Dict[str, Any], key: str, required=False) -> Optional[
     if type(v) != str:
         raise _IllegalParameterError(f'{key} key is not a string as required')
     return _cast(str, v)
+
+
+def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
+    '''
+    Translate a list of link objects to a list of dicts suitable for tranlating to JSON.
+
+    :param links: the links.
+    :returns: the list of dicts.
+    '''
+    ret = []
+    for l in _not_falsy_in_iterable(links, 'links'):
+        ex = datetime_to_epochmilliseconds(l.expired) if l.expired else None
+        ret.append({
+            # don't provide link ID for now
+            'upa': str(l.duid.upa),
+            'dataid': l.duid.dataid,
+            'id': str(l.sample_node_address.sampleid),
+            'version': l.sample_node_address.version,
+            'node': l.sample_node_address.node,
+            'createdby': str(l.created_by),
+            'created': datetime_to_epochmilliseconds(l.created),
+            'expiredby': str(l.expired_by) if l.expired_by else None,
+            'expired': ex
+        })
+    return ret
