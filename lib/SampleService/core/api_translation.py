@@ -182,7 +182,7 @@ def get_version_from_object(params: Dict[str, Any], required: bool = False) -> O
     _check_params(params)
     ver = params.get('version')
     if ver is None and required:
-        raise _IllegalParameterError('version is required')
+        raise _MissingParameterError('version')
     if ver is not None and (type(ver) != int or ver < 1):
         raise _IllegalParameterError(f'Illegal version argument: {ver}')
     return ver

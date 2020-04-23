@@ -253,10 +253,9 @@ def test_get_version_from_object():
 
 def test_get_version_from_object_fail_bad_args():
     get_version_from_object_fail(None, False, ValueError('params cannot be None'))
+    get_version_from_object_fail({}, True, MissingParameterError('version'))
     get_version_from_object_fail(
-        {}, True, IllegalParameterError('version is required'))
-    get_version_from_object_fail(
-        {'version': None}, True, IllegalParameterError('version is required'))
+        {'version': None}, True, MissingParameterError('version'))
     get_version_from_object_fail(
         {'version': 'whee'}, False, IllegalParameterError('Illegal version argument: whee'))
     get_version_from_object_fail(
@@ -292,7 +291,7 @@ def test_get_sample_address_from_object_fail_bad_args():
             'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
     id_ = 'f5bd78c3-823e-40b2-9f93-20e78680e41e'
     get_sample_address_from_object_fail(
-        {'id': id_}, True, IllegalParameterError('version is required'))
+        {'id': id_}, True, MissingParameterError('version'))
     get_sample_address_from_object_fail(
         {'id': id_, 'version': [1]}, False, IllegalParameterError('Illegal version argument: [1]'))
 
@@ -636,9 +635,7 @@ def test_create_data_link_params_fail_bad_args():
         'Sample ID 6 must be a UUID string'))
     _create_data_link_params_fail({'id': id_[:-1]}, IllegalParameterError(
         'Sample ID 706fe9e1-70ef-4feb-bbd9-32295104a11 must be a UUID string'))
-    _create_data_link_params_fail(
-        {'id': id_},
-        IllegalParameterError('version is required'))
+    _create_data_link_params_fail({'id': id_}, MissingParameterError('version'))
     _create_data_link_params_fail(
         {'id': id_, 'version': 'ver'},
         IllegalParameterError('Illegal version argument: ver'))
