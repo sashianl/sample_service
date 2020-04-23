@@ -13,8 +13,10 @@ from SampleService.core.api_translation import (
     check_admin,
     get_static_key_metadata_params,
     create_data_link_params,
-    get_datetime_from_epochmilliseconds_in_object
+    get_datetime_from_epochmilliseconds_in_object,
+    links_to_dicts
 )
+from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
     Sample,
     SampleNode,
@@ -690,4 +692,74 @@ def test_get_datetime_from_epochmilliseconds_in_object_fail_bad_args():
 def _get_datetime_from_epochmilliseconds_in_object_fail(params, key, expected):
     with raises(Exception) as got:
         get_datetime_from_epochmilliseconds_in_object(params, key)
+    assert_exception_correct(got.value, expected)
+
+
+def test_links_to_dicts():
+    links = [
+        DataLink(
+            UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e'),
+            DataUnitID(UPA('1/2/3'), 'foo'),
+            SampleNodeAddress(
+                SampleAddress(UUID('f5bd78c3-823e-40b2-9f93-20e78680e41f'), 6), 'foo'),
+            dt(0.067),
+            UserID('usera'),
+            dt(89),
+            UserID('userb')
+        ),
+        DataLink(
+            UUID('f5bd78c3-823e-40b2-9f93-20e78680e41a'),
+            DataUnitID(UPA('4/9/10')),
+            SampleNodeAddress(
+                SampleAddress(UUID('f5bd78c3-823e-40b2-9f93-20e78680e41b'), 4), 'bar'),
+            dt(1),
+            UserID('userc'),
+        ),
+    ]
+    assert links_to_dicts(links) == [
+        {
+            'upa': '1/2/3',
+            'dataid': 'foo',
+            'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41f',
+            'version': 6,
+            'node': 'foo',
+            'created': 67,
+            'createdby': 'usera',
+            'expired': 89000,
+            'expiredby': 'userb'
+            },
+        {
+            'upa': '4/9/10',
+            'dataid': None,
+            'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41b',
+            'version': 4,
+            'node': 'bar',
+            'created': 1000,
+            'createdby': 'userc',
+            'expired': None,
+            'expiredby': None
+            }
+    ]
+
+
+def test_links_to_dicts_fail_bad_args():
+    dl = DataLink(
+            UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e'),
+            DataUnitID(UPA('1/2/3'), 'foo'),
+            SampleNodeAddress(
+                SampleAddress(UUID('f5bd78c3-823e-40b2-9f93-20e78680e41f'), 6), 'foo'),
+            dt(0.067),
+            UserID('usera'),
+            dt(89),
+            UserID('userb')
+        )
+
+    _links_to_dicts_fail(None, ValueError('links cannot be None'))
+    _links_to_dicts_fail([dl, None], ValueError(
+        'Index 1 of iterable links cannot be a value that evaluates to false'))
+
+
+def _links_to_dicts_fail(links, expected):
+    with raises(Exception) as got:
+        links_to_dicts(links)
     assert_exception_correct(got.value, expected)
