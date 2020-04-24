@@ -8,6 +8,8 @@ MAINTAINER KBase Developer
 
 # RUN apt-get update
 
+RUN conda install python="3.7"
+
 ENV ARANGO_VER=3.5.1
 ENV ARANGO_VER_PRE=35
 
@@ -29,6 +31,9 @@ WORKDIR /kb/module
 
 # really need a test build and a prod build. Not sure that's possible via sdk.
 RUN pipenv install --system --deploy --ignore-pipfile --dev
+
+RUN which python
+RUN python --version
 
 RUN cd test \
     && cp test.cfg.example test-sdk.cfg \
