@@ -337,7 +337,7 @@ class Samples:
         '''
         Get a set of data links originating from a workspace object at a particular time.
 
-        :param user: the user requresting the links.
+        :param user: the user requesting the links.
         :param upa: the data from which the links originate.
         :param timestamp: the timestamp during which the links should be active, defaulting to
             the current time.
