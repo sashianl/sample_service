@@ -977,9 +977,9 @@ def test_create_data_link_fail_no_ws_access():
         UserID('someuser'), WorkspaceAccessType.WRITE, upa=UPA('7/3/2'))
 
 
-def _create_data_link_fail(samplestorage, user, duid, sna, expected):
+def _create_data_link_fail(samples, user, duid, sna, expected):
     with raises(Exception) as got:
-        samplestorage.create_data_link(user, duid, sna)
+        samples.create_data_link(user, duid, sna)
     assert_exception_correct(got.value, expected)
 
 
@@ -1116,7 +1116,106 @@ def test_get_links_from_sample_fail_unauthorized():
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
 
-def _get_links_from_sample_fail(samplestorage, user, sample, ts, expected):
+def _get_links_from_sample_fail(samples, user, sample, ts, expected):
     with raises(Exception) as got:
-        samplestorage.get_links_from_sample(user, sample, ts)
+        samples.get_links_from_sample(user, sample, ts)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_links_from_data():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    dl1 = DataLink(
+        UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/4/6'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdea'), 3), 'mynode'),
+        dt(5),
+        UserID('userb')
+    )
+
+    dl2 = DataLink(
+        UUID('1234567890abcdef1234567890abcdec'),
+        DataUnitID(UPA('2/4/6')),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdeb'), 1), 'mynode3'),
+        dt(4),
+        UserID('usera')
+    )
+
+    storage.get_links_from_data.return_value = [dl1, dl2]
+
+    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6')) == [dl1, dl2]
+
+    ws.has_permission.assert_called_once_with(
+        UserID('u1'), WorkspaceAccessType.READ, upa=UPA('2/4/6'))
+
+    storage.get_links_from_data.assert_called_once_with(UPA('2/4/6'), dt(6))
+
+
+def test_get_links_from_data_with_timestamp():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    dl1 = DataLink(
+        UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('2/4/6'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdea'), 3), 'mynode'),
+        dt(5),
+        UserID('userb')
+    )
+
+    storage.get_links_from_data.return_value = [dl1]
+
+    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6'), timestamp=dt(700)) == [dl1]
+
+    ws.has_permission.assert_called_once_with(
+        UserID('u1'), WorkspaceAccessType.READ, upa=UPA('2/4/6'))
+
+    storage.get_links_from_data.assert_called_once_with(UPA('2/4/6'), dt(700))
+
+
+def test_get_links_from_data_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    u = UserID('u')
+    up = UPA('1/1/1')
+    bt = datetime.datetime.fromtimestamp(1)
+
+    _get_links_from_from_data_fail(s, None, up, None, ValueError(
+        'user cannot be a value that evaluates to false'))
+    _get_links_from_from_data_fail(s, u, None, None, ValueError(
+        'upa cannot be a value that evaluates to false'))
+    _get_links_from_from_data_fail(s, u, up, bt, ValueError(
+        'timestamp cannot be a naive datetime'))
+
+
+def test_get_links_from_data_fail_no_ws_access():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    ws.has_permission.side_effect = UnauthorizedError('oh honey')
+
+    _get_links_from_from_data_fail(s, UserID('u'), UPA('1/1/1'), None,
+                                   UnauthorizedError('oh honey'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('u'), WorkspaceAccessType.READ, upa=UPA('1/1/1'))
+
+
+def _get_links_from_from_data_fail(samples, user, upa, ts, expected):
+    with raises(Exception) as got:
+        samples.get_links_from_data(user, upa, ts)
     assert_exception_correct(got.value, expected)

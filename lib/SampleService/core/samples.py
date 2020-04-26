@@ -26,7 +26,7 @@ from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
 from SampleService.core.user import UserID
 from SampleService.core.workspace import WS, WorkspaceAccessType as _WorkspaceAccessType
-from SampleService.core.workspace import DataUnitID
+from SampleService.core.workspace import DataUnitID, UPA
 
 
 # TODO remove own acls.
@@ -316,14 +316,41 @@ class Samples:
         # TODO ADMIN admin mode
         _not_falsy(user, 'user')
         _not_falsy(sample, 'sample')
-        if timestamp:
-            _check_timestamp(timestamp, 'timestamp')
-        else:
-            timestamp = self._now()
+        timestamp = self._resolve_timestamp(timestamp)
         self._check_perms(sample.sampleid, user, _SampleAccessType.READ)
         wsids = self._ws.get_user_workspaces(user)
         # TODO DATALINK what about deleted objects? Currently not handled
         return self._storage.get_links_from_sample(sample, wsids, timestamp)
 
-    # TODO DATALINK get links from data
+    def _resolve_timestamp(self, timestamp: datetime.datetime = None) -> datetime.datetime:
+        if timestamp:
+            _check_timestamp(timestamp, 'timestamp')
+        else:
+            timestamp = self._now()
+        return timestamp
+
+    def get_links_from_data(
+            self,
+            user: UserID,
+            upa: UPA,
+            timestamp: datetime.datetime = None) -> List[DataLink]:
+        '''
+        Get a set of data links originating from a workspace object at a particular time.
+
+        :param user: the user requesting the links.
+        :param upa: the data from which the links originate.
+        :param timestamp: the timestamp during which the links should be active, defaulting to
+            the current time.
+        :returns: a list of links.
+        :raises UnauthorizedError: if the user does not have read permission for the data.
+        :raises NoSuchWorkspaceDataError: if the data does not exist.
+        '''
+        # TODO ADMIN admin mode
+        # may need to make this independent of the workspace. YAGNI.
+        _not_falsy(user, 'user')
+        _not_falsy(upa, 'upa')
+        timestamp = self._resolve_timestamp(timestamp)
+        self._ws.has_permission(user, _WorkspaceAccessType.READ, upa=upa)
+        return self._storage.get_links_from_data(upa, timestamp)
+
     # TODO DATALINK get sample via object - handle ref path?
