@@ -27,7 +27,7 @@ from SampleService.core.errors import IllegalParameterError as _IllegalParameter
 from SampleService.core.errors import MissingParameterError as _MissingParameterError
 from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
 from SampleService.core.user import UserID as _UserID
-from SampleService.core.workspace import DataUnitID, UPA as _UPA
+from SampleService.core.workspace import DataUnitID, UPA
 
 ID = 'id'
 ''' The ID of a sample. '''
@@ -374,6 +374,7 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
         1) The data unit ID that is the target of the link,
         2) The sample node that is the target of the link,
         3) A boolean that indicates whether the link should be updated if it already exists.
+    :raises MissingParameterError: if any of the required arguments are missing.
     :raises IllegalParameterError: if any of the arguments are illegal.
     '''
     _check_params(params)
@@ -384,15 +385,30 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
         _cast(str, _check_string(params, 'node', True))
     )
     duid = DataUnitID(
-        _UPA(_cast(str, _check_string(params, 'upa', True))),
+        get_upa_from_object(params),
         _check_string(params, 'dataid'))
     return (duid, sna, bool(params.get('update')))
 
 
+def get_upa_from_object(params: Dict[str, Any]) -> UPA:
+    '''
+    Get an UPA from a parameter object. Expects the UPA in the key 'upa'.
+    :params params: the parameters.
+    :returns: the UPA.
+    :raises MissingParameterError: if the UPA is missing.
+    :raises IllegalParameterError: if the UPA is illegal.
+    '''
+    _check_params(params)
+    return UPA(_cast(str, _check_string(params, 'upa', True)))
+
+
 def _check_string(params: Dict[str, Any], key: str, required=False) -> Optional[str]:
     v = params.get(key)
-    if v is None and not required:
-        return None
+    if v is None:
+        if required:
+            raise _MissingParameterError(key)
+        else:
+            return None
     if type(v) != str:
         raise _IllegalParameterError(f'{key} key is not a string as required')
     return _cast(str, v)
