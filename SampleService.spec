@@ -293,7 +293,7 @@ module SampleService {
         timestamp expired;
     } DataLink;
 
-    /* get_data_links_from_sample_results output.
+    /* get_data_links_from_sample results.
 
         links - the links.
     */
@@ -308,5 +308,31 @@ module SampleService {
      */
     funcdef get_data_links_from_sample(GetDataLinksFromSampleParams params)
         returns(GetDataLinksFromSampleResults results) authentication required;
+
+    /* get_data_links_from_data parameters.
+
+        upa - the data UPA.
+        effective_time - the effective time at which the query should be run - the default is
+            the current time. Providing a time allows for reproducibility of previous results.
+    */
+    typedef structure {
+        ws_upa upa;
+        timestamp effective_time;
+    } GetDataLinksFromDataParams;
+
+    /* get_data_links_from_data results.
+
+        links - the links.
+    */
+    typedef structure {
+        list<DataLink> links;
+    } GetDataLinksFromDataResults;
+
+    /* Get data links to samples originating from Workspace data.
+
+        The user must have read permissions to the workspace data.
+     */
+    funcdef get_data_links_from_data(GetDataLinksFromDataParams params)
+        returns(GetDataLinksFromDataResults results) authentication required;
 
 };
