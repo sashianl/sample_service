@@ -14,7 +14,8 @@ from SampleService.core.api_translation import (
     get_static_key_metadata_params as _get_static_key_metadata_params,
     create_data_link_params as _create_data_link_params,
     get_datetime_from_epochmilliseconds_in_object as _get_datetime_from_epochmillseconds_in_object,
-    links_to_dicts as _links_to_dicts
+    links_to_dicts as _links_to_dicts,
+    get_upa_from_object as _get_upa_from_object
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.arg_checkers import check_string as _check_string
@@ -45,9 +46,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-alpha5"
+    VERSION = "0.1.0-alpha7"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "8b7c538b9aa281ef33d2b31018f01265111244d6"
+    GIT_COMMIT_HASH = "7aa2997b99d2ca2aa058620901e722842937eeb1"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -399,7 +400,7 @@ Note that usage of the administration flags will be logged by the service.
            sample. Always > 0.), parameter "effective_time" of type
            "timestamp" (A timestamp in epoch milliseconds.)
         :returns: instance of type "GetDataLinksFromSampleResults"
-           (get_data_links_from_sample_results output. links - the links.) ->
+           (get_data_links_from_sample results. links - the links.) ->
            structure: parameter "links" of list of type "DataLink" (A data
            link from a KBase workspace object to a sample. upa - the
            workspace UPA of the linked object. dataid - the dataid of the
@@ -440,6 +441,64 @@ Note that usage of the administration flags will be logged by the service.
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
             raise ValueError('Method get_data_links_from_sample return value ' +
+                             'results is not type dict as required.')
+        # return the results
+        return [results]
+
+    def get_data_links_from_data(self, ctx, params):
+        """
+        Get data links to samples originating from Workspace data.
+                The user must have read permissions to the workspace data.
+        :param params: instance of type "GetDataLinksFromDataParams"
+           (get_data_links_from_data parameters. upa - the data UPA.
+           effective_time - the effective time at which the query should be
+           run - the default is the current time. Providing a time allows for
+           reproducibility of previous results.) -> structure: parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "effective_time"
+           of type "timestamp" (A timestamp in epoch milliseconds.)
+        :returns: instance of type "GetDataLinksFromDataResults"
+           (get_data_links_from_data results. links - the links.) ->
+           structure: parameter "links" of list of type "DataLink" (A data
+           link from a KBase workspace object to a sample. upa - the
+           workspace UPA of the linked object. dataid - the dataid of the
+           linked data, if any, within the object. If omitted the entire
+           object is linked to the sample. id - the sample id. version - the
+           sample version. node - the sample node. createdby - the user that
+           created the link. created - the time the link was created.
+           expiredby - the user that expired the link, if any. expired - the
+           time the link was expired, if at all.) -> structure: parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "createdby" of type "user" (A user's username.),
+           parameter "created" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "expiredby" of type "user" (A user's
+           username.), parameter "expired" of type "timestamp" (A timestamp
+           in epoch milliseconds.)
+        """
+        # ctx is the context object
+        # return variables are: results
+        #BEGIN get_data_links_from_data
+        upa = _get_upa_from_object(params)
+        dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
+        # TODO ADMIN mode
+        links = self._samples.get_links_from_data(_UserID(ctx[_CTX_USER]), upa, dt)
+        results = {'links': _links_to_dicts(links)}
+        #END get_data_links_from_data
+
+        # At some point might do deeper type checking...
+        if not isinstance(results, dict):
+            raise ValueError('Method get_data_links_from_data return value ' +
                              'results is not type dict as required.')
         # return the results
         return [results]

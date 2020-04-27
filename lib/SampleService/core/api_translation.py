@@ -76,7 +76,7 @@ def get_datetime_from_epochmilliseconds_in_object(
     :param params: the object.
     :param key: the key in the object for which the value is an epoch millisecond timestamp.
     :returns: the datatime or None if none was provided.
-    :raises IllegalParameterError: if the timestamp is missing or illegal.
+    :raises IllegalParameterError: if the timestamp is illegal.
     '''
     t = _check_params(params).get(key)
     if t is None:
