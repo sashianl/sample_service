@@ -14,10 +14,13 @@ from SampleService.core.acls import SampleAccessType as _SampleAccessType
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.data_link import DataLink
-from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
-from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
-from SampleService.core.errors import MetadataValidationError as _MetadataValidationError
-from SampleService.core.errors import NoSuchUserError as _NoSuchUserError
+from SampleService.core.errors import (
+    UnauthorizedError as _UnauthorizedError,
+    IllegalParameterError as _IllegalParameterError,
+    MetadataValidationError as _MetadataValidationError,
+    NoSuchUserError as _NoSuchUserError,
+    NoSuchLinkError as _NoSuchLinkError
+)
 from SampleService.core.sample import Sample, SavedSample, SampleAddress, SampleNodeAddress
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
@@ -347,10 +350,41 @@ class Samples:
         '''
         # TODO ADMIN admin mode
         # may need to make this independent of the workspace. YAGNI.
+        # handle ref path?
         _not_falsy(user, 'user')
         _not_falsy(upa, 'upa')
         timestamp = self._resolve_timestamp(timestamp)
         self._ws.has_permission(user, _WorkspaceAccessType.READ, upa=upa)
         return self._storage.get_links_from_data(upa, timestamp)
 
-    # TODO DATALINK get sample via object - handle ref path?
+    def get_sample_via_data(
+            self,
+            user: UserID,
+            upa: UPA,
+            sample_address: SampleAddress) -> SavedSample:
+        '''
+        Given a workspace object, get a sample linked to that object. The user must have read
+        permissions for the object, but not necessarily the sample.
+
+        :param user: The user requesting the sample.
+        :param upa: the data from which the link to the sample originates.
+        :param sample_address: the sample address.
+        :returns: the linked sample.
+        :raises UnauthorizedError: if the user cannot read the UPA.
+        :raises NoSuchWorkspaceDataError: if the workspace object does not exist.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        '''
+        # no admin mode needed - use get_links or get sample
+        # may need to make this independent of the workspace. YAGNI.
+        # handle ref path?
+        _not_falsy(user, 'user')
+        _not_falsy(upa, 'upa')
+        _not_falsy(sample_address, 'sample_address')
+        # the order of these checks is important, check read first, then we know link & sample
+        # access is ok
+        self._ws.has_permission(user, _WorkspaceAccessType.READ, upa=upa)
+        if not self._storage.has_data_link(upa, sample_address.sampleid):
+            raise _NoSuchLinkError(
+                f'There is no link from UPA {upa} to sample {sample_address.sampleid}')
+        return self._storage.get_sample(sample_address.sampleid, sample_address.version)

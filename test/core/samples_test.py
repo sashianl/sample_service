@@ -1,4 +1,5 @@
 import datetime
+import uuid
 
 from pytest import raises
 from uuid import UUID
@@ -7,8 +8,13 @@ from unittest.mock import create_autospec
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL
 from SampleService.core.data_link import DataLink
-from SampleService.core.errors import IllegalParameterError, UnauthorizedError, NoSuchUserError
-from SampleService.core.errors import MetadataValidationError
+from SampleService.core.errors import (
+    IllegalParameterError,
+    UnauthorizedError,
+    NoSuchUserError,
+    MetadataValidationError,
+    NoSuchLinkError
+)
 from SampleService.core.sample import Sample, SampleNode, SavedSample, SampleAddress
 from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.samples import Samples
@@ -1218,4 +1224,100 @@ def test_get_links_from_data_fail_no_ws_access():
 def _get_links_from_from_data_fail(samples, user, upa, ts, expected):
     with raises(Exception) as got:
         samples.get_links_from_data(user, upa, ts)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_sample_via_data():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    id_ = UUID('1234567890abcdef1234567890abcdee')
+
+    storage.has_data_link.return_value = True
+
+    storage.get_sample.return_value = SavedSample(
+        id_,
+        UserID('yay'),
+        [SampleNode('myname')],
+        dt(84),
+        version=4
+    )
+
+    assert s.get_sample_via_data(
+        UserID('someguy'), UPA('4/5/7'), SampleAddress(id_, 4)) == SavedSample(
+            id_,
+            UserID('yay'),
+            [SampleNode('myname')],
+            dt(84),
+            version=4
+        )
+
+    ws.has_permission.assert_called_once_with(
+        UserID('someguy'), WorkspaceAccessType.READ, upa=UPA('4/5/7'))
+
+    storage.has_data_link.assert_called_once_with(UPA('4/5/7'), id_)
+    storage.get_sample.assert_called_once_with(id_, 4)
+
+
+def test_get_sample_via_data_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    u = UserID('u')
+    up = UPA('1/1/1')
+    sa = SampleAddress(uuid.uuid4(), 1)
+
+    _get_sample_via_data_fail(s, None, up, sa, ValueError(
+        'user cannot be a value that evaluates to false'))
+    _get_sample_via_data_fail(s, u, None, sa, ValueError(
+        'upa cannot be a value that evaluates to false'))
+    _get_sample_via_data_fail(s, u, up, None, ValueError(
+        'sample_address cannot be a value that evaluates to false'))
+
+
+def test_get_sample_via_data_fail_no_ws_access():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    ws.has_permission.side_effect = UnauthorizedError('oh honey boo boo')
+
+    _get_sample_via_data_fail(s, UserID('u'), UPA('1/1/1'), SampleAddress(uuid.uuid4(), 5),
+                              UnauthorizedError('oh honey boo boo'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('u'), WorkspaceAccessType.READ, upa=UPA('1/1/1'))
+
+
+def test_get_sample_via_data_fail_no_link():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    id_ = UUID('1234567890abcdef1234567890abcdee')
+
+    storage.has_data_link.return_value = False
+
+    _get_sample_via_data_fail(s, UserID('u'), UPA('4/5/6'), SampleAddress(id_, 3),
+                              NoSuchLinkError(f'There is no link from UPA 4/5/6 to sample {id_}'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('u'), WorkspaceAccessType.READ, upa=UPA('4/5/6'))
+
+    storage.has_data_link.assert_called_once_with(UPA('4/5/6'), id_)
+
+
+def _get_sample_via_data_fail(samples, user, upa, sa, expected):
+    with raises(Exception) as got:
+        samples.get_sample_via_data(user, upa, sa)
     assert_exception_correct(got.value, expected)
