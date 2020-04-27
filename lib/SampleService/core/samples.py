@@ -375,7 +375,7 @@ class Samples:
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         '''
-        # TODO ADMIN admin mode
+        # no admin mode needed - use get_links or get sample
         # may need to make this independent of the workspace. YAGNI.
         # handle ref path?
         _not_falsy(user, 'user')
