@@ -296,7 +296,27 @@ class Samples:
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
         self._storage.create_data_link(dl, update=update)
 
-    # TODO DATALINK expire link
+    def expire_data_link(self, user: UserID, duid: DataUnitID) -> None:
+        '''
+        Expire a data link, ensuring that it will not show up in link queries without an effective
+        timestamp in the past.
+        The user must have admin access to the sample and write access to the data.
+
+        :param user: the user expiring the link.
+        :param duid: the data unit ID for the extant link.
+        :raises UnauthorizedError: if the user does not have acceptable permissions.
+        :raises NoSuchWorkspaceDataError: if the workspace or UPA doesn't exist.
+        :raises NoSuchLinkError: if there is no link from the data unit.
+        '''
+        # TODO ADMIN admin mode
+        _not_falsy(user, 'user')
+        _not_falsy(duid, 'duid')
+        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, upa=duid.upa)
+        link = self._storage.get_data_link(duid=duid)
+        # was concerned about exposing the sample ID, but if the user has write access to the
+        # UPA then they can get the link with the sample ID, so don't worry about it.
+        self._check_perms(link.sample_node_address.sampleid, user, _SampleAccessType.ADMIN)
+        self._storage.expire_data_link(self._now(), user, duid=duid)
 
     def get_links_from_sample(
             self,
