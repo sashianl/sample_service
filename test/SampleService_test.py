@@ -1377,14 +1377,15 @@ def _create_sample(url, token, sample, expected_version):
     return ret.json()['result'][0]['id']
 
 
-def _create_link(url, token, params):
+def _create_link(url, token, params, print_resp=False):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.create_data_link',
         'version': '1.1',
         'id': '42',
         'params': [params]
     })
-    # print(ret.text)
+    if print_resp:
+        print(ret.text)
     assert ret.ok is True
 
 
@@ -2129,6 +2130,310 @@ def _get_link_from_data_fail(sample_port, token, params, expected):
     url = f'http://localhost:{sample_port}'
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_data_links_from_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [params]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == expected
+
+
+def test_get_sample_via_data(sample_port, workspace):
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_permissions({'id': 1, 'new_permission': 'r', 'users': [USER4]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root',
+                        'type': 'BioReplicate',
+                        'meta_user': {'a': {'b': 'f', 'e': 'g'}, 'c': {'d': 'h'}},
+                        'meta_controlled': {'foo': {'bar': 'baz'}, 'premature': {'e': 'fakeout'}}},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    id2 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'unused', 'node_tree': [{'id': 'unused', 'type': 'BioReplicate'}]},
+        1
+        )
+    # ver 2
+    _create_sample(
+        url,
+        TOKEN3,
+        {'id': id2,
+         'name': 'myothersample3',
+         'node_tree': [{'id': 'root3', 'type': 'BioReplicate'},
+                       {'id': 'foo3', 'type': 'TechReplicate', 'parent': 'root3'}
+                       ]
+         },
+        2
+        )
+
+    # create links
+    _create_link(url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    _create_link(
+        url, TOKEN3,
+        {'id': id2, 'version': 2, 'node': 'root3', 'upa': '1/1/1', 'dataid': 'column1'})
+
+    # get first sample via link from object 1/1/1 using a token that has no access
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample_via_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'id': str(id1), 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    res = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(res['save_date'])
+    del res['save_date']
+
+    expected = {
+        'id': id1,
+        'version': 1,
+        'name': 'mysample',
+        'user': USER3,
+        'node_tree': [{'id': 'root',
+                       'type': 'BioReplicate',
+                       'parent': None,
+                       'meta_user': {'a': {'b': 'f', 'e': 'g'}, 'c': {'d': 'h'}},
+                       'meta_controlled': {'foo': {'bar': 'baz'}, 'premature': {'e': 'fakeout'}},
+                       },
+                      {'id': 'foo',
+                       'type': 'TechReplicate',
+                       'parent': 'root',
+                       'meta_controlled': {},
+                       'meta_user': {}},
+                      ]
+        }
+    assert res == expected
+
+    # get second sample via link from object 1/1/1 using a token that has no access
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample_via_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'id': str(id2), 'version': 2}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    res = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(res['save_date'])
+    del res['save_date']
+
+    expected = {
+        'id': id2,
+        'version': 2,
+        'name': 'myothersample3',
+        'user': USER3,
+        'node_tree': [{'id': 'root3',
+                       'type': 'BioReplicate',
+                       'parent': None,
+                       'meta_controlled': {},
+                       'meta_user': {}},
+                      {'id': 'foo3',
+                       'type': 'TechReplicate',
+                       'parent': 'root3',
+                       'meta_controlled': {},
+                       'meta_user': {}},
+                      ]
+        }
+    assert res == expected
+
+
+def test_get_sample_via_from_data_expired(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_permissions({'id': 1, 'new_permission': 'r', 'users': [USER4]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+    id2 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'myothersample',
+         'node_tree': [{'id': 'root2', 'type': 'BioReplicate'},
+                       {'id': 'foo2', 'type': 'TechReplicate', 'parent': 'root2'}
+                       ]
+         },
+        1
+        )
+
+    # create links
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+
+    # update link node
+    _create_link(url, TOKEN3, {
+        'id': id2,
+        'version': 1,
+        'node': 'root2',
+        'upa': '1/1/1',
+        'dataid': 'yay',
+        'update': 1,
+    })
+    # pulled link from server to check the old link was expired
+
+    # get sample via current link
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample_via_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'id': str(id2), 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    res = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(res['save_date'])
+    del res['save_date']
+
+    expected = {
+        'id': id2,
+        'version': 1,
+        'name': 'myothersample',
+        'user': USER3,
+        'node_tree': [{'id': 'root2',
+                       'type': 'BioReplicate',
+                       'parent': None,
+                       'meta_user': {},
+                       'meta_controlled': {},
+                       },
+                      {'id': 'foo2',
+                       'type': 'TechReplicate',
+                       'parent': 'root2',
+                       'meta_controlled': {},
+                       'meta_user': {}},
+                      ]
+        }
+    assert res == expected
+
+    # get sample via expired link
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample_via_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'id': str(id1), 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    res = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(res['save_date'])
+    del res['save_date']
+
+    expected = {
+        'id': id1,
+        'version': 1,
+        'name': 'mysample',
+        'user': USER3,
+        'node_tree': [{'id': 'root',
+                       'type': 'BioReplicate',
+                       'parent': None,
+                       'meta_user': {},
+                       'meta_controlled': {},
+                       },
+                      {'id': 'foo',
+                       'type': 'TechReplicate',
+                       'parent': 'root',
+                       'meta_controlled': {},
+                       'meta_user': {}},
+                      ]
+        }
+    assert res == expected
+
+
+def test_get_sample_via_data_fail(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create links
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+
+    _get_sample_via_data_fail(
+        sample_port, TOKEN3, {},
+        'Sample service error code 30000 Missing input parameter: upa')
+    _get_sample_via_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1'},
+        'Sample service error code 30000 Missing input parameter: Sample ID')
+    _get_sample_via_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'id': id1},
+        'Sample service error code 30000 Missing input parameter: version')
+    _get_sample_via_data_fail(
+        sample_port, TOKEN4, {'upa': '1/1/1', 'id': id1, 'version': 1},
+        f'Sample service error code 20000 Unauthorized: User user4 cannot read upa 1/1/1')
+    _get_sample_via_data_fail(
+        sample_port, TOKEN3, {'upa': '1/2/1', 'id': id1, 'version': 1},
+        f'Sample service error code 50040 No such workspace data: Object 1/2/1 does not exist')
+    badid = uuid.uuid4()
+    _get_sample_via_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'id': str(badid), 'version': 1},
+        f'Sample service error code 50050 No such data link: There is no link from UPA 1/1/1 ' +
+        f'to sample {badid}')
+    _get_sample_via_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'id': str(id1), 'version': 2},
+        f'Sample service error code 50020 No such sample version: {id1} ver 2')
+
+
+def _get_sample_via_data_fail(sample_port, token, params, expected):
+    # could make a single method that just takes the service method name to DRY things up a bit
+    url = f'http://localhost:{sample_port}'
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_sample_via_data',
         'version': '1.1',
         'id': '42',
         'params': [params]

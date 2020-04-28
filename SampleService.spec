@@ -335,4 +335,24 @@ module SampleService {
     funcdef get_data_links_from_data(GetDataLinksFromDataParams params)
         returns(GetDataLinksFromDataResults results) authentication required;
 
+    /* get_sample_via_data parameters.
+
+        upa - the workspace UPA of the target object.
+        id - the target sample id.
+        version - the target sample version.
+    */
+    typedef structure {
+        ws_upa upa;
+        sample_id id;
+        version version;
+    } GetSampleViaDataParams;
+
+    /* Get a sample via a workspace object. Read permissions to a workspace object grants
+        read permissions to all versions of any linked samples, whether the links are expired or
+        not. This method allows for fetching samples when the user does not have explicit
+        read access to the sample.
+    */
+    funcdef get_sample_via_data(GetSampleViaDataParams params) returns(Sample sample)
+        authentication required;
+
 };
