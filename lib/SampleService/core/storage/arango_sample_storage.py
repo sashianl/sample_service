@@ -1038,7 +1038,7 @@ class ArangoSampleStorage:
             _FLD_LINK_SAMPLE_NODE: sna.node
         }
 
-    def _get_link_doc(self, id_):
+    def _get_link_doc_from_link_id(self, id_):
         # if delete/hide samples added may need some more logic here
         try:
             cur = self._col_data_link.find({_FLD_LINK_ID: str(_not_falsy(id_, 'id_'))}, limit=2)
@@ -1051,6 +1051,13 @@ class ArangoSampleStorage:
             return doc
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _get_link_doc_from_duid(self, duid):
+        key = self._create_link_key_from_duid(duid)
+        linkdoc = self._get_doc(self._col_data_link, key)
+        if not linkdoc:
+            raise _NoSuchLinkError(str(duid))
+        return linkdoc
 
     def expire_data_link(
             self,
@@ -1073,19 +1080,16 @@ class ArangoSampleStorage:
         # See notes for creating links re the transaction approach.
         _check_timestamp(expired, 'expired')
         _not_falsy(expired_by, 'expired_by')
-        if not bool(id_) ^ bool(duid):  # xor:
+        if not bool(id_) ^ bool(duid):  # xor
             raise ValueError('exactly one of id_ or duid must be provided')
         if id_:
-            linkdoc = self._get_link_doc(id_)
+            linkdoc = self._get_link_doc_from_link_id(id_)
             txtid = str(id_)
             if linkdoc[_FLD_LINK_EXPIRED] != _ARANGO_MAX_INTEGER:
                 raise _NoSuchLinkError(txtid)
         else:
-            key = self._create_link_key_from_duid(_cast(DataUnitID, duid))
-            linkdoc = self._get_doc(self._col_data_link, key)
+            linkdoc = self._get_link_doc_from_duid(duid)
             txtid = str(duid)
-            if not linkdoc:
-                raise _NoSuchLinkError(txtid)
 
         if expired.timestamp() < linkdoc[_FLD_LINK_CREATED]:
             raise ValueError(f'expired is < link created time: {linkdoc[_FLD_LINK_CREATED]}')
@@ -1147,15 +1151,22 @@ class ArangoSampleStorage:
         finally:
             self._abort_transaction(tdb)
 
-    def get_data_link(self, id_: UUID) -> DataLink:
+    def get_data_link(self, id_: UUID = None, duid: DataUnitID = None) -> DataLink:
         '''
-        Get a link by its ID.
+        Get a link by its ID or Data Unit ID. The latter can only retrieve non-expired links.
+        Exactly one of the ID or DUID must be specified.
 
         :param id_: the link ID.
+        :param duid: the link DUID.
         :returns: the link.
         :raises NoSuchLinkError: if the link does not exist.
         '''
-        return self._doc_to_link(self._get_link_doc(id_))
+        if not bool(id_) ^ bool(duid):  # xor
+            raise ValueError('exactly one of id_ or duid must be provided')
+        if id_:
+            return self._doc_to_link(self._get_link_doc_from_link_id(id_))
+        else:
+            return self._doc_to_link(self._get_link_doc_from_duid(duid))
 
     def _doc_to_link(self, doc) -> DataLink:
         ex = doc[_FLD_LINK_EXPIRED]

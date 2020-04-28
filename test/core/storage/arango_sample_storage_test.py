@@ -1246,7 +1246,7 @@ def test_create_and_get_data_link(samplestorage):
         UserID('usera')
         )
 
-    dl2 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'))
+    dl2 = samplestorage.get_data_link(duid=DataUnitID(UPA('42/42/42'), 'dataunit1'))
     assert dl2 == DataLink(
         uuid.UUID('12345678-90ab-cdef-1234-567890abcde2'),
         DataUnitID(UPA('42/42/42'), 'dataunit1'),
@@ -1257,7 +1257,7 @@ def test_create_and_get_data_link(samplestorage):
         UserID('userb')
         )
 
-    dl3 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'))
+    dl3 = samplestorage.get_data_link(duid=DataUnitID(UPA('5/89/32'), 'dataunit2'))
     assert dl3 == DataLink(
         uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'),
         DataUnitID(UPA('5/89/32'), 'dataunit2'),
@@ -1268,7 +1268,7 @@ def test_create_and_get_data_link(samplestorage):
         UserID('u')
         )
 
-    dl4 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'))
+    dl4 = samplestorage.get_data_link(id_=uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'))
     assert dl4 == DataLink(
         uuid.UUID('12345678-90ab-cdef-1234-567890abcde4'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
@@ -1639,7 +1639,7 @@ def test_create_data_link_with_update(samplestorage):
         'expireby': None
     }
 
-    # test get method
+    # test get method. Expired, so DUID won't work here
     dl1 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'))
     assert dl1 == DataLink(
         uuid.UUID('12345678-90ab-cdef-1234-567890abcde1'),
@@ -1664,7 +1664,7 @@ def test_create_data_link_with_update(samplestorage):
         UserID('userc')
         )
 
-    dl3 = samplestorage.get_data_link(uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'))
+    dl3 = samplestorage.get_data_link(duid=DataUnitID(UPA('5/89/32')))
     assert dl3 == DataLink(
         uuid.UUID('12345678-90ab-cdef-1234-567890abcde3'),
         DataUnitID(UPA('5/89/32')),
@@ -2237,9 +2237,11 @@ def _create_data_link_fail(samplestorage, link, expected, update=False):
     assert_exception_correct(got.value, expected)
 
 
-def test_get_data_link_fail_no_id(samplestorage):
-    _get_data_link_fail(samplestorage, None, ValueError(
-        'id_ cannot be a value that evaluates to false'))
+def test_get_data_link_fail_no_bad_args(samplestorage):
+    _get_data_link_fail(samplestorage, None, None, ValueError(
+        'exactly one of id_ or duid must be provided'))
+    _get_data_link_fail(samplestorage, uuid.uuid4(), DataUnitID('1/1/1'), ValueError(
+        'exactly one of id_ or duid must be provided'))
 
 
 def test_get_data_link_fail_no_link(samplestorage):
@@ -2250,7 +2252,7 @@ def test_get_data_link_fail_no_link(samplestorage):
     lid = uuid.UUID('1234567890abcdef1234567890abcde1')
     samplestorage.create_data_link(DataLink(
         lid,
-        DataUnitID(UPA('1/1/1')),
+        DataUnitID(UPA('1/1/1'), 'a'),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
         dt(100),
         UserID('user'))
@@ -2259,7 +2261,38 @@ def test_get_data_link_fail_no_link(samplestorage):
     _get_data_link_fail(
         samplestorage,
         uuid.UUID('1234567890abcdef1234567890abcde2'),
+        None,
         NoSuchLinkError('12345678-90ab-cdef-1234-567890abcde2'))
+
+    _get_data_link_fail(samplestorage, None, DataUnitID(UPA('1/2/1'), 'a'),
+                        NoSuchLinkError('1/2/1:a'))
+    _get_data_link_fail(samplestorage, None, DataUnitID(UPA('1/1/1'), 'b'),
+                        NoSuchLinkError('1/1/1:b'))
+
+
+def test_get_data_link_fail_expired_link(samplestorage):
+    '''
+    Only fails for DUID based fetch
+    '''
+    sid = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(sid, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    lid = uuid.UUID('1234567890abcdef1234567890abcde1')
+    _create_and_expire_data_link(
+        samplestorage,
+        DataLink(
+            lid,
+            DataUnitID(UPA('1/1/1'), 'a'),
+            SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
+            dt(100),
+            UserID('user')),
+        dt(600),
+        UserID('f')
+    )
+
+    _get_data_link_fail(samplestorage, None, DataUnitID(UPA('1/1/1'), 'a'),
+                        NoSuchLinkError('1/1/1:a'))
 
 
 def test_get_data_link_fail_too_many_links(samplestorage):
@@ -2284,13 +2317,13 @@ def test_get_data_link_fail_too_many_links(samplestorage):
     )
 
     _get_data_link_fail(
-        samplestorage, lid, SampleStorageError(
+        samplestorage, lid, None, SampleStorageError(
             'More than one data link found for ID 12345678-90ab-cdef-1234-567890abcde1'))
 
 
-def _get_data_link_fail(samplestorage, id_, expected):
+def _get_data_link_fail(samplestorage, id_, duid, expected):
     with raises(Exception) as got:
-        samplestorage.get_data_link(id_)
+        samplestorage.get_data_link(id_, duid)
     assert_exception_correct(got.value, expected)
 
 
