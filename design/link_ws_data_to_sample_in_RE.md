@@ -96,9 +96,7 @@ in the RE database, not via workspace annotations.
     travelling queries.
 2. The SS checks that the user has read access to the UPA.
 3. The SS performs a traversal from the WSS shadow object in the RE through connected sample nodes
-   to the sample tree root, where the ACLs are stored. At minimum the user must be in the
-   read ACL of the sample.
-   * May need to restructure the ACL data structure in arango to make this doable.
+   to the sample tree root.
    * **OPEN QUESTION** May want to query on sample metadata.
       * May need to restructure the sample metadata to make this possible.
         * IIUC, only equality queries can be done on arrays of documents when using an index.
