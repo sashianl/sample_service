@@ -1080,7 +1080,7 @@ class ArangoSampleStorage:
         # See notes for creating links re the transaction approach.
         _check_timestamp(expired, 'expired')
         _not_falsy(expired_by, 'expired_by')
-        if not bool(id_) ^ bool(duid):  # xor:
+        if not bool(id_) ^ bool(duid):  # xor
             raise ValueError('exactly one of id_ or duid must be provided')
         if id_:
             linkdoc = self._get_link_doc_from_link_id(id_)
@@ -1161,7 +1161,7 @@ class ArangoSampleStorage:
         :returns: the link.
         :raises NoSuchLinkError: if the link does not exist.
         '''
-        if not bool(id_) ^ bool(duid):  # xor:
+        if not bool(id_) ^ bool(duid):  # xor
             raise ValueError('exactly one of id_ or duid must be provided')
         if id_:
             return self._doc_to_link(self._get_link_doc_from_link_id(id_))
