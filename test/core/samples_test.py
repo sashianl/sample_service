@@ -1321,3 +1321,173 @@ def _get_sample_via_data_fail(samples, user, upa, sa, expected):
     with raises(Exception) as got:
         samples.get_sample_via_data(user, upa, sa)
     assert_exception_correct(got.value, expected)
+
+
+def test_expire_data_link():
+    _expire_data_link(UserID('someuser'))
+    _expire_data_link(UserID('otheruser'))
+    _expire_data_link(UserID('y'))
+
+
+def _expire_data_link(user):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    sid = UUID('1234567890abcdef1234567890abcdee')
+    storage.get_data_link.return_value = DataLink(
+        uuid.uuid4(),  # unused
+        DataUnitID(UPA('6/1/2'), 'foo'),
+        SampleNodeAddress(SampleAddress(sid, 3), 'node'),
+        dt(34),
+        UserID('userc')
+    )
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    s.expire_data_link(user, DataUnitID(UPA('6/1/2'), 'foo'))
+
+    ws.has_permission.assert_called_once_with(
+        user, WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+
+    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
+    storage.get_sample_acls.assert_called_once_with(sid)
+    storage.expire_data_link.assert_called_once_with(
+        dt(6), user, duid=DataUnitID(UPA('6/1/2'), 'foo'))
+
+
+def test_expire_data_link_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    _expire_data_link_fail(s, None, DataUnitID(UPA('1/1/1'), 'foo'), ValueError(
+        'user cannot be a value that evaluates to false'))
+    _expire_data_link_fail(s, UserID('u'), None, ValueError(
+        'duid cannot be a value that evaluates to false'))
+
+
+def test_expire_data_link_fail_no_ws_access():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    ws.has_permission.side_effect = UnauthorizedError('oh honey boo boo foofy foo')
+
+    _expire_data_link_fail(s, UserID('u'), DataUnitID(UPA('1/1/1')),
+                           UnauthorizedError('oh honey boo boo foofy foo'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('u'), WorkspaceAccessType.WRITE, upa=UPA('1/1/1'))
+
+
+def test_expire_data_link_fail_no_link():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    storage.get_data_link.side_effect = NoSuchLinkError('oh lordy')
+
+    _expire_data_link_fail(s, UserID('a'), DataUnitID(UPA('6/1/2'), 'foo'),
+                           NoSuchLinkError('oh lordy'))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('a'), WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+
+    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
+
+
+def test_expire_data_link_fail_no_sample_access():
+    _expire_data_link_fail_no_sample_access(UserID('anotheruser'))
+    _expire_data_link_fail_no_sample_access(UserID('x'))
+    _expire_data_link_fail_no_sample_access(UserID('z'))
+
+
+def _expire_data_link_fail_no_sample_access(user):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    sid = UUID('1234567890abcdef1234567890abcdee')
+    storage.get_data_link.return_value = DataLink(
+        uuid.uuid4(),  # unused
+        DataUnitID(UPA('6/1/2'), 'foo'),
+        SampleNodeAddress(SampleAddress(sid, 3), 'node'),
+        dt(34),
+        UserID('userc')
+    )
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    _expire_data_link_fail(s, user, DataUnitID(UPA('6/1/2'), 'foo'),
+                           UnauthorizedError(f'User {user} cannot administrate sample {sid}'))
+
+    ws.has_permission.assert_called_once_with(
+        user, WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+
+    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
+    storage.get_sample_acls.assert_called_once_with(sid)
+
+
+def test_expire_data_link_fail_no_link_at_storage():
+    '''
+    Tests the improbable case where the link is expired after fetching it from storage
+    but before the expire command is sent from storage.
+    '''
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    sid = UUID('1234567890abcdef1234567890abcdee')
+    storage.get_data_link.return_value = DataLink(
+        uuid.uuid4(),  # unused
+        DataUnitID(UPA('6/1/2')),
+        SampleNodeAddress(SampleAddress(sid, 3), 'node'),
+        dt(34),
+        UserID('userc')
+    )
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    storage.expire_data_link.side_effect = NoSuchLinkError("dang y'all")
+
+    _expire_data_link_fail(s, UserID('y'), DataUnitID(UPA('6/1/2')),
+                           NoSuchLinkError("dang y'all"))
+
+    ws.has_permission.assert_called_once_with(
+        UserID('y'), WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+
+    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2')))
+    storage.get_sample_acls.assert_called_once_with(sid)
+    storage.expire_data_link.assert_called_once_with(
+        dt(6), UserID('y'), duid=DataUnitID(UPA('6/1/2')))
+
+
+def _expire_data_link_fail(samples, user, duid, expected):
+    with raises(Exception) as got:
+        samples.expire_data_link(user, duid)
+    assert_exception_correct(got.value, expected)
