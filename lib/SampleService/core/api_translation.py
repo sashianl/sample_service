@@ -177,6 +177,7 @@ def get_version_from_object(params: Dict[str, Any], required: bool = False) -> O
     :param params: the unmarshalled JSON recieved from the API as part of the API call.
     :param required: if True, throw and exception if the version is not supplied.
     :returns: the version or None if no version was provided.
+    :raises MissingParameterError: if the version is required and not present.
     :raises IllegalParameterError: if the version is not an integer or < 1.
     '''
     _check_params(params)
@@ -197,7 +198,7 @@ def get_sample_address_from_object(
     :param params: the unmarshalled JSON recieved from the API as part of the API call.
     :param version_required: require the version as well as the ID.
     :returns: a tuple containing the ID and the version or None if no version was provided.
-    :raises MissingParameterError: if the ID is missing.
+    :raises MissingParameterError: if the ID is missing or the version is required and not present.
     :raises IllegalParameterError: if the ID is malformed or if the version is not an
         integer or < 1.
     '''

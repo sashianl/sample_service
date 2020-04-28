@@ -364,7 +364,7 @@ class Samples:
             sample_address: SampleAddress) -> SavedSample:
         '''
         Given a workspace object, get a sample linked to that object. The user must have read
-        permissions for the object, but not necessarily the sample.
+        permissions for the object, but not necessarily the sample. The link may be expired.
 
         :param user: The user requesting the sample.
         :param upa: the data from which the link to the sample originates.
@@ -372,7 +372,7 @@ class Samples:
         :returns: the linked sample.
         :raises UnauthorizedError: if the user cannot read the UPA.
         :raises NoSuchWorkspaceDataError: if the workspace object does not exist.
-        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchLinkError: if there is no link from the object to the sample.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         '''
         # no admin mode needed - use get_links or get sample
@@ -387,4 +387,5 @@ class Samples:
         if not self._storage.has_data_link(upa, sample_address.sampleid):
             raise _NoSuchLinkError(
                 f'There is no link from UPA {upa} to sample {sample_address.sampleid}')
+        # can't raise no sample error since a link exists
         return self._storage.get_sample(sample_address.sampleid, sample_address.version)
