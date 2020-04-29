@@ -15,7 +15,8 @@ from SampleService.core.api_translation import (
     create_data_link_params as _create_data_link_params,
     get_datetime_from_epochmilliseconds_in_object as _get_datetime_from_epochmillseconds_in_object,
     links_to_dicts as _links_to_dicts,
-    get_upa_from_object as _get_upa_from_object
+    get_upa_from_object as _get_upa_from_object,
+    get_data_unit_id_from_object as _get_data_unit_id_from_object
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.arg_checkers import check_string as _check_string
@@ -48,7 +49,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha8"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "163c5f08a4b9b11ec132a3f12306dc1066d06854"
+    GIT_COMMIT_HASH = "e725d33ff63ac128301e096c2b85854a739d50c3"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -384,6 +385,32 @@ Note that usage of the administration flags will be logged by the service.
         #END create_data_link
         pass
 
+    def expire_data_link(self, ctx, params):
+        """
+        Expire a link from a KBase Workspace object.
+            The user must have admin permissions for the sample and write permissions for the
+            Workspace object.
+        :param params: instance of type "ExpireDataLinkParams"
+           (expire_data_link parameters. upa - the workspace upa of the
+           object from which the link originates. dataid - the dataid, if
+           any, of the data within the object from which the link originates.
+           Omit for links where the link is from the entire object.) ->
+           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
+           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+           workspace ID, 6 the object ID, and 7 the object version.),
+           parameter "dataid" of type "data_id" (An id for a unit of data
+           within a KBase Workspace object. A single object may contain many
+           data units. A dataid is expected to be unique within a single
+           object. Must be less than 255 characters.)
+        """
+        # ctx is the context object
+        #BEGIN expire_data_link
+        duid = _get_data_unit_id_from_object(params)
+        # TODO ADMIN admin mode
+        self._samples.expire_data_link(_UserID(ctx[_CTX_USER]), duid)
+        #END expire_data_link
+        pass
+
     def get_data_links_from_sample(self, ctx, params):
         """
         Get data links to Workspace objects originating from a sample.
@@ -506,8 +533,9 @@ Note that usage of the administration flags will be logged by the service.
     def get_sample_via_data(self, ctx, params):
         """
         Get a sample via a workspace object. Read permissions to a workspace object grants
-        read permissions to all versions of any linked samples. This method allows for fetching
-        samples when the user does not have explicit read access to the sample.
+        read permissions to all versions of any linked samples, whether the links are expired or
+        not. This method allows for fetching samples when the user does not have explicit
+        read access to the sample.
         :param params: instance of type "GetSampleViaDataParams"
            (get_sample_via_data parameters. upa - the workspace UPA of the
            target object. id - the target sample id. version - the target
