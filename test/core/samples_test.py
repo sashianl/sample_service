@@ -1354,7 +1354,7 @@ def _expire_data_link(user):
     s.expire_data_link(user, DataUnitID(UPA('6/1/2'), 'foo'))
 
     ws.has_permission.assert_called_once_with(
-        user, WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+        user, WorkspaceAccessType.WRITE, workspace_id=6)
 
     storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
     storage.get_sample_acls.assert_called_once_with(sid)
@@ -1388,7 +1388,7 @@ def test_expire_data_link_fail_no_ws_access():
                            UnauthorizedError('oh honey boo boo foofy foo'))
 
     ws.has_permission.assert_called_once_with(
-        UserID('u'), WorkspaceAccessType.WRITE, upa=UPA('1/1/1'))
+        UserID('u'), WorkspaceAccessType.WRITE, workspace_id=1)
 
 
 def test_expire_data_link_fail_no_link():
@@ -1404,7 +1404,7 @@ def test_expire_data_link_fail_no_link():
                            NoSuchLinkError('oh lordy'))
 
     ws.has_permission.assert_called_once_with(
-        UserID('a'), WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+        UserID('a'), WorkspaceAccessType.WRITE, workspace_id=6)
 
     storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
 
@@ -1425,7 +1425,7 @@ def _expire_data_link_fail_no_sample_access(user):
     sid = UUID('1234567890abcdef1234567890abcdee')
     storage.get_data_link.return_value = DataLink(
         uuid.uuid4(),  # unused
-        DataUnitID(UPA('6/1/2'), 'foo'),
+        DataUnitID(UPA('9/1/2'), 'foo'),
         SampleNodeAddress(SampleAddress(sid, 3), 'node'),
         dt(34),
         UserID('userc')
@@ -1437,13 +1437,13 @@ def _expire_data_link_fail_no_sample_access(user):
         [u('anotheruser'), u('ur mum')],
         [u('Fungus J. Pustule Jr.'), u('x')])
 
-    _expire_data_link_fail(s, user, DataUnitID(UPA('6/1/2'), 'foo'),
+    _expire_data_link_fail(s, user, DataUnitID(UPA('9/1/2'), 'foo'),
                            UnauthorizedError(f'User {user} cannot administrate sample {sid}'))
 
     ws.has_permission.assert_called_once_with(
-        user, WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+        user, WorkspaceAccessType.WRITE, workspace_id=9)
 
-    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
+    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('9/1/2'), 'foo'))
     storage.get_sample_acls.assert_called_once_with(sid)
 
 
@@ -1479,7 +1479,7 @@ def test_expire_data_link_fail_no_link_at_storage():
                            NoSuchLinkError("dang y'all"))
 
     ws.has_permission.assert_called_once_with(
-        UserID('y'), WorkspaceAccessType.WRITE, upa=UPA('6/1/2'))
+        UserID('y'), WorkspaceAccessType.WRITE, workspace_id=6)
 
     storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2')))
     storage.get_sample_acls.assert_called_once_with(sid)

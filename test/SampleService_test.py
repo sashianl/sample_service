@@ -2004,14 +2004,22 @@ def test_expire_data_link_fail(sample_port, workspace):
         'dataid contains control characters')
     _expire_data_link_fail(
         sample_port, TOKEN4, {'upa': '1/1/1', 'dataid': 'yay'},
-        'Sample service error code 20000 Unauthorized: User user4 cannot write to upa 1/1/1')
+        'Sample service error code 20000 Unauthorized: User user4 cannot write to workspace 1')
+
+    wscli.delete_workspace({'id': 1})
+    _expire_data_link_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'dataid': 'yay'},
+        'Sample service error code 50040 No such workspace data: Workspace 1 is deleted')
+
+    wsadmin = Workspace(wsurl, token=TOKEN_WS_FULL_ADMIN)
+    wsadmin.administer({'command': 'undeleteWorkspace', 'params': {'id': 1}})
     _expire_data_link_fail(
         sample_port, TOKEN3, {'upa': '1/1/2', 'dataid': 'yay'},
-        'Sample service error code 50040 No such workspace data: Object 1/1/2 does not exist')
-    # TODO NOW don't check object exists for expire link, allow expire on deleted objects
+        'Sample service error code 50050 No such data link: 1/1/2:yay')
     _expire_data_link_fail(
         sample_port, TOKEN3, {'upa': '1/1/1', 'dataid': 'yee'},
         'Sample service error code 50050 No such data link: 1/1/1:yee')
+
     wscli.set_permissions({'id': 1, 'new_permission': 'w', 'users': [USER4]})
     _expire_data_link_fail(
         sample_port, TOKEN4, {'upa': '1/1/1', 'dataid': 'yay'},
