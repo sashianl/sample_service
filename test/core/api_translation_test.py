@@ -15,7 +15,8 @@ from SampleService.core.api_translation import (
     create_data_link_params,
     get_datetime_from_epochmilliseconds_in_object,
     links_to_dicts,
-    get_upa_from_object
+    get_upa_from_object,
+    get_data_unit_id_from_object
 )
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
@@ -672,6 +673,32 @@ def test_create_data_link_params_fail_bad_args():
 def _create_data_link_params_fail(params, expected):
     with raises(Exception) as got:
         create_data_link_params(params)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_data_unit_id_from_object():
+    assert get_data_unit_id_from_object({'upa': '1/1/1'}) == DataUnitID(UPA('1/1/1'))
+    assert get_data_unit_id_from_object({'upa': '8/3/2'}) == DataUnitID(UPA('8/3/2'))
+    assert get_data_unit_id_from_object(
+        {'upa': '8/3/2', 'dataid': 'a'}) == DataUnitID(UPA('8/3/2'), 'a')
+
+
+def test_get_data_unit_id_from_object_fail_bad_args():
+    _get_data_unit_id_from_object_fail(None, ValueError('params cannot be None'))
+    _get_data_unit_id_from_object_fail({}, MissingParameterError('upa'))
+    _get_data_unit_id_from_object_fail({'upa': '1/0/1'}, IllegalParameterError(
+        '1/0/1 is not a valid UPA'))
+    _get_data_unit_id_from_object_fail({'upa': 82}, IllegalParameterError(
+        'upa key is not a string as required'))
+    _get_data_unit_id_from_object_fail({'upa': '1/1/1', 'dataid': []}, IllegalParameterError(
+        'dataid key is not a string as required'))
+    _get_data_unit_id_from_object_fail({'upa': '1/1/1', 'dataid': 'f\t/b'}, IllegalParameterError(
+        'dataid contains control characters'))
+
+
+def _get_data_unit_id_from_object_fail(params, expected):
+    with raises(Exception) as got:
+        get_data_unit_id_from_object(params)
     assert_exception_correct(got.value, expected)
 
 
