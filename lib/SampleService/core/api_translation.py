@@ -385,16 +385,29 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
             _cast(int, get_version_from_object(params, required=True))),
         _cast(str, _check_string(params, 'node', True))
     )
-    duid = DataUnitID(
-        get_upa_from_object(params),
-        _check_string(params, 'dataid'))
+    duid = get_data_unit_id_from_object(params)
     return (duid, sna, bool(params.get('update')))
+
+
+def get_data_unit_id_from_object(params: Dict[str, Any]) -> DataUnitID:
+    '''
+    Get a Data Unit ID from a parameter object. Expects an UPA in the key 'upa' and a data unit
+    ID, if any, in the key dataID.
+
+    :param params: the parameters.
+    :returns: the DUID.
+    :raises MissingParameterError: if the UPA is missing.
+    :raises IllegalParameterError: if the UPA or data ID are illegal.
+    '''
+    _check_params(params)
+    return DataUnitID(get_upa_from_object(params), _check_string(params, 'dataid'))
 
 
 def get_upa_from_object(params: Dict[str, Any]) -> UPA:
     '''
     Get an UPA from a parameter object. Expects the UPA in the key 'upa'.
-    :params params: the parameters.
+
+    :param params: the parameters.
     :returns: the UPA.
     :raises MissingParameterError: if the UPA is missing.
     :raises IllegalParameterError: if the UPA is illegal.
