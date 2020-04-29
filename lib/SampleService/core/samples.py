@@ -300,18 +300,22 @@ class Samples:
         '''
         Expire a data link, ensuring that it will not show up in link queries without an effective
         timestamp in the past.
-        The user must have admin access to the sample and write access to the data.
+        The user must have admin access to the sample and write access to the data. The data may
+        be deleted.
 
         :param user: the user expiring the link.
         :param duid: the data unit ID for the extant link.
         :raises UnauthorizedError: if the user does not have acceptable permissions.
-        :raises NoSuchWorkspaceDataError: if the workspace or UPA doesn't exist.
+        :raises NoSuchWorkspaceDataError: if the workspace doesn't exist.
         :raises NoSuchLinkError: if there is no link from the data unit.
         '''
         # TODO ADMIN admin mode
         _not_falsy(user, 'user')
         _not_falsy(duid, 'duid')
-        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, upa=duid.upa)
+        # allow expiring links for deleted objects. It should be impossible to have a link
+        # for an object that has never existed.
+        # TODO DOCUMENT What about deleted workspaces? Links should be inaccessible as is
+        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, workspace_id=duid.upa.wsid)
         link = self._storage.get_data_link(duid=duid)
         # was concerned about exposing the sample ID, but if the user has write access to the
         # UPA then they can get the link with the sample ID, so don't worry about it.
