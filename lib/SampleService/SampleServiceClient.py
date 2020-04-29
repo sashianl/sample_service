@@ -284,6 +284,27 @@ class SampleService(object):
         return self._client.call_method('SampleService.create_data_link',
                                         [params], self._service_ver, context)
 
+    def expire_data_link(self, params, context=None):
+        """
+        Expire a link from a KBase Workspace object.
+            The user must have admin permissions for the sample and write permissions for the
+            Workspace object.
+        :param params: instance of type "ExpireDataLinkParams"
+           (expire_data_link parameters. upa - the workspace upa of the
+           object from which the link originates. dataid - the dataid, if
+           any, of the data within the object from which the link originates.
+           Omit for links where the link is from the entire object.) ->
+           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
+           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+           workspace ID, 6 the object ID, and 7 the object version.),
+           parameter "dataid" of type "data_id" (An id for a unit of data
+           within a KBase Workspace object. A single object may contain many
+           data units. A dataid is expected to be unique within a single
+           object. Must be less than 255 characters.)
+        """
+        return self._client.call_method('SampleService.expire_data_link',
+                                        [params], self._service_ver, context)
+
     def get_data_links_from_sample(self, params, context=None):
         """
         Get data links to Workspace objects originating from a sample.
@@ -377,8 +398,9 @@ class SampleService(object):
     def get_sample_via_data(self, params, context=None):
         """
         Get a sample via a workspace object. Read permissions to a workspace object grants
-        read permissions to all versions of any linked samples. This method allows for fetching
-        samples when the user does not have explicit read access to the sample.
+        read permissions to all versions of any linked samples, whether the links are expired or
+        not. This method allows for fetching samples when the user does not have explicit
+        read access to the sample.
         :param params: instance of type "GetSampleViaDataParams"
            (get_sample_via_data parameters. upa - the workspace UPA of the
            target object. id - the target sample id. version - the target

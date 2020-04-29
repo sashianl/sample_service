@@ -255,6 +255,24 @@ module SampleService {
      */
     funcdef create_data_link(CreateDataLinkParams params) returns() authentication required;
 
+    /* expire_data_link parameters.
+
+        upa - the workspace upa of the object from which the link originates.
+        dataid - the dataid, if any, of the data within the object from which the link originates.
+            Omit for links where the link is from the entire object.
+    */
+    typedef structure {
+        ws_upa upa;
+        data_id dataid;
+    } ExpireDataLinkParams;
+
+    /* Expire a link from a KBase Workspace object.
+    
+        The user must have admin permissions for the sample and write permissions for the
+        Workspace object.
+    */
+    funcdef expire_data_link(ExpireDataLinkParams params) returns() authentication required;
+
     /* get_data_links_from_sample parameters.
 
         id - the sample ID.

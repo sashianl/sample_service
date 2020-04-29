@@ -1048,14 +1048,15 @@ def test_replace_acls_as_admin(sample_port):
     })
 
 
-def _replace_acls(url, id_, token, acls, as_admin=0):
+def _replace_acls(url, id_, token, acls, as_admin=0, print_resp=False):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.replace_sample_acls',
         'version': '1.1',
         'id': '67',
         'params': [{'id': id_, 'acls': acls, 'as_admin': as_admin}]
     })
-    # print(ret.text)
+    if print_resp:
+        print(ret.text)
     assert ret.ok is True
     assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
 
@@ -1853,6 +1854,179 @@ def _get_link_from_sample_fail(sample_port, token, params, expected):
     url = f'http://localhost:{sample_port}'
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [params]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == expected
+
+
+def _get_current_epochmillis():
+    return round(datetime.datetime.now(tz=datetime.timezone.utc).timestamp() * 1000)
+
+
+def test_expire_data_link(sample_port, workspace):
+    _expire_data_link(sample_port, workspace, None)
+
+
+def test_expire_data_link_with_data_id(sample_port, workspace):
+    _expire_data_link(sample_port, workspace, 'whee')
+
+
+def _expire_data_link(sample_port, workspace, dataid):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_permissions({'id': 1, 'new_permission': 'w', 'users': [USER4]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'},
+                       {'id': 'bar', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+    _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
+
+    # create links
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': dataid})
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'bar', 'upa': '1/1/1', 'dataid': 'fake'})
+
+    time.sleep(1)  # need to be able to set a resonable effective time to fetch links
+
+    # expire link
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.expire_data_link',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'dataid': dataid}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    # check links
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_data_links_from_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'effective_time': _get_current_epochmillis() - 500}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result'][0]) == 1
+    links = ret.json()['result'][0]['links']
+    assert len(links) == 2
+    for l in links:
+        if l['dataid'] == 'fake':
+            current_link = l
+        else:
+            expired_link = l
+    assert_ms_epoch_close_to_now(expired_link['expired'])
+    assert_ms_epoch_close_to_now(expired_link['created'] + 1000)
+    del expired_link['created']
+    del expired_link['expired']
+
+    assert expired_link == {
+            'id': id1,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': dataid,
+            'createdby': USER3,
+            'expiredby': USER4,
+         }
+
+    assert_ms_epoch_close_to_now(current_link['created'] + 1000)
+    del current_link['created']
+
+    assert current_link == {
+            'id': id1,
+            'version': 1,
+            'node': 'bar',
+            'upa': '1/1/1',
+            'dataid': 'fake',
+            'createdby': USER3,
+            'expiredby': None,
+            'expired': None
+         }
+
+
+def test_expire_data_link_fail(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create links
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+
+    _expire_data_link_fail(
+        sample_port, TOKEN3, {}, 'Sample service error code 30000 Missing input parameter: upa')
+    _expire_data_link_fail(
+        sample_port, TOKEN3, {'upa': '1/0/1'},
+        'Sample service error code 30001 Illegal input parameter: 1/0/1 is not a valid UPA')
+    _expire_data_link_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'dataid': 'foo\nbar'},
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'dataid contains control characters')
+    _expire_data_link_fail(
+        sample_port, TOKEN4, {'upa': '1/1/1', 'dataid': 'yay'},
+        'Sample service error code 20000 Unauthorized: User user4 cannot write to upa 1/1/1')
+    _expire_data_link_fail(
+        sample_port, TOKEN3, {'upa': '1/1/2', 'dataid': 'yay'},
+        'Sample service error code 50040 No such workspace data: Object 1/1/2 does not exist')
+    # TODO NOW don't check object exists for expire link, allow expire on deleted objects
+    _expire_data_link_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'dataid': 'yee'},
+        'Sample service error code 50050 No such data link: 1/1/1:yee')
+    wscli.set_permissions({'id': 1, 'new_permission': 'w', 'users': [USER4]})
+    _expire_data_link_fail(
+        sample_port, TOKEN4, {'upa': '1/1/1', 'dataid': 'yay'},
+        f'Sample service error code 20000 Unauthorized: User user4 cannot ' +
+        f'administrate sample {id1}')
+
+
+def _expire_data_link_fail(sample_port, token, params, expected):
+    _request_fail(sample_port, 'expire_data_link', token, params, expected)
+
+
+def _request_fail(sample_port, method, token, params, expected):
+    url = f'http://localhost:{sample_port}'
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.' + method,
         'version': '1.1',
         'id': '42',
         'params': [params]
