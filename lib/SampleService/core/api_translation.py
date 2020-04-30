@@ -20,17 +20,40 @@ from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermissi
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.arg_checkers import (
     not_falsy as _not_falsy,
-    not_falsy_in_iterable as _not_falsy_in_iterable
+    not_falsy_in_iterable as _not_falsy_in_iterable,
+    check_string as _check_string
 )
 from SampleService.core.data_link import DataLink
-from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
-from SampleService.core.errors import MissingParameterError as _MissingParameterError
-from SampleService.core.errors import UnauthorizedError as _UnauthorizedError
-from SampleService.core.user import UserID as _UserID
+from SampleService.core.errors import (
+    IllegalParameterError as _IllegalParameterError,
+    MissingParameterError as _MissingParameterError,
+    UnauthorizedError as _UnauthorizedError,
+    NoSuchUserError as _NoSuchUserError
+)
+from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA
 
 ID = 'id'
 ''' The ID of a sample. '''
+
+
+def get_user_from_object(params: Dict[str, Any], key) -> Optional[UserID]:
+    '''
+    Get a user ID from a key in an object.
+
+    :param params: the dict containing the user.
+    :param key: the key in the dict where the value is the username.
+    :returns: the user ID or None if the user is not present.
+    :raises IllegalParameterError: if the user if invalid.
+    '''
+    _check_params(params)
+    u = params.get(_cast(str, _check_string(key, 'key')))
+    if u is None:
+        return None
+    if type(u) is not str:
+        raise _IllegalParameterError(f'{key} must be a string if present')
+    else:
+        return UserID(u)
 
 
 def get_id_from_object(obj: Dict[str, Any], required=False) -> Optional[UUID]:
@@ -278,7 +301,7 @@ def _get_acl(acls, type_):
         for i, item, in enumerate(acl):
             if not type(item) == str:
                 raise _IllegalParameterError(f'Index {i} of {type_} ACL does not contain a string')
-            ret.append(_UserID(item))
+            ret.append(UserID(item))
     return ret
 
 
@@ -288,7 +311,7 @@ def check_admin(
         perm: AdminPermission,
         method: str,
         log_fn: Callable[[str], None],
-        as_user: str = None,
+        as_user: UserID = None,
         skip_check: bool = False) -> bool:
     '''
     Check whether a user has admin privileges.
@@ -305,6 +328,8 @@ def check_admin(
     :returns: true if the user has the required administration permission, false if skip_check
         is true.
     :raises UnauthorizedError: if the user does not have the permission required.
+    :raises InvalidUserError: if any of the user names are invalid.
+    :raises UnauthorizedError: if any of the users names are valid do not exist in the system.
     '''
     if skip_check:
         return False
@@ -321,6 +346,8 @@ def check_admin(
                f'privileges to run method {method}')
         log_fn(err)
         raise _UnauthorizedError(err)
+    if as_user and user_lookup.are_valid_users([as_user]):  # returns list of bad users
+        raise _NoSuchUserError(as_user.id)
     log_fn(f'User {user} is running method {method} with administration permission {p.name}' +
            (f' as user {as_user}' if as_user else ''))
     return True
@@ -383,7 +410,7 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
         _SampleAddress(
             _cast(UUID, get_id_from_object(params, required=True)),
             _cast(int, get_version_from_object(params, required=True))),
-        _cast(str, _check_string(params, 'node', True))
+        _cast(str, _check_string_int(params, 'node', True))
     )
     duid = get_data_unit_id_from_object(params)
     return (duid, sna, bool(params.get('update')))
@@ -400,7 +427,7 @@ def get_data_unit_id_from_object(params: Dict[str, Any]) -> DataUnitID:
     :raises IllegalParameterError: if the UPA or data ID are illegal.
     '''
     _check_params(params)
-    return DataUnitID(get_upa_from_object(params), _check_string(params, 'dataid'))
+    return DataUnitID(get_upa_from_object(params), _check_string_int(params, 'dataid'))
 
 
 def get_upa_from_object(params: Dict[str, Any]) -> UPA:
@@ -413,10 +440,10 @@ def get_upa_from_object(params: Dict[str, Any]) -> UPA:
     :raises IllegalParameterError: if the UPA is illegal.
     '''
     _check_params(params)
-    return UPA(_cast(str, _check_string(params, 'upa', True)))
+    return UPA(_cast(str, _check_string_int(params, 'upa', True)))
 
 
-def _check_string(params: Dict[str, Any], key: str, required=False) -> Optional[str]:
+def _check_string_int(params: Dict[str, Any], key: str, required=False) -> Optional[str]:
     v = params.get(key)
     if v is None:
         if required:

@@ -16,10 +16,10 @@ from SampleService.core.api_translation import (
     get_datetime_from_epochmilliseconds_in_object as _get_datetime_from_epochmillseconds_in_object,
     links_to_dicts as _links_to_dicts,
     get_upa_from_object as _get_upa_from_object,
-    get_data_unit_id_from_object as _get_data_unit_id_from_object
+    get_data_unit_id_from_object as _get_data_unit_id_from_object,
+    get_user_from_object as _get_user_from_object
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
-from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.user import UserID as _UserID
 
@@ -134,13 +134,13 @@ Note that usage of the administration flags will be logged by the service.
         # return variables are: address
         #BEGIN create_sample
         s, id_, pv = _create_sample_params(params)
-        user = _check_string(params.get('as_user'), 'as_user', optional=True)
+        user = _get_user_from_object(params, 'as_user')
         admin = _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
             'create_sample', ctx.log_info, as_user=user, skip_check=not user)
         ret = self._samples.save_sample(
-            s, _UserID(user) if admin else _UserID(ctx[_CTX_USER]), id_, pv)
+            s, user if admin else _UserID(ctx[_CTX_USER]), id_, pv)
         address = {'id': str(ret[0]), 'version': ret[1]}
         #END create_sample
 

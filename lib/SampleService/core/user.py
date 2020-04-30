@@ -24,6 +24,9 @@ class UserID:
     def __str__(self):
         return self.id
 
+    def __repr__(self):
+        return f'UserID("{self.id}")'
+
     def __eq__(self, other):
         if type(self) is type(other):
             return self.id == other.id
