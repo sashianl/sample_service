@@ -907,6 +907,34 @@ def test_create_data_link_with_data_id_and_update():
     storage.create_data_link.assert_called_once_with(dl, update=True)
 
 
+def test_create_data_link_as_admin():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    s.create_data_link(
+        UserID('someuser'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        as_admin=True)
+
+    ws.has_permission.assert_called_once_with(
+        UserID('someuser'), WorkspaceAccessType.NONE, upa=UPA('1/1/1'))
+
+    dl = DataLink(
+        UUID('1234567890abcdef1234567890abcdef'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        dt(6),
+        UserID('someuser')
+    )
+
+    storage.create_data_link.assert_called_once_with(dl, update=False)
+
+
 def test_create_data_link_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)

@@ -93,6 +93,7 @@ class Samples:
         _not_falsy(sample, 'sample')
         _not_falsy(user, 'user')
         self._validate_metadata(sample)
+        # TODO ADMIN as_admin should allow saving a new version
         if id_:
             if prior_version is not None and prior_version < 1:
                 raise _IllegalParameterError('Prior version must be > 0')
@@ -262,7 +263,8 @@ class Samples:
             user: UserID,
             duid: DataUnitID,
             sna: SampleNodeAddress,
-            update: bool = False):
+            update: bool = False,
+            as_admin: bool = False):
         '''
         Create a link from a data unit to a sample. The user must have admin access to the sample,
         since linking data grants permissions: once linked, if a user
@@ -278,6 +280,8 @@ class Samples:
         :param sna: the sample node to link to the data unit.
         :param update: True to expire any extant link if it does not link to the provided sample.
             If False and a link from the data unit already exists, link creation will fail.
+        :param as_admin: allow link creation to proceed if user does not have
+            appropriate permissions.
         :raises UnauthorizedError: if the user does not have acceptable permissions.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -288,11 +292,12 @@ class Samples:
             the workspace object version.
         :raises SampleStorageError: if the sample could not be retrieved.
         '''
-        # TODO ADMIN admin mode
         _not_falsy(user, 'user')
         _not_falsy(duid, 'duid')
-        self._check_perms(_not_falsy(sna, 'sna').sampleid, user, _SampleAccessType.ADMIN)
-        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, upa=duid.upa)
+        self._check_perms(
+            _not_falsy(sna, 'sna').sampleid, user, _SampleAccessType.ADMIN, as_admin=as_admin)
+        wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.WRITE
+        self._ws.has_permission(user, wsperm, upa=duid.upa)
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
         self._storage.create_data_link(dl, update=update)
 
