@@ -459,7 +459,7 @@ def _replace_sample_acls(user: UserID, as_admin):
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = []
+    lu.invalid_users.return_value = []
 
     storage.get_sample_acls.return_value = SampleACL(
         u('someuser'),
@@ -471,7 +471,7 @@ def _replace_sample_acls(user: UserID, as_admin):
         u('someuser'), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')]),
         as_admin=as_admin)
 
-    assert lu.are_valid_users.call_args_list == [
+    assert lu.invalid_users.call_args_list == [
         (([u(x) for x in ['x', 'y', 'z', 'a', 'b', 'c']],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
@@ -491,7 +491,7 @@ def test_replace_sample_acls_with_owner_change():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = []
+    lu.invalid_users.return_value = []
 
     storage.get_sample_acls.side_effect = [
         SampleACL(
@@ -507,7 +507,7 @@ def test_replace_sample_acls_with_owner_change():
 
     samples.replace_sample_acls(id_, UserID('otheruser'), SampleACL(u('someuser'), [u('a')]))
 
-    assert lu.are_valid_users.call_args_list == [(([u('a')],), {})]
+    assert lu.invalid_users.call_args_list == [(([u('a')],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {}),
@@ -529,7 +529,7 @@ def test_replace_sample_acls_with_owner_change_fail_lost_perms():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = []
+    lu.invalid_users.return_value = []
 
     storage.get_sample_acls.side_effect = [
         SampleACL(
@@ -547,7 +547,7 @@ def test_replace_sample_acls_with_owner_change_fail_lost_perms():
         samples, id_, UserID('otheruser'), SampleACL(u('someuser'), write=[u('b')]),
         UnauthorizedError(f'User otheruser cannot administrate sample {id_}'))
 
-    assert lu.are_valid_users.call_args_list == [(([u('b')],), {})]
+    assert lu.invalid_users.call_args_list == [(([u('b')],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {}),
@@ -568,7 +568,7 @@ def test_replace_sample_acls_with_owner_change_fail_5_times():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = []
+    lu.invalid_users.return_value = []
 
     storage.get_sample_acls.side_effect = [
         SampleACL(u(f'someuser{x}'), [u('otheruser')]) for x in range(5)
@@ -580,7 +580,7 @@ def test_replace_sample_acls_with_owner_change_fail_5_times():
         samples, id_, UserID('otheruser'), SampleACL(u('someuser'), read=[u('c')]),
         ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}'))
 
-    assert lu.are_valid_users.call_args_list == [(([u('c')],), {})]
+    assert lu.invalid_users.call_args_list == [(([u('c')],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {}) for _ in range(5)
@@ -619,7 +619,7 @@ def test_replace_sample_acls_fail_nonexistent_user_4_users():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w')]
+    lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w')]
 
     acls = SampleACL(
         u('foo'),
@@ -630,7 +630,7 @@ def test_replace_sample_acls_fail_nonexistent_user_4_users():
     _replace_sample_acls_fail(
         samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w'))
 
-    assert lu.are_valid_users.call_args_list == [
+    assert lu.invalid_users.call_args_list == [
         (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z'), u('w')],), {})]
 
 
@@ -643,7 +643,7 @@ def test_replace_sample_acls_fail_nonexistent_user_5_users():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c')]
+    lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c')]
 
     acls = SampleACL(
         u('foo'),
@@ -654,7 +654,7 @@ def test_replace_sample_acls_fail_nonexistent_user_5_users():
     _replace_sample_acls_fail(
         samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
 
-    assert lu.are_valid_users.call_args_list == [
+    assert lu.invalid_users.call_args_list == [
         (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z'), u('w'),
            u('c')],), {})]
 
@@ -668,7 +668,7 @@ def test_replace_sample_acls_fail_nonexistent_user_6_users():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c'), u('whee')]
+    lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c'), u('whee')]
 
     acls = SampleACL(
         u('foo'),
@@ -679,7 +679,7 @@ def test_replace_sample_acls_fail_nonexistent_user_6_users():
     _replace_sample_acls_fail(
         samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
 
-    assert lu.are_valid_users.call_args_list == [
+    assert lu.invalid_users.call_args_list == [
         (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z'), u('w'), u('c'),
            u('whee')],), {})]
 
@@ -693,7 +693,7 @@ def test_replace_sample_acls_fail_invalid_user():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.side_effect = user_lookup.InvalidUserError('o shit waddup')
+    lu.invalid_users.side_effect = user_lookup.InvalidUserError('o shit waddup')
 
     acls = SampleACL(
         u('foo'),
@@ -703,7 +703,7 @@ def test_replace_sample_acls_fail_invalid_user():
 
     _replace_sample_acls_fail(samples, id_, UserID('foo'), acls, NoSuchUserError('o shit waddup'))
 
-    assert lu.are_valid_users.call_args_list == [
+    assert lu.invalid_users.call_args_list == [
         (([u('o shit waddup'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z')],), {})]
 
 
@@ -716,7 +716,7 @@ def test_replace_sample_acls_fail_invalid_token():
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.side_effect = user_lookup.InvalidTokenError('you big dummy')
+    lu.invalid_users.side_effect = user_lookup.InvalidTokenError('you big dummy')
 
     acls = SampleACL(
         u('foo'),
@@ -727,7 +727,7 @@ def test_replace_sample_acls_fail_invalid_token():
     _replace_sample_acls_fail(samples, id_, UserID('foo'), acls, ValueError(
         'user lookup token for KBase auth server is invalid, cannot continue'))
 
-    assert lu.are_valid_users.call_args_list == [
+    assert lu.invalid_users.call_args_list == [
         (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z')],), {})]
 
 
@@ -746,7 +746,7 @@ def _replace_sample_acls_fail_unauthorized(user: UserID):
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
-    lu.are_valid_users.return_value = []
+    lu.invalid_users.return_value = []
 
     storage.get_sample_acls.return_value = SampleACL(
         u('someuser'),
@@ -757,7 +757,7 @@ def _replace_sample_acls_fail_unauthorized(user: UserID):
     _replace_sample_acls_fail(samples, id_, user, SampleACL(u('foo')), UnauthorizedError(
         f'User {user} cannot administrate sample 12345678-90ab-cdef-1234-567890abcde0'))
 
-    assert lu.are_valid_users.call_args_list == [(([],), {})]
+    assert lu.invalid_users.call_args_list == [(([],), {})]
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {})]

@@ -502,14 +502,14 @@ def _check_admin(perm, permreq, user, method, as_user, expected_log):
     logs = []
 
     ul.is_admin.return_value = (perm, user)
-    ul.are_valid_users.return_value = []
+    ul.invalid_users.return_value = []
 
     assert check_admin(
         ul, 'thisisatoken', permreq, method, lambda x: logs.append(x), as_user) is True
 
     assert ul.is_admin.call_args_list == [(('thisisatoken',), {})]
     if as_user:
-        ul.are_valid_users.assert_called_once_with([as_user])
+        ul.invalid_users.assert_called_once_with([as_user])
     assert logs == [expected_log]
 
 
@@ -580,14 +580,14 @@ def test_check_admin_fail_no_such_user():
     log = []
 
     ul.is_admin.return_value = (AdminPermission.FULL, 'user1')
-    ul.are_valid_users.return_value = [UserID('bruh')]
+    ul.invalid_users.return_value = [UserID('bruh')]
 
     _check_admin_fail(
         ul, 'token', AdminPermission.FULL, 'a method', lambda x: log.append(x), UserID('bruh'),
         NoSuchUserError('bruh'))
 
     ul.is_admin.assert_called_once_with('token')
-    ul.are_valid_users.assert_called_once_with([UserID('bruh')])
+    ul.invalid_users.assert_called_once_with([UserID('bruh')])
     assert log == []
 
 

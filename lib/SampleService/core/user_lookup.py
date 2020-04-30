@@ -75,15 +75,15 @@ class KBaseUserLookup:
             # worry about it later.
             raise IOError('Error from KBase auth server: ' + j['error']['message'])
 
-    def are_valid_users(self, usernames: Sequence[UserID]) -> List[UserID]:
+    def invalid_users(self, usernames: Sequence[UserID]) -> List[UserID]:
         '''
         Check whether users exist in the authentication service.
 
         :param users: the users to check.
-        :returns: A list of users that have valid usernames but do not exist in the authentication
+        :returns: A list of users that have legal usernames but do not exist in the authentication
             service.
         :raises InvalidTokenError: if the token has expired
-        :raises InvalidUserError: if any of the user names are invalid user names.
+        :raises InvalidUserError: if any of the user names are illegal user names.
         '''
         if usernames is None:
             raise ValueError('usernames cannot be None')

@@ -2678,13 +2678,13 @@ def _user_lookup_build_fail(url, token, expected):
 
 def test_user_lookup(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode', TOKEN1)
-    assert ul.are_valid_users([]) == []
-    assert ul.are_valid_users([UserID(USER1), UserID(USER2), UserID(USER3)]) == []
+    assert ul.invalid_users([]) == []
+    assert ul.invalid_users([UserID(USER1), UserID(USER2), UserID(USER3)]) == []
 
 
 def test_user_lookup_bad_users(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
-    assert ul.are_valid_users(
+    assert ul.invalid_users(
         [UserID('nouserhere'), UserID(USER1), UserID(USER2), UserID('whooptydoo'),
          UserID(USER3)]) == [UserID('nouserhere'), UserID('whooptydoo')]
 
@@ -2708,7 +2708,7 @@ def test_user_lookup_fail_bad_username(sample_port, auth):
 
 def _user_lookup_fail(userlookup, users, expected):
     with raises(Exception) as got:
-        userlookup.are_valid_users(users)
+        userlookup.invalid_users(users)
     assert_exception_correct(got.value, expected)
 
 

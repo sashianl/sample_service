@@ -329,7 +329,7 @@ def check_admin(
         is true.
     :raises UnauthorizedError: if the user does not have the permission required.
     :raises InvalidUserError: if any of the user names are invalid.
-    :raises UnauthorizedError: if any of the users names are valid do not exist in the system.
+    :raises UnauthorizedError: if any of the users names are valid but do not exist in the system.
     '''
     if skip_check:
         return False
@@ -346,7 +346,7 @@ def check_admin(
                f'privileges to run method {method}')
         log_fn(err)
         raise _UnauthorizedError(err)
-    if as_user and user_lookup.are_valid_users([as_user]):  # returns list of bad users
+    if as_user and user_lookup.invalid_users([as_user]):  # returns list of bad users
         raise _NoSuchUserError(as_user.id)
     log_fn(f'User {user} is running method {method} with administration permission {p.name}' +
            (f' as user {as_user}' if as_user else ''))
