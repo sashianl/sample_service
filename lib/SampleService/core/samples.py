@@ -211,7 +211,7 @@ class Samples:
         _not_falsy(user, 'user')
         _not_falsy(new_acls, 'new_acls')
         try:
-            bad_users = self._user_lookup.are_valid_users(
+            bad_users = self._user_lookup.invalid_users(
                 _cast(List[UserID], []) + list(new_acls.admin) +
                 list(new_acls.write) + list(new_acls.read))
             # let authentication errors propagate, not much to do
