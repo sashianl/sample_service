@@ -20,6 +20,7 @@ class WorkspaceAccessType(IntEnum):
     '''
     The different levels of workspace service access.
     '''
+    NONE = 1
     READ = 2
     WRITE = 3
     ADMIN = 4
@@ -27,11 +28,13 @@ class WorkspaceAccessType(IntEnum):
 
 _PERM_TO_PERM_SET = {WorkspaceAccessType.READ: {'r', 'w', 'a'},
                      WorkspaceAccessType.WRITE: {'w', 'a'},
-                     WorkspaceAccessType.ADMIN: {'a'}}
+                     WorkspaceAccessType.ADMIN: {'a'}
+                     }
 
 _PERM_TO_PERM_TEXT = {WorkspaceAccessType.READ: 'read',
                       WorkspaceAccessType.WRITE: 'write to',
-                      WorkspaceAccessType.ADMIN: 'administrate'}
+                      WorkspaceAccessType.ADMIN: 'administrate'
+                      }
 
 
 class UPA:
@@ -164,8 +167,11 @@ class WS:
             workspace_id: int = None,
             upa: UPA = None):
         '''
-        Check if a user can read a workspace resource. Exactly one of workspace_id or upa must
+        Check if a user can access a workspace resource. Exactly one of workspace_id or upa must
         be supplied - if both are supplied workspace_id takes precedence.
+
+        Beware - passing a NONE permission will not throw errors unless the object or workspace
+        does not exist.
 
         The user is not checked for existence.
 
@@ -202,7 +208,9 @@ class WS:
                 raise _NoSuchWorkspaceDataError(se.args[0]) from se
             else:
                 raise
-        if p['perms'][0].get(user.id) not in _PERM_TO_PERM_SET[perm]:
+        # could optimize a bit if NONE and upa but not worth the code complication most likely
+        if (perm != WorkspaceAccessType.NONE and
+                p['perms'][0].get(user.id) not in _PERM_TO_PERM_SET[perm]):
             raise _UnauthorizedError(
                 f'User {user} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
         if upa:
