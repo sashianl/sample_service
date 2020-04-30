@@ -198,6 +198,7 @@ def test_has_permission():
     _has_permission(UserID('a'), None, UPA('7/45/789'), WorkspaceAccessType.WRITE, 7)
     _has_permission(UserID('c'), None, UPA('1/1/1'), WorkspaceAccessType.WRITE, 1)
     _has_permission(UserID('c'), 301, None, WorkspaceAccessType.ADMIN, 301)
+    _has_permission(UserID('none'), 301, None, WorkspaceAccessType.NONE, 301)
 
 
 def test_has_permission_fail_bad_input():
