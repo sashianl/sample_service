@@ -709,6 +709,19 @@ def test_create_sample_fail_permissions(sample_port):
 
 
 def test_create_sample_fail_admin_bad_user_name(sample_port):
+    _create_sample_fail_admin_as_user(
+        sample_port, 'bad\tuser',
+        f'Sample service error code 30001 Illegal input parameter: userid contains ' +
+        'control characters')
+
+
+def test_create_sample_fail_admin_no_such_user(sample_port):
+    _create_sample_fail_admin_as_user(
+        sample_port, USER4 + 'impostor',
+        f'Sample service error code 50000 No such user: user4impostor')
+
+
+def _create_sample_fail_admin_as_user(sample_port, user, expected):
     url = f'http://localhost:{sample_port}'
 
     ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
@@ -722,15 +735,13 @@ def test_create_sample_fail_admin_bad_user_name(sample_port):
                                       }
                                      ]
                        },
-            'as_user': 'bad\tuser'
+            'as_user': user
         }]
     })
 
     # print(ret.text)
     assert ret.status_code == 500
-    assert ret.json()['error']['message'] == (
-        f'Sample service error code 30001 Illegal input parameter: as_user contains ' +
-        'control characters')
+    assert ret.json()['error']['message'] == expected
 
 
 def test_create_sample_fail_admin_permissions(sample_port):

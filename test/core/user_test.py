@@ -11,16 +11,19 @@ def test_init():
 
     assert u.id == 'foo'
     assert str(u) == 'foo'
+    assert repr(u) == 'UserID("foo")'
 
     u = UserID('u' * 256)
 
     assert u.id == 'u' * 256
     assert str(u) == 'u' * 256
+    assert repr(u) == f'UserID("{"u" * 256}")'
 
     u = UserID('u⎇a')
 
     assert u.id == 'u⎇a'
     assert str(u) == 'u⎇a'
+    assert repr(u) == 'UserID("u⎇a")'
 
 
 def test_init_fail():

@@ -16,7 +16,8 @@ from SampleService.core.api_translation import (
     get_datetime_from_epochmilliseconds_in_object,
     links_to_dicts,
     get_upa_from_object,
-    get_data_unit_id_from_object
+    get_data_unit_id_from_object,
+    get_user_from_object
 )
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
@@ -28,14 +29,40 @@ from SampleService.core.sample import (
     SavedSample
 )
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
-from SampleService.core.errors import IllegalParameterError, MissingParameterError
-from SampleService.core.errors import UnauthorizedError
+from SampleService.core.errors import (
+    IllegalParameterError,
+    MissingParameterError,
+    UnauthorizedError,
+    NoSuchUserError
+)
 from SampleService.core.acls import AdminPermission
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA
 
 from core.test_utils import assert_exception_correct
+
+
+def test_get_user_from_object():
+    assert get_user_from_object({}, 'user') is None
+    assert get_user_from_object({'user': None}, 'user') is None
+    assert get_user_from_object({'user': '   a   '}, 'user') == UserID('a')
+
+
+def test_get_user_from_object_fail_bad_args():
+    _get_user_from_object_fail(None, 'us', ValueError('params cannot be None'))
+    _get_user_from_object_fail({'us': 'foo'}, None, MissingParameterError('key'))
+    _get_user_from_object_fail({'us': []}, 'us', IllegalParameterError(
+        'us must be a string if present'))
+    _get_user_from_object_fail({'us': 'baz\tbaat'}, 'us', IllegalParameterError(
+        # probably not worth the trouble to change the key name, we'll see
+        'userid contains control characters'))
+
+
+def _get_user_from_object_fail(params, key, expected):
+    with raises(Exception) as got:
+        get_user_from_object(params, key)
+    assert_exception_correct(got.value, expected)
 
 
 def test_get_id_from_object():
@@ -49,19 +76,19 @@ def test_get_id_from_object():
 
 
 def test_get_id_from_object_fail_bad_args():
-    get_id_from_object_fail({'id': 6}, True, IllegalParameterError(
+    _get_id_from_object_fail({'id': 6}, True, IllegalParameterError(
         'Sample ID 6 must be a UUID string'))
-    get_id_from_object_fail({
+    _get_id_from_object_fail({
         'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'},
         False,
         IllegalParameterError(
             'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
-    get_id_from_object_fail(None, True, MissingParameterError('Sample ID'))
-    get_id_from_object_fail({}, True, MissingParameterError('Sample ID'))
-    get_id_from_object_fail({'id': None}, True, MissingParameterError('Sample ID'))
+    _get_id_from_object_fail(None, True, MissingParameterError('Sample ID'))
+    _get_id_from_object_fail({}, True, MissingParameterError('Sample ID'))
+    _get_id_from_object_fail({'id': None}, True, MissingParameterError('Sample ID'))
 
 
-def get_id_from_object_fail(d, required, expected):
+def _get_id_from_object_fail(d, required, expected):
     with raises(Exception) as got:
         get_id_from_object(d, required)
     assert_exception_correct(got.value, expected)
@@ -461,7 +488,7 @@ def test_check_admin():
     r = AdminPermission.READ
     _check_admin(f, f, 'user1', 'somemethod', None,
                  f'User user1 is running method somemethod with administration permission FULL')
-    _check_admin(f, f, 'user1', 'somemethod', 'otheruser',
+    _check_admin(f, f, 'user1', 'somemethod', UserID('otheruser'),
                  f'User user1 is running method somemethod with administration permission FULL ' +
                  'as user otheruser')
     _check_admin(f, r, 'someuser', 'a_method', None,
@@ -475,11 +502,14 @@ def _check_admin(perm, permreq, user, method, as_user, expected_log):
     logs = []
 
     ul.is_admin.return_value = (perm, user)
+    ul.are_valid_users.return_value = []
 
     assert check_admin(
         ul, 'thisisatoken', permreq, method, lambda x: logs.append(x), as_user) is True
 
     assert ul.is_admin.call_args_list == [(('thisisatoken',), {})]
+    if as_user:
+        ul.are_valid_users.assert_called_once_with([as_user])
     assert logs == [expected_log]
 
 
@@ -543,6 +573,22 @@ def _check_admin_fail_no_admin_perms(permhas, permreq):
     _check_admin_fail(ul, 't', permreq, 'm', lambda l: log.append(l), None, UnauthorizedError(err))
 
     assert log == [err]
+
+
+def test_check_admin_fail_no_such_user():
+    ul = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    log = []
+
+    ul.is_admin.return_value = (AdminPermission.FULL, 'user1')
+    ul.are_valid_users.return_value = [UserID('bruh')]
+
+    _check_admin_fail(
+        ul, 'token', AdminPermission.FULL, 'a method', lambda x: log.append(x), UserID('bruh'),
+        NoSuchUserError('bruh'))
+
+    ul.is_admin.assert_called_once_with('token')
+    ul.are_valid_users.assert_called_once_with([UserID('bruh')])
+    assert log == []
 
 
 def _check_admin_fail(ul, token, perm, method, logfn, as_user, expected):
