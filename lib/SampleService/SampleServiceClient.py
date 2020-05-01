@@ -266,20 +266,26 @@ class SampleService(object):
            link already exists from the data unit (the combination of the UPA
            and dataid). if true, expire the old link and create the new link
            unless the link is already to the requested sample node, in which
-           case the operation is a no-op.) -> structure: parameter "upa" of
-           type "ws_upa" (A KBase Workspace service Unique Permanent Address
-           (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the object ID,
-           and 7 the object version.), parameter "dataid" of type "data_id"
-           (An id for a unit of data within a KBase Workspace object. A
-           single object may contain many data units. A dataid is expected to
-           be unique within a single object. Must be less than 255
-           characters.), parameter "id" of type "sample_id" (A Sample ID.
-           Must be globally unique. Always assigned by the Sample service.),
-           parameter "version" of type "version" (The version of a sample.
-           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
-           Must be unique within a Sample and be less than 255 characters.),
-           parameter "update" of type "boolean" (A boolean value, 0 for
-           false, 1 for true.)
+           case the operation is a no-op. as_admin - run the method as a
+           service administrator. The user must have full administration
+           permissions. as_user - create the link as a different user.
+           Ignored if as_admin is not true. Neither the administrator nor the
+           impersonated user need have permissions to the data or sample.) ->
+           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
+           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+           workspace ID, 6 the object ID, and 7 the object version.),
+           parameter "dataid" of type "data_id" (An id for a unit of data
+           within a KBase Workspace object. A single object may contain many
+           data units. A dataid is expected to be unique within a single
+           object. Must be less than 255 characters.), parameter "id" of type
+           "sample_id" (A Sample ID. Must be globally unique. Always assigned
+           by the Sample service.), parameter "version" of type "version"
+           (The version of a sample. Always > 0.), parameter "node" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "update" of type "boolean"
+           (A boolean value, 0 for false, 1 for true.), parameter "as_admin"
+           of type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_user" of type "user" (A user's username.)
         """
         return self._client.call_method('SampleService.create_data_link',
                                         [params], self._service_ver, context)

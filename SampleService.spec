@@ -238,6 +238,11 @@ module SampleService {
             combination of the UPA and dataid). if true, expire the old link and create the new
             link unless the link is already to the requested sample node, in which case the
             operation is a no-op.
+        as_admin - run the method as a service administrator. The user must have full
+            administration permissions.
+        as_user - create the link as a different user. Ignored if as_admin is not true. Neither
+            the administrator nor the impersonated user need have permissions to the data or
+            sample.
         */
     typedef structure {
         ws_upa upa;
@@ -246,6 +251,8 @@ module SampleService {
         version version;
         node_id node;
         boolean update;
+        boolean as_admin;
+        user as_user;
     } CreateDataLinkParams;
 
     /* Create a link from a KBase Workspace object to a sample.
