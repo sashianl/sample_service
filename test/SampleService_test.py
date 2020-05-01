@@ -1402,6 +1402,9 @@ def _create_link(url, token, params, print_resp=False):
 
 
 def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
+    '''
+    Also tests that the 'as_user' key is ignored if 'as_admin' is falsy.
+    '''
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -1452,7 +1455,8 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
         )
 
     # create links
-    _create_link(url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2'})
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2', 'as_user': USER1})
     _create_link(
         url, TOKEN3,
         {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
@@ -1654,6 +1658,94 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
     ]}
 
 
+def test_create_data_link_as_admin(sample_port, workspace):
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create links
+    _create_link(
+        url,
+        TOKEN2,
+        {'id': id1,
+         'version': 1,
+         'node': 'root',
+         'upa': '1/1/1',
+         'dataid': 'yeet',
+         'as_admin': 1})
+    _create_link(
+        url,
+        TOKEN2,
+        {'id': id1,
+         'version': 1,
+         'node': 'foo',
+         'upa': '1/1/1',
+         'as_admin': 1,
+         'as_user': f'     {USER4}     '})
+
+    # get link
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id1, 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result'][0]) == 1
+    res = ret.json()['result'][0]['links']
+    expected_links = [
+        {
+            'id': id1,
+            'version': 1,
+            'node': 'root',
+            'upa': '1/1/1',
+            'dataid': 'yeet',
+            'createdby': USER2,
+            'expiredby': None,
+            'expired': None
+         },
+        {
+            'id': id1,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': None,
+            'createdby': USER4,
+            'expiredby': None,
+            'expired': None
+        }
+    ]
+
+    assert len(res) == len(expected_links)
+    for l in res:
+        assert_ms_epoch_close_to_now(l['created'])
+        del l['created']
+
+    for l in expected_links:
+        assert l in res
+
+
 def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
     '''
     Tests that unreadable workspaces are excluded from link results
@@ -1795,6 +1887,28 @@ def test_create_link_fail(sample_port, workspace):
     _create_link_fail(
         sample_port, TOKEN3, {'id': id_, 'version': 1, 'node': 'fake', 'upa': '1/1/1'},
         f'Sample service error code 50030 No such sample node: {id_} ver 1 fake')
+
+    # admin tests
+    _create_link_fail(
+        sample_port, TOKEN2,
+        {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'as_user': 'foo\bbar'},
+        f'Sample service error code 30001 Illegal input parameter: ' +
+        'userid contains control characters')
+    _create_link_fail(
+        sample_port, TOKEN3,
+        {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'as_user': USER4, 'as_admin': 'f'},
+        f'Sample service error code 20000 Unauthorized: User user3 does not have ' +
+        'the necessary administration privileges to run method create_data_link')
+    _create_link_fail(
+        sample_port,
+        TOKEN2,
+        {'id': id_,
+         'version': 1,
+         'node': 'foo',
+         'upa': '1/1/1',
+         'as_user': 'fake',
+         'as_admin': 'f'},
+        f'Sample service error code 50000 No such user: fake')
 
 
 def test_create_link_fail_link_exists(sample_port, workspace):
