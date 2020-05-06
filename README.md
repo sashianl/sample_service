@@ -79,7 +79,12 @@ The current error codes are:
 50000 No such user
 50010 No such sample
 50020 No such sample version
-60000 Unsupported operation
+50030 No such sample node
+50040 No such workspace data
+50050 No such data link
+60000 Data link exists for data ID
+60010 Too many data links
+100000 Unsupported operation
 ```
 
 # Metadata validation
