@@ -56,7 +56,7 @@ build-startup-script:
 	echo 'script_dir=$$(dirname "$$(readlink -f "$$0")")' >> $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
 	echo 'export KB_DEPLOYMENT_CONFIG=$$script_dir/../deploy.cfg' >> $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
 	echo 'export PYTHONPATH=$$script_dir/../$(LIB_DIR):$$PATH:$$PYTHONPATH' >> $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
-	echo 'gunicorn --worker-class gevent --timeout 30 --workers 17 --bind :5000 --log-level info $(SERVICE_CAPS)/$(SERVICE_CAPS)Server:application' >> $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
+	echo 'gunicorn --worker-class gevent --timeout 30 --workers 17 --bind :5000 --log-level info $(SERVICE_CAPS).$(SERVICE_CAPS)Server:application' >> $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
 	chmod +x $(SCRIPTS_DIR)/$(STARTUP_SCRIPT_NAME)
 
 build-test-script:
