@@ -17,7 +17,8 @@ from SampleService.core.api_translation import (
     links_to_dicts,
     get_upa_from_object,
     get_data_unit_id_from_object,
-    get_user_from_object
+    get_user_from_object,
+    get_admin_request_from_object
 )
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
@@ -62,6 +63,37 @@ def test_get_user_from_object_fail_bad_args():
 def _get_user_from_object_fail(params, key, expected):
     with raises(Exception) as got:
         get_user_from_object(params, key)
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_admin_request_from_object():
+    assert get_admin_request_from_object({'user': 'foo'}, 'as_ad', 'user') == (False, None)
+    assert get_admin_request_from_object(
+        {'as_ad': False, 'user': 'a'}, 'as_ad', 'user') == (False, None)
+    assert get_admin_request_from_object(
+        {'as_ad': [], 'user': 'a'}, 'as_ad', 'user') == (False, None)
+    assert get_admin_request_from_object({'as_ad': True}, 'as_ad', 'user') == (True, None)
+    assert get_admin_request_from_object(
+        {'as_ad': True, 'user': None}, 'as_ad', 'user') == (True, None)
+    assert get_admin_request_from_object(
+        {'as_ad': 3, 'user': 'a'}, 'as_ad', 'user') == (True, UserID('a'))
+
+
+def test_get_admin_request_from_object_fail_bad_args():
+    _get_admin_request_from_object_fail(None, '1', '2', ValueError('params cannot be None'))
+    _get_admin_request_from_object_fail({'a': 'b'}, None, '2', MissingParameterError('as_admin'))
+    _get_admin_request_from_object_fail({'a': 'b'}, '1', None, MissingParameterError('as_user'))
+    _get_admin_request_from_object_fail(
+        {'asa': True, 'asu': ['foo']}, 'asa', 'asu', IllegalParameterError(
+            'asu must be a string if present'))
+    _get_admin_request_from_object_fail(
+        {'asa': True, 'asu': 'whe\tee'}, 'asa', 'asu', IllegalParameterError(
+            'userid contains control characters'))
+
+
+def _get_admin_request_from_object_fail(params, akey, ukey, expected):
+    with raises(Exception) as got:
+        get_admin_request_from_object(params, akey, ukey)
     assert_exception_correct(got.value, expected)
 
 
