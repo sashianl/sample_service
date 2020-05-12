@@ -37,7 +37,7 @@ ID = 'id'
 ''' The ID of a sample. '''
 
 
-def get_user_from_object(params: Dict[str, Any], key) -> Optional[UserID]:
+def get_user_from_object(params: Dict[str, Any], key: str) -> Optional[UserID]:
     '''
     Get a user ID from a key in an object.
 
@@ -54,6 +54,29 @@ def get_user_from_object(params: Dict[str, Any], key) -> Optional[UserID]:
         raise _IllegalParameterError(f'{key} must be a string if present')
     else:
         return UserID(u)
+
+
+def get_admin_request_from_object(
+        params: Dict[str, Any], as_admin: str, as_user: str) -> Tuple[bool, Optional[UserID]]:
+    '''
+    Get information about a request for administration mode from an object.
+
+    :param params: the dict containing the information.
+    :param as_admin: the name of the key containing a truish value that indicates that the user
+        wishes to be recognized as an administrator.
+    :param as_user: the name of the key containing a string that indicates the user the admin
+        wishes to impersonate, or None if the the admin does not wish to impersonate a user.
+    :returns: A tuple where the first element is a boolean denoting whether the user wishes
+        to be recognized as an administrator and the second element is the user that admin wishes
+        to impersonate, if any. The user is always None if the boolean is False.
+    '''
+    _check_params(params)
+    as_ad = bool(params.get(_cast(str, _check_string(as_admin, 'as_admin'))))
+    _check_string(as_user, 'as_user')
+    if not as_ad:
+        return (as_ad, None)
+    user = get_user_from_object(params, as_user)
+    return (as_ad, user)
 
 
 def get_id_from_object(obj: Dict[str, Any], required=False) -> Optional[UUID]:
