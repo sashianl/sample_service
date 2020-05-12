@@ -1891,7 +1891,12 @@ def test_create_link_fail(sample_port, workspace):
     # admin tests
     _create_link_fail(
         sample_port, TOKEN2,
-        {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'as_user': 'foo\bbar'},
+        {'id': id_,
+         'version': 1,
+         'node': 'foo',
+         'upa': '1/1/1',
+         'as_admin': 1,
+         'as_user': 'foo\bbar'},
         f'Sample service error code 30001 Illegal input parameter: ' +
         'userid contains control characters')
     _create_link_fail(

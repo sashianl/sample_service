@@ -17,6 +17,7 @@ from SampleService.core.api_translation import (
     links_to_dicts as _links_to_dicts,
     get_upa_from_object as _get_upa_from_object,
     get_data_unit_id_from_object as _get_data_unit_id_from_object,
+    get_admin_request_from_object as _get_admin_request_from_object,
     get_user_from_object as _get_user_from_object
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
@@ -387,14 +388,13 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         #BEGIN create_data_link
         duid, sna, update = _create_data_link_params(params)
-        user = _get_user_from_object(params, 'as_user')
-        as_admin = bool(params.get('as_admin'))
+        as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
         _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
             'create_data_link', ctx.log_info, as_user=user, skip_check=not as_admin)
         self._samples.create_data_link(
-            user if as_admin and user else _UserID(ctx[_CTX_USER]),
+            user if user else _UserID(ctx[_CTX_USER]),
             duid,
             sna,
             update,
