@@ -67,11 +67,11 @@ def _init_fail(storage, lookup, meta, ws, now, uuid_gen, expected):
 
 
 def test_save_sample():
-    _save_sample_with_name(None)
-    _save_sample_with_name('bar')
+    _save_sample_with_name(None, True)
+    _save_sample_with_name('bar', False)
 
 
-def _save_sample_with_name(name):
+def _save_sample_with_name(name, as_admin):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -93,11 +93,12 @@ def _save_sample_with_name(name):
                 )
             ],
             name),
-        'auser') == (UUID('1234567890abcdef1234567890abcdef'), 1)
+        UserID('auser'),
+        as_admin=as_admin) == (UUID('1234567890abcdef1234567890abcdef'), 1)
 
     assert storage.save_sample.call_args_list == [
         ((SavedSample(UUID('1234567890abcdef1234567890abcdef'),
-                      'auser',
+                      UserID('auser'),
                       [SampleNode(
                           'foo',
                           controlled_metadata={'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},
@@ -162,6 +163,34 @@ def _save_sample_version_per_user(user: UserID, name, prior_version):
                       name
                       ),
           prior_version), {})]
+
+
+def test_save_sample_version_as_admin():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+
+    storage.save_sample_version.return_value = 3
+
+    assert s.save_sample(
+        Sample([SampleNode('foo')], 'some sample'),
+        UserID('usera'),
+        UUID('1234567890abcdef1234567890abcdea'),
+        as_admin=True) == (UUID('1234567890abcdef1234567890abcdea'), 3)
+
+    assert meta.validate_metadata.call_args_list == [(({},), {})]
+
+    storage.save_sample_version.assert_called_once_with(
+        SavedSample(UUID('1234567890abcdef1234567890abcdea'),
+                    UserID('usera'),
+                    [SampleNode('foo')],
+                    datetime.datetime.fromtimestamp(6, tz=datetime.timezone.utc),
+                    'some sample'
+                    ),
+        None)
 
 
 def test_save_sample_fail_bad_args():
