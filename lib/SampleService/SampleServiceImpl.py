@@ -139,6 +139,7 @@ Note that usage of the administration flags will be logged by the service.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
             'create_sample', ctx.log_info, as_user=user, skip_check=not user)
+        # TODO ADMIN as_admin should allow saving a new version
         ret = self._samples.save_sample(
             s, user if admin else _UserID(ctx[_CTX_USER]), id_, pv)
         address = {'id': str(ret[0]), 'version': ret[1]}

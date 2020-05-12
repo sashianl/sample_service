@@ -71,7 +71,8 @@ class Samples:
             sample: Sample,
             user: UserID,
             id_: UUID = None,
-            prior_version: Optional[int] = None) -> Tuple[UUID, int]:
+            prior_version: Optional[int] = None,
+            as_admin: bool = False) -> Tuple[UUID, int]:
         '''
         Save a sample.
 
@@ -79,8 +80,9 @@ class Samples:
         :param user: the username of the user saving the sample.
         :param id_: if the sample is a new version of a sample, the ID of the sample which will
             get a new version.
-        :prior_version: if id_ is included, specifying prior_version will ensure that the new
+        :param prior_version: if id_ is included, specifying prior_version will ensure that the new
             sample is saved with version prior_version + 1 or not at all.
+        :param as_admin: skip ACL checks for new versions.
         :returns a tuple of the sample ID and version.
         :raises IllegalParameterError: if the prior version is < 1
         :raises UnauthorizedError: if the user does not have write permission to the sample when
@@ -93,11 +95,10 @@ class Samples:
         _not_falsy(sample, 'sample')
         _not_falsy(user, 'user')
         self._validate_metadata(sample)
-        # TODO ADMIN as_admin should allow saving a new version
         if id_:
             if prior_version is not None and prior_version < 1:
                 raise _IllegalParameterError('Prior version must be > 0')
-            self._check_perms(id_, user, _SampleAccessType.WRITE)
+            self._check_perms(id_, user, _SampleAccessType.WRITE, as_admin=as_admin)
             swid = SavedSample(id_, user, list(sample.nodes), self._now(), sample.name)
             ver = self._storage.save_sample_version(swid, prior_version)
         else:
