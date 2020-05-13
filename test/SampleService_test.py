@@ -505,6 +505,14 @@ def test_create_and_get_sample_with_version(sample_port):
 
 
 def test_create_sample_as_admin(sample_port):
+    _create_sample_as_admin(sample_port, None, TOKEN2, USER2)
+
+
+def test_create_sample_as_admin_impersonate_user(sample_port):
+    _create_sample_as_admin(sample_port, '     ' + USER4 + '      ', TOKEN4, USER4)
+
+
+def _create_sample_as_admin(sample_port, as_user, get_token, expected_user):
     url = f'http://localhost:{sample_port}'
 
     # verison 1
@@ -522,7 +530,8 @@ def test_create_sample_as_admin(sample_port):
                                       }
                                      ]
                        },
-            'as_user': '     ' + USER4 + '   '
+            'as_admin': 1,
+            'as_user': as_user
         }]
     })
     # print(ret.text)
@@ -531,7 +540,7 @@ def test_create_sample_as_admin(sample_port):
     id_ = ret.json()['result'][0]['id']
 
     # get
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+    ret = requests.post(url, headers=get_authorized_headers(get_token), json={
         'method': 'SampleService.get_sample',
         'version': '1.1',
         'id': '42',
@@ -545,7 +554,7 @@ def test_create_sample_as_admin(sample_port):
     assert j == {
         'id': id_,
         'version': 1,
-        'user': USER4,
+        'user': expected_user,
         'name': 'mysample',
         'node_tree': [{'id': 'root',
                        'parent': None,
@@ -553,6 +562,90 @@ def test_create_sample_as_admin(sample_port):
                        'meta_controlled': {'foo': {'bar': 'baz'}
                                            },
                        'meta_user': {'a': {'b': 'c'}}}]
+    }
+
+
+def test_create_sample_version_as_admin(sample_port):
+    _create_sample_version_as_admin(sample_port, None, USER2)
+
+
+def test_create_sample_version_as_admin_impersonate_user(sample_port):
+    _create_sample_version_as_admin(sample_port, USER3, USER3)
+
+
+def _create_sample_version_as_admin(sample_port, as_user, expected_user):
+    url = f'http://localhost:{sample_port}'
+
+    # verison 1
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'baz'},
+                                                          'stringlentest': {'foooo': 'barrr',
+                                                                            'spcky': 'fa'},
+                                                          'prefixed': {'safe': 'args'}
+                                                          },
+                                      'meta_user': {'a': {'b': 'c'}}
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id_ = ret.json()['result'][0]['id']
+
+    # version 2
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '68',
+        'params': [{
+            'sample': {'name': 'mysample2',
+                       'id': id_,
+                       'node_tree': [{'id': 'root2',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'bat'}},
+                                      'meta_user': {'a': {'b': 'd'}}
+                                      }
+                                     ]
+                       },
+            'as_admin': 1,
+            'as_user': as_user
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 2
+
+    # get version 2
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '43',
+        'params': [{'id': id_}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    j = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(j['save_date'])
+    del j['save_date']
+    assert j == {
+        'id': id_,
+        'version': 2,
+        'user': expected_user,
+        'name': 'mysample2',
+        'node_tree': [{'id': 'root2',
+                       'parent': None,
+                       'type': 'BioReplicate',
+                       'meta_controlled': {'foo': {'bar': 'bat'}},
+                       'meta_user': {'a': {'b': 'd'}}}]
     }
 
 
@@ -735,6 +828,7 @@ def _create_sample_fail_admin_as_user(sample_port, user, expected):
                                       }
                                      ]
                        },
+            'as_admin': 'true',
             'as_user': user
         }]
     })
@@ -759,6 +853,7 @@ def test_create_sample_fail_admin_permissions(sample_port):
                                       }
                                      ]
                        },
+            'as_admin': 1,
             'as_user': USER4
         }]
     })

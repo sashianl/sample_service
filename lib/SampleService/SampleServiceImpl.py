@@ -18,7 +18,6 @@ from SampleService.core.api_translation import (
     get_upa_from_object as _get_upa_from_object,
     get_data_unit_id_from_object as _get_data_unit_id_from_object,
     get_admin_request_from_object as _get_admin_request_from_object,
-    get_user_from_object as _get_user_from_object
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.sample import SampleAddress as _SampleAddress
@@ -50,7 +49,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha10"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "e725d33ff63ac128301e096c2b85854a739d50c3"
+    GIT_COMMIT_HASH = "b8e16b215db16bb04f61f8c039fbfbf147fc33b9"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -74,35 +73,46 @@ Note that usage of the administration flags will be logged by the service.
            ignored. sample - the sample to save. prior_version - if non-null,
            ensures that no other sample version is saved between
            prior_version and the version that is created by this save. If
-           this is not the case, the sample will fail to save. as_user - save
-           the sample as a different user. The actual user must have full
-           administration permissions.) -> structure: parameter "sample" of
-           type "Sample" (A Sample, consisting of a tree of subsamples and
-           replicates. id - the ID of the sample. user - the user that saved
-           the sample. node_tree - the tree(s) of sample nodes in the sample.
-           The the roots of all trees must be BioReplicate nodes. All the
-           BioReplicate nodes must be at the start of the list, and all child
-           nodes must occur after their parents in the list. name - the name
-           of the sample. Must be less than 255 characters. save_date - the
-           date the sample version was saved. version - the version of the
-           sample.) -> structure: parameter "id" of type "sample_id" (A
-           Sample ID. Must be globally unique. Always assigned by the Sample
-           service.), parameter "user" of type "user" (A user's username.),
-           parameter "node_tree" of list of type "SampleNode" (A node in a
-           sample tree. id - the ID of the node. parent - the id of the
-           parent node for the current node. BioReplicate nodes, and only
-           BioReplicate nodes, do not have a parent. type - the type of the
-           node. meta_controlled - metadata restricted by the sample
-           controlled vocabulary and validators. meta_user - unrestricted
-           metadata.) -> structure: parameter "id" of type "node_id" (A
-           SampleNode ID. Must be unique within a Sample and be less than 255
-           characters.), parameter "parent" of type "node_id" (A SampleNode
-           ID. Must be unique within a Sample and be less than 255
-           characters.), parameter "type" of type "samplenode_type" (The type
-           of a sample node. One of: BioReplicate - a biological replicate.
-           Always at the top of the sample tree. TechReplicate - a technical
-           replicate. SubSample - a sub sample that is not a technical
-           replicate.), parameter "meta_controlled" of type "metadata"
+           this is not the case, the sample will fail to save. as_admin - run
+           the method as a service administrator. The user must have full
+           administration permissions. as_user - create the sample as a
+           different user. Ignored if as_admin is not true. Neither the
+           administrator nor the impersonated user need have permissions to
+           the sample if a new version is saved.) -> structure: parameter
+           "sample" of type "Sample" (A Sample, consisting of a tree of
+           subsamples and replicates. id - the ID of the sample. user - the
+           user that saved the sample. node_tree - the tree(s) of sample
+           nodes in the sample. The the roots of all trees must be
+           BioReplicate nodes. All the BioReplicate nodes must be at the
+           start of the list, and all child nodes must occur after their
+           parents in the list. name - the name of the sample. Must be less
+           than 255 characters. save_date - the date the sample version was
+           saved. version - the version of the sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "user"
+           of type "user" (A user's username.), parameter "node_tree" of list
+           of type "SampleNode" (A node in a sample tree. id - the ID of the
+           node. parent - the id of the parent node for the current node.
+           BioReplicate nodes, and only BioReplicate nodes, do not have a
+           parent. type - the type of the node. meta_controlled - metadata
+           restricted by the sample controlled vocabulary and validators.
+           meta_user - unrestricted metadata.) -> structure: parameter "id"
+           of type "node_id" (A SampleNode ID. Must be unique within a Sample
+           and be less than 255 characters.), parameter "parent" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "type" of type
+           "samplenode_type" (The type of a sample node. One of: BioReplicate
+           - a biological replicate. Always at the top of the sample tree.
+           TechReplicate - a technical replicate. SubSample - a sub sample
+           that is not a technical replicate.), parameter "meta_controlled"
+           of type "metadata" (Metadata attached to a sample. The
+           UnspecifiedObject map values MUST be a primitive type - either
+           int, float, string, or equivalent typedefs.) -> mapping from type
+           "metadata_key" (A key in a metadata key/value pair. Less than 1000
+           unicode characters.) to mapping from type "metadata_value_key" (A
+           key for a value associated with a piece of metadata. Less than
+           1000 unicode characters. Examples: units, value, species) to
+           unspecified object, parameter "meta_user" of type "metadata"
            (Metadata attached to a sample. The UnspecifiedObject map values
            MUST be a primitive type - either int, float, string, or
            equivalent typedefs.) -> mapping from type "metadata_key" (A key
@@ -110,20 +120,13 @@ Note that usage of the administration flags will be logged by the service.
            to mapping from type "metadata_value_key" (A key for a value
            associated with a piece of metadata. Less than 1000 unicode
            characters. Examples: units, value, species) to unspecified
-           object, parameter "meta_user" of type "metadata" (Metadata
-           attached to a sample. The UnspecifiedObject map values MUST be a
-           primitive type - either int, float, string, or equivalent
-           typedefs.) -> mapping from type "metadata_key" (A key in a
-           metadata key/value pair. Less than 1000 unicode characters.) to
-           mapping from type "metadata_value_key" (A key for a value
-           associated with a piece of metadata. Less than 1000 unicode
-           characters. Examples: units, value, species) to unspecified
            object, parameter "name" of type "sample_name" (A sample name.
            Must be less than 255 characters.), parameter "save_date" of type
            "timestamp" (A timestamp in epoch milliseconds.), parameter
            "version" of type "version" (The version of a sample. Always >
            0.), parameter "prior_version" of Long, parameter "as_user" of
-           type "user" (A user's username.)
+           type "user" (A user's username.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
         :returns: instance of type "SampleAddress" (A Sample ID and version.
            id - the ID of the sample. version - the version of the sample.)
            -> structure: parameter "id" of type "sample_id" (A Sample ID.
@@ -134,15 +137,14 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: address
         #BEGIN create_sample
-        s, id_, pv = _create_sample_params(params)
-        user = _get_user_from_object(params, 'as_user')
-        admin = _check_admin(
+        sample, id_, prev_ver = _create_sample_params(params)
+        as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
+        _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
-            'create_sample', ctx.log_info, as_user=user, skip_check=not user)
-        # TODO ADMIN as_admin should allow saving a new version
+            'create_sample', ctx.log_info, as_user=user, skip_check=not as_admin)
         ret = self._samples.save_sample(
-            s, user if admin else _UserID(ctx[_CTX_USER]), id_, pv)
+            sample, user if user else _UserID(ctx[_CTX_USER]), id_, prev_ver, as_admin=as_admin)
         address = {'id': str(ret[0]), 'version': ret[1]}
         #END create_sample
 
