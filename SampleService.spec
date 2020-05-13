@@ -130,12 +130,16 @@ module SampleService {
         prior_version - if non-null, ensures that no other sample version is saved between
             prior_version and the version that is created by this save. If this is not the case,
             the sample will fail to save.
-        as_user - save the sample as a different user. The actual user must have full
+        as_admin - run the method as a service administrator. The user must have full
             administration permissions.
+        as_user - create the sample as a different user. Ignored if as_admin is not true. Neither
+            the administrator nor the impersonated user need have permissions to the sample if a
+            new version is saved.
      */
     typedef structure {
         Sample sample;
         int prior_version;
+        boolean as_admin;
         user as_user;
     } CreateSampleParams;
 
