@@ -1419,6 +1419,32 @@ def _expire_data_link(user):
         dt(6), user, duid=DataUnitID(UPA('6/1/2'), 'foo'))
 
 
+def test_expire_data_link_as_admin():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    sid = UUID('1234567890abcdef1234567890abcdee')
+    storage.get_data_link.return_value = DataLink(
+        uuid.uuid4(),  # unused
+        DataUnitID(UPA('6/1/2'), 'foo'),
+        SampleNodeAddress(SampleAddress(sid, 3), 'node'),
+        dt(34),
+        UserID('userc')
+    )
+
+    s.expire_data_link(UserID('userf'), DataUnitID(UPA('6/1/2'), 'foo'), as_admin=True)
+
+    ws.has_permission.assert_called_once_with(
+        UserID('userf'), WorkspaceAccessType.NONE, workspace_id=6)
+
+    storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
+    storage.expire_data_link.assert_called_once_with(
+        dt(6), UserID('userf'), duid=DataUnitID(UPA('6/1/2'), 'foo'))
+
+
 def test_expire_data_link_fail_bad_args():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
