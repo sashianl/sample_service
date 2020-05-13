@@ -302,7 +302,7 @@ class Samples:
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
         self._storage.create_data_link(dl, update=update)
 
-    def expire_data_link(self, user: UserID, duid: DataUnitID) -> None:
+    def expire_data_link(self, user: UserID, duid: DataUnitID, as_admin: bool = False) -> None:
         '''
         Expire a data link, ensuring that it will not show up in link queries without an effective
         timestamp in the past.
@@ -311,21 +311,24 @@ class Samples:
 
         :param user: the user expiring the link.
         :param duid: the data unit ID for the extant link.
+        :param as_admin: allow link expiration to proceed if user does not have
+            appropriate permissions.
         :raises UnauthorizedError: if the user does not have acceptable permissions.
         :raises NoSuchWorkspaceDataError: if the workspace doesn't exist.
         :raises NoSuchLinkError: if there is no link from the data unit.
         '''
-        # TODO ADMIN admin mode
         _not_falsy(user, 'user')
         _not_falsy(duid, 'duid')
         # allow expiring links for deleted objects. It should be impossible to have a link
         # for an object that has never existed.
         # TODO DOCUMENT What about deleted workspaces? Links should be inaccessible as is
-        self._ws.has_permission(user, _WorkspaceAccessType.WRITE, workspace_id=duid.upa.wsid)
+        wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.WRITE
+        self._ws.has_permission(user, wsperm, workspace_id=duid.upa.wsid)
         link = self._storage.get_data_link(duid=duid)
         # was concerned about exposing the sample ID, but if the user has write access to the
         # UPA then they can get the link with the sample ID, so don't worry about it.
-        self._check_perms(link.sample_node_address.sampleid, user, _SampleAccessType.ADMIN)
+        self._check_perms(
+            link.sample_node_address.sampleid, user, _SampleAccessType.ADMIN, as_admin=as_admin)
         self._storage.expire_data_link(self._now(), user, duid=duid)
 
     def get_links_from_sample(
