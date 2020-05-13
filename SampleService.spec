@@ -271,10 +271,17 @@ module SampleService {
         upa - the workspace upa of the object from which the link originates.
         dataid - the dataid, if any, of the data within the object from which the link originates.
             Omit for links where the link is from the entire object.
+        as_admin - run the method as a service administrator. The user must have full
+            administration permissions.
+        as_user - expire the link as a different user. Ignored if as_admin is not true. Neither
+            the administrator nor the impersonated user need have permissions to the link if a
+            new version is saved.
     */
     typedef structure {
         ws_upa upa;
         data_id dataid;
+        boolean as_admin;
+        user as_user;
     } ExpireDataLinkParams;
 
     /* Expire a link from a KBase Workspace object.

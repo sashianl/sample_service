@@ -97,9 +97,9 @@ class SampleService(object):
            Must be less than 255 characters.), parameter "save_date" of type
            "timestamp" (A timestamp in epoch milliseconds.), parameter
            "version" of type "version" (The version of a sample. Always >
-           0.), parameter "prior_version" of Long, parameter "as_user" of
-           type "user" (A user's username.), parameter "as_admin" of type
-           "boolean" (A boolean value, 0 for false, 1 for true.)
+           0.), parameter "prior_version" of Long, parameter "as_admin" of
+           type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_user" of type "user" (A user's username.)
         :returns: instance of type "SampleAddress" (A Sample ID and version.
            id - the ID of the sample. version - the version of the sample.)
            -> structure: parameter "id" of type "sample_id" (A Sample ID.
@@ -303,14 +303,21 @@ class SampleService(object):
            (expire_data_link parameters. upa - the workspace upa of the
            object from which the link originates. dataid - the dataid, if
            any, of the data within the object from which the link originates.
-           Omit for links where the link is from the entire object.) ->
-           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
-           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
-           workspace ID, 6 the object ID, and 7 the object version.),
-           parameter "dataid" of type "data_id" (An id for a unit of data
-           within a KBase Workspace object. A single object may contain many
-           data units. A dataid is expected to be unique within a single
-           object. Must be less than 255 characters.)
+           Omit for links where the link is from the entire object. as_admin
+           - run the method as a service administrator. The user must have
+           full administration permissions. as_user - expire the link as a
+           different user. Ignored if as_admin is not true. Neither the
+           administrator nor the impersonated user need have permissions to
+           the link if a new version is saved.) -> structure: parameter "upa"
+           of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.), parameter "as_user" of
+           type "user" (A user's username.)
         """
         return self._client.call_method('SampleService.expire_data_link',
                                         [params], self._service_ver, context)
