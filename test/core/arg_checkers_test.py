@@ -26,6 +26,10 @@ def test_falsy_in_iterable_true():
         assert not_falsy_in_iterable(t, 'foo') is t
 
 
+def test_falsy_in_iterable_allow_none():
+    assert not_falsy_in_iterable(None, 'yay', allow_none=True) is None
+
+
 def test_falsy_in_iterable_no_iterable():
     with raises(Exception) as got:
         not_falsy_in_iterable(None, 'whee')
