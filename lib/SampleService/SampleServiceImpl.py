@@ -60,7 +60,6 @@ Note that usage of the administration flags will be logged by the service.
         #BEGIN_CONSTRUCTOR
         self._samples, self._user_lookup = _build_samples(config)
         #END_CONSTRUCTOR
-        pass
 
     def create_sample(self, ctx, params):
         """
@@ -307,7 +306,6 @@ Note that usage of the administration flags will be logged by the service.
             'replace_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
         self._samples.replace_sample_acls(id_, _UserID(ctx[_CTX_USER]), acls, as_admin=admin)
         #END replace_sample_acls
-        pass
 
     def get_metadata_key_static_metadata(self, ctx, params):
         """
@@ -402,7 +400,6 @@ Note that usage of the administration flags will be logged by the service.
             update,
             as_admin=as_admin)
         #END create_data_link
-        pass
 
     def expire_data_link(self, ctx, params):
         """
@@ -442,7 +439,6 @@ Note that usage of the administration flags will be logged by the service.
             duid,
             as_admin=as_admin)
         #END expire_data_link
-        pass
 
     def get_data_links_from_sample(self, ctx, params):
         """
