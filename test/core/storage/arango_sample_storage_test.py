@@ -2825,6 +2825,14 @@ def test_get_links_from_sample(samplestorage):
     )
     assert got == []
 
+    # test not filtering on WS id
+    got = samplestorage.get_links_from_sample(
+        SampleAddress(sid1, 1),
+        None,
+        dt(500)
+    )
+    assert set(got) == {l5, l6, l7, l8}
+
     # no results, prior to created
     got = samplestorage.get_links_from_sample(
         SampleAddress(sid1, 1),
@@ -2859,10 +2867,6 @@ def test_get_links_from_sample_fail_bad_args(samplestorage):
 
     _get_links_from_sample_fail(ss, None, ws, ts, ValueError(
         'sample cannot be a value that evaluates to false'))
-    _get_links_from_sample_fail(ss, sa, None, ts, ValueError(
-        'readable_wsids cannot be None'))
-    _get_links_from_sample_fail(ss, sa, None, ts, ValueError(
-        'readable_wsids cannot be None'))
     _get_links_from_sample_fail(ss, sa, [1, None], ts, ValueError(
         'Index 1 of iterable readable_wsids cannot be a value that evaluates to false'))
     _get_links_from_sample_fail(ss, sa, ws, None, ValueError(

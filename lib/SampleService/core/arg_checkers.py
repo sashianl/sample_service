@@ -23,17 +23,22 @@ def not_falsy(item: T, item_name: str) -> T:
     return item
 
 
-def not_falsy_in_iterable(iterable: Iterable[T], name: str) -> Iterable[T]:
+def not_falsy_in_iterable(
+        iterable: Iterable[T], name: str, allow_none: bool = False) -> Iterable[T]:
     '''
     Check that an iterable is not None and contains no falsy items. Empty iterables are accepted.
 
     :param iterable: the iterable to check.
     :param name: the name of the iterable to be used in error messages.
+    :param allow_none: allow the iterable to be None - in this case return None. The contents of
+        the iterable may not be None.
     :returns: the iterable.
     :raises ValueError: if the iterable is None or contains falsy items.
     '''
-    # probably need to allow for 0 as a n option
+    # probably need to allow for 0 as an option
     if iterable is None:
+        if allow_none:
+            return None
         raise ValueError(f'{name} cannot be None')
     for i, item in enumerate(iterable):
         not_falsy(item, f'Index {i} of iterable {name}')

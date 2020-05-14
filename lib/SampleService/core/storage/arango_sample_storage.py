@@ -967,7 +967,7 @@ class ArangoSampleStorage:
     def _count_links(self, db, filters: str, bind_vars, created, expired):
         bind_vars['@col'] = self._col_data_link.name
         bind_vars['created'] = created.timestamp()
-        bind_vars['expired'] = expired = expired.timestamp() if expired else _ARANGO_MAX_INTEGER
+        bind_vars['expired'] = expired.timestamp() if expired else _ARANGO_MAX_INTEGER
         # might need to include created / expired in compound indexes if we get a ton of expired
         # links. Might not work in a NOT though. Alternate formulation is
         # (d.creatd >= @created AND d.created <= @expired) OR
@@ -1201,6 +1201,7 @@ class ArangoSampleStorage:
 
         :param sample: the sample of interest.
         :param readable_wsids: IDs of workspaces for which the user has read permissions.
+            Pass None to return links to objects in all workspaces.
         :param timestamp: the time to use to determine which links are active.
         :returns: a list of links.
         :raises NoSuchSampleError: if the sample does not exist.
@@ -1209,26 +1210,29 @@ class ArangoSampleStorage:
         # may want to make this work on non-ws objects at some point. YAGNI for now.
         _not_falsy(sample, 'sample')
         _check_timestamp(timestamp, 'timestamp')
-        _not_falsy_in_iterable(readable_wsids, 'readable_wsids')
-        if not readable_wsids:
+        _not_falsy_in_iterable(readable_wsids, 'readable_wsids', allow_none=True)
+        if readable_wsids is not None and not readable_wsids:
             return []
         # need to get the version doc to ensure the documents have been updated appropriately
         # as well as getting the uuid version, see comments at beginning of file
         # note that testing version updating has been done for at least 2 other methods
         # the tests are not repeated here
         _, versiondoc, _ = self._get_sample_and_version_doc(sample.sampleid, sample.version)
+        bind_vars = {'@col': self._col_data_link.name,
+                     'samplever': versiondoc[_FLD_UUID_VER],
+                     'ts': timestamp.timestamp()}
+        wsidfilter = ''
+        if readable_wsids:
+            bind_vars['wsids'] = readable_wsids
+            wsidfilter = f'FILTER d.{_FLD_LINK_WORKSPACE_ID} IN @wsids'
         q = f'''
             FOR d in @@col
                 FILTER d.{_FLD_LINK_SAMPLE_UUID_VERSION} == @samplever
-                FILTER d.{_FLD_LINK_WORKSPACE_ID} IN @wsids
+                {wsidfilter}
                 FILTER d.{_FLD_LINK_CREATED} <= @ts
                 FILTER d.{_FLD_LINK_EXPIRED} >= @ts
                 RETURN d
             '''
-        bind_vars = {'@col': self._col_data_link.name,
-                     'wsids': readable_wsids,
-                     'samplever': versiondoc[_FLD_UUID_VER],
-                     'ts': timestamp.timestamp()}
         # may need an index on version + created and expired? Assume for now links aren't
         # expired very often.
         # may also want a sample ver / wsid index? Max 10k items per version though, and
