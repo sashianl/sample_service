@@ -68,7 +68,7 @@ An ArangoDB based storage system for the Sample service.
 import arango as _arango
 import datetime
 import hashlib as _hashlib
-import uuid as _uuid
+import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 from collections import defaultdict
 from typing import List, Tuple, Callable, cast as _cast, Optional as _Optional
