@@ -379,11 +379,14 @@ class SampleService(object):
            (get_data_links_from_data parameters. upa - the data UPA.
            effective_time - the effective time at which the query should be
            run - the default is the current time. Providing a time allows for
-           reproducibility of previous results.) -> structure: parameter
-           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
-           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
-           object ID, and 7 the object version.), parameter "effective_time"
-           of type "timestamp" (A timestamp in epoch milliseconds.)
+           reproducibility of previous results. as_admin - run the method as
+           a service administrator. The user must have read administration
+           permissions.) -> structure: parameter "upa" of type "ws_upa" (A
+           KBase Workspace service Unique Permanent Address (UPA). E.g. 5/6/7
+           where 5 is the workspace ID, 6 the object ID, and 7 the object
+           version.), parameter "effective_time" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
         :returns: instance of type "GetDataLinksFromDataResults"
            (get_data_links_from_data results. links - the links.) ->
            structure: parameter "links" of list of type "DataLink" (A data
