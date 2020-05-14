@@ -3,7 +3,7 @@ Core class for saving and getting samples.
 '''
 
 import datetime
-import uuid as _uuid
+import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 
 from typing import Optional, Callable, Tuple, List, Dict, Union, cast as _cast
