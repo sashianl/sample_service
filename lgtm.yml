@@ -1,4 +1,4 @@
 path_classifiers:
   generated:
-    - "lib/SampleService/SampleServiceServer.py"
-    - "lib/biokbase/log.py"
+    - exclude: lib/SampleService/SampleServiceServer.py
+    - exclude: lib/biokbase/log.py
