@@ -1896,7 +1896,6 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
 
     assert len(ret.json()['result'][0]) == 1
     res = ret.json()['result'][0]['links']
-    print(res)
     expected_links = [
         {
             'id': id_,
@@ -1937,6 +1936,51 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
 
     for l in expected_links:
         assert l in res
+
+
+def test_get_links_from_sample_as_admin(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN4)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create sample
+    id_ = _create_generic_sample(url, TOKEN4)
+
+    # create links
+    _create_link(url, TOKEN4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+
+    # check correct links are returned, user 3 has read admin perms, but not full
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'version': 1, 'as_admin': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result'][0]['links']) == 1
+    link = ret.json()['result'][0]['links'][0]
+    assert_ms_epoch_close_to_now(link['created'])
+    del link['created']
+
+    assert link == {
+            'id': id_,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': None,
+            'createdby': USER4,
+            'expiredby': None,
+            'expired': None
+         }
 
 
 def test_create_link_fail(sample_port, workspace):
@@ -2073,6 +2117,12 @@ def test_get_links_from_sample_fail(sample_port):
     _get_link_from_sample_fail(
         sample_port, TOKEN3, {'id': str(badid), 'version': 1},
         f'Sample service error code 50010 No such sample: {badid}')
+
+    # admin tests
+    _get_link_from_sample_fail(
+        sample_port, TOKEN4, {'id': id_, 'version': 1, 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
+        'necessary administration privileges to run method get_data_links_from_sample')
 
 
 def _get_link_from_sample_fail(sample_port, token, params, expected):
