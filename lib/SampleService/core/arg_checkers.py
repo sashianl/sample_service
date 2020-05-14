@@ -24,7 +24,9 @@ def not_falsy(item: T, item_name: str) -> T:
 
 
 def not_falsy_in_iterable(
-        iterable: Iterable[T], name: str, allow_none: bool = False) -> Iterable[T]:
+        iterable: Optional[Iterable[T]],
+        name: str,
+        allow_none: bool = False) -> Optional[Iterable[T]]:
     '''
     Check that an iterable is not None and contains no falsy items. Empty iterables are accepted.
 

@@ -335,7 +335,8 @@ class Samples:
             self,
             user: UserID,
             sample: SampleAddress,
-            timestamp: datetime.datetime = None) -> List[DataLink]:
+            timestamp: datetime.datetime = None,
+            as_admin: bool = False) -> List[DataLink]:
         '''
         Get a set of data links originating from a sample at a particular time.
 
@@ -349,12 +350,11 @@ class Samples:
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises NoSuchUserError: if the user does not exist.
         '''
-        # TODO ADMIN admin mode
         _not_falsy(user, 'user')
         _not_falsy(sample, 'sample')
         timestamp = self._resolve_timestamp(timestamp)
-        self._check_perms(sample.sampleid, user, _SampleAccessType.READ)
-        wsids = self._ws.get_user_workspaces(user)
+        self._check_perms(sample.sampleid, user, _SampleAccessType.READ, as_admin=as_admin)
+        wsids = None if as_admin else self._ws.get_user_workspaces(user)
         # TODO DATALINK what about deleted objects? Currently not handled
         return self._storage.get_links_from_sample(sample, wsids, timestamp)
 
