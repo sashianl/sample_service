@@ -1,0 +1,4 @@
+path_classifiers:
+  generated:
+    - lib/SampleService/SampleServiceServer.py
+    - lib/biokbase/log.py
