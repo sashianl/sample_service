@@ -4,7 +4,7 @@ Classes and methods for working with sample ACLs.
 
 from enum import IntEnum
 
-from typing import Sequence
+from typing import Sequence, cast as _cast
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
@@ -54,19 +54,20 @@ class SampleACLOwnerless:
         :param read: the list of usernames with read privileges.
         :raises IllegalParameterError: if a user appears in more than one ACL.
         '''
-        # dict.fromkeys removes dupes
-        self.admin = tuple(dict.fromkeys(
-            _not_falsy_in_iterable([] if admin is None else admin, 'admin')))
-        self.write = tuple(dict.fromkeys(
-            _not_falsy_in_iterable([] if write is None else write, 'write')))
-        self.read = tuple(dict.fromkeys(
-            _not_falsy_in_iterable([] if read is None else read, 'read')))
+        self.admin = self._to_tuple(admin, 'admin')
+        self.write = self._to_tuple(write, 'write')
+        self.read = self._to_tuple(read, 'read')
         for u in self.admin:
             if u in self.write or u in self.read:
                 raise _IllegalParameterError(f'User {u} appears in two ACLs')
         for u in self.write:
             if u in self.read:
                 raise _IllegalParameterError(f'User {u} appears in two ACLs')
+
+    def _to_tuple(self, seq, name):
+        # dict.fromkeys removes dupes
+        return tuple(dict.fromkeys(
+            _cast(Sequence[UserID], _not_falsy_in_iterable([] if seq is None else seq, name))))
 
     def __eq__(self, other):
         if type(other) is type(self):

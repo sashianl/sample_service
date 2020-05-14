@@ -71,7 +71,7 @@ import hashlib as _hashlib
 import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 from collections import defaultdict
-from typing import List, Tuple, Callable, cast as _cast, Optional as _Optional
+from typing import List, Tuple, Callable, cast as _cast, Optional
 from typing import Dict as _Dict, Any as _Any
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
@@ -631,7 +631,7 @@ class ArangoSampleStorage:
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
     def _get_sample_and_version_doc(
-            self, id_: UUID, version: _Optional[int] = None) -> Tuple[dict, dict, int]:
+            self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, dict, int]:
         doc, uuidversion, version = self._get_sample_doc_and_versions(id_, version)
         verdoc = self._get_version_doc(id_, uuidversion)
         if verdoc[_FLD_VER] == _VAL_NO_VER:
@@ -642,7 +642,7 @@ class ArangoSampleStorage:
         return (doc, verdoc, version)
 
     def _get_sample_doc_and_versions(
-            self, id_: UUID, version: _Optional[int] = None) -> Tuple[dict, UUID, int]:
+            self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, UUID, int]:
         doc = _cast(dict, self._get_sample_doc(id_))
         maxver = len(doc[_FLD_VERSIONS])
         version = version if version else maxver
@@ -706,7 +706,7 @@ class ArangoSampleStorage:
         nodes = [index_to_node[i] for i in range(len(index_to_node))]
         return nodes
 
-    def _get_sample_doc(self, id_: UUID, exception: bool = True) -> _Optional[dict]:
+    def _get_sample_doc(self, id_: UUID, exception: bool = True) -> Optional[dict]:
         doc = self._get_doc(self._col_sample, str(_not_falsy(id_, 'id_')))
         if not doc:
             if exception:
@@ -714,7 +714,7 @@ class ArangoSampleStorage:
             return None
         return doc
 
-    def _get_doc(self, col, id_: str) -> _Optional[dict]:
+    def _get_doc(self, col, id_: str) -> Optional[dict]:
         try:
             return col.get(id_)
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
@@ -929,7 +929,7 @@ class ArangoSampleStorage:
             db,
             upa: UPA,
             created: datetime.datetime,
-            expired: _Optional[datetime.datetime]):
+            expired: Optional[datetime.datetime]):
         wsc = self._count_links(
             db,
             f'''
@@ -954,7 +954,7 @@ class ArangoSampleStorage:
             db,
             version: UUID,
             created: datetime.datetime,
-            expired: _Optional[datetime.datetime]):
+            expired: Optional[datetime.datetime]):
         sv = self._count_links(
             db,
             f'''
@@ -1194,7 +1194,7 @@ class ArangoSampleStorage:
     def get_links_from_sample(
             self,
             sample: SampleAddress,
-            readable_wsids: List[int],
+            readable_wsids: Optional[List[int]],
             timestamp: datetime.datetime) -> List[DataLink]:
         '''
         Get the links from a sample at a particular time.

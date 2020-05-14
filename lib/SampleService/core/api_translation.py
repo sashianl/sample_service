@@ -486,7 +486,7 @@ def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
     :returns: the list of dicts.
     '''
     ret = []
-    for l in _not_falsy_in_iterable(links, 'links'):
+    for l in _cast(List[DataLink], _not_falsy_in_iterable(links, 'links')):
         ex = datetime_to_epochmilliseconds(l.expired) if l.expired else None
         ret.append({
             # don't provide link ID for now

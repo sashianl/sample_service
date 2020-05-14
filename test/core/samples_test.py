@@ -1100,6 +1100,43 @@ def _get_links_from_sample(user):
     )
 
 
+def test_get_links_from_sample_as_admin():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    dl1 = DataLink(
+        UUID('1234567890abcdef1234567890abcdee'),
+        DataUnitID(UPA('1/1/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+        dt(5),
+        UserID('userb')
+    )
+
+    dl2 = DataLink(
+        UUID('1234567890abcdef1234567890abcdec'),
+        DataUnitID(UPA('1/2/1'), 'foo'),
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode3'),
+        dt(5),
+        UserID('usera')
+    )
+
+    storage.get_links_from_sample.return_value = [dl1, dl2]
+
+    assert s.get_links_from_sample(
+        UserID('whateva'),
+        SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
+        as_admin=True) == [dl1, dl2]
+
+    storage.get_links_from_sample.assert_called_once_with(
+        SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
+        None,
+        dt(6)
+    )
+
+
 def test_get_links_from_sample_with_timestamp():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
