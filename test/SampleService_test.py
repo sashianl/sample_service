@@ -2654,6 +2654,60 @@ def test_get_links_from_data_expired(sample_port, workspace):
     ]}
 
 
+def test_get_links_from_data_as_admin(sample_port, workspace):
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN4)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN4,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create links
+    _create_link(url, TOKEN4, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+
+    # get links from object, user 3 has admin read perms
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.get_data_links_from_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'as_admin': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result'][0]['links']) == 1
+    link = ret.json()['result'][0]['links'][0]
+    assert_ms_epoch_close_to_now(link['created'])
+    del link['created']
+    assert link == {
+            'id': id1,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': None,
+            'createdby': USER4,
+            'expiredby': None,
+            'expired': None
+         }
+
+
 def test_get_links_from_data_fail(sample_port, workspace):
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -2677,6 +2731,28 @@ def test_get_links_from_data_fail(sample_port, workspace):
     _get_link_from_data_fail(
         sample_port, TOKEN3, {'upa': '1/2/1'},
         f'Sample service error code 50040 No such workspace data: Object 1/2/1 does not exist')
+
+    # admin tests (also tests missing / deleted objects)
+    _get_link_from_data_fail(
+        sample_port, TOKEN4, {'upa': '1/1/1', 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: User user4 does not have the necessary ' +
+        'administration privileges to run method get_data_links_from_data')
+    _get_link_from_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/2', 'as_admin': 1},
+        'Sample service error code 50040 No such workspace data: Object 1/1/2 does not exist')
+    _get_link_from_data_fail(
+        sample_port, TOKEN3, {'upa': '2/1/1', 'as_admin': 1},
+        'Sample service error code 50040 No such workspace data: No workspace with id 2 exists')
+
+    wscli.delete_objects([{'ref': '1/1'}])
+    _get_link_from_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'as_admin': 1},
+        'Sample service error code 50040 No such workspace data: Object 1/1/1 does not exist')
+
+    wscli.delete_workspace({'id': 1})
+    _get_link_from_data_fail(
+        sample_port, TOKEN3, {'upa': '1/1/1', 'as_admin': 1},
+        'Sample service error code 50040 No such workspace data: Workspace 1 is deleted')
 
 
 def _get_link_from_data_fail(sample_port, token, params, expected):

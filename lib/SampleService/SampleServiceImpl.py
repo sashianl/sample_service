@@ -49,7 +49,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha10"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "be294368d98e1eb3603bd59e83ede2de4885a274"
+    GIT_COMMIT_HASH = "8c053c33e64b7c488774827f6291111ac887c26d"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -515,11 +515,14 @@ Note that usage of the administration flags will be logged by the service.
            (get_data_links_from_data parameters. upa - the data UPA.
            effective_time - the effective time at which the query should be
            run - the default is the current time. Providing a time allows for
-           reproducibility of previous results.) -> structure: parameter
-           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
-           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
-           object ID, and 7 the object version.), parameter "effective_time"
-           of type "timestamp" (A timestamp in epoch milliseconds.)
+           reproducibility of previous results. as_admin - run the method as
+           a service administrator. The user must have read administration
+           permissions.) -> structure: parameter "upa" of type "ws_upa" (A
+           KBase Workspace service Unique Permanent Address (UPA). E.g. 5/6/7
+           where 5 is the workspace ID, 6 the object ID, and 7 the object
+           version.), parameter "effective_time" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
         :returns: instance of type "GetDataLinksFromDataResults"
            (get_data_links_from_data results. links - the links.) ->
            structure: parameter "links" of list of type "DataLink" (A data
@@ -553,8 +556,11 @@ Note that usage of the administration flags will be logged by the service.
         #BEGIN get_data_links_from_data
         upa = _get_upa_from_object(params)
         dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
-        # TODO ADMIN mode
-        links = self._samples.get_links_from_data(_UserID(ctx[_CTX_USER]), upa, dt)
+        admin = _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'get_data_links_from_data', ctx.log_info, skip_check=not params.get('as_admin'))
+        links = self._samples.get_links_from_data(_UserID(ctx[_CTX_USER]), upa, dt, as_admin=admin)
         results = {'links': _links_to_dicts(links)}
         #END get_data_links_from_data
 

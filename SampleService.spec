@@ -353,10 +353,13 @@ module SampleService {
         upa - the data UPA.
         effective_time - the effective time at which the query should be run - the default is
             the current time. Providing a time allows for reproducibility of previous results.
+        as_admin - run the method as a service administrator. The user must have read
+            administration permissions.
     */
     typedef structure {
         ws_upa upa;
         timestamp effective_time;
+        boolean as_admin;
     } GetDataLinksFromDataParams;
 
     /* get_data_links_from_data results.
