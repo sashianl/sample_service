@@ -344,6 +344,8 @@ class Samples:
         :param sample: the sample from which the links originate.
         :param timestamp: the timestamp during which the links should be active, defaulting to
             the current time.
+        :param as_admin: allow link retrieval to proceed if user does not have
+            appropriate permissions.
         :returns: a list of links.
         :raises UnauthorizedError: if the user does not have read permission for the sample.
         :raises NoSuchSampleError: if the sample does not exist.
@@ -369,7 +371,8 @@ class Samples:
             self,
             user: UserID,
             upa: UPA,
-            timestamp: datetime.datetime = None) -> List[DataLink]:
+            timestamp: datetime.datetime = None,
+            as_admin: bool = False) -> List[DataLink]:
         '''
         Get a set of data links originating from a workspace object at a particular time.
 
@@ -377,17 +380,20 @@ class Samples:
         :param upa: the data from which the links originate.
         :param timestamp: the timestamp during which the links should be active, defaulting to
             the current time.
+        :param as_admin: allow link retrieval to proceed if user does not have
+            appropriate permissions.
         :returns: a list of links.
         :raises UnauthorizedError: if the user does not have read permission for the data.
         :raises NoSuchWorkspaceDataError: if the data does not exist.
         '''
-        # TODO ADMIN admin mode
         # may need to make this independent of the workspace. YAGNI.
         # handle ref path?
         _not_falsy(user, 'user')
         _not_falsy(upa, 'upa')
         timestamp = self._resolve_timestamp(timestamp)
-        self._ws.has_permission(user, _WorkspaceAccessType.READ, upa=upa)
+        # NONE still checks that WS/obj exists. If it's deleted this method should fail
+        wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.READ
+        self._ws.has_permission(user, wsperm, upa=upa)
         return self._storage.get_links_from_data(upa, timestamp)
 
     def get_sample_via_data(
