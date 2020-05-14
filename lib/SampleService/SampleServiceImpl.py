@@ -49,7 +49,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha10"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "1daa77f2e91818b7f814a9ddda29618064b98371"
+    GIT_COMMIT_HASH = "be294368d98e1eb3603bd59e83ede2de4885a274"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -450,11 +450,14 @@ Note that usage of the administration flags will be logged by the service.
            version - the sample version. effective_time - the effective time
            at which the query should be run - the default is the current
            time. Providing a time allows for reproducibility of previous
-           results.) -> structure: parameter "id" of type "sample_id" (A
-           Sample ID. Must be globally unique. Always assigned by the Sample
-           service.), parameter "version" of type "version" (The version of a
-           sample. Always > 0.), parameter "effective_time" of type
-           "timestamp" (A timestamp in epoch milliseconds.)
+           results. as_admin - run the method as a service administrator. The
+           user must have read administration permissions.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter
+           "version" of type "version" (The version of a sample. Always >
+           0.), parameter "effective_time" of type "timestamp" (A timestamp
+           in epoch milliseconds.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.)
         :returns: instance of type "GetDataLinksFromSampleResults"
            (get_data_links_from_sample results. links - the links.) ->
            structure: parameter "links" of list of type "DataLink" (A data
@@ -488,9 +491,12 @@ Note that usage of the administration flags will be logged by the service.
         #BEGIN get_data_links_from_sample
         sid, ver = _get_sample_address_from_object(params, version_required=True)
         dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
-        # TODO ADMIN mode
+        admin = _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'get_data_links_from_sample', ctx.log_info, skip_check=not params.get('as_admin'))
         links = self._samples.get_links_from_sample(
-            _UserID(ctx[_CTX_USER]), _SampleAddress(sid, ver), dt)
+            _UserID(ctx[_CTX_USER]), _SampleAddress(sid, ver), dt, as_admin=admin)
         results = {'links': _links_to_dicts(links)}
         #END get_data_links_from_sample
 

@@ -332,11 +332,14 @@ class SampleService(object):
            version - the sample version. effective_time - the effective time
            at which the query should be run - the default is the current
            time. Providing a time allows for reproducibility of previous
-           results.) -> structure: parameter "id" of type "sample_id" (A
-           Sample ID. Must be globally unique. Always assigned by the Sample
-           service.), parameter "version" of type "version" (The version of a
-           sample. Always > 0.), parameter "effective_time" of type
-           "timestamp" (A timestamp in epoch milliseconds.)
+           results. as_admin - run the method as a service administrator. The
+           user must have read administration permissions.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter
+           "version" of type "version" (The version of a sample. Always >
+           0.), parameter "effective_time" of type "timestamp" (A timestamp
+           in epoch milliseconds.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.)
         :returns: instance of type "GetDataLinksFromSampleResults"
            (get_data_links_from_sample results. links - the links.) ->
            structure: parameter "links" of list of type "DataLink" (A data
