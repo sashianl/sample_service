@@ -1939,9 +1939,6 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
 
 
 def test_get_links_from_sample_as_admin(sample_port, workspace):
-    '''
-    Tests that unreadable workspaces are excluded from link results
-    '''
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN4)
@@ -1958,7 +1955,7 @@ def test_get_links_from_sample_as_admin(sample_port, workspace):
     # create links
     _create_link(url, TOKEN4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
 
-    # check correct links are returned
+    # check correct links are returned, user 3 has read admin perms, but not full
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
         'method': 'SampleService.get_data_links_from_sample',
         'version': '1.1',
