@@ -49,7 +49,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha10"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "b8e16b215db16bb04f61f8c039fbfbf147fc33b9"
+    GIT_COMMIT_HASH = "1daa77f2e91818b7f814a9ddda29618064b98371"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -124,9 +124,9 @@ Note that usage of the administration flags will be logged by the service.
            Must be less than 255 characters.), parameter "save_date" of type
            "timestamp" (A timestamp in epoch milliseconds.), parameter
            "version" of type "version" (The version of a sample. Always >
-           0.), parameter "prior_version" of Long, parameter "as_user" of
-           type "user" (A user's username.), parameter "as_admin" of type
-           "boolean" (A boolean value, 0 for false, 1 for true.)
+           0.), parameter "prior_version" of Long, parameter "as_admin" of
+           type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_user" of type "user" (A user's username.)
         :returns: instance of type "SampleAddress" (A Sample ID and version.
            id - the ID of the sample. version - the version of the sample.)
            -> structure: parameter "id" of type "sample_id" (A Sample ID.
@@ -413,20 +413,34 @@ Note that usage of the administration flags will be logged by the service.
            (expire_data_link parameters. upa - the workspace upa of the
            object from which the link originates. dataid - the dataid, if
            any, of the data within the object from which the link originates.
-           Omit for links where the link is from the entire object.) ->
-           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
-           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
-           workspace ID, 6 the object ID, and 7 the object version.),
-           parameter "dataid" of type "data_id" (An id for a unit of data
-           within a KBase Workspace object. A single object may contain many
-           data units. A dataid is expected to be unique within a single
-           object. Must be less than 255 characters.)
+           Omit for links where the link is from the entire object. as_admin
+           - run the method as a service administrator. The user must have
+           full administration permissions. as_user - expire the link as a
+           different user. Ignored if as_admin is not true. Neither the
+           administrator nor the impersonated user need have permissions to
+           the link if a new version is saved.) -> structure: parameter "upa"
+           of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.), parameter "as_user" of
+           type "user" (A user's username.)
         """
         # ctx is the context object
         #BEGIN expire_data_link
         duid = _get_data_unit_id_from_object(params)
-        # TODO ADMIN admin mode
-        self._samples.expire_data_link(_UserID(ctx[_CTX_USER]), duid)
+        as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
+        _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'expire_data_link', ctx.log_info, as_user=user, skip_check=not as_admin)
+        self._samples.expire_data_link(
+            user if user else _UserID(ctx[_CTX_USER]),
+            duid,
+            as_admin=as_admin)
         #END expire_data_link
         pass
 

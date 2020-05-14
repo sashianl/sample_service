@@ -2100,6 +2100,7 @@ def test_expire_data_link_with_data_id(sample_port, workspace):
 
 
 def _expire_data_link(sample_port, workspace, dataid):
+    ''' also tests that 'as_user' is ignored if 'as_admin' is false '''
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -2138,7 +2139,7 @@ def _expire_data_link(sample_port, workspace, dataid):
         'method': 'SampleService.expire_data_link',
         'version': '1.1',
         'id': '42',
-        'params': [{'upa': '1/1/1', 'dataid': dataid}]
+        'params': [{'upa': '1/1/1', 'dataid': dataid, 'as_user': USER1}]
     })
     # print(ret.text)
     assert ret.ok is True
@@ -2188,6 +2189,85 @@ def _expire_data_link(sample_port, workspace, dataid):
             'createdby': USER3,
             'expiredby': None,
             'expired': None
+         }
+
+
+def test_expire_data_link_as_admin(sample_port, workspace):
+    _expire_data_link_as_admin(sample_port, workspace, None, USER2)
+
+
+def test_expire_data_link_as_admin_impersonate_user(sample_port, workspace):
+    _expire_data_link_as_admin(sample_port, workspace, USER4, USER4)
+
+
+def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_permissions({'id': 1, 'new_permission': 'w', 'users': [USER4]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'},
+                       {'id': 'bar', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create links
+    _create_link(
+        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'duidy'})
+
+    time.sleep(1)  # need to be able to set a resonable effective time to fetch links
+
+    # expire link
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+        'method': 'SampleService.expire_data_link',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'dataid': 'duidy', 'as_admin': 1, 'as_user': user}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    # check links
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_data_links_from_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'effective_time': _get_current_epochmillis() - 500}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result'][0]) == 1
+    links = ret.json()['result'][0]['links']
+    assert len(links) == 1
+    link = links[0]
+    assert_ms_epoch_close_to_now(link['expired'])
+    assert_ms_epoch_close_to_now(link['created'] + 1000)
+    del link['created']
+    del link['expired']
+
+    assert link == {
+            'id': id1,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': 'duidy',
+            'createdby': USER3,
+            'expiredby': expected_user,
          }
 
 
@@ -2250,6 +2330,22 @@ def test_expire_data_link_fail(sample_port, workspace):
         sample_port, TOKEN4, {'upa': '1/1/1', 'dataid': 'yay'},
         f'Sample service error code 20000 Unauthorized: User user4 cannot ' +
         f'administrate sample {id1}')
+
+    # admin tests
+    _expire_data_link_fail(
+        sample_port, TOKEN2,
+        {'upa': '1/1/1', 'dataid': 'yay', 'as_admin': ['t'], 'as_user': 'foo\tbar'},
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'userid contains control characters')
+    _expire_data_link_fail(
+        sample_port, TOKEN3,
+        {'upa': '1/1/1', 'dataid': 'yay', 'as_admin': ['t'], 'as_user': USER4},
+        'Sample service error code 20000 Unauthorized: User user3 does not have ' +
+        'the necessary administration privileges to run method expire_data_link')
+    _expire_data_link_fail(
+        sample_port, TOKEN2,
+        {'upa': '1/1/1', 'dataid': 'yay', 'as_admin': ['t'], 'as_user': 'fake'},
+        'Sample service error code 50000 No such user: fake')
 
 
 def _expire_data_link_fail(sample_port, token, params, expected):
