@@ -391,6 +391,7 @@ def test_status(sample_port):
     s = res.json()
     # print(s)
     assert len(s['result']) == 1  # results are always in a list
+    assert_ms_epoch_close_to_now(s['result'][0]['servertime'])
     assert s['result'][0]['state'] == 'OK'
     assert s['result'][0]['message'] == ""
     assert s['result'][0]['version'] == VER
