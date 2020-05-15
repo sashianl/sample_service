@@ -1087,7 +1087,7 @@ def _get_links_from_sample(user):
     storage.get_links_from_sample.return_value = [dl1, dl2]
 
     assert s.get_links_from_sample(
-        user, SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3)) == [dl1, dl2]
+        user, SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3)) == ([dl1, dl2], dt(6))
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
@@ -1128,7 +1128,7 @@ def test_get_links_from_sample_as_admin():
     assert s.get_links_from_sample(
         UserID('whateva'),
         SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
-        as_admin=True) == [dl1, dl2]
+        as_admin=True) == ([dl1, dl2], dt(6))
 
     storage.get_links_from_sample.assert_called_once_with(
         SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
@@ -1161,7 +1161,7 @@ def test_get_links_from_sample_with_timestamp():
     assert s.get_links_from_sample(
         UserID('someuser'),
         SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
-        dt(40)) == [dl1]
+        dt(40)) == ([dl1], dt(40))
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
@@ -1247,7 +1247,7 @@ def test_get_links_from_data():
 
     storage.get_links_from_data.return_value = [dl1, dl2]
 
-    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6')) == [dl1, dl2]
+    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6')) == ([dl1, dl2], dt(6))
 
     ws.has_permission.assert_called_once_with(
         UserID('u1'), WorkspaceAccessType.READ, upa=UPA('2/4/6'))
@@ -1272,7 +1272,7 @@ def test_get_links_from_data_with_timestamp():
 
     storage.get_links_from_data.return_value = [dl1]
 
-    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6'), timestamp=dt(700)) == [dl1]
+    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6'), timestamp=dt(700)) == ([dl1], dt(700))
 
     ws.has_permission.assert_called_once_with(
         UserID('u1'), WorkspaceAccessType.READ, upa=UPA('2/4/6'))
@@ -1305,7 +1305,7 @@ def test_get_links_from_data_as_admin():
 
     storage.get_links_from_data.return_value = [dl1, dl2]
 
-    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6'), as_admin=True) == [dl1, dl2]
+    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6'), as_admin=True) == ([dl1, dl2], dt(6))
 
     ws.has_permission.assert_called_once_with(
         UserID('u1'), WorkspaceAccessType.NONE, upa=UPA('2/4/6'))
