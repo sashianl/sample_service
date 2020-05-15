@@ -499,7 +499,7 @@ Note that usage of the administration flags will be logged by the service.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
             'get_data_links_from_sample', ctx.log_info, skip_check=not params.get('as_admin'))
-        links = self._samples.get_links_from_sample(
+        links, _ = self._samples.get_links_from_sample(
             _UserID(ctx[_CTX_USER]), _SampleAddress(sid, ver), dt, as_admin=admin)
         results = {'links': _links_to_dicts(links)}
         #END get_data_links_from_sample
@@ -565,7 +565,7 @@ Note that usage of the administration flags will be logged by the service.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
             'get_data_links_from_data', ctx.log_info, skip_check=not params.get('as_admin'))
-        links = self._samples.get_links_from_data(_UserID(ctx[_CTX_USER]), upa, dt, as_admin=admin)
+        links, _ = self._samples.get_links_from_data(_UserID(ctx[_CTX_USER]), upa, dt, as_admin=admin)
         results = {'links': _links_to_dicts(links)}
         #END get_data_links_from_data
 

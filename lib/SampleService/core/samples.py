@@ -336,7 +336,7 @@ class Samples:
             user: UserID,
             sample: SampleAddress,
             timestamp: datetime.datetime = None,
-            as_admin: bool = False) -> List[DataLink]:
+            as_admin: bool = False) -> Tuple[List[DataLink], datetime.datetime]:
         '''
         Get a set of data links originating from a sample at a particular time.
 
@@ -346,7 +346,7 @@ class Samples:
             the current time.
         :param as_admin: allow link retrieval to proceed if user does not have
             appropriate permissions.
-        :returns: a list of links.
+        :returns: a tuple consisting of a list of links and the timestamp used to query the links.
         :raises UnauthorizedError: if the user does not have read permission for the sample.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -358,7 +358,7 @@ class Samples:
         self._check_perms(sample.sampleid, user, _SampleAccessType.READ, as_admin=as_admin)
         wsids = None if as_admin else self._ws.get_user_workspaces(user)
         # TODO DATALINK what about deleted objects? Currently not handled
-        return self._storage.get_links_from_sample(sample, wsids, timestamp)
+        return self._storage.get_links_from_sample(sample, wsids, timestamp), timestamp
 
     def _resolve_timestamp(self, timestamp: datetime.datetime = None) -> datetime.datetime:
         if timestamp:
@@ -372,7 +372,7 @@ class Samples:
             user: UserID,
             upa: UPA,
             timestamp: datetime.datetime = None,
-            as_admin: bool = False) -> List[DataLink]:
+            as_admin: bool = False) -> Tuple[List[DataLink], datetime.datetime]:
         '''
         Get a set of data links originating from a workspace object at a particular time.
 
@@ -382,7 +382,7 @@ class Samples:
             the current time.
         :param as_admin: allow link retrieval to proceed if user does not have
             appropriate permissions.
-        :returns: a list of links.
+        :returns: a tuple consisting of a list of links and the timestamp used to query the links.
         :raises UnauthorizedError: if the user does not have read permission for the data.
         :raises NoSuchWorkspaceDataError: if the data does not exist.
         '''
@@ -394,7 +394,7 @@ class Samples:
         # NONE still checks that WS/obj exists. If it's deleted this method should fail
         wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.READ
         self._ws.has_permission(user, wsperm, upa=upa)
-        return self._storage.get_links_from_data(upa, timestamp)
+        return self._storage.get_links_from_data(upa, timestamp), timestamp
 
     def get_sample_via_data(
             self,
