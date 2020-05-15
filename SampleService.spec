@@ -335,9 +335,12 @@ module SampleService {
     /* get_data_links_from_sample results.
 
         links - the links.
+        effective_time - the time at which the query was run. This timestamp, if saved, can be
+            used when running the method again to ensure reproducible results.
     */
     typedef structure {
         list<DataLink> links;
+        timestamp effective_time;
     } GetDataLinksFromSampleResults;
 
     /* Get data links to Workspace objects originating from a sample.
@@ -365,9 +368,12 @@ module SampleService {
     /* get_data_links_from_data results.
 
         links - the links.
+        effective_time - the time at which the query was run. This timestamp, if saved, can be
+            used when running the method again to ensure reproducible results.
     */
     typedef structure {
         list<DataLink> links;
+        timestamp effective_time;
     } GetDataLinksFromDataResults;
 
     /* Get data links to samples originating from Workspace data.

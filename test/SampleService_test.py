@@ -1570,7 +1570,9 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
@@ -1613,7 +1615,9 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     res = ret.json()['result'][0]['links']
     assert_ms_epoch_close_to_now(res[0]['created'])
     del res[0]['created']
@@ -1639,10 +1643,17 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     })
     # print(ret.text)
     assert ret.ok is True
-    assert ret.json()['result'][0] == {'links': []}
+
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+    assert ret.json()['result'][0]['links'] == []
 
 
 def test_update_and_get_links_from_sample(sample_port, workspace):
+    '''
+    Also tests getting links from a sample using an effective time
+    '''
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -1706,7 +1717,11 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
+    assert len(ret.json()['result']) == 1
     res = ret.json()['result'][0]
+    assert len(res) == 2
+    assert_ms_epoch_close_to_now(res['effective_time'])
+    del res['effective_time']
     created = res['links'][0]['created']
     assert_ms_epoch_close_to_now(created)
     del res['links'][0]['created']
@@ -1736,22 +1751,25 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
+    assert len(ret.json()['result']) == 1
     res = ret.json()['result'][0]
     assert res['links'][0]['expired'] == created - 1
     assert_ms_epoch_close_to_now(res['links'][0]['created'] + 1000)
     del res['links'][0]['created']
     del res['links'][0]['expired']
-    assert res == {'links': [
-        {
-            'id': id1,
-            'version': 1,
-            'node': 'foo',
-            'upa': '1/1/1',
-            'dataid': 'yay',
-            'createdby': USER3,
-            'expiredby': USER4,
-         }
-    ]}
+    assert res == {
+        'effective_time': round(oldlinkactive.timestamp() * 1000),
+        'links': [
+            {
+                'id': id1,
+                'version': 1,
+                'node': 'foo',
+                'upa': '1/1/1',
+                'dataid': 'yay',
+                'createdby': USER3,
+                'expiredby': USER4,
+            }
+        ]}
 
 
 def test_create_data_link_as_admin(sample_port, workspace):
@@ -1808,7 +1826,9 @@ def test_create_data_link_as_admin(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
@@ -1895,7 +1915,9 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
@@ -1966,7 +1988,9 @@ def test_get_links_from_sample_as_admin(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     assert len(ret.json()['result'][0]['links']) == 1
     link = ret.json()['result'][0]['links'][0]
     assert_ms_epoch_close_to_now(link['created'])
@@ -2205,7 +2229,9 @@ def _expire_data_link(sample_port, workspace, dataid):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     links = ret.json()['result'][0]['links']
     assert len(links) == 2
     for l in links:
@@ -2302,7 +2328,9 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     links = ret.json()['result'][0]['links']
     assert len(links) == 1
     link = links[0]
@@ -2484,7 +2512,9 @@ def test_get_links_from_data(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
@@ -2527,7 +2557,9 @@ def test_get_links_from_data(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     res = ret.json()['result'][0]['links']
     assert_ms_epoch_close_to_now(res[0]['created'])
     del res[0]['created']
@@ -2553,7 +2585,10 @@ def test_get_links_from_data(sample_port, workspace):
     })
     # print(ret.text)
     assert ret.ok is True
-    assert ret.json()['result'][0] == {'links': []}
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+    assert ret.json()['result'][0]['links'] == []
 
 
 def test_get_links_from_data_expired(sample_port, workspace):
@@ -2608,7 +2643,11 @@ def test_get_links_from_data_expired(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
+    assert len(ret.json()['result']) == 1
     res = ret.json()['result'][0]
+    assert len(res) == 2
+    assert_ms_epoch_close_to_now(res['effective_time'])
+    del res['effective_time']
     created = res['links'][0]['created']
     assert_ms_epoch_close_to_now(created)
     del res['links'][0]['created']
@@ -2637,22 +2676,25 @@ def test_get_links_from_data_expired(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
+    assert len(ret.json()['result']) == 1
     res = ret.json()['result'][0]
     assert res['links'][0]['expired'] == created - 1
     assert_ms_epoch_close_to_now(res['links'][0]['created'] + 1000)
     del res['links'][0]['created']
     del res['links'][0]['expired']
-    assert res == {'links': [
-        {
-            'id': id1,
-            'version': 1,
-            'node': 'foo',
-            'upa': '1/1/1',
-            'dataid': 'yay',
-            'createdby': USER3,
-            'expiredby': USER4,
-         }
-    ]}
+    assert res == {
+        'effective_time': round(oldlinkactive.timestamp() * 1000),
+        'links': [
+            {
+                'id': id1,
+                'version': 1,
+                'node': 'foo',
+                'upa': '1/1/1',
+                'dataid': 'yay',
+                'createdby': USER3,
+                'expiredby': USER4,
+            }
+        ]}
 
 
 def test_get_links_from_data_as_admin(sample_port, workspace):
@@ -2692,7 +2734,9 @@ def test_get_links_from_data_as_admin(sample_port, workspace):
     # print(ret.text)
     assert ret.ok is True
 
-    assert len(ret.json()['result'][0]) == 1
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     assert len(ret.json()['result'][0]['links']) == 1
     link = ret.json()['result'][0]['links'][0]
     assert_ms_epoch_close_to_now(link['created'])
