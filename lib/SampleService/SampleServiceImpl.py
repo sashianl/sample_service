@@ -496,7 +496,6 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: results
         #BEGIN get_data_links_from_sample
-        # TODO DATALINK return effective time
         sid, ver = _get_sample_address_from_object(params, version_required=True)
         dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
         admin = _check_admin(
@@ -570,7 +569,6 @@ Note that usage of the administration flags will be logged by the service.
         #BEGIN get_data_links_from_data
         upa = _get_upa_from_object(params)
         dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
-        # TODO DATALINK return effective time
         admin = _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually

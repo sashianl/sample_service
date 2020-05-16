@@ -8,12 +8,21 @@
 * List / find samples, possibly with...
 * Search integration
 * Logging
-* Link data to samples
 * Workspace @sample integration
   * If user has access to sample set, should have access to embedded samples (?)
 * ACLs:
+  * change ACLs with more granularity. Right now it's replace all
   * cache known good users
+  * cache user roles
   * remove self from acls (read/write)
+  * change sample owner
+    * Probably needs request / accept multistep flow
+* Cache workspace reponses
+* Stand alone validator CLI
+  * Validate without sending data to server
+* Versioning scheme for validator config
+* Kafka events for create sample version, update ACLS, create link, expire link
+  * get link by ID
 
 # Concerns:
 * Searching for samples could get very expensive based on the queries.
