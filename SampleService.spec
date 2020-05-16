@@ -336,7 +336,8 @@ module SampleService {
 
         links - the links.
         effective_time - the time at which the query was run. This timestamp, if saved, can be
-            used when running the method again to ensure reproducible results.
+            used when running the method again to ensure reproducible results. Note that changes
+            to workspace permissions may cause results to change over time.
     */
     typedef structure {
         list<DataLink> links;

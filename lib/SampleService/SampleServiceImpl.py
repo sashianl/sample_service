@@ -52,7 +52,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha12"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "aa92b29ce2944ae2c1da66fd2eb768f71c8bb62f"
+    GIT_COMMIT_HASH = "6a9a9f940e9da95ef926485b7a94555657ceb94e"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -465,33 +465,34 @@ Note that usage of the administration flags will be logged by the service.
            (get_data_links_from_sample results. links - the links.
            effective_time - the time at which the query was run. This
            timestamp, if saved, can be used when running the method again to
-           ensure reproducible results.) -> structure: parameter "links" of
-           list of type "DataLink" (A data link from a KBase workspace object
-           to a sample. upa - the workspace UPA of the linked object. dataid
-           - the dataid of the linked data, if any, within the object. If
-           omitted the entire object is linked to the sample. id - the sample
-           id. version - the sample version. node - the sample node.
-           createdby - the user that created the link. created - the time the
-           link was created. expiredby - the user that expired the link, if
-           any. expired - the time the link was expired, if at all.) ->
-           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
-           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
-           workspace ID, 6 the object ID, and 7 the object version.),
-           parameter "dataid" of type "data_id" (An id for a unit of data
-           within a KBase Workspace object. A single object may contain many
-           data units. A dataid is expected to be unique within a single
-           object. Must be less than 255 characters.), parameter "id" of type
-           "sample_id" (A Sample ID. Must be globally unique. Always assigned
-           by the Sample service.), parameter "version" of type "version"
-           (The version of a sample. Always > 0.), parameter "node" of type
-           "node_id" (A SampleNode ID. Must be unique within a Sample and be
-           less than 255 characters.), parameter "createdby" of type "user"
-           (A user's username.), parameter "created" of type "timestamp" (A
-           timestamp in epoch milliseconds.), parameter "expiredby" of type
-           "user" (A user's username.), parameter "expired" of type
+           ensure reproducible results. Note that changes to workspace
+           permissions may cause results to change over time.) -> structure:
+           parameter "links" of list of type "DataLink" (A data link from a
+           KBase workspace object to a sample. upa - the workspace UPA of the
+           linked object. dataid - the dataid of the linked data, if any,
+           within the object. If omitted the entire object is linked to the
+           sample. id - the sample id. version - the sample version. node -
+           the sample node. createdby - the user that created the link.
+           created - the time the link was created. expiredby - the user that
+           expired the link, if any. expired - the time the link was expired,
+           if at all.) -> structure: parameter "upa" of type "ws_upa" (A
+           KBase Workspace service Unique Permanent Address (UPA). E.g. 5/6/7
+           where 5 is the workspace ID, 6 the object ID, and 7 the object
+           version.), parameter "dataid" of type "data_id" (An id for a unit
+           of data within a KBase Workspace object. A single object may
+           contain many data units. A dataid is expected to be unique within
+           a single object. Must be less than 255 characters.), parameter
+           "id" of type "sample_id" (A Sample ID. Must be globally unique.
+           Always assigned by the Sample service.), parameter "version" of
+           type "version" (The version of a sample. Always > 0.), parameter
+           "node" of type "node_id" (A SampleNode ID. Must be unique within a
+           Sample and be less than 255 characters.), parameter "createdby" of
+           type "user" (A user's username.), parameter "created" of type
            "timestamp" (A timestamp in epoch milliseconds.), parameter
-           "effective_time" of type "timestamp" (A timestamp in epoch
-           milliseconds.)
+           "expiredby" of type "user" (A user's username.), parameter
+           "expired" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "effective_time" of type "timestamp" (A
+           timestamp in epoch milliseconds.)
         """
         # ctx is the context object
         # return variables are: results
