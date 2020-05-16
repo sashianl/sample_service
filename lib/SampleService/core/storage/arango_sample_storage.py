@@ -375,7 +375,6 @@ class ArangoSampleStorage:
         :returns: True if the sample saved successfully, False if the same ID already exists.
         :raises SampleStorageError: if the sample fails to save.
         '''
-        # TODO think about user name a bit. Make a class?
         _not_falsy(sample, 'sample')
         if self._get_sample_doc(sample.id, exception=False):
             return False  # bail early
