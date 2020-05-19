@@ -810,9 +810,6 @@ class ArangoSampleStorage:
         :raises TooManyDataLinksError: if there are too many links from the sample version or
             the workspace object version.
         '''
-        # TODO DATALINK notes re listing expired links - not scalable - or is it?
-        # index on endpoint and creation time, page by creation time
-
         # may want to link non-ws data at some point, would need a data source ID? YAGNI for now
 
         # Using the REST streaming api for the transaction. Might be faster with javascript
