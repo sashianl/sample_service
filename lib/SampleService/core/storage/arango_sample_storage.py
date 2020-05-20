@@ -880,6 +880,7 @@ class ArangoSampleStorage:
                     # of extant links won't change
                     # Could support starting at a node later
                     self._check_link_count_from_sample_ver(tdb, samplever, link)
+                self._insert(tdlc, oldlinkdoc)
             else:
                 # might be able to get rid of these limits if it turns out the link queries
                 # can be done without a traversal, which means the links can be looked up with
@@ -888,8 +889,6 @@ class ArangoSampleStorage:
                 self._check_link_count_from_ws_object(tdb, link)
                 self._check_link_count_from_sample_ver(tdb, samplever, link)
 
-            if oldlinkdoc:
-                self._insert(tdlc, oldlinkdoc)
             ldoc = self._create_link_doc(link, samplever)
             self._insert(tdlc, ldoc, upsert=bool(oldlinkdoc))
             # since transaction is exclusive write, conflicts can't happen
