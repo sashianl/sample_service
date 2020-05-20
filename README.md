@@ -158,7 +158,7 @@ in which case it should throw an exception.
 
  ```python
  def enum_builder(params: Dict[str, str]
-        ) -> Callable[[Dict[str, Union[float, int, bool, str]]], Optional[str]]:
+        ) -> Callable[[str, Dict[str, Union[float, int, bool, str]]], Optional[str]]:
     # should handle errors better here
     enums = set(params['enums'])
     valuekey = params['key']
