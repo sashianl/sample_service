@@ -163,11 +163,16 @@ _META_VAL_JSONSCHEMA = {
                             'type': 'object',
                             'properties': {
                                 'module': {'type': 'string'},
-                                'callable-builder': {'type': 'string'},
+                                'callable-builder': {'type': 'string'},  # TODO SCHEMA remove
+                                'callable_builder': {'type': 'string'},
                                 'parameters': {'type': 'object'}
                             },
                             'additionalProperties': False,
-                            'required': ['module', 'callable-builder']
+                            'required': ['module'],
+                            'oneOf': [
+                                {'required': ['callable_builder']},
+                                {'required': ['callable-builder']},
+                            ]
                         }
 
                     }
@@ -224,8 +229,11 @@ def _get_validators(cfg, name_, metaval_func) -> List[_MetadataValidator]:
         for i, val in enumerate(keyval['validators']):
             m = importlib.import_module(val['module'])
             p = val.get('parameters', {})
+            cb = val.get('callable_builder')  # TODO SCHEMA switch to []
+            if not cb:
+                cb = val['callable-builder']  # TODO SCHEMA remove
             try:
-                build_func = getattr(m, val['callable-builder'])
+                build_func = getattr(m, cb)
                 lvals.append(build_func(p))
             except Exception as e:
                 raise ValueError(

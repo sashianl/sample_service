@@ -255,11 +255,11 @@ The configuration file uses the YAML format and is validated against the followi
                             'type': 'object',
                             'properties': {
                                 'module': {'type': 'string'},
-                                'callable-builder': {'type': 'string'},
+                                'callable_builder': {'type': 'string'},
                                 'parameters': {'type': 'object'}
                             },
                             'additionalProperties': False,
-                            'required': ['module', 'callable-builder']
+                            'required': ['module', 'callable_builder']
                         }
 
                     }
@@ -281,7 +281,7 @@ The configuration consists of a mapping of standard and prefix metadata keys to 
 of metadata key properties, including the list of validator specifications and static metadata
 about the key. Each validator is run against the metadata value in order. The `module` key is
 a python import path for the module containing a builder function for the validator, while the
-`callable-builder` key is the name of the function within the module that can be called to 
+`callable_builder` key is the name of the function within the module that can be called to 
 create the validator. `parameters` contains a mapping that is passed directly to the
 callable builder. The builder is expected to return a callable with the call signature as
 described previously.
@@ -292,18 +292,18 @@ validators:
     foo:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: noop
+              callable_builder: noop
         key_metadata:
             description: test key
             semantics: none really
     stringlen:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: string
+              callable_builder: string
               parameters:
                   max-len: 5
             - module: SampleService.core.validator.builtin
-              callable-builder: string
+              callable_builder: string
               parameters:
                   keys: spcky
                   max-len: 2
@@ -313,7 +313,7 @@ prefix_validators:
     gene_ontology_:
         validators:
             - module: geneontology.plugins.kbase
-              callable-builder: go_builder
+              callable_builder: go_builder
               parameters: 
                   url: https://fake.go.service.org/api/go
                   apitoken: abcdefg-hijklmnop
@@ -352,7 +352,7 @@ validators:
     metadatakey:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: noop
+              callable_builder: noop
 ```
 
 This validator accepts any and all values.
@@ -365,7 +365,7 @@ validators:
     metadatakey:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: string
+              callable_builder: string
               parameters:
                   keys: ['key1', 'key2']
                   required: True
@@ -388,7 +388,7 @@ validators:
     metadatakey:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: enum
+              callable_builder: enum
               parameters:
                   keys: ['key1', 'key2']
                   allowed-values: ['red', 'blue', 'green]
@@ -408,7 +408,7 @@ validators:
     metadatakey:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: units
+              callable_builder: units
               parameters:
                   key: 'units'
                   units: 'mg/L'
@@ -428,7 +428,7 @@ validators:
     metadatakey:
         validators:
             - module: SampleService.core.validator.builtin
-              callable-builder: number
+              callable_builder: number
               parameters:
                   keys: ['length', 'width']
                   type: int
