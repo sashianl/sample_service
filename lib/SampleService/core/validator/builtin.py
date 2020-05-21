@@ -13,6 +13,7 @@ thrown.
 If an exception is not thrown, and a falsy value is returned, the validation succeeds.
 '''
 
+import os
 import ranges
 from typing import Dict, Any, Callable, Optional, cast as _cast, Set as _Set
 from pint import UnitRegistry as _UnitRegistry
@@ -164,6 +165,12 @@ def _get_keys(d):
 
 
 _UNIT_REG = _UnitRegistry()
+_UNIT_REG.load_definitions(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "unit_definitions.txt"
+    )
+)
 
 
 def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
