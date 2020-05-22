@@ -321,7 +321,6 @@ class Samples:
         _not_falsy(duid, 'duid')
         # allow expiring links for deleted objects. It should be impossible to have a link
         # for an object that has never existed.
-        # TODO DOCUMENT What about deleted workspaces? Links should be inaccessible as is
         wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.WRITE
         self._ws.has_permission(user, wsperm, workspace_id=duid.upa.wsid)
         link = self._storage.get_data_link(duid=duid)
