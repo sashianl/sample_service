@@ -9,7 +9,7 @@
 
 ## Deleted objects / workspaces
 
-* Currently links to deleted objects can be returned from `get_links_from_data`.
+* Currently links to deleted objects can be returned from `get_links_from_sample`.
   * Should this be changed? It means an extra workspace call.
   * It also has reproducibility issues - calls to the method with the same `effective_time` may
     not produce the same results.
