@@ -1,3 +1,10 @@
+# Relevant ArangoDB documentation
+
+* Transactions: https://www.arangodb.com/docs/stable/transactions.html
+* Write conflicts: https://github.com/arangodb/arangodb/issues/9430
+* Transaction failures: https://github.com/arangodb/arangodb/issues/11424
+* Sorting graph traversal results: https://github.com/arangodb/arangodb/issues/11260
+
 # Data links
 
 ## Deleted objects / workspaces
@@ -63,7 +70,7 @@
 * Fetch the `current_link` for the data unit ID, if any
 * If `current_link`:
   * If not `update`: fail
-  * If `current_link` == `new_link`: return (no-op)
+  * If `current_link` == `new_link`: abort transaction and return (no-op)
   * If `new_link` is to a different sample and count_links(`new_link.Sample`) > 10K: fail
     * Link look up is based on the data, so we know it's to the same UPA, and since we're
       expiring and replacing a link the link count for the UPA doesn't change.
@@ -75,7 +82,7 @@
 * Save `new_link`
 * Complete the transaction.
 
-### Extant failure modes:
+### Extant failure modes
 
 * ArangoDB transactions can fail on one node and succeed on another. This will commit the
   changes that succeeded but cause the transaction as a whole to fail client-side. This means
@@ -87,4 +94,54 @@
   * A link could be updated without the prior link being expired, effectively causing the record
     of the prior link to disappear.
 
-TODO: expire analysis
+## Expiring links
+
+### Implementation notes
+
+* See the implementation notes for creating / updating links above.
+* Arango does not support atomically changing a document's `_key`. Since expiring a link
+  means changing the `_key`, we use a transaction to reduce the possibility of inconsistent
+  database state.
+  * But does a transaction really help?
+
+### Implementation
+
+* Parameters: `duid` - the data unit ID
+* Fetch `current_link` from the DB via the `duid`.
+* If not `current_link`: fail
+* Start a transaction.
+* Expire `current_link` and save.
+  * Creates a new ArangoDB document with a new `_key`
+  * Fail if a duplicate key error occurs, meaning the link was expired after fetching the document.
+* Delete the old `current_link` document.
+* Complete the transaction.
+
+### Extant failure modes
+
+* ArangoDB transactions can fail on one node and succeed on another. This will commit the
+  changes that succeeded but cause the transaction as a whole to fail client-side. This means
+  in theory the client could determine the current state of the DB and try to repair any
+  inconsistencies, but in practice this is very complicated.
+  * A link could be expired without the current link being deleted, effectively leaving an
+    expired and current version of the same link. If this link were to be expired again an
+    error would occur and the DB would have to be manually corrected.
+  * A link could be deleted without the expired document being written, destroying the link's
+    history.
+* Since expiration does not use an exclusive lock, it is possible for other writes to collide
+  with the expired link document and cause the write to fail.
+  * It is not clear if this will
+    [cause the transaction as a whole to fail](https://github.com/arangodb/arangodb/issues/11424).
+* If the delete fails, an error will be raised and the transaction will be aborted.
+  * Funnily enough, there is an `ignore_missing` parameter, but from the `python-arango`
+    documentation:
+    ```
+    :param ignore_missing: Do not raise an exception on missing document.
+    This parameter has no effect in transactions where an exception is  
+    always raised on failures.
+    ```
+  * This could be caused by:
+    * Another thread expiring and deleting the link, in which case no further action is necessary.
+    * Another thread expiring and updating the link, in which case the current operation should
+      not expire the new link.
+  * This error takes split second timing and is highly unlikely to occur, and should not
+    leave the database in an inconsistent state.
