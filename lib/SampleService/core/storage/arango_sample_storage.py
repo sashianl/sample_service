@@ -852,7 +852,7 @@ class ArangoSampleStorage:
             tdlc = tdb.collection(self._col_data_link.name)
             oldlinkdoc = self._get_doc(tdlc, self._create_link_key(link))
             if oldlinkdoc:
-                if not update:
+                if not update:  # maybe want to move this after the noop check? or add noop option
                     raise _DataLinkExistsError(str(link.duid))
                 oldlink = self._doc_to_link(oldlinkdoc)
                 if link.is_equivalent(oldlink):

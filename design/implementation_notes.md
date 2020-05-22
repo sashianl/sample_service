@@ -1,5 +1,7 @@
 # Data links
 
+## Deleted objects / workspaces
+
 * Currently links to deleted objects can be returned from `get_links_from_data`.
   * Should this be changed? It means an extra workspace call.
   * It also has reproducibility issues - calls to the method with the same `effective_time` may
@@ -15,4 +17,74 @@
 * Links to deleted objects can be expired as long as the user has write access to the workspace.
   However, links to objects in deleted workspaces **cannot** be expired by anyone, including
   admins, given the current implementation.
-  * This seems ok since the links aren't accessible by anyone other than admins.
+  * This naively seems ok since the links aren't accessible by anyone other than admins.
+
+## Creating / updating links
+
+### 10k link limit
+
+* The Sample Service allows no more than 10k non-expired links from any one version of a sample or
+  from any one version of an object. That means that a single object version can have no more
+  than 10k data IDs (e.g. column names for matrix data).
+* This requirement was originally agreed upon because there appears to be no way to
+  [efficiently sort and page results with graph queries in ArangoDB](https://github.com/arangodb/arangodb/issues/11260).
+  Allowing the collection to grow without limit means that eventually sorted graph queries will
+  OOM / hog CPU on the database (or be consistently killed if the DB has that capability). 10K
+  is small enough that the results can be sorted in a small amount of memory in the DB,
+  application, or UI.
+* Link lookups are currently implemented without graph traverals and so in theory the
+  10K limit could be lifted.
+    * Would need sort / paging / indexes. As usual, paging needs to be based on some aspect of
+      the link that is unique, which is tricky here
+* HOWEVER - if any of the query parameters or expectations change the limit may have to be
+  reinstated, e.g.
+  * Changes to how the search regards ACLs.
+  * Searching on additional properties, e.g.
+    * Workspace object properties
+    * Sample properties
+
+### Implementation notes
+
+* Since multiple clients may be creating, updating, or expiring links on the same sample
+  or data object simultaneously, the code needs to account for possible race conditions on
+  those operations.
+* Links are immutable once created, *except* that they can be expired.
+* The unique ID of a link in the database is a fn of the data unit ID (e.g.
+  workspace UPA + data id) for an unexpired link, and the DUID + created time for expired links.
+  This ensures there's only one non-expired link per DUID in the DB.
+
+### Implementation
+
+* Parameters: `new_link`, `update` boolean indicating `current_link` should be replaced if it
+  exists
+* Start a transaction with a collection exclusive lock.
+  * This is required since we're counting multiple documents. Allowing other writes while the
+    transaction is in progress will make those counts inaccurate.
+* Fetch the `current_link` for the data unit ID, if any
+* If `current_link`:
+  * If not `update`: fail
+  * If `current_link` == `new_link`: return (no-op)
+  * If `new_link` is to a different sample and count_links(`new_link.Sample`) > 10K: fail
+    * Link look up is based on the data, so we know it's to the same UPA, and since we're
+      expiring and replacing a link the link count for the UPA doesn't change.
+  * Expire and save `current_link`
+    * Creates a new ArangoDB document with a new `_key`
+* Else:
+  * If count_links(`new_link.UPA`) > 10K: fail
+  * If count_links(`new_link.Sample`) > 10K: fail
+* Save `new_link`
+* Complete the transaction.
+
+### Extant failure modes:
+
+* ArangoDB transactions can fail on one node and succeed on another. This will commit the
+  changes that succeeded but cause the transaction as a whole to fail client-side. This means
+  in theory the client could determine the current state of the DB and try to repair any
+  inconsistencies, but in practice this is very complicated.
+  * A link could be expired without the current link being updated, effectively leaving an
+    expired and current version of the same link. If this link were to be expired again an
+    error would occur and the DB would have to be manually corrected.
+  * A link could be updated without the prior link being expired, effectively causing the record
+    of the prior link to disappear.
+
+TODO: expire analysis
