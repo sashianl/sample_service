@@ -119,9 +119,6 @@ class KafkaController:
         time.sleep(3)  # wait for server to start up
         return self._proc, self._outfile
 
-    def get_consumer(self, topic):
-        return KafkaConsumer(topic, bootstrap_servers=[f'localhost:{self.port}'])
-
     def destroy(self, delete_temp_files: bool) -> None:
         """
         Shut down the Kafka server.
