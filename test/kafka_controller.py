@@ -144,6 +144,14 @@ class KafkaController:
         # just let any exceptions raise
         subprocess.run(command, capture_output=True, check=True)
 
+    def clear_all_topics(self):
+        """
+        Remove all records from all topics.
+        """
+        cons = KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'])
+        for topic in cons.topics():
+            self.clear_topic(topic)
+
     def destroy(self, delete_temp_files: bool) -> None:
         """
         Shut down the Kafka server.
@@ -172,6 +180,7 @@ def main():
     kc.producer.send('mytopic', 'some message'.encode('utf-8'))
 
     # kc.clear_topic('mytopic')  # comment out to test consumer getting message
+    # kc.clear_all_topics()  # comment out to test consumer getting message
 
     cons = KafkaConsumer(
         'mytopic', bootstrap_servers=[f'localhost:{kc.port}'], auto_offset_reset='earliest')
