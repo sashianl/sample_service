@@ -24,18 +24,22 @@ class KafkaController:
     producer - a kafka-python producer pointed at the server.
     """
 
-    def __init__(self, zookeeperexe: Path, kafkaexe: Path, root_temp_dir: Path) -> None:
+    _ZOO_EXE = 'zookeeper-server-start.sh'
+    _KAFKA_EXE = 'kafka-server-start.sh'
+
+    def __init__(self, kafka_bin_dir: Path, root_temp_dir: Path) -> None:
         '''
         Create and start a new Kafka server. An unused port will be selected for the server and
         for zookeeper.
 
-        :param zookeeperexe: The path to the Zookeeper server executable to run.
-        :param kafkaexe: The path to the Kafka server executable to run.
+        :param kafka_bin_dir: The path to the Kafka bin dir containing the Zookeeper and Kafka
+            shell scripts.
         :param root_temp_dir: A temporary directory in which to store Kafka data and log files.
             The files will be stored inside a child directory that is unique per invocation.
         '''
-        zookeeperexe = Path(os.path.expanduser(zookeeperexe))
-        kafkaexe = Path(os.path.expanduser(kafkaexe))
+        self._bin_dir = Path(os.path.expanduser(kafka_bin_dir))
+        zookeeperexe = self._bin_dir.joinpath(self._ZOO_EXE)
+        kafkaexe = self._bin_dir.joinpath(self._KAFKA_EXE)
         if not zookeeperexe or not os.access(zookeeperexe, os.X_OK):
             raise TestException('zookeeper executable path {} does not exist or is not executable.'
                                 .format(zookeeperexe))
@@ -79,10 +83,10 @@ class KafkaController:
 
         command = [str(exe), str(configfile)]
 
-        self._outfile = open(zoo_dir.joinpath('zoo.out'), 'w')
-        self._proc = subprocess.Popen(command, stdout=self._outfile, stderr=subprocess.STDOUT)
+        outfile = open(zoo_dir.joinpath('zoo.out'), 'w')
+        proc = subprocess.Popen(command, stdout=outfile, stderr=subprocess.STDOUT)
         time.sleep(1)  # wait for server to start up
-        return self._proc, self._outfile
+        return proc, outfile
 
     def _start_kafka(self, exe, port, zooport, kafka_dir):
         logdir = kafka_dir.joinpath('logs')
@@ -114,10 +118,10 @@ class KafkaController:
 
         command = [str(exe), str(configfile)]
 
-        self._outfile = open(kafka_dir.joinpath('kafka.out'), 'w')
-        self._proc = subprocess.Popen(command, stdout=self._outfile, stderr=subprocess.STDOUT)
+        outfile = open(kafka_dir.joinpath('kafka.out'), 'w')
+        proc = subprocess.Popen(command, stdout=outfile, stderr=subprocess.STDOUT)
         time.sleep(3)  # wait for server to start up
-        return self._proc, self._outfile
+        return proc, outfile
 
     def destroy(self, delete_temp_files: bool) -> None:
         """
@@ -141,10 +145,9 @@ class KafkaController:
 
 
 def main():
-    zooexe = Path('~/kafka/kafka_2.12-2.5.0/bin/zookeeper-server-start.sh')
-    kafkaexe = Path('~/kafka/kafka_2.12-2.5.0/bin/kafka-server-start.sh')
+    bindir = Path('~/kafka/kafka_2.12-2.5.0/bin/')
 
-    kc = KafkaController(zooexe, kafkaexe, Path('./test_temp_can_delete'))
+    kc = KafkaController(bindir, Path('./test_temp_can_delete'))
     print(f'port: {kc.port}')
     print(f'temp_dir: {kc.temp_dir}')
     kc.producer.send('mytopic', 'some message'.encode('utf-8'))
