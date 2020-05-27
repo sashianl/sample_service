@@ -26,6 +26,7 @@ class KafkaController:
 
     _ZOO_EXE = 'zookeeper-server-start.sh'
     _KAFKA_EXE = 'kafka-server-start.sh'
+    _KAFKA_TOPIC_EXE = 'kafka-topics.sh'
 
     def __init__(self, kafka_bin_dir: Path, root_temp_dir: Path) -> None:
         '''
@@ -40,6 +41,10 @@ class KafkaController:
         self._bin_dir = Path(os.path.expanduser(kafka_bin_dir))
         zookeeperexe = self._bin_dir.joinpath(self._ZOO_EXE)
         kafkaexe = self._bin_dir.joinpath(self._KAFKA_EXE)
+        topicsexe = self._bin_dir.joinpath(self._KAFKA_TOPIC_EXE)
+        self._check_exe(zookeeperexe)
+        self._check_exe(kafkaexe)
+        self._check_exe(topicsexe)
         if not zookeeperexe or not os.access(zookeeperexe, os.X_OK):
             raise TestException('zookeeper executable path {} does not exist or is not executable.'
                                 .format(zookeeperexe))
@@ -57,18 +62,22 @@ class KafkaController:
         kafka_dir = self.temp_dir.joinpath('kafka')
         os.makedirs(kafka_dir, exist_ok=True)
 
-        zooport = find_free_port()
+        self._zooport = find_free_port()
 
-        self._zoo_proc, self._zoo_out = self._start_zoo(zookeeperexe, zooport, zoo_dir)
+        self._zoo_proc, self._zoo_out = self._start_zoo(zookeeperexe, self._zooport, zoo_dir)
 
         self.port = find_free_port()
 
         self._kafka_proc, self._kafka_out = self._start_kafka(
-            kafkaexe, self.port, zooport, kafka_dir)
+            kafkaexe, self.port, self._zooport, kafka_dir)
 
         self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
         # check kafka is up
         KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}']).topics()
+
+    def _check_exe(self, exe):
+        if not exe or not os.access(exe, os.X_OK):
+            raise TestException(f'executable path {exe} does not exist or is not executable.')
 
     def _start_zoo(self, exe, port, zoo_dir):
         datadir = zoo_dir.joinpath('data')
@@ -123,6 +132,18 @@ class KafkaController:
         time.sleep(3)  # wait for server to start up
         return proc, outfile
 
+    def clear_topic(self, topic: str):
+        """
+        Remove all records from a topic.
+
+        :param topic: the topic to clear.
+        """
+        exe = self._bin_dir.joinpath(self._KAFKA_TOPIC_EXE)
+        command = [
+            str(exe), '--zookeeper',  f'localhost:{self._zooport}', '--delete', '--topic', topic]
+        # just let any exceptions raise
+        subprocess.run(command, capture_output=True, check=True)
+
     def destroy(self, delete_temp_files: bool) -> None:
         """
         Shut down the Kafka server.
@@ -141,8 +162,6 @@ class KafkaController:
         if delete_temp_files and self.temp_dir:
             shutil.rmtree(self.temp_dir)
 
-    # TODO CLEAR KAFKA topic https://stackoverflow.com/a/30833979/643675
-
 
 def main():
     bindir = Path('~/kafka/kafka_2.12-2.5.0/bin/')
@@ -151,6 +170,8 @@ def main():
     print(f'port: {kc.port}')
     print(f'temp_dir: {kc.temp_dir}')
     kc.producer.send('mytopic', 'some message'.encode('utf-8'))
+
+    # kc.clear_topic('mytopic')  # comment out to test consumer getting message
 
     cons = KafkaConsumer(
         'mytopic', bootstrap_servers=[f'localhost:{kc.port}'], auto_offset_reset='earliest')
