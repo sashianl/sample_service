@@ -852,7 +852,7 @@ class ArangoSampleStorage:
             tdlc = tdb.collection(self._col_data_link.name)
             oldlinkdoc = self._get_doc(tdlc, self._create_link_key(link))
             if oldlinkdoc:
-                if not update:
+                if not update:  # maybe want to move this after the noop check? or add noop option
                     raise _DataLinkExistsError(str(link.duid))
                 oldlink = self._doc_to_link(oldlinkdoc)
                 if link.is_equivalent(oldlink):
@@ -901,7 +901,7 @@ class ArangoSampleStorage:
         try:
             transaction_db.commit_transaction()
         except _arango.exceptions.TransactionCommitError as e:  # dunno how to test this
-            # TODO DATALINK if the transaction fails we may want to retry.
+            # TODO DATALINK if the transaction fails we may want to retry. pretty complicated
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _abort_transaction(self, transaction_db):
@@ -1136,8 +1136,7 @@ class ArangoSampleStorage:
                 # created a new link and the transaction collided. We should probably *NOT*
                 # expire the brand new link - that was not the user's intent. Both of these
                 # cases take millisecond timing and will be extremely rare, so just throw an
-                # error and
-                # TODO DATALINK document potential failure modes for expire transaction
+                # error and document potential failure modes for expire transaction
 
                 # this is really hard to test - maybe impossible?
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
