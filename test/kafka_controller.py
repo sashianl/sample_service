@@ -73,7 +73,7 @@ class KafkaController:
 
         self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
         # check kafka is up
-        KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}']).topics()
+        KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'], group_id='foo').topics()
 
     def _check_exe(self, exe):
         if not exe or not os.access(exe, os.X_OK):
@@ -148,11 +148,11 @@ class KafkaController:
         """
         Remove all records from all topics.
         """
-        cons = KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'])
+        cons = KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'], group_id='foo')
         for topic in cons.topics():
             self.clear_topic(topic)
 
-    def destroy(self, delete_temp_files: bool) -> None:
+    def destroy(self, delete_temp_files: bool = True, dump_logs_to_stdout: bool = False) -> None:
         """
         Shut down the Kafka server.
 
@@ -163,12 +163,27 @@ class KafkaController:
             self._kafka_proc.terminate()
         if self._zoo_proc:
             self._zoo_proc.terminate()
+        self._print_kafka_logs(dump_logs_to_stdout=dump_logs_to_stdout)
         if self._kafka_out:
             self._kafka_out.close()
         if self._zoo_out:
             self._zoo_out.close()
         if delete_temp_files and self.temp_dir:
             shutil.rmtree(self.temp_dir)
+
+    # closes logfile
+    def _print_kafka_logs(self, dump_logs_to_stdout=True):
+        self._print_logs(self._zoo_out, 'Zookeeper', dump_logs_to_stdout)
+        self._print_logs(self._kafka_out, 'Kafka', dump_logs_to_stdout)
+
+    def _print_logs(self, file_, name, dump_logs_to_stdout):
+        if file_:
+            file_.close()
+            if dump_logs_to_stdout:
+                print(f'\n{name} logs:')
+                with open(file_.name) as f:
+                    for l in f:
+                        print(l)
 
 
 def main():
@@ -183,7 +198,10 @@ def main():
     # kc.clear_all_topics()  # comment out to test consumer getting message
 
     cons = KafkaConsumer(
-        'mytopic', bootstrap_servers=[f'localhost:{kc.port}'], auto_offset_reset='earliest')
+        'mytopic',
+        bootstrap_servers=[f'localhost:{kc.port}'],
+        auto_offset_reset='earliest',
+        group_id='foo')
     print(cons.poll(timeout_ms=1000))
     input('press enter to shut down')
     kc.destroy(True)

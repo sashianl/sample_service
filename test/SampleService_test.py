@@ -5,6 +5,7 @@
 # Tests of the auth user lookup and workspace wrapper code are at the bottom of the file.
 
 import datetime
+import json
 import os
 import tempfile
 import requests
@@ -15,8 +16,13 @@ from configparser import ConfigParser
 from pytest import fixture, raises
 from threading import Thread
 
+from kafka import KafkaConsumer
+from kafka.errors import NoBrokersAvailable
+
 from SampleService.SampleServiceImpl import SampleService
-from SampleService.core.errors import MissingParameterError, NoSuchWorkspaceDataError
+from SampleService.core.errors import (
+    MissingParameterError, NoSuchWorkspaceDataError, IllegalParameterError)
+from SampleService.core.notification import KafkaNotifier
 from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
 from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
 from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
@@ -26,11 +32,12 @@ from SampleService.core.user import UserID
 from installed_clients.WorkspaceClient import Workspace as Workspace
 
 from core import test_utils
-from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct
+from core.test_utils import assert_ms_epoch_close_to_now, assert_exception_correct, find_free_port
 from arango_controller import ArangoController
 from mongo_controller import MongoController
 from workspace_controller import WorkspaceController
 from auth_controller import AuthController
+from kafka_controller import KafkaController
 
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
@@ -303,7 +310,20 @@ def clear_db_and_recreate(arango):
 
 
 @fixture(scope='module')
-def service(auth, arango, workspace):
+def kafka():
+    kafka_bin_dir = test_utils.get_kafka_bin_dir()
+    tempdir = test_utils.get_temp_dir()
+    kc = KafkaController(kafka_bin_dir, tempdir)
+    print('running kafka on port {} in dir {}'.format(kc.port, kc.temp_dir))
+    yield kc
+
+    del_temp = test_utils.get_delete_temp_files()
+    print('shutting down kafka, delete_temp_files={}'.format(del_temp))
+    kc.destroy(del_temp, dump_logs_to_stdout=True)
+
+
+@fixture(scope='module')
+def service(auth, arango, workspace, kafka):
     portint = test_utils.find_free_port()
     clear_db_and_recreate(arango)
     # this is completely stupid. The state is calculated on import so there's no way to
@@ -323,9 +343,10 @@ def service(auth, arango, workspace):
 
 
 @fixture
-def sample_port(service, arango, workspace):
+def sample_port(service, arango, workspace, kafka):
     clear_db_and_recreate(arango)
     workspace.clear_db()
+    kafka.clear_all_topics()
     yield service
 
 
@@ -3346,3 +3367,65 @@ def test_workspace_wrapper_get_workspaces_fail_no_user(sample_port, workspace):
     with raises(Exception) as got:
         ws.get_user_workspaces(UserID('fakeuser'))
     assert_exception_correct(got.value, NoSuchUserError('User fakeuser is not a valid user'))
+
+
+# ###########################
+# Kafka notifier tests
+# ###########################
+
+def test_kafka_notifier_new_sample(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic' + 242 * 'a')
+    kc = KafkaConsumer(
+        'mytopic' + 242 * 'a',
+        bootstrap_servers=f'localhost:{kafka.port}',
+        auto_offset_reset='earliest',
+        group_id='foo')  # quiets warnings
+
+    id_ = uuid.uuid4()
+
+    kn.notify_new_sample_version(id_, 6)
+
+    res = kc.poll(timeout_ms=2000)  # 1s not enough? Seems like a lot
+    assert len(res) == 1
+    assert next(iter(res.keys())).topic == 'mytopic' + 242 * 'a'
+    records = next(iter(res.values()))
+    assert len(records) == 1
+    assert json.loads(records[0].value) == {
+        'event_type': 'NEW_SAMPLE',
+        'sample_id': str(id_),
+        'sample_ver': 6
+    }
+
+
+def test_kafka_notifier_init_fail():
+    _kafka_notifier_init_fail(None, 't', MissingParameterError('bootstrap_servers'))
+    _kafka_notifier_init_fail('   \t   ', 't', MissingParameterError('bootstrap_servers'))
+    _kafka_notifier_init_fail('localhost:10000', None, MissingParameterError('topic'))
+    _kafka_notifier_init_fail('localhost:10000', '   \t   ', MissingParameterError('topic'))
+    _kafka_notifier_init_fail(
+        'localhost:10000', 'mytopic' + 243 * 'a',
+        IllegalParameterError('topic exceeds maximum length of 249'))
+    _kafka_notifier_init_fail(f'localhost:{find_free_port()}', 'mytopic', NoBrokersAvailable())
+
+
+def _kafka_notifier_init_fail(servers, topic, expected):
+    with raises(Exception) as got:
+        KafkaNotifier(servers, topic)
+    assert_exception_correct(got.value, expected)
+
+
+def test_kafka_notifier_notify_new_sample_version_fail(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+
+    _kafka_notifier_notify_new_sample_version_fail(kn, None, 1, ValueError(
+        'sample_id cannot be a value that evaluates to false'))
+    _kafka_notifier_notify_new_sample_version_fail(kn, uuid.uuid4(), 0, ValueError(
+        'sample_ver must be > 0'))
+    _kafka_notifier_notify_new_sample_version_fail(kn, uuid.uuid4(), -3, ValueError(
+        'sample_ver must be > 0'))
+
+
+def _kafka_notifier_notify_new_sample_version_fail(notifier, sample, version, expected):
+    with raises(Exception) as got:
+        notifier.notify_new_sample_version(sample, version)
+    assert_exception_correct(got.value, expected)

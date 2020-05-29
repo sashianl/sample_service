@@ -7,17 +7,18 @@ services:
 
 env:
     # TODO add more arango versions when they exist
-    # TODO could split tests so non-arango tests aren't run for every version
-    - ARANGODB_VER=3.5.1 ARANGODB_V=35
+    # TODO add more kafka versions
+    # TODO could split tests so non-arango tests aren't run for every version, same for kafka
+    - ARANGODB_VER=3.5.1 ARANGODB_V=35 KAFKA_VER=2.5.0 SCALA_VER=2.12
 
 before_install:
   - docker version
 
 install:
-  # mongo is only a test dependency, no point in matrixing it
   - which java
   - java -version
 
+  # mongo is only a test dependency, no point in matrixing it
   - export MONGODB_VER=mongodb-linux-x86_64-3.6.16
   - cd ..
   - wget http://fastdl.mongodb.org/linux/$MONGODB_VER.tgz
@@ -25,6 +26,7 @@ install:
   - export MONGOD=`pwd`/$MONGODB_VER/bin/mongod
   - cd -
 
+  # arango
   - cd ..
   - curl -O https://download.arangodb.com/arangodb$ARANGODB_V/Community/Linux/arangodb3-linux-$ARANGODB_VER.tar.gz
   - tar -xf arangodb3-linux-$ARANGODB_VER.tar.gz 
@@ -32,13 +34,24 @@ install:
   - export ARANGO_JS=$(pwd)/arangodb3-$ARANGODB_VER/usr/share/arangodb3/js/
   - cd -
 
+  # kafka
+  - cd ..
+  - curl -O http://www.trieuvan.com/apache/kafka/$KAFKA_VER/kafka_$SCALA_VER-$KAFKA_VER.tgz
+  - tar -xf kafka_$SCALA_VER-$KAFKA_VER.tgz
+  - export KAFKA_BIN_DIR=$(pwd)/kafka_$SCALA_VER-$KAFKA_VER/bin
+  - cd -
+
+  # jars
   - cd ..
   - git clone https://github.com/kbase/jars
   - export JARS=$(pwd)/jars/lib/jars
   - cd -
 
+  # python deps
   - pip install pipenv
   - pipenv install --dev
+
+  # kb-sdk
   - docker pull kbase/kb-sdk
   - cd ..
   - docker run kbase/kb-sdk genscript > kb-sdk
@@ -47,6 +60,7 @@ install:
   - cd -
   - $KBSDK version
 
+  # make test file
   - cd test
   - cp test.cfg.example test.cfg
   - sed -i "s#^test.jars.dir=.*#test.jars.dir=$JARS#" test.cfg
@@ -54,6 +68,7 @@ install:
   - sed -i "s#^test.arango.exe.*#test.arango.exe=$ARANGO_EXE#" test.cfg
   - sed -i "s#^test.arango.js.*#test.arango.js=$ARANGO_JS#" test.cfg
   - sed -i "s#^test.mongo.exe.*#test.mongo.exe=$MONGOD#" test.cfg
+  - sed -i "s#^test.kafka.bin.dir.*#test.kafka.bin.dir=$KAFKA_BIN_DIR#" test.cfg
   - sed -i "s#^test.mongo.wired_tiger.*#test.mongo.wired_tiger=true#" test.cfg
   - cat test.cfg
   - cd -

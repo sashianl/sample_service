@@ -11,6 +11,7 @@ import time
 
 ARANGO_EXE = 'test.arango.exe'
 ARANGO_JS = 'test.arango.js'
+KAFKA_BIN_DIR = 'test.kafka.bin.dir'
 MONGO_EXE = 'test.mongo.exe'
 MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
 JARS_DIR = 'test.jars.dir'
@@ -30,6 +31,10 @@ def get_arango_exe() -> Path:
 
 def get_arango_js() -> Path:
     return Path(os.path.abspath(_get_test_property(ARANGO_JS)))
+
+
+def get_kafka_bin_dir() -> Path:
+    return Path(os.path.abspath(_get_test_property(KAFKA_BIN_DIR)))
 
 
 def get_mongo_exe() -> Path:
@@ -72,6 +77,7 @@ def _get_test_property(prop: str) -> str:
         # a section is not a real map and is missing methods
         _CONFIG = {x: sec[x] for x in sec.keys()}
     if prop not in _CONFIG:
+        test_cfg = _get_test_config_file_path()
         raise TestException('Property {} in section {} of test file {} is missing'
                             .format(prop, TEST_CONFIG_FILE_SECTION, test_cfg))
     return _CONFIG[prop]
