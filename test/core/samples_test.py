@@ -15,6 +15,7 @@ from SampleService.core.errors import (
     MetadataValidationError,
     NoSuchLinkError
 )
+from SampleService.core.notification import KafkaNotifier
 from SampleService.core.sample import Sample, SampleNode, SavedSample, SampleAddress
 from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.samples import Samples
@@ -62,7 +63,8 @@ def test_init_fail_bad_args():
 
 def _init_fail(storage, lookup, meta, ws, now, uuid_gen, expected):
     with raises(Exception) as got:
-        Samples(storage, lookup, meta, ws, now, uuid_gen)
+        # no errors can occur based on the notifier
+        Samples(storage, lookup, meta, ws, None, now, uuid_gen)
     assert_exception_correct(got.value, expected)
 
 
@@ -76,7 +78,8 @@ def _save_sample_with_name(name, as_admin):
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ws = create_autospec(WS, spec_set=True, instance=True)
-    s = Samples(storage, lu, meta, ws, now=nw,
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     assert s.save_sample(
@@ -120,6 +123,9 @@ def _save_sample_with_name(name, as_admin):
         (({'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}},), {})
     ]
 
+    kafka.notify_new_sample_version.assert_called_once_with(
+        UUID('1234567890abcdef1234567890abcdef'), 1)
+
 
 def test_save_sample_version():
     _save_sample_version_per_user(UserID('someuser'), None, None)
@@ -133,7 +139,8 @@ def _save_sample_version_per_user(user: UserID, name, prior_version):
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ws = create_autospec(WS, spec_set=True, instance=True)
-    s = Samples(storage, lu, meta, ws, now=nw,
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
@@ -164,8 +171,14 @@ def _save_sample_version_per_user(user: UserID, name, prior_version):
                       ),
           prior_version), {})]
 
+    kafka.notify_new_sample_version.assert_called_once_with(
+        UUID('1234567890abcdef1234567890abcdea'), 3)
+
 
 def test_save_sample_version_as_admin():
+    '''
+    Also test that not providing a notifier causes no issues.
+    '''
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
