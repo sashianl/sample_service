@@ -152,7 +152,7 @@ class KafkaController:
         for topic in cons.topics():
             self.clear_topic(topic)
 
-    def destroy(self, delete_temp_files: bool) -> None:
+    def destroy(self, delete_temp_files: bool = True, dump_logs_to_stdout: bool = False) -> None:
         """
         Shut down the Kafka server.
 
@@ -163,12 +163,27 @@ class KafkaController:
             self._kafka_proc.terminate()
         if self._zoo_proc:
             self._zoo_proc.terminate()
+        self._print_kafka_logs(dump_logs_to_stdout=dump_logs_to_stdout)
         if self._kafka_out:
             self._kafka_out.close()
         if self._zoo_out:
             self._zoo_out.close()
         if delete_temp_files and self.temp_dir:
             shutil.rmtree(self.temp_dir)
+
+    # closes logfile
+    def _print_kafka_logs(self, dump_logs_to_stdout=True):
+        self._print_logs(self._zoo_out, 'Zookeeper', dump_logs_to_stdout)
+        self._print_logs(self._kafka_out, 'Kafka', dump_logs_to_stdout)
+
+    def _print_logs(self, file_, name, dump_logs_to_stdout):
+        if file_:
+            file_.close()
+            if dump_logs_to_stdout:
+                print(f'\n{name} logs:')
+                with open(file_.name) as f:
+                    for l in f:
+                        print(l)
 
 
 def main():

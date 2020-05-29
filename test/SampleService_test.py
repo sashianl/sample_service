@@ -319,7 +319,7 @@ def kafka():
 
     del_temp = test_utils.get_delete_temp_files()
     print('shutting down kafka, delete_temp_files={}'.format(del_temp))
-    kc.destroy(del_temp)
+    kc.destroy(del_temp, dump_logs_to_stdout=True)
 
 
 @fixture(scope='module')
