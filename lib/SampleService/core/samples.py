@@ -21,6 +21,7 @@ from SampleService.core.errors import (
     NoSuchUserError as _NoSuchUserError,
     NoSuchLinkError as _NoSuchLinkError
 )
+from SampleService.core.notification import KafkaNotifier
 from SampleService.core.sample import Sample, SavedSample, SampleAddress, SampleNodeAddress
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core import user_lookup as _user_lookup_mod
@@ -45,6 +46,8 @@ class Samples:
             user_lookup: KBaseUserLookup,  # make an interface? YAGNI
             metadata_validator: MetadataValidatorSet,
             workspace: WS,
+            # may want to support multiple notifiers. YAGNI for now
+            notifier: Optional[KafkaNotifier] = None,
             now: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(
                 tz=datetime.timezone.utc),
             uuid_gen: Callable[[], UUID] = lambda: _uuid.uuid4()):
@@ -63,6 +66,7 @@ class Samples:
         self._user_lookup = _not_falsy(user_lookup, 'user_lookup')
         self._metaval = _not_falsy(metadata_validator, 'metadata_validator')
         self._ws = _not_falsy(workspace, 'workspace')
+        self._kafka = notifier  # can be None
         self._now = _not_falsy(now, 'now')
         self._uuid_gen = _not_falsy(uuid_gen, 'uuid_gen')
 
@@ -107,6 +111,8 @@ class Samples:
             # don't bother checking output since we created uuid
             self._storage.save_sample(swid)
             ver = 1
+        if self._kafka:
+            self._kafka.notify_new_sample_version(id_, ver)
         return (id_, ver)
 
     def _validate_metadata(self, sample: Sample):
