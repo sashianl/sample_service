@@ -36,7 +36,7 @@ install:
 
   # kafka
   - cd ..
-  - curl -0 http://www.trieuvan.com/apache/kafka/$KAFKA_VER/kafka_$SCALA_VER-$KAFKA_VER.tgz
+  - curl -O http://www.trieuvan.com/apache/kafka/$KAFKA_VER/kafka_$SCALA_VER-$KAFKA_VER.tgz
   - tar -xf kafka_$SCALA_VER-$KAFKA_VER.tgz
   - export KAFKA_BIN_DIR=$(pwd)/kafka_$SCALA_VER-$KAFKA_VER/bin
   - cd -
