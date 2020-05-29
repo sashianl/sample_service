@@ -15,6 +15,9 @@ test.arango.exe=/path/to/arangoddbexecutable
 # In the downloaded tarball it is at /usr/share/arangodb3/js/.
 test.arango.js=/path/to/arangodjs
 
+# path to the Kafka binary directory (in ./bin in the tarball root directory.)
+test.kafka.bin.dir=/path/to/kafka/tarball/bin
+
 # path to the MongoDB executable to use for the tests.
 test.mongo.exe=/path/to/mongodexecutable
 

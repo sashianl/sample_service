@@ -73,7 +73,7 @@ class KafkaController:
 
         self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
         # check kafka is up
-        KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}']).topics()
+        KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'], group_id='foo').topics()
 
     def _check_exe(self, exe):
         if not exe or not os.access(exe, os.X_OK):
@@ -148,7 +148,7 @@ class KafkaController:
         """
         Remove all records from all topics.
         """
-        cons = KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'])
+        cons = KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'], group_id='foo')
         for topic in cons.topics():
             self.clear_topic(topic)
 
@@ -183,7 +183,10 @@ def main():
     # kc.clear_all_topics()  # comment out to test consumer getting message
 
     cons = KafkaConsumer(
-        'mytopic', bootstrap_servers=[f'localhost:{kc.port}'], auto_offset_reset='earliest')
+        'mytopic',
+        bootstrap_servers=[f'localhost:{kc.port}'],
+        auto_offset_reset='earliest',
+        group_id='foo')
     print(cons.poll(timeout_ms=1000))
     input('press enter to shut down')
     kc.destroy(True)
