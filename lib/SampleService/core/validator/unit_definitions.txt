@@ -1,1 +1,2 @@
 cell = []
+percent = 0.01 * count

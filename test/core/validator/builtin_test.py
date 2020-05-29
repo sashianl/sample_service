@@ -179,6 +179,7 @@ def test_units():
     _units_good({'key': 'u', 'units': '(lb * ft^2) / (s^3 * A^2)'}, {'u': 'ohm'})
     _units_good({'key': 'y', 'units': 'cells'}, {'y': "cell"})
     _units_good({'key': 'u', 'units': 'cells / gram'}, {'u': "cells / g"})
+    _units_good({'key': 'y', 'units': 'percent'}, {'y': "percent"})
 
 def _units_good(cfg, meta):
     assert builtin.units(cfg)('key', meta) is None
