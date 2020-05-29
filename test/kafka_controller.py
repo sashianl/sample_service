@@ -71,9 +71,12 @@ class KafkaController:
         self._kafka_proc, self._kafka_out = self._start_kafka(
             kafkaexe, self.port, self._zooport, kafka_dir)
 
-        self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
-        # check kafka is up
-        KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'], group_id='foo').topics()
+        # checks kafka is up
+        try:
+            self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
+        except Exception:
+            self._print_kafka_logs()
+            raise
 
     def _check_exe(self, exe):
         if not exe or not os.access(exe, os.X_OK):
