@@ -12,6 +12,7 @@ import time
 import shutil
 
 from kafka import KafkaProducer, KafkaConsumer
+from kafka.errors import NoBrokersAvailable
 
 
 class KafkaController:
@@ -70,13 +71,7 @@ class KafkaController:
 
         self._kafka_proc, self._kafka_out = self._start_kafka(
             kafkaexe, self.port, self._zooport, kafka_dir)
-
-        # checks kafka is up
-        try:
-            self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
-        except Exception:
-            self._print_kafka_logs()
-            raise
+        self.producer = KafkaProducer(bootstrap_servers=[f'localhost:{self.port}'])
 
     def _check_exe(self, exe):
         if not exe or not os.access(exe, os.X_OK):
@@ -132,7 +127,21 @@ class KafkaController:
 
         outfile = open(kafka_dir.joinpath('kafka.out'), 'w')
         proc = subprocess.Popen(command, stdout=outfile, stderr=subprocess.STDOUT)
-        time.sleep(3)  # wait for server to start up
+
+        for count in range(40):
+            err = None
+            time.sleep(1)  # wait for server to start
+            try:
+                KafkaProducer(bootstrap_servers=[f'localhost:{port}'])
+                break
+            except NoBrokersAvailable as e:
+                err = TestException('No Kafka brokers available')
+                err.__cause__ = e
+        if err:
+            self._print_kafka_logs()
+            self._print_logs(outfile, 'Kafka', True)
+            raise err
+        self.startup_count = count + 1
         return proc, outfile
 
     def clear_topic(self, topic: str):
