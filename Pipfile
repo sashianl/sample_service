@@ -11,6 +11,7 @@ coveralls = "*"
 flake8 = "*"
 pymongo = "*"
 semver = "*"
+ipython = "*"
 
 [packages]
 python-arango = "==5.0.0"

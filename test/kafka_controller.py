@@ -148,6 +148,8 @@ class KafkaController:
         """
         Remove all records from a topic.
 
+        Note this takes about 2 seconds.
+
         :param topic: the topic to clear.
         """
         exe = self._bin_dir.joinpath(self._KAFKA_TOPIC_EXE)
@@ -159,6 +161,8 @@ class KafkaController:
     def clear_all_topics(self):
         """
         Remove all records from all topics.
+
+        Note this takes about 2 seconds per topic.
         """
         cons = KafkaConsumer(bootstrap_servers=[f'localhost:{self.port}'], group_id='foo')
         for topic in cons.topics():
@@ -194,8 +198,8 @@ class KafkaController:
             if dump_logs_to_stdout:
                 print(f'\n{name} logs:')
                 with open(file_.name) as f:
-                    for l in f:
-                        print(l)
+                    for line in f:
+                        print(line)
 
 
 def main():
