@@ -94,6 +94,7 @@ class KafkaNotifier:
             # presumably this can be removed once idempotence is supported
             max_in_flight_requests_per_connection=1,
             )
+        self._closed = False
 
     def notify_new_sample_version(self, sample_id: UUID, sample_ver: int):
         if sample_ver < 1:
@@ -104,11 +105,20 @@ class KafkaNotifier:
         self._send_message(msg)
 
     def _send_message(self, message):
+        if self._closed:
+            raise ValueError('client is closed')
         future = self._prod.send(self._topic, _json.dumps(message).encode('utf-8'))
         # ensure the message was send correctly, or if not throw an exeption in the correct thread
         future.get(timeout=35)  # this is very difficult to test
 
-    # TODO KAFKA notify on sample save
+    def close(self):
+        """
+        Close the notifier.
+        """
+        # handle with context at some point
+        self._prod.close()
+        self._closed = True
+
     # TODO KAFKA notify on ACL change
     # TODO KAFKA notify on new link
     # TODO KAFKA notify on expired link via update

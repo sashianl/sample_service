@@ -21,6 +21,7 @@ from SampleService.core.samples import Samples
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage \
     as _ArangoSampleStorage
 from SampleService.core.arg_checkers import check_string as _check_string
+from SampleService.core.notification import KafkaNotifier as _KafkaNotifer
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.workspace import WS as _WS
 
@@ -67,12 +68,16 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     ws_token = _check_string_req(config.get('workspace-read-admin-token'),
                                  'config param workspace-read-admin-token')
 
+    kafka_servers = _check_string(config.get('kafka-bootstrap-servers'),
+                                  'config param kafka-bootstrap-servers',
+                                  optional=True)
+    kafka_topic = None
+    if kafka_servers:  # have to start the server twice to test no kafka scenario
+        kafka_topic = _check_string(config.get('kafka-topic'), 'config param kafka-topic')
+
     metaval_url = _check_string(config.get('metadata-validator-config-url'),
                                 'config param metadata-validator-config-url',
                                 optional=True)
-
-    # build the validators before trying to connect to arango
-    metaval = get_validators(metaval_url) if metaval_url else MetadataValidatorSet()
 
     # meta params may have info that shouldn't be logged so don't log any for now.
     # Add code to deal with this later if needed
@@ -95,9 +100,14 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
             auth-full-admin-roles: {', '.join(full_roles)}
             auth-read-admin-roles: {', '.join(read_roles)}
             workspace-url: {ws_url}
-            workspace-read-admin-token: [REDACTED FOR YOUR PLEASURE]
+            workspace-read-admin-token: [REDACTED FOR YOUR ULTIMATE PLEASURE]
+            kafka-bootstrap-servers: {kafka_servers}
+            kafka-topic: {kafka_topic}
             metadata-validators-config-url: {metaval_url}
     ''')
+
+    # build the validators before trying to connect to arango
+    metaval = get_validators(metaval_url) if metaval_url else MetadataValidatorSet()
 
     arangoclient = _arango.ArangoClient(hosts=arango_url)
     arango_db = arangoclient.db(
@@ -114,9 +124,10 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
         col_schema,
     )
     storage.start_consistency_checker()
+    kafka = _KafkaNotifer(kafka_servers, _cast(str, kafka_topic)) if kafka_servers else None
     user_lookup = KBaseUserLookup(auth_root_url, auth_token, full_roles, read_roles)
     ws = _WS(_Workspace(ws_url, token=ws_token))
-    return Samples(storage, user_lookup, metaval, ws), user_lookup
+    return Samples(storage, user_lookup, metaval, ws, kafka), user_lookup
 
 
 def split_value(d: Dict[str, str], key: str):
