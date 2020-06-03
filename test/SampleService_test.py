@@ -435,9 +435,9 @@ def get_authorized_headers(token):
     return {'authorization': token, 'accept': 'application/json'}
 
 
-def _check_kafka_messages(kafka, expected_msgs):
+def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC):
     kc = KafkaConsumer(
-        KAFKA_TOPIC,
+        topic,
         bootstrap_servers=f'localhost:{kafka.port}',
         auto_offset_reset='earliest',
         group_id='foo')  # quiets warnings
@@ -445,12 +445,12 @@ def _check_kafka_messages(kafka, expected_msgs):
     try:
         res = kc.poll(timeout_ms=2000)  # 1s not enough? Seems like a lot
         assert len(res) == 1
-        assert next(iter(res.keys())).topic == KAFKA_TOPIC
+        assert next(iter(res.keys())).topic == topic
         records = next(iter(res.values()))
         assert len(records) == len(expected_msgs)
         for i, r in enumerate(records):
             assert json.loads(r.value) == expected_msgs[i]
-        # TODO KAFKA this needs a reset before other tests, somehow. commit?
+        # Need to commit here? doesn't seem like it
     finally:
         kc.close()
 
@@ -558,7 +558,8 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
     }
 
     _check_kafka_messages(
-        kafka, [
+        kafka,
+        [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 2}
         ])
@@ -3411,33 +3412,6 @@ def test_workspace_wrapper_get_workspaces_fail_no_user(sample_port, workspace):
 # Kafka notifier tests
 # ###########################
 
-def test_kafka_notifier_new_sample(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic' + 242 * 'a')
-    kc = KafkaConsumer(
-        'mytopic' + 242 * 'a',
-        bootstrap_servers=f'localhost:{kafka.port}',
-        auto_offset_reset='earliest',
-        group_id='foo')  # quiets warnings
-    try:
-        id_ = uuid.uuid4()
-
-        kn.notify_new_sample_version(id_, 6)
-
-        res = kc.poll(timeout_ms=2000)  # 1s not enough? Seems like a lot
-        assert len(res) == 1
-        assert next(iter(res.keys())).topic == 'mytopic' + 242 * 'a'
-        records = next(iter(res.values()))
-        assert len(records) == 1
-        assert json.loads(records[0].value) == {
-            'event_type': 'NEW_SAMPLE',
-            'sample_id': str(id_),
-            'sample_ver': 6
-        }
-    finally:
-        kc.close()
-        kn.close()
-
-
 def test_kafka_notifier_init_fail():
     _kafka_notifier_init_fail(None, 't', MissingParameterError('bootstrap_servers'))
     _kafka_notifier_init_fail('   \t   ', 't', MissingParameterError('bootstrap_servers'))
@@ -3453,6 +3427,21 @@ def _kafka_notifier_init_fail(servers, topic, expected):
     with raises(Exception) as got:
         KafkaNotifier(servers, topic)
     assert_exception_correct(got.value, expected)
+
+
+def test_kafka_notifier_new_sample(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic' + 242 * 'a')
+    try:
+        id_ = uuid.uuid4()
+
+        kn.notify_new_sample_version(id_, 6)
+
+        _check_kafka_messages(
+            kafka,
+            [{'event_type': 'NEW_SAMPLE', 'sample_id': str(id_), 'sample_ver': 6}],
+            'mytopic' + 242 * 'a')
+    finally:
+        kn.close()
 
 
 def test_kafka_notifier_notify_new_sample_version_fail(sample_port, kafka):
@@ -3473,4 +3462,36 @@ def test_kafka_notifier_notify_new_sample_version_fail(sample_port, kafka):
 def _kafka_notifier_notify_new_sample_version_fail(notifier, sample, version, expected):
     with raises(Exception) as got:
         notifier.notify_new_sample_version(sample, version)
+    assert_exception_correct(got.value, expected)
+
+
+def test_kafka_notifier_acl_change(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'topictopic')
+    try:
+        id_ = uuid.uuid4()
+
+        kn.notify_sample_acl_change(id_)
+
+        _check_kafka_messages(
+            kafka,
+            [{'event_type': 'ACL_CHANGE', 'sample_id': str(id_)}],
+            'topictopic')
+    finally:
+        kn.close()
+
+
+def test_kafka_notifier_notify_acl_change_fail(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+
+    _kafka_notifier_notify_acl_change_fail(kn, None, ValueError(
+        'sample_id cannot be a value that evaluates to false'))
+
+    kn.close()
+    _kafka_notifier_notify_acl_change_fail(kn, uuid.uuid4(), ValueError(
+        'client is closed'))
+
+
+def _kafka_notifier_notify_acl_change_fail(notifier, sample, expected):
+    with raises(Exception) as got:
+        notifier.notify_sample_acl_change(sample)
     assert_exception_correct(got.value, expected)
