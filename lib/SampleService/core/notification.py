@@ -61,6 +61,7 @@ class KafkaNotifier:
     _SAMPLE_ID = 'sample_id'
     _SAMPLE_VERSION = 'sample_ver'
     _NEW_SAMPLE = 'NEW_SAMPLE'
+    _ACL_CHANGE = 'ACL_CHANGE'
 
     def __init__(self, bootstrap_servers: str, topic: str):
         """
@@ -102,6 +103,11 @@ class KafkaNotifier:
         msg = {self._EVENT_TYPE: self._NEW_SAMPLE,
                self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id')),
                self._SAMPLE_VERSION: sample_ver}
+        self._send_message(msg)
+
+    def notify_sample_acl_change(self, sample_id: UUID):
+        msg = {self._EVENT_TYPE: self._ACL_CHANGE,
+               self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id'))}
         self._send_message(msg)
 
     def _send_message(self, message):
