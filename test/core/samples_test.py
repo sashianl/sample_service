@@ -527,38 +527,10 @@ def _replace_sample_acls(user: UserID, as_admin):
     kafka.notify_sample_acl_change.assert_called_once_with(id_)
 
 
-def test_replace_sample_acls_without_notifier():
-    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
-    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
-    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
-    ws = create_autospec(WS, spec_set=True, instance=True)
-    samples = Samples(storage, lu, meta, ws, now=nw,
-                      uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
-    id_ = UUID('1234567890abcdef1234567890abcde0')
-
-    lu.invalid_users.return_value = []
-
-    storage.get_sample_acls.return_value = SampleACL(
-        u('someuser'),
-        [u('otheruser'), u('y')],
-        [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
-
-    samples.replace_sample_acls(id_, u('y'), SampleACL(
-        u('someuser'), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')]))
-
-    assert lu.invalid_users.call_args_list == [
-        (([u(x) for x in ['x', 'y', 'z', 'a', 'b', 'c']],), {})]
-
-    assert storage.get_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcde0'),), {})]
-
-    assert storage.replace_sample_acls.call_args_list == [
-        ((UUID('1234567890abcdef1234567890abcde0'),
-          SampleACL(u('someuser'), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')])), {})]
-
-
 def test_replace_sample_acls_with_owner_change():
+    """
+    Also tests replacing sample acls without a notifier.
+    """
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -928,10 +900,17 @@ def _create_data_link(user):
         [u('anotheruser'), u('ur mum')],
         [u('Fungus J. Pustule Jr.'), u('x')])
 
-    s.create_data_link(
+    assert s.create_data_link(
         user,
         DataUnitID(UPA('1/1/1')),
-        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'))
+        SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode')
+        ) == DataLink(
+            UUID('1234567890abcdef1234567890abcdef'),
+            DataUnitID(UPA('1/1/1')),
+            SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+            dt(6),
+            user
+        )
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
@@ -961,11 +940,18 @@ def test_create_data_link_with_data_id_and_update():
 
     storage.get_sample_acls.return_value = SampleACL(u('someuser'))
 
-    s.create_data_link(
+    assert s.create_data_link(
         UserID('someuser'),
         DataUnitID(UPA('1/1/1'), 'foo'),
         SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
-        update=True)
+        update=True
+        ) == DataLink(
+            UUID('1234567890abcdef1234567890abcdef'),
+            DataUnitID(UPA('1/1/1'), 'foo'),
+            SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+            dt(6),
+            UserID('someuser')
+        )
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 
@@ -991,11 +977,18 @@ def test_create_data_link_as_admin():
     s = Samples(storage, lu, meta, ws, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
-    s.create_data_link(
+    assert s.create_data_link(
         UserID('someuser'),
         DataUnitID(UPA('1/1/1'), 'foo'),
         SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
-        as_admin=True)
+        as_admin=True
+        ) == DataLink(
+            UUID('1234567890abcdef1234567890abcdef'),
+            DataUnitID(UPA('1/1/1'), 'foo'),
+            SampleNodeAddress(SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3), 'mynode'),
+            dt(6),
+            UserID('someuser')
+        )
 
     ws.has_permission.assert_called_once_with(
         UserID('someuser'), WorkspaceAccessType.NONE, upa=UPA('1/1/1'))

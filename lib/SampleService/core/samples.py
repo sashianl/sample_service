@@ -273,7 +273,7 @@ class Samples:
             duid: DataUnitID,
             sna: SampleNodeAddress,
             update: bool = False,
-            as_admin: bool = False):
+            as_admin: bool = False) -> DataLink:
         '''
         Create a link from a data unit to a sample. The user must have admin access to the sample,
         since linking data grants permissions: once linked, if a user
@@ -291,6 +291,7 @@ class Samples:
             If False and a link from the data unit already exists, link creation will fail.
         :param as_admin: allow link creation to proceed if user does not have
             appropriate permissions.
+        :returns: the new link.
         :raises UnauthorizedError: if the user does not have acceptable permissions.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -309,6 +310,7 @@ class Samples:
         self._ws.has_permission(user, wsperm, upa=duid.upa)
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
         self._storage.create_data_link(dl, update=update)
+        return dl
 
     def expire_data_link(self, user: UserID, duid: DataUnitID, as_admin: bool = False) -> None:
         '''
