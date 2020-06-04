@@ -290,6 +290,32 @@ class SampleService(object):
            (A boolean value, 0 for false, 1 for true.), parameter "as_admin"
            of type "boolean" (A boolean value, 0 for false, 1 for true.),
            parameter "as_user" of type "user" (A user's username.)
+        :returns: instance of type "CreateDataLinkResults" (create_data_link
+           results. new_link - the new link.) -> structure: parameter
+           "new_link" of type "DataLink" (A data link from a KBase workspace
+           object to a sample. upa - the workspace UPA of the linked object.
+           dataid - the dataid of the linked data, if any, within the object.
+           If omitted the entire object is linked to the sample. id - the
+           sample id. version - the sample version. node - the sample node.
+           createdby - the user that created the link. created - the time the
+           link was created. expiredby - the user that expired the link, if
+           any. expired - the time the link was expired, if at all.) ->
+           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
+           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+           workspace ID, 6 the object ID, and 7 the object version.),
+           parameter "dataid" of type "data_id" (An id for a unit of data
+           within a KBase Workspace object. A single object may contain many
+           data units. A dataid is expected to be unique within a single
+           object. Must be less than 255 characters.), parameter "id" of type
+           "sample_id" (A Sample ID. Must be globally unique. Always assigned
+           by the Sample service.), parameter "version" of type "version"
+           (The version of a sample. Always > 0.), parameter "node" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "createdby" of type "user"
+           (A user's username.), parameter "created" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "expiredby" of type
+           "user" (A user's username.), parameter "expired" of type
+           "timestamp" (A timestamp in epoch milliseconds.)
         """
         return self._client.call_method('SampleService.create_data_link',
                                         [params], self._service_ver, context)

@@ -1572,7 +1572,7 @@ def _create_sample(url, token, sample, expected_version):
     return ret.json()['result'][0]['id']
 
 
-def _create_link(url, token, params, print_resp=False):
+def _create_link(url, token, expected_user, params, print_resp=False):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.create_data_link',
         'version': '1.1',
@@ -1582,6 +1582,20 @@ def _create_link(url, token, params, print_resp=False):
     if print_resp:
         print(ret.text)
     assert ret.ok is True
+    link = ret.json()['result'][0]['new_link']
+    created = link['created']
+    assert_ms_epoch_close_to_now(created)
+    del link['created']
+    assert link == {
+        'id': params['id'],
+        'version': params['version'],
+        'node': params['node'],
+        'upa': params['upa'],
+        'dataid': params.get('dataid'),
+        'createdby': expected_user,
+        'expiredby': None,
+        'expired': None
+    }
 
 
 def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
@@ -1638,13 +1652,14 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
         )
 
     # create links
+    # as_user should be ignored unless as_admin is true
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2', 'as_user': USER1})
     _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2', 'as_user': USER1})
-    _create_link(
-        url, TOKEN3,
+        url, TOKEN3, USER3,
         {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
     _create_link(
-        url, TOKEN4,
+        url, TOKEN4, USER4,
         {'id': id2, 'version': 1, 'node': 'foo2', 'upa': '1/2/1', 'dataid': 'column2'})
 
     # get links from sample 1
@@ -1766,33 +1781,23 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
     _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
 
     # create links
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.create_data_link',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     oldlinkactive = datetime.datetime.now()
     time.sleep(1)
 
     # update link node
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
-        'method': 'SampleService.create_data_link',
-        'version': '1.1',
-        'id': '42',
-        'params': [
+    _create_link(
+        url,
+        TOKEN4,
+        USER4,
             {'id': id1,
              'version': 1,
              'node': 'root',
              'upa': '1/1/1',
              'dataid': 'yay',
-             'update': 1}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+         'update': 1})
 
     # get current link
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -1887,6 +1892,7 @@ def test_create_data_link_as_admin(sample_port, workspace):
     _create_link(
         url,
         TOKEN2,
+        USER2,
         {'id': id1,
          'version': 1,
          'node': 'root',
@@ -1896,6 +1902,7 @@ def test_create_data_link_as_admin(sample_port, workspace):
     _create_link(
         url,
         TOKEN2,
+        USER4,
         {'id': id1,
          'version': 1,
          'node': 'foo',
@@ -1986,11 +1993,11 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
     _replace_acls(url, id_, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(url, TOKEN3, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
-    _create_link(url, TOKEN4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '2/1/1'})
-    _create_link(
-        url, TOKEN4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '3/1/1', 'dataid': 'whee'})
-    _create_link(url, TOKEN4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '4/1/1'})
+    _create_link(url, TOKEN3, USER3, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    _create_link(url, TOKEN4, USER4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '2/1/1'})
+    _create_link(url, TOKEN4, USER4,
+                 {'id': id_, 'version': 1, 'node': 'foo', 'upa': '3/1/1', 'dataid': 'whee'})
+    _create_link(url, TOKEN4, USER4,  {'id': id_, 'version': 1, 'node': 'foo', 'upa': '4/1/1'})
 
     # check correct links are returned
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2063,7 +2070,7 @@ def test_get_links_from_sample_as_admin(sample_port, workspace):
     id_ = _create_generic_sample(url, TOKEN4)
 
     # create links
-    _create_link(url, TOKEN4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    _create_link(url, TOKEN4, USER4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
 
     # check correct links are returned, user 3 has read admin perms, but not full
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2179,14 +2186,8 @@ def test_create_link_fail_link_exists(sample_port, workspace):
 
     id_ = _create_generic_sample(url, TOKEN3)
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.create_data_link',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     _create_link_fail(
         sample_port, TOKEN3,
@@ -2289,10 +2290,10 @@ def _expire_data_link(sample_port, workspace, dataid):
     _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': dataid})
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'bar', 'upa': '1/1/1', 'dataid': 'fake'})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': dataid})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'bar', 'upa': '1/1/1', 'dataid': 'fake'})
 
     time.sleep(1)  # need to be able to set a resonable effective time to fetch links
 
@@ -2390,8 +2391,8 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
         )
 
     # create links
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'duidy'})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'duidy'})
 
     time.sleep(1)  # need to be able to set a resonable effective time to fetch links
 
@@ -2461,8 +2462,8 @@ def test_expire_data_link_fail(sample_port, workspace):
         )
 
     # create links
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     _expire_data_link_fail(
         sample_port, TOKEN3, {}, 'Sample service error code 30000 Missing input parameter: upa')
@@ -2581,12 +2582,12 @@ def test_get_links_from_data(sample_port, workspace):
         )
 
     # create links
-    _create_link(url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2'})
+    _create_link(url, TOKEN3, USER3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2'})
     _create_link(
-        url, TOKEN4,
+        url, TOKEN4, USER4,
         {'id': id2, 'version': 1, 'node': 'root2', 'upa': '1/1/1', 'dataid': 'column1'})
     _create_link(
-        url, TOKEN4,
+        url, TOKEN4, USER4,
         {'id': id2, 'version': 2, 'node': 'foo3', 'upa': '1/2/2', 'dataid': 'column2'})
 
     # get links from object 1/2/2
@@ -2704,14 +2705,14 @@ def test_get_links_from_data_expired(sample_port, workspace):
     _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     oldlinkactive = datetime.datetime.now()
     time.sleep(1)
 
     # update link node
-    _create_link(url, TOKEN4, {
+    _create_link(url, TOKEN4, USER4, {
         'id': id1,
         'version': 1,
         'node': 'root',
@@ -2809,7 +2810,7 @@ def test_get_links_from_data_as_admin(sample_port, workspace):
         )
 
     # create links
-    _create_link(url, TOKEN4, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    _create_link(url, TOKEN4, USER4, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
 
     # get links from object, user 3 has admin read perms
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2947,9 +2948,9 @@ def test_get_sample_via_data(sample_port, workspace):
         )
 
     # create links
-    _create_link(url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    _create_link(url, TOKEN3, USER3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
     _create_link(
-        url, TOKEN3,
+        url, TOKEN3, USER3,
         {'id': id2, 'version': 2, 'node': 'root3', 'upa': '1/1/1', 'dataid': 'column1'})
 
     # get first sample via link from object 1/1/1 using a token that has no access
@@ -3020,7 +3021,7 @@ def test_get_sample_via_data(sample_port, workspace):
     assert res == expected
 
 
-def test_get_sample_via_from_data_expired(sample_port, workspace):
+def test_get_sample_via_data_expired(sample_port, workspace):
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -3055,11 +3056,11 @@ def test_get_sample_via_from_data_expired(sample_port, workspace):
         )
 
     # create links
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     # update link node
-    _create_link(url, TOKEN3, {
+    _create_link(url, TOKEN3, USER3, {
         'id': id2,
         'version': 1,
         'node': 'root2',
@@ -3162,8 +3163,8 @@ def test_get_sample_via_data_fail(sample_port, workspace):
         )
 
     # create links
-    _create_link(
-        url, TOKEN3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+    _create_link(url, TOKEN3, USER3,
+                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     _get_sample_via_data_fail(
         sample_port, TOKEN3, {},

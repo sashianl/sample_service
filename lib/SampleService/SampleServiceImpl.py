@@ -52,7 +52,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha14"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "6a9a9f940e9da95ef926485b7a94555657ceb94e"
+    GIT_COMMIT_HASH = "645eb0a62d2435761d74ab348adc0ac51eb69ef7"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -387,8 +387,35 @@ Note that usage of the administration flags will be logged by the service.
            (A boolean value, 0 for false, 1 for true.), parameter "as_admin"
            of type "boolean" (A boolean value, 0 for false, 1 for true.),
            parameter "as_user" of type "user" (A user's username.)
+        :returns: instance of type "CreateDataLinkResults" (create_data_link
+           results. new_link - the new link.) -> structure: parameter
+           "new_link" of type "DataLink" (A data link from a KBase workspace
+           object to a sample. upa - the workspace UPA of the linked object.
+           dataid - the dataid of the linked data, if any, within the object.
+           If omitted the entire object is linked to the sample. id - the
+           sample id. version - the sample version. node - the sample node.
+           createdby - the user that created the link. created - the time the
+           link was created. expiredby - the user that expired the link, if
+           any. expired - the time the link was expired, if at all.) ->
+           structure: parameter "upa" of type "ws_upa" (A KBase Workspace
+           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+           workspace ID, 6 the object ID, and 7 the object version.),
+           parameter "dataid" of type "data_id" (An id for a unit of data
+           within a KBase Workspace object. A single object may contain many
+           data units. A dataid is expected to be unique within a single
+           object. Must be less than 255 characters.), parameter "id" of type
+           "sample_id" (A Sample ID. Must be globally unique. Always assigned
+           by the Sample service.), parameter "version" of type "version"
+           (The version of a sample. Always > 0.), parameter "node" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "createdby" of type "user"
+           (A user's username.), parameter "created" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "expiredby" of type
+           "user" (A user's username.), parameter "expired" of type
+           "timestamp" (A timestamp in epoch milliseconds.)
         """
         # ctx is the context object
+        # return variables are: results
         #BEGIN create_data_link
         duid, sna, update = _create_data_link_params(params)
         as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
@@ -396,13 +423,21 @@ Note that usage of the administration flags will be logged by the service.
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
             # pretty annoying to test ctx.log_info is working, do it manually
             'create_data_link', ctx.log_info, as_user=user, skip_check=not as_admin)
-        self._samples.create_data_link(
+        link = self._samples.create_data_link(
             user if user else _UserID(ctx[_CTX_USER]),
             duid,
             sna,
             update,
             as_admin=as_admin)
+        results = {'new_link': _links_to_dicts([link])[0]}
         #END create_data_link
+
+        # At some point might do deeper type checking...
+        if not isinstance(results, dict):
+            raise ValueError('Method create_data_link return value ' +
+                             'results is not type dict as required.')
+        # return the results
+        return [results]
 
     def expire_data_link(self, ctx, params):
         """

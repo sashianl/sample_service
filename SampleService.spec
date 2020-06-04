@@ -259,12 +259,46 @@ module SampleService {
         user as_user;
     } CreateDataLinkParams;
 
+    /* A data link from a KBase workspace object to a sample.
+    
+        upa - the workspace UPA of the linked object.
+        dataid - the dataid of the linked data, if any, within the object. If omitted the
+            entire object is linked to the sample.
+        id - the sample id.
+        version - the sample version.
+        node - the sample node.
+        createdby - the user that created the link.
+        created - the time the link was created.
+        expiredby - the user that expired the link, if any.
+        expired - the time the link was expired, if at all.
+     */
+    typedef structure {
+        ws_upa upa;
+        data_id dataid;
+        sample_id id;
+        version version;
+        node_id node;
+        user createdby;
+        timestamp created;
+        user expiredby;
+        timestamp expired;
+    } DataLink;
+
+    /* create_data_link results.
+
+        new_link - the new link.
+     */
+    typedef structure {
+        DataLink new_link;
+    } CreateDataLinkResults;
+
     /* Create a link from a KBase Workspace object to a sample.
 
         The user must have admin permissions for the sample and write permissions for the
         Workspace object.
      */
-    funcdef create_data_link(CreateDataLinkParams params) returns() authentication required;
+    funcdef create_data_link(CreateDataLinkParams params) returns(CreateDataLinkResults results)
+        authentication required;
 
     /* expire_data_link parameters.
 
@@ -306,31 +340,6 @@ module SampleService {
         timestamp effective_time;
         boolean as_admin;
     } GetDataLinksFromSampleParams;
-
-    /* A data link from a KBase workspace object to a sample.
-    
-        upa - the workspace UPA of the linked object.
-        dataid - the dataid of the linked data, if any, within the object. If omitted the
-            entire object is linked to the sample.
-        id - the sample id.
-        version - the sample version.
-        node - the sample node.
-        createdby - the user that created the link.
-        created - the time the link was created.
-        expiredby - the user that expired the link, if any.
-        expired - the time the link was expired, if at all.
-     */
-    typedef structure {
-        ws_upa upa;
-        data_id dataid;
-        sample_id id;
-        version version;
-        node_id node;
-        user createdby;
-        timestamp created;
-        user expiredby;
-        timestamp expired;
-    } DataLink;
 
     /* get_data_links_from_sample results.
 
