@@ -505,9 +505,10 @@ class ArangoSampleStorage:
                        )
         return ret
 
-    def _list_to_meta(self, l: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
+    def _list_to_meta(
+            self, list: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
         ret: _Dict[str, _Dict[str, _PrimitiveType]] = defaultdict(dict)
-        for m in l:
+        for m in list:
             ret[m[_FLD_NODE_META_OUTER_KEY]][m[_FLD_NODE_META_KEY]] = m[_FLD_NODE_META_VALUE]
         return dict(ret)  # some libs don't play nice with default dict, in particular maps
 
@@ -782,7 +783,7 @@ class ArangoSampleStorage:
 
     # TODO change acls with more granularity
 
-    def create_data_link(self, link: DataLink, update: bool = False):
+    def create_data_link(self, link: DataLink, update: bool = False) -> Optional[UUID]:
         '''
         Link data in the workspace to a sample.
         Each data unit can be linked to only one sample at a time. Expired links may exist to
@@ -802,6 +803,7 @@ class ArangoSampleStorage:
         :param link: the link to save, which cannot be expired.
         :param update: if the link from the object already exists and is linked to a different
             sample, update the link. If it is linked to the same sample take no action.
+        :returns: The ID of the link that is expired as part of the update process, if any.
 
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -857,7 +859,7 @@ class ArangoSampleStorage:
                 oldlink = self._doc_to_link(oldlinkdoc)
                 if link.is_equivalent(oldlink):
                     self._abort_transaction(tdb)
-                    return  # I don't like having a return in the middle of the method, but
+                    return None  # I don't like having a return in the middle of the method, but
                     # the alternative seems to be worse
 
                 # See the notes in the expire method, many are relevant here.
@@ -896,6 +898,7 @@ class ArangoSampleStorage:
             self._commit_transaction(tdb)
         finally:
             self._abort_transaction(tdb)
+        return UUID(oldlinkdoc[_FLD_LINK_ID]) if oldlinkdoc else None
 
     def _commit_transaction(self, transaction_db):
         try:
@@ -967,7 +970,7 @@ class ArangoSampleStorage:
         # links. Might not work in a NOT though. Alternate formulation is
         # (d.creatd >= @created AND d.created <= @expired) OR
         # (d.expired >= @created AND d.expired <= @expired)
-        q = (f'''
+        q = ('''
                 FOR d in @@col
              ''' +
              filters +
@@ -1236,8 +1239,8 @@ class ArangoSampleStorage:
     def _find_links_via_aql(self, query, bind_vars):
         duids = []
         try:
-            for l in self._db.aql.execute(query, bind_vars=bind_vars):
-                duids.append(self._doc_to_link(l))
+            for link in self._db.aql.execute(query, bind_vars=bind_vars):
+                duids.append(self._doc_to_link(link))
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         return duids  # a maxium of 10k can be returned based on the link creation function
