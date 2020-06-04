@@ -242,6 +242,8 @@ class Samples:
                 count = -1
             except _OwnerChangedError:
                 count += 1
+        if self._kafka:
+            self._kafka.notify_sample_acl_change(id_)
 
     # TODO change owner. Probably needs a request/accept flow.
 
