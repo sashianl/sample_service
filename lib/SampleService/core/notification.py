@@ -62,6 +62,9 @@ class KafkaNotifier:
     _SAMPLE_VERSION = 'sample_ver'
     _NEW_SAMPLE = 'NEW_SAMPLE'
     _ACL_CHANGE = 'ACL_CHANGE'
+    _LINK_ID = 'link_id'
+    _NEW_LINK = 'NEW_LINK'
+    _EXPIRED_LINK = 'EXPIRED_LINK'
 
     def __init__(self, bootstrap_servers: str, topic: str):
         """
@@ -101,25 +104,49 @@ class KafkaNotifier:
         """
         Send a notification that a new sample version has been created.
 
-        :param sample_id: The sample ID.
-        :param sample_ver: The version of the sample.
+        :param sample_id: the sample ID.
+        :param sample_ver: the version of the sample.
         """
         if sample_ver < 1:
             raise ValueError('sample_ver must be > 0')
-        msg = {self._EVENT_TYPE: self._NEW_SAMPLE,
-               self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id')),
-               self._SAMPLE_VERSION: sample_ver}
-        self._send_message(msg)
+        self._send_message({
+            self._EVENT_TYPE: self._NEW_SAMPLE,
+            self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id')),
+            self._SAMPLE_VERSION: sample_ver
+            })
 
     def notify_sample_acl_change(self, sample_id: UUID):
         """
         Send a notification for a sample ACL change.
 
-        :param sample_id: The sample ID.
+        :param sample_id: the sample ID.
         """
-        msg = {self._EVENT_TYPE: self._ACL_CHANGE,
-               self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id'))}
-        self._send_message(msg)
+        self._send_message({
+            self._EVENT_TYPE: self._ACL_CHANGE,
+            self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id'))
+            })
+
+    def notify_new_link(self, link_id: UUID):
+        """
+        Send a notification that a link has been created.
+
+        :param link_id: the link ID.
+        """
+        self._send_message({
+            self._EVENT_TYPE: self._NEW_LINK,
+            self._LINK_ID: str(_not_falsy(link_id, 'link_id'))
+            })
+
+    def notify_expired_link(self, link_id: UUID):
+        """
+        Send a notification that a link has been expired.
+
+        :param link_id: the link ID.
+        """
+        self._send_message({
+            self._EVENT_TYPE: self._EXPIRED_LINK,
+            self._LINK_ID: str(_not_falsy(link_id, 'link_id'))
+            })
 
     def _send_message(self, message):
         if self._closed:

@@ -3522,3 +3522,67 @@ def _kafka_notifier_notify_acl_change_fail(notifier, sample, expected):
     with raises(Exception) as got:
         notifier.notify_sample_acl_change(sample)
     assert_exception_correct(got.value, expected)
+
+
+def test_kafka_notifier_new_link(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'topictopic')
+    try:
+        id_ = uuid.uuid4()
+
+        kn.notify_new_link(id_)
+
+        _check_kafka_messages(
+            kafka,
+            [{'event_type': 'NEW_LINK', 'link_id': str(id_)}],
+            'topictopic')
+    finally:
+        kn.close()
+
+
+def test_kafka_notifier_new_link_fail(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+
+    _kafka_notifier_new_link_fail(kn, None, ValueError(
+        'link_id cannot be a value that evaluates to false'))
+
+    kn.close()
+    _kafka_notifier_new_link_fail(kn, uuid.uuid4(), ValueError(
+        'client is closed'))
+
+
+def _kafka_notifier_new_link_fail(notifier, sample, expected):
+    with raises(Exception) as got:
+        notifier.notify_new_link(sample)
+    assert_exception_correct(got.value, expected)
+
+
+def test_kafka_notifier_expired_link(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'topictopic')
+    try:
+        id_ = uuid.uuid4()
+
+        kn.notify_expired_link(id_)
+
+        _check_kafka_messages(
+            kafka,
+            [{'event_type': 'EXPIRED_LINK', 'link_id': str(id_)}],
+            'topictopic')
+    finally:
+        kn.close()
+
+
+def test_kafka_notifier_expired_link_fail(sample_port, kafka):
+    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+
+    _kafka_notifier_expired_link_fail(kn, None, ValueError(
+        'link_id cannot be a value that evaluates to false'))
+
+    kn.close()
+    _kafka_notifier_expired_link_fail(kn, uuid.uuid4(), ValueError(
+        'client is closed'))
+
+
+def _kafka_notifier_expired_link_fail(notifier, sample, expected):
+    with raises(Exception) as got:
+        notifier.notify_expired_link(sample)
+    assert_exception_correct(got.value, expected)
