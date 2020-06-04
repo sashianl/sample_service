@@ -136,7 +136,6 @@ class KafkaNotifier:
         self._prod.close()
         self._closed = True
 
-    # TODO KAFKA notify on ACL change
     # TODO KAFKA notify on new link
     # TODO KAFKA notify on expired link via update
     # TODO KAFKA notify on expired link
