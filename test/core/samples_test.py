@@ -497,8 +497,9 @@ def _replace_sample_acls(user: UserID, as_admin):
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ws = create_autospec(WS, spec_set=True, instance=True)
-    samples = Samples(
-        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    samples = Samples(storage, lu, meta, ws, kafka, now=nw,
+                      uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
     id_ = UUID('1234567890abcdef1234567890abcde0')
 
     lu.invalid_users.return_value = []
@@ -512,6 +513,39 @@ def _replace_sample_acls(user: UserID, as_admin):
     samples.replace_sample_acls(id_, user, SampleACL(
         u('someuser'), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')]),
         as_admin=as_admin)
+
+    assert lu.invalid_users.call_args_list == [
+        (([u(x) for x in ['x', 'y', 'z', 'a', 'b', 'c']],), {})]
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),), {})]
+
+    assert storage.replace_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),
+          SampleACL(u('someuser'), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')])), {})]
+
+    kafka.notify_sample_acl_change.assert_called_once_with(id_)
+
+
+def test_replace_sample_acls_without_notifier():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(storage, lu, meta, ws, now=nw,
+                      uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.return_value = []
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    samples.replace_sample_acls(id_, u('y'), SampleACL(
+        u('someuser'), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')]))
 
     assert lu.invalid_users.call_args_list == [
         (([u(x) for x in ['x', 'y', 'z', 'a', 'b', 'c']],), {})]

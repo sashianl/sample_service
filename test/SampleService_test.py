@@ -355,6 +355,7 @@ def service(auth, arango, workspace, kafka):
 def sample_port(service, arango, workspace, kafka):
     clear_db_and_recreate(arango)
     workspace.clear_db()
+    # _clear_kafka_messages(kafka)  # too expensive to run after every test
     # kafka.clear_all_topics()  # too expensive to run after every test
     yield service
 
@@ -455,7 +456,22 @@ def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC):
         kc.close()
 
 
+def _clear_kafka_messages(kafka, topic=KAFKA_TOPIC):
+    kc = KafkaConsumer(
+        topic,
+        bootstrap_servers=f'localhost:{kafka.port}',
+        auto_offset_reset='earliest',
+        group_id='foo')  # quiets warnings
+
+    try:
+        kc.poll(timeout_ms=2000)  # 1s not enough? Seems like a lot
+        # Need to commit here? doesn't seem like it
+    finally:
+        kc.close()
+
+
 def test_create_and_get_sample_with_version(sample_port, kafka):
+    _clear_kafka_messages(kafka)
     url = f'http://localhost:{sample_port}'
 
     # version 1
@@ -1031,7 +1047,8 @@ def test_get_sample_fail_admin_permissions(sample_port):
         'necessary administration privileges to run method get_sample')
 
 
-def test_get_and_replace_acls(sample_port):
+def test_get_and_replace_acls(sample_port, kafka):
+    _clear_kafka_messages(kafka)
     url = f'http://localhost:{sample_port}'
 
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
@@ -1155,6 +1172,16 @@ def test_get_and_replace_acls(sample_port):
         'write': [],
         'read': [USER2]
     })
+
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id_},
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 2},
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 3},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id_},
+        ])
 
 
 def test_get_acls_as_admin(sample_port):

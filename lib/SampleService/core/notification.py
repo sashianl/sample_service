@@ -98,6 +98,12 @@ class KafkaNotifier:
         self._closed = False
 
     def notify_new_sample_version(self, sample_id: UUID, sample_ver: int):
+        """
+        Send a notification that a new sample version has been created.
+
+        :param sample_id: The sample ID.
+        :param sample_ver: The version of the sample.
+        """
         if sample_ver < 1:
             raise ValueError('sample_ver must be > 0')
         msg = {self._EVENT_TYPE: self._NEW_SAMPLE,
@@ -106,6 +112,11 @@ class KafkaNotifier:
         self._send_message(msg)
 
     def notify_sample_acl_change(self, sample_id: UUID):
+        """
+        Send a notification for a sample ACL change.
+
+        :param sample_id: The sample ID.
+        """
         msg = {self._EVENT_TYPE: self._ACL_CHANGE,
                self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id'))}
         self._send_message(msg)
