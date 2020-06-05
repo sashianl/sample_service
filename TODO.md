@@ -21,7 +21,13 @@
 * Stand alone validator CLI
   * Validate without sending data to server
 * Versioning scheme for validator config
-* Kafka events for create sample version, update ACLS, create link, expire link
+* Kafka events
+  * Improve reliability
+    * Currently if the service does down between DB modification for a new link/sample and kafka
+      reciept of the message the message is lost.
+    * Could improve reliability of messaging by putting a `sent` field or something like that on
+      samples / links in the DB, and not updating the field until the kafka send succeeds.
+    * On startup, look for unsent, older messages and resend.
   * get link by ID
   * Tools to recreate events from the DB (backfill new external DBs, handle cases where
     Kafka messages were lost)
