@@ -891,7 +891,8 @@ def _create_data_link(user):
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ws = create_autospec(WS, spec_set=True, instance=True)
-    s = Samples(storage, lu, meta, ws, now=nw,
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(
@@ -926,6 +927,8 @@ def _create_data_link(user):
 
     storage.create_data_link.assert_called_once_with(dl, update=False)
 
+    kafka.notify_new_link.assert_called_once_with(UUID('1234567890abcdef1234567890abcdef'))
+
 
 def test_create_data_link_with_data_id_and_update():
     '''
@@ -935,10 +938,13 @@ def test_create_data_link_with_data_id_and_update():
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ws = create_autospec(WS, spec_set=True, instance=True)
-    s = Samples(storage, lu, meta, ws, now=nw,
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw,
                 uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
 
     storage.get_sample_acls.return_value = SampleACL(u('someuser'))
+
+    storage.create_data_link.return_value = UUID('1234567890abcdef1234567890abcde1')
 
     assert s.create_data_link(
         UserID('someuser'),
@@ -968,8 +974,14 @@ def test_create_data_link_with_data_id_and_update():
 
     storage.create_data_link.assert_called_once_with(dl, update=True)
 
+    kafka.notify_new_link.assert_called_once_with(UUID('1234567890abcdef1234567890abcdef'))
+    kafka.notify_expired_link.assert_called_once_with(UUID('1234567890abcdef1234567890abcde1'))
+
 
 def test_create_data_link_as_admin():
+    """
+    Also tests creating a link without a notifier.
+    """
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)

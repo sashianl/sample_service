@@ -436,7 +436,7 @@ def get_authorized_headers(token):
     return {'authorization': token, 'accept': 'application/json'}
 
 
-def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC):
+def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC, print_res=False):
     kc = KafkaConsumer(
         topic,
         bootstrap_servers=f'localhost:{kafka.port}',
@@ -445,6 +445,8 @@ def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC):
 
     try:
         res = kc.poll(timeout_ms=2000)  # 1s not enough? Seems like a lot
+        if print_res:
+            print(res)
         assert len(res) == 1
         assert next(iter(res.keys())).topic == topic
         records = next(iter(res.values()))
@@ -1602,10 +1604,11 @@ def _create_link(url, token, expected_user, params, print_resp=False):
     return id_
 
 
-def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
+def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, kafka):
     '''
     Also tests that the 'as_user' key is ignored if 'as_admin' is falsy.
     '''
+    _clear_kafka_messages(kafka)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -1658,7 +1661,7 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     # create links
     # as_user should be ignored unless as_admin is true
     lid1 = _create_link(url, TOKEN3, USER3,
-                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2', 'as_user': USER1})
+                        {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2', 'as_user': USER1})
     lid2 = _create_link(
         url, TOKEN3, USER3,
         {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
@@ -1758,11 +1761,24 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
     assert ret.json()['result'][0]['links'] == []
 
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id2, 'sample_ver': 1},
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id2, 'sample_ver': 2},
+            {'event_type': 'NEW_LINK', 'link_id': lid1},
+            {'event_type': 'NEW_LINK', 'link_id': lid2},
+            {'event_type': 'NEW_LINK', 'link_id': lid3},
+        ])
 
-def test_update_and_get_links_from_sample(sample_port, workspace):
+
+def test_update_and_get_links_from_sample(sample_port, workspace, kafka):
     '''
     Also tests getting links from a sample using an effective time
     '''
+    _clear_kafka_messages(kafka)
+
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -1789,7 +1805,7 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
 
     # create links
     lid1 = _create_link(url, TOKEN3, USER3,
-                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+                        {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     oldlinkactive = datetime.datetime.now()
     time.sleep(1)
@@ -1871,6 +1887,16 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
                 'expiredby': USER4,
             }
         ]}
+
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id1},
+            {'event_type': 'NEW_LINK', 'link_id': lid1},
+            {'event_type': 'NEW_LINK', 'link_id': lid2},
+            {'event_type': 'EXPIRED_LINK', 'link_id': lid1},
+        ])
 
 
 def test_create_data_link_as_admin(sample_port, workspace):

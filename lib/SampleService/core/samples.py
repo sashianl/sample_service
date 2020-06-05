@@ -309,7 +309,11 @@ class Samples:
         wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.WRITE
         self._ws.has_permission(user, wsperm, upa=duid.upa)
         dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
-        self._storage.create_data_link(dl, update=update)
+        expired_id = self._storage.create_data_link(dl, update=update)
+        if self._kafka:
+            self._kafka.notify_new_link(dl.id)
+            if expired_id:  # maybe make the notifier accept both notifications & send both?
+                self._kafka.notify_expired_link(expired_id)
         return dl
 
     def expire_data_link(self, user: UserID, duid: DataUnitID, as_admin: bool = False) -> None:
