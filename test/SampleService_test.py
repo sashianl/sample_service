@@ -2298,16 +2298,18 @@ def _get_current_epochmillis():
     return round(datetime.datetime.now(tz=datetime.timezone.utc).timestamp() * 1000)
 
 
-def test_expire_data_link(sample_port, workspace):
-    _expire_data_link(sample_port, workspace, None)
+def test_expire_data_link(sample_port, workspace, kafka):
+    _expire_data_link(sample_port, workspace, None, kafka)
 
 
-def test_expire_data_link_with_data_id(sample_port, workspace):
-    _expire_data_link(sample_port, workspace, 'whee')
+def test_expire_data_link_with_data_id(sample_port, workspace, kafka):
+    _expire_data_link(sample_port, workspace, 'whee', kafka)
 
 
-def _expire_data_link(sample_port, workspace, dataid):
+def _expire_data_link(sample_port, workspace, dataid, kafka):
     ''' also tests that 'as_user' is ignored if 'as_admin' is false '''
+    _clear_kafka_messages(kafka)
+
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -2402,16 +2404,28 @@ def _expire_data_link(sample_port, workspace, dataid):
             'expired': None
          }
 
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id1},
+            {'event_type': 'NEW_LINK', 'link_id': lid1},
+            {'event_type': 'NEW_LINK', 'link_id': lid2},
+            {'event_type': 'EXPIRED_LINK', 'link_id': lid1},
+        ])
 
-def test_expire_data_link_as_admin(sample_port, workspace):
-    _expire_data_link_as_admin(sample_port, workspace, None, USER2)
+
+def test_expire_data_link_as_admin(sample_port, workspace, kafka):
+    _expire_data_link_as_admin(sample_port, workspace, None, USER2, kafka)
 
 
-def test_expire_data_link_as_admin_impersonate_user(sample_port, workspace):
-    _expire_data_link_as_admin(sample_port, workspace, USER4, USER4)
+def test_expire_data_link_as_admin_impersonate_user(sample_port, workspace, kafka):
+    _expire_data_link_as_admin(sample_port, workspace, USER4, USER4, kafka)
 
 
-def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
+def _expire_data_link_as_admin(sample_port, workspace, user, expected_user, kafka):
+    _clear_kafka_messages(kafka)
+
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -2483,6 +2497,14 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
             'createdby': USER3,
             'expiredby': expected_user,
          }
+
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
+            {'event_type': 'NEW_LINK', 'link_id': lid},
+            {'event_type': 'EXPIRED_LINK', 'link_id': lid},
+        ])
 
 
 def test_expire_data_link_fail(sample_port, workspace):

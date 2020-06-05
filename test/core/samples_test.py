@@ -1513,11 +1513,13 @@ def _expire_data_link(user):
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
     ws = create_autospec(WS, spec_set=True, instance=True)
-    s = Samples(storage, lu, meta, ws, now=nw)
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw)
 
     sid = UUID('1234567890abcdef1234567890abcdee')
+    lid = UUID('1234567890abcdef1234567890abcde2')
     storage.get_data_link.return_value = DataLink(
-        uuid.uuid4(),  # unused
+        lid,
         DataUnitID(UPA('6/1/2'), 'foo'),
         SampleNodeAddress(SampleAddress(sid, 3), 'node'),
         dt(34),
@@ -1537,11 +1539,15 @@ def _expire_data_link(user):
 
     storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
     storage.get_sample_acls.assert_called_once_with(sid)
-    storage.expire_data_link.assert_called_once_with(
-        dt(6), user, duid=DataUnitID(UPA('6/1/2'), 'foo'))
+    storage.expire_data_link.assert_called_once_with(dt(6), user, id_=lid)
+
+    kafka.notify_expired_link.assert_called_once_with(lid)
 
 
 def test_expire_data_link_as_admin():
+    """
+    Also tests expiring links without a notifier.
+    """
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1549,8 +1555,9 @@ def test_expire_data_link_as_admin():
     s = Samples(storage, lu, meta, ws, now=nw)
 
     sid = UUID('1234567890abcdef1234567890abcdee')
+    lid = UUID('1234567890abcdef1234567890abcde1')
     storage.get_data_link.return_value = DataLink(
-        uuid.uuid4(),  # unused
+        lid,
         DataUnitID(UPA('6/1/2'), 'foo'),
         SampleNodeAddress(SampleAddress(sid, 3), 'node'),
         dt(34),
@@ -1563,8 +1570,7 @@ def test_expire_data_link_as_admin():
         UserID('userf'), WorkspaceAccessType.NONE, workspace_id=6)
 
     storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2'), 'foo'))
-    storage.expire_data_link.assert_called_once_with(
-        dt(6), UserID('userf'), duid=DataUnitID(UPA('6/1/2'), 'foo'))
+    storage.expire_data_link.assert_called_once_with(dt(6), UserID('userf'), id_=lid)
 
 
 def test_expire_data_link_fail_bad_args():
@@ -1664,8 +1670,9 @@ def test_expire_data_link_fail_no_link_at_storage():
     s = Samples(storage, lu, meta, ws, now=nw)
 
     sid = UUID('1234567890abcdef1234567890abcdee')
+    lid = UUID('1234567890abcdef1234567890abcde1')
     storage.get_data_link.return_value = DataLink(
-        uuid.uuid4(),  # unused
+        lid,
         DataUnitID(UPA('6/1/2')),
         SampleNodeAddress(SampleAddress(sid, 3), 'node'),
         dt(34),
@@ -1688,8 +1695,7 @@ def test_expire_data_link_fail_no_link_at_storage():
 
     storage.get_data_link.assert_called_once_with(duid=DataUnitID(UPA('6/1/2')))
     storage.get_sample_acls.assert_called_once_with(sid)
-    storage.expire_data_link.assert_called_once_with(
-        dt(6), UserID('y'), duid=DataUnitID(UPA('6/1/2')))
+    storage.expire_data_link.assert_called_once_with(dt(6), UserID('y'), id_=lid)
 
 
 def _expire_data_link_fail(samples, user, duid, expected):

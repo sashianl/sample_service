@@ -342,7 +342,14 @@ class Samples:
         # UPA then they can get the link with the sample ID, so don't worry about it.
         self._check_perms(
             link.sample_node_address.sampleid, user, _SampleAccessType.ADMIN, as_admin=as_admin)
-        self._storage.expire_data_link(self._now(), user, duid=duid)
+        # Use the ID here to prevent a race condition expiring a new link to a different sample
+        # since the user may not have perms
+        # There's a chance the link could be expired between db fetch and update, but that
+        # takes millisecond precision and just means a funky error message occurs, so don't
+        # worry about it.
+        self._storage.expire_data_link(self._now(), user, id_=link.id)
+        if self._kafka:
+            self._kafka.notify_expired_link(link.id)
 
     def get_links_from_sample(
             self,

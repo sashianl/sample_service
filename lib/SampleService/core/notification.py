@@ -162,7 +162,3 @@ class KafkaNotifier:
         # handle with context at some point
         self._prod.close()
         self._closed = True
-
-    # TODO KAFKA notify on new link
-    # TODO KAFKA notify on expired link via update
-    # TODO KAFKA notify on expired link
