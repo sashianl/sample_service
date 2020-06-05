@@ -79,28 +79,32 @@ def get_admin_request_from_object(
     return (as_ad, user)
 
 
-def get_id_from_object(obj: Dict[str, Any], required=False) -> Optional[UUID]:
+def get_id_from_object(obj: Dict[str, Any], key, name=None, required=False) -> Optional[UUID]:
     '''
-    Given a dict, get a sample ID from the dict if it exists, using the key 'id'.
+    Given a dict, get a sample ID from the dict if it exists.
 
     If None or an empty dict is passed to the method, None is returned.
 
-    :param obj: The dict wherein the ID can be found.
-    :param required: If no ID is present, throw an exception.
-    :returns: The ID, if it exists, or None.
-    :raises MissingParameterError: If the ID is required but not present.
-    :raises IllegalParameterError: If the ID is provided but is invalid.
+    :param obj: the dict wherein the ID can be found.
+    :param key: the key in the dict for the ID value.
+    :param name: the name of the ID to use in an exception, defaulting to the key.
+    :param required: if no ID is present, throw an exception.
+    :returns: the ID, if it exists, or None.
+    :raises MissingParameterError: if the ID is required but not present.
+    :raises IllegalParameterError: if the ID is provided but is invalid.
     '''
     id_ = None
-    if required and (not obj or not obj.get(ID)):
-        raise _MissingParameterError('Sample ID')
-    if obj and obj.get(ID):
-        if type(obj[ID]) != str:
-            raise _IllegalParameterError(f'Sample ID {obj[ID]} must be a UUID string')
+    _check_string(key, 'key')
+    name = name if name else key
+    if required and (not obj or not obj.get(key)):
+        raise _MissingParameterError(name)
+    if obj and obj.get(key):
+        if type(obj[key]) != str:
+            raise _IllegalParameterError(f'{name} {obj[key]} must be a UUID string')
         try:
-            id_ = UUID(obj[ID])
+            id_ = UUID(obj[key])
         except ValueError as _:  # noqa F841
-            raise _IllegalParameterError(f'Sample ID {obj[ID]} must be a UUID string')
+            raise _IllegalParameterError(f'{name} {obj[key]} must be a UUID string')
     return id_
 
 
@@ -176,7 +180,7 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
             raise _IllegalParameterError(
                 f'Error for node at index {i}: ' + _cast(str, e.message)) from e
 
-    id_ = get_id_from_object(s)
+    id_ = get_id_from_object(s, ID, name='sample.id')
 
     pv = params.get('prior_version')
     if pv is not None and type(pv) != int:
@@ -248,7 +252,7 @@ def get_sample_address_from_object(
     :raises IllegalParameterError: if the ID is malformed or if the version is not an
         integer or < 1.
     '''
-    return (_cast(UUID, get_id_from_object(params, required=True)),
+    return (_cast(UUID, get_id_from_object(params, ID, required=True)),
             get_version_from_object(params, version_required))
 
 
@@ -259,7 +263,7 @@ def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
     :param sample: The sample to convert.
     :return: The sample as a dict.
     '''
-    nodes = [{'id': n.name,
+    nodes = [{ID: n.name,
               'type': n.type.value,
               'parent': n.parent,
               'meta_controlled': _unfreeze_meta(n.controlled_metadata),
@@ -431,7 +435,7 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
     _check_params(params)
     sna = SampleNodeAddress(
         _SampleAddress(
-            _cast(UUID, get_id_from_object(params, required=True)),
+            _cast(UUID, get_id_from_object(params, ID, required=True)),
             _cast(int, get_version_from_object(params, required=True))),
         _cast(str, _check_string_int(params, 'node', True))
     )

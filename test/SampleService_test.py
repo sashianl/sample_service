@@ -976,7 +976,7 @@ def test_get_sample_fail_bad_id(sample_port):
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
         'Sample service error code 30001 Illegal input parameter: ' +
-        f'Sample ID {id_[:-1]} must be a UUID string')
+        f'id {id_[:-1]} must be a UUID string')
 
 
 def test_get_sample_fail_permissions(sample_port):
@@ -1299,7 +1299,7 @@ def test_get_acls_fail_no_id(sample_port):
     })
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
-        'Sample service error code 30000 Missing input parameter: Sample ID')
+        'Sample service error code 30000 Missing input parameter: id')
 
 
 def test_get_acls_fail_permissions(sample_port):
@@ -1375,7 +1375,7 @@ def test_replace_acls_fail_no_id(sample_port):
     })
     assert ret.status_code == 500
     assert ret.json()['error']['message'] == (
-        'Sample service error code 30000 Missing input parameter: Sample ID')
+        'Sample service error code 30000 Missing input parameter: id')
 
 
 def test_replace_acls_fail_bad_acls(sample_port):
@@ -2154,7 +2154,7 @@ def test_create_link_fail(sample_port, workspace):
 
     _create_link_fail(
         sample_port, TOKEN3, {'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'},
-        'Sample service error code 30000 Missing input parameter: Sample ID')
+        'Sample service error code 30000 Missing input parameter: id')
     _create_link_fail(
         sample_port, TOKEN3, {'id': id_, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'},
         'Sample service error code 30000 Missing input parameter: version')
@@ -2259,7 +2259,7 @@ def test_get_links_from_sample_fail(sample_port):
 
     _get_link_from_sample_fail(
         sample_port, TOKEN3, {},
-        'Sample service error code 30000 Missing input parameter: Sample ID')
+        'Sample service error code 30000 Missing input parameter: id')
     _get_link_from_sample_fail(
         sample_port, TOKEN3, {'id': id_},
         'Sample service error code 30000 Missing input parameter: version')
@@ -3247,7 +3247,7 @@ def test_get_sample_via_data_fail(sample_port, workspace):
         'Sample service error code 30000 Missing input parameter: upa')
     _get_sample_via_data_fail(
         sample_port, TOKEN3, {'upa': '1/1/1'},
-        'Sample service error code 30000 Missing input parameter: Sample ID')
+        'Sample service error code 30000 Missing input parameter: id')
     _get_sample_via_data_fail(
         sample_port, TOKEN3, {'upa': '1/1/1', 'id': id1},
         'Sample service error code 30000 Missing input parameter: version')
