@@ -43,7 +43,6 @@ class KafkaNotifier:
     # Currently messages can be lost if the service goes down between DB modification and
     # message send. To make this more robust, we could add a flag to DB records to note that
     # messages have / not been sent, and on startup check for unsent messages.
-    # TODO KAFKA document the above.
 
     # TODO KAFKA api method to resend messages by sample/link ID and by created/expired stamps.
     # TODO KAFKA admin api method to get a link by ID.
