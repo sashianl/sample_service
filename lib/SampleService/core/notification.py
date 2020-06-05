@@ -43,7 +43,6 @@ class KafkaNotifier:
     # messages have / not been sent, and on startup check for unsent messages.
 
     # TODO KAFKA api method to resend messages by sample/link ID and by created/expired stamps.
-    # TODO KAFKA admin api method to get a link by ID.
 
     # The confluent client is the other option here, but it is strictly asynchronous, and
     # so when throwing exceptions, there is no way to guarantee the exception is thrown in
