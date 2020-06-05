@@ -38,8 +38,6 @@ class KafkaNotifier:
     # may need to extract an interface if we want to make other notifiers. This seems unlikely
     # so YAGNI.
 
-    # TODO KAFKA document message structure syntax & semantics.
-
     # Currently messages can be lost if the service goes down between DB modification and
     # message send. To make this more robust, we could add a flag to DB records to note that
     # messages have / not been sent, and on startup check for unsent messages.

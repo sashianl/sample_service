@@ -53,7 +53,45 @@ You may find the answers to your questions in our [FAQ](https://kbase.github.io/
 
 The server has several startup parameters beyond the standard SDK-provided parameters
 that must be configured in the Catalog Service by a Catalog Service administrator in order
-for the service to run. These are documented in the `deploy.cfg` file. 
+for the service to run. These are documented in the `deploy.cfg` file.
+
+## Kafka Notification
+
+The server may be configured to send notifications on events to Kafka - see the `deploy.cfg` file
+for information. The events and their respective JSON message formats are:
+
+### New sample or sample version
+
+```
+{'event_type': 'NEW_SAMPLE',
+ 'sample_id': <sample ID>,
+ 'sample_ver': <sample version>
+ }
+```
+
+### Sample ACL change
+
+```
+{'event_type': 'ACL_CHANGE',
+ 'sample_id': <sample ID>
+ }
+```
+
+### New data link
+
+```
+{'event_type': 'NEW_LINK',
+ 'link_id': <link ID>
+ }
+```
+
+### Expired data link
+
+```
+{'event_type': 'EXPIRED_LINK',
+ 'link_id': <link ID>
+ }
+```
 
 # API Error codes
 
