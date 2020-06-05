@@ -486,18 +486,18 @@ def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
     :returns: the list of dicts.
     '''
     ret = []
-    for l in _cast(List[DataLink], _not_falsy_in_iterable(links, 'links')):
-        ex = datetime_to_epochmilliseconds(l.expired) if l.expired else None
+    for link in _cast(List[DataLink], _not_falsy_in_iterable(links, 'links')):
+        ex = datetime_to_epochmilliseconds(link.expired) if link.expired else None
         ret.append({
-            # don't provide link ID for now
-            'upa': str(l.duid.upa),
-            'dataid': l.duid.dataid,
-            'id': str(l.sample_node_address.sampleid),
-            'version': l.sample_node_address.version,
-            'node': l.sample_node_address.node,
-            'createdby': str(l.created_by),
-            'created': datetime_to_epochmilliseconds(l.created),
-            'expiredby': str(l.expired_by) if l.expired_by else None,
+            'linkid': str(link.id),
+            'upa': str(link.duid.upa),
+            'dataid': link.duid.dataid,
+            'id': str(link.sample_node_address.sampleid),
+            'version': link.sample_node_address.version,
+            'node': link.sample_node_address.node,
+            'createdby': str(link.created_by),
+            'created': datetime_to_epochmilliseconds(link.created),
+            'expiredby': str(link.expired_by) if link.expired_by else None,
             'expired': ex
         })
     return ret

@@ -31,6 +31,11 @@ module SampleService {
     /* A Sample ID. Must be globally unique. Always assigned by the Sample service. */
     typedef string sample_id;
 
+    /* A link ID. Must be globally unique. Always assigned by the Sample service.
+        Typically only of use to service admins.
+     */
+    typedef string link_id;
+
     /* A sample name. Must be less than 255 characters. */
     typedef string sample_name;
 
@@ -273,6 +278,7 @@ module SampleService {
         expired - the time the link was expired, if at all.
      */
     typedef structure {
+        link_id linkid;
         ws_upa upa;
         data_id dataid;
         sample_id id;
