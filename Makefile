@@ -24,10 +24,10 @@ default: compile
 all: compile build build-startup-script build-executable-script build-test-script
 
 compile:
-	# Don't compile server automatically, overwrites fixes to error handling
-	# Temporarily add the next line to the command line args if recompiliation is needed to add
-	# methods.
-	# --pysrvname $(SERVICE_CAPS).$(SERVICE_CAPS)Server \
+# Don't compile server automatically, overwrites fixes to error handling
+# Temporarily add the next line to the command line args if recompiliation is needed to add
+# methods.
+# --pysrvname $(SERVICE_CAPS).$(SERVICE_CAPS)Server \
 	kb-sdk compile $(SPEC_FILE) \
 		--out $(LIB_DIR) \
 		--pyclname $(SERVICE_CAPS).$(SERVICE_CAPS)Client \
@@ -81,11 +81,11 @@ test:
 	bash $(TEST_DIR)/$(TEST_SCRIPT_NAME)
 
 test-sdkless:
-	# TODO flake8 and bandit
-	# TODO check tests run with kb-sdk test - will need to install mongo and update config
+# TODO flake8 and bandit
+# TODO check tests run with kb-sdk test - will need to install mongo and update config
 	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
 	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_DIR)
-	# to print test output immediately: --capture=tee-sys
+# to print test output immediately: --capture=tee-sys
 
 clean:
 	rm -rfv $(LBIN_DIR)

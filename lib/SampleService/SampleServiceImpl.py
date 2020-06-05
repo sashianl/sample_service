@@ -259,7 +259,7 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: acls
         #BEGIN get_sample_acls
-        id_ = _get_id_from_object(params, required=True)
+        id_ = _get_id_from_object(params, 'id', required=True)
         admin = _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
@@ -301,7 +301,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         #BEGIN replace_sample_acls
-        id_ = _get_id_from_object(params, required=True)
+        id_ = _get_id_from_object(params, 'id', required=True)
         acls = _acls_from_dict(params)
         admin = _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
