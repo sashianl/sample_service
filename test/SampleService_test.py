@@ -82,6 +82,8 @@ USER3 = 'user3'
 TOKEN3 = None
 USER4 = 'user4'
 TOKEN4 = None
+USER5 = 'user5'
+TOKEN5 = None
 
 USER_NO_TOKEN1 = 'usernt1'
 USER_NO_TOKEN2 = 'usernt2'
@@ -193,6 +195,7 @@ def auth(mongo):
     global TOKEN2
     global TOKEN3
     global TOKEN4
+    global TOKEN5
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
     auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
@@ -232,6 +235,10 @@ def auth(mongo):
 
     test_utils.create_auth_user(url, USER4, 'display4')
     TOKEN4 = test_utils.create_auth_login_token(url, USER4)
+
+    test_utils.create_auth_user(url, USER5, 'display4')
+    TOKEN5 = test_utils.create_auth_login_token(url, USER5)
+    test_utils.set_custom_roles(url, USER5, ['fulladmin2'])
 
     test_utils.create_auth_user(url, USER_NO_TOKEN1, 'displaynt1')
     test_utils.create_auth_user(url, USER_NO_TOKEN2, 'displaynt2')
@@ -3272,6 +3279,148 @@ def _get_sample_via_data_fail(sample_port, token, params, expected):
     url = f'http://localhost:{sample_port}'
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_sample_via_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [params]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == expected
+
+
+def test_get_data_link(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN4)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN4,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create link
+    lid = _create_link(url, TOKEN4, USER4,
+                       {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+
+    # get link, user 3 has admin read perms
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.get_data_link',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'linkid': lid}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    link = ret.json()['result'][0]
+    created = link.pop('created')
+    assert_ms_epoch_close_to_now(created)
+    assert link == {
+            'linkid': lid,
+            'id': id1,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': 'yay',
+            'createdby': USER4,
+            'expiredby': None,
+            'expired': None
+         }
+
+    # expire link
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.expire_data_link',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'dataid': 'yay'}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    # get link, user 5 has full perms
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN5), json={
+        'method': 'SampleService.get_data_link',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'linkid': lid}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    link = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(link['expired'])
+    del link['expired']
+    assert link == {
+            'linkid': lid,
+            'id': id1,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': 'yay',
+            'created': created,
+            'createdby': USER4,
+            'expiredby': USER4,
+         }
+
+
+def test_get_data_link_fail(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN4)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    # create samples
+    id1 = _create_sample(
+        url,
+        TOKEN4,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+
+    # create link
+    lid = _create_link(url, TOKEN4, USER4,
+                       {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+
+    _get_data_link_fail(
+        sample_port, TOKEN3, {}, 'Sample service error code 30000 Missing input parameter: linkid')
+    _get_data_link_fail(
+        sample_port, TOKEN4, {'linkid': lid},
+        'Sample service error code 20000 Unauthorized: User user4 does not have the necessary ' +
+        'administration privileges to run method get_data_link')
+    oid = uuid.uuid4()
+    _get_data_link_fail(
+        sample_port, TOKEN3, {'linkid': str(oid)},
+        f'Sample service error code 50050 No such data link: {oid}')
+
+
+def _get_data_link_fail(sample_port, token, params, expected):
+    # could make a single method that just takes the service method name to DRY things up a bit
+    url = f'http://localhost:{sample_port}'
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_data_link',
         'version': '1.1',
         'id': '42',
         'params': [params]
