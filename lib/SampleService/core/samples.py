@@ -448,3 +448,16 @@ class Samples:
                 f'There is no link from UPA {upa} to sample {sample_address.sampleid}')
         # can't raise no sample error since a link exists
         return self._storage.get_sample(sample_address.sampleid, sample_address.version)
+
+    def get_data_link_admin(self, link_id: UUID) -> DataLink:
+        '''
+        This method is intended for admin use and should not be exposed in a public API.
+
+        Get a link by its ID. The link may be expired.
+
+        :param link_id: the link ID.
+        :returns: the link.
+        :raises NoSuchLinkError: if the link does not exist.
+        '''
+        # if we expose this to users need to add ACL checking. Don't see a use case ATM.
+        return self._storage.get_data_link(_not_falsy(link_id, 'link_id'))
