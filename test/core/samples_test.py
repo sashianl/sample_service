@@ -1702,3 +1702,45 @@ def _expire_data_link_fail(samples, user, duid, expected):
     with raises(Exception) as got:
         samples.expire_data_link(user, duid)
     assert_exception_correct(got.value, expected)
+
+
+def test_get_data_link_admin():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    sid = UUID('1234567890abcdef1234567890abcdee')
+    storage.get_data_link.return_value = DataLink(
+        UUID('1234567890abcdef1234567890abcde1'),
+        DataUnitID(UPA('6/1/2')),
+        SampleNodeAddress(SampleAddress(sid, 3), 'node'),
+        dt(34),
+        UserID('userc')
+    )
+
+    assert s.get_data_link_admin(UUID('1234567890abcdef1234567890abcde1')) == DataLink(
+        UUID('1234567890abcdef1234567890abcde1'),
+        DataUnitID(UPA('6/1/2')),
+        SampleNodeAddress(SampleAddress(sid, 3), 'node'),
+        dt(34),
+        UserID('userc'))
+
+    storage.get_data_link.assert_called_once_with(UUID('1234567890abcdef1234567890abcde1'))
+
+
+def test_get_data_link_fail_bad_args():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, now=nw)
+
+    _get_data_link_fail(s, None, ValueError('link_id cannot be a value that evaluates to false'))
+
+
+def _get_data_link_fail(samples, linkid, expected):
+    with raises(Exception) as got:
+        samples.get_data_link_admin(linkid)
+    assert_exception_correct(got.value, expected)
