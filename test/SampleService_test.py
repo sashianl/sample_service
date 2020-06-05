@@ -1583,6 +1583,9 @@ def _create_link(url, token, expected_user, params, print_resp=False):
         print(ret.text)
     assert ret.ok is True
     link = ret.json()['result'][0]['new_link']
+    id_ = link['linkid']
+    uuid.UUID(id_)  # check the ID is a valid UUID
+    del link['linkid']
     created = link['created']
     assert_ms_epoch_close_to_now(created)
     del link['created']
@@ -1596,6 +1599,7 @@ def _create_link(url, token, expected_user, params, print_resp=False):
         'expiredby': None,
         'expired': None
     }
+    return id_
 
 
 def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
@@ -1653,12 +1657,12 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
 
     # create links
     # as_user should be ignored unless as_admin is true
-    _create_link(url, TOKEN3, USER3,
+    lid1 = _create_link(url, TOKEN3, USER3,
                  {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2', 'as_user': USER1})
-    _create_link(
+    lid2 = _create_link(
         url, TOKEN3, USER3,
         {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
-    _create_link(
+    lid3 = _create_link(
         url, TOKEN4, USER4,
         {'id': id2, 'version': 1, 'node': 'foo2', 'upa': '1/2/1', 'dataid': 'column2'})
 
@@ -1678,6 +1682,7 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
+            'linkid': lid1,
             'id': id1,
             'version': 1,
             'node': 'foo',
@@ -1688,6 +1693,7 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
             'expired': None
          },
         {
+            'linkid': lid2,
             'id': id1,
             'version': 1,
             'node': 'root',
@@ -1725,6 +1731,7 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace):
     del res[0]['created']
     assert res == [
         {
+            'linkid': lid3,
             'id': id2,
             'version': 1,
             'node': 'foo2',
@@ -1781,22 +1788,22 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
     _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(url, TOKEN3, USER3,
+    lid1 = _create_link(url, TOKEN3, USER3,
                  {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     oldlinkactive = datetime.datetime.now()
     time.sleep(1)
 
     # update link node
-    _create_link(
+    lid2 = _create_link(
         url,
         TOKEN4,
         USER4,
-            {'id': id1,
-             'version': 1,
-             'node': 'root',
-             'upa': '1/1/1',
-             'dataid': 'yay',
+        {'id': id1,
+         'version': 1,
+         'node': 'root',
+         'upa': '1/1/1',
+         'dataid': 'yay',
          'update': 1})
 
     # get current link
@@ -1819,6 +1826,7 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
     del res['links'][0]['created']
     assert res == {'links': [
         {
+            'linkid': lid2,
             'id': id1,
             'version': 1,
             'node': 'root',
@@ -1853,6 +1861,7 @@ def test_update_and_get_links_from_sample(sample_port, workspace):
         'effective_time': round(oldlinkactive.timestamp() * 1000),
         'links': [
             {
+                'linkid': lid1,
                 'id': id1,
                 'version': 1,
                 'node': 'foo',
@@ -1889,7 +1898,7 @@ def test_create_data_link_as_admin(sample_port, workspace):
         )
 
     # create links
-    _create_link(
+    lid1 = _create_link(
         url,
         TOKEN2,
         USER2,
@@ -1899,7 +1908,7 @@ def test_create_data_link_as_admin(sample_port, workspace):
          'upa': '1/1/1',
          'dataid': 'yeet',
          'as_admin': 1})
-    _create_link(
+    lid2 = _create_link(
         url,
         TOKEN2,
         USER4,
@@ -1926,6 +1935,7 @@ def test_create_data_link_as_admin(sample_port, workspace):
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
+            'linkid': lid1,
             'id': id1,
             'version': 1,
             'node': 'root',
@@ -1936,6 +1946,7 @@ def test_create_data_link_as_admin(sample_port, workspace):
             'expired': None
          },
         {
+            'linkid': lid2,
             'id': id1,
             'version': 1,
             'node': 'foo',
@@ -1993,11 +2004,14 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
     _replace_acls(url, id_, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(url, TOKEN3, USER3, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
-    _create_link(url, TOKEN4, USER4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '2/1/1'})
-    _create_link(url, TOKEN4, USER4,
-                 {'id': id_, 'version': 1, 'node': 'foo', 'upa': '3/1/1', 'dataid': 'whee'})
-    _create_link(url, TOKEN4, USER4,  {'id': id_, 'version': 1, 'node': 'foo', 'upa': '4/1/1'})
+    lid1 = _create_link(
+        url, TOKEN3, USER3, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    lid2 = _create_link(
+        url, TOKEN4, USER4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '2/1/1'})
+    lid3 = _create_link(url, TOKEN4, USER4,
+                        {'id': id_, 'version': 1, 'node': 'foo', 'upa': '3/1/1', 'dataid': 'whee'})
+    _create_link(
+        url, TOKEN4, USER4,  {'id': id_, 'version': 1, 'node': 'foo', 'upa': '4/1/1'})
 
     # check correct links are returned
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2015,6 +2029,7 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
+            'linkid': lid1,
             'id': id_,
             'version': 1,
             'node': 'foo',
@@ -2025,6 +2040,7 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
             'expired': None
          },
         {
+            'linkid': lid2,
             'id': id_,
             'version': 1,
             'node': 'foo',
@@ -2035,6 +2051,7 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
             'expired': None
          },
         {
+            'linkid': lid3,
             'id': id_,
             'version': 1,
             'node': 'foo',
@@ -2070,7 +2087,7 @@ def test_get_links_from_sample_as_admin(sample_port, workspace):
     id_ = _create_generic_sample(url, TOKEN4)
 
     # create links
-    _create_link(url, TOKEN4, USER4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    lid = _create_link(url, TOKEN4, USER4, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
 
     # check correct links are returned, user 3 has read admin perms, but not full
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2091,6 +2108,7 @@ def test_get_links_from_sample_as_admin(sample_port, workspace):
     del link['created']
 
     assert link == {
+            'linkid': lid,
             'id': id_,
             'version': 1,
             'node': 'foo',
@@ -2290,10 +2308,10 @@ def _expire_data_link(sample_port, workspace, dataid):
     _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(url, TOKEN3, USER3,
-                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': dataid})
-    _create_link(url, TOKEN3, USER3,
-                 {'id': id1, 'version': 1, 'node': 'bar', 'upa': '1/1/1', 'dataid': 'fake'})
+    lid1 = _create_link(url, TOKEN3, USER3,
+                        {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': dataid})
+    lid2 = _create_link(url, TOKEN3, USER3,
+                        {'id': id1, 'version': 1, 'node': 'bar', 'upa': '1/1/1', 'dataid': 'fake'})
 
     time.sleep(1)  # need to be able to set a resonable effective time to fetch links
 
@@ -2333,6 +2351,7 @@ def _expire_data_link(sample_port, workspace, dataid):
     del expired_link['expired']
 
     assert expired_link == {
+            'linkid': lid1,
             'id': id1,
             'version': 1,
             'node': 'foo',
@@ -2346,6 +2365,7 @@ def _expire_data_link(sample_port, workspace, dataid):
     del current_link['created']
 
     assert current_link == {
+            'linkid': lid2,
             'id': id1,
             'version': 1,
             'node': 'bar',
@@ -2391,8 +2411,8 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
         )
 
     # create links
-    _create_link(url, TOKEN3, USER3,
-                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'duidy'})
+    lid = _create_link(url, TOKEN3, USER3,
+                       {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'duidy'})
 
     time.sleep(1)  # need to be able to set a resonable effective time to fetch links
 
@@ -2428,6 +2448,7 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user):
     del link['expired']
 
     assert link == {
+            'linkid': lid,
             'id': id1,
             'version': 1,
             'node': 'foo',
@@ -2582,11 +2603,12 @@ def test_get_links_from_data(sample_port, workspace):
         )
 
     # create links
-    _create_link(url, TOKEN3, USER3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2'})
-    _create_link(
+    lid1 = _create_link(
+        url, TOKEN3, USER3, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/2/2'})
+    lid2 = _create_link(
         url, TOKEN4, USER4,
         {'id': id2, 'version': 1, 'node': 'root2', 'upa': '1/1/1', 'dataid': 'column1'})
-    _create_link(
+    lid3 = _create_link(
         url, TOKEN4, USER4,
         {'id': id2, 'version': 2, 'node': 'foo3', 'upa': '1/2/2', 'dataid': 'column2'})
 
@@ -2606,6 +2628,7 @@ def test_get_links_from_data(sample_port, workspace):
     res = ret.json()['result'][0]['links']
     expected_links = [
         {
+            'linkid': lid1,
             'id': id1,
             'version': 1,
             'node': 'foo',
@@ -2616,6 +2639,7 @@ def test_get_links_from_data(sample_port, workspace):
             'expired': None
          },
         {
+            'linkid': lid3,
             'id': id2,
             'version': 2,
             'node': 'foo3',
@@ -2653,6 +2677,7 @@ def test_get_links_from_data(sample_port, workspace):
     del res[0]['created']
     assert res == [
         {
+            'linkid': lid2,
             'id': id2,
             'version': 1,
             'node': 'root2',
@@ -2705,14 +2730,14 @@ def test_get_links_from_data_expired(sample_port, workspace):
     _replace_acls(url, id1, TOKEN3, {'admin': [USER4]})
 
     # create links
-    _create_link(url, TOKEN3, USER3,
-                 {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
+    lid1 = _create_link(url, TOKEN3, USER3,
+                        {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1', 'dataid': 'yay'})
 
     oldlinkactive = datetime.datetime.now()
     time.sleep(1)
 
     # update link node
-    _create_link(url, TOKEN4, USER4, {
+    lid2 = _create_link(url, TOKEN4, USER4, {
         'id': id1,
         'version': 1,
         'node': 'root',
@@ -2741,6 +2766,7 @@ def test_get_links_from_data_expired(sample_port, workspace):
     del res['links'][0]['created']
     assert res == {'links': [
         {
+            'linkid': lid2,
             'id': id1,
             'version': 1,
             'node': 'root',
@@ -2774,6 +2800,7 @@ def test_get_links_from_data_expired(sample_port, workspace):
         'effective_time': round(oldlinkactive.timestamp() * 1000),
         'links': [
             {
+                'linkid': lid1,
                 'id': id1,
                 'version': 1,
                 'node': 'foo',
@@ -2810,7 +2837,7 @@ def test_get_links_from_data_as_admin(sample_port, workspace):
         )
 
     # create links
-    _create_link(url, TOKEN4, USER4, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+    lid = _create_link(url, TOKEN4, USER4, {'id': id1, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
 
     # get links from object, user 3 has admin read perms
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2830,6 +2857,7 @@ def test_get_links_from_data_as_admin(sample_port, workspace):
     assert_ms_epoch_close_to_now(link['created'])
     del link['created']
     assert link == {
+            'linkid': lid,
             'id': id1,
             'version': 1,
             'node': 'foo',

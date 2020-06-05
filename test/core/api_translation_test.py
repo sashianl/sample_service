@@ -519,14 +519,14 @@ def test_check_admin():
     f = AdminPermission.FULL
     r = AdminPermission.READ
     _check_admin(f, f, 'user1', 'somemethod', None,
-                 f'User user1 is running method somemethod with administration permission FULL')
+                 'User user1 is running method somemethod with administration permission FULL')
     _check_admin(f, f, 'user1', 'somemethod', UserID('otheruser'),
-                 f'User user1 is running method somemethod with administration permission FULL ' +
+                 'User user1 is running method somemethod with administration permission FULL ' +
                  'as user otheruser')
     _check_admin(f, r, 'someuser', 'a_method', None,
-                 f'User someuser is running method a_method with administration permission FULL')
+                 'User someuser is running method a_method with administration permission FULL')
     _check_admin(r, r, 'user2', 'm', None,
-                 f'User user2 is running method m with administration permission READ')
+                 'User user2 is running method m with administration permission READ')
 
 
 def _check_admin(perm, permreq, user, method, as_user, expected_log):
@@ -850,6 +850,7 @@ def test_links_to_dicts():
     ]
     assert links_to_dicts(links) == [
         {
+            'linkid': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
             'upa': '1/2/3',
             'dataid': 'foo',
             'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41f',
@@ -861,6 +862,7 @@ def test_links_to_dicts():
             'expiredby': 'userb'
             },
         {
+            'linkid': 'f5bd78c3-823e-40b2-9f93-20e78680e41a',
             'upa': '4/9/10',
             'dataid': None,
             'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41b',
