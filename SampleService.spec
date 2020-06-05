@@ -419,4 +419,16 @@ module SampleService {
     funcdef get_sample_via_data(GetSampleViaDataParams params) returns(Sample sample)
         authentication required;
 
+    /* get_data_link parameters.
+
+        linkid - the link ID.
+     */
+    typedef structure {
+        link_id linkid;
+    } GetDataLinkParams;
+
+    /* Get a link, expired or not, by its ID. This method requires read administration privileges
+       for the service.
+     */
+    funcdef get_data_link(GetDataLinkParams params) returns(DataLink link) authentication required;
 };
