@@ -3675,6 +3675,10 @@ def test_kafka_notifier_init_fail():
         IllegalParameterError('topic exceeds maximum length of 249'))
     _kafka_notifier_init_fail(f'localhost:{find_free_port()}', 'mytopic', NoBrokersAvailable())
 
+    for c in ['Ѽ', '_', '.', '*']:
+        _kafka_notifier_init_fail('localhost:10000', f'topic{c}topic', ValueError(
+            f'Illegal character in Kafka topic topic{c}topic: {c}'))
+
 
 def _kafka_notifier_init_fail(servers, topic, expected):
     with raises(Exception) as got:
@@ -3683,7 +3687,8 @@ def _kafka_notifier_init_fail(servers, topic, expected):
 
 
 def test_kafka_notifier_new_sample(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic' + 242 * 'a')
+    topic = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-' + 186 * 'a'
+    kn = KafkaNotifier(f'localhost:{kafka.port}', topic)
     try:
         id_ = uuid.uuid4()
 
@@ -3692,7 +3697,7 @@ def test_kafka_notifier_new_sample(sample_port, kafka):
         _check_kafka_messages(
             kafka,
             [{'event_type': 'NEW_SAMPLE', 'sample_id': str(id_), 'sample_ver': 6}],
-            'mytopic' + 242 * 'a')
+            topic)
     finally:
         kn.close()
 

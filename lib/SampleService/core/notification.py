@@ -3,8 +3,10 @@ Contains code for Sample Service notifications to other services, primarily Kafk
 """
 
 import json as _json
+import re as _re
 
 from uuid import UUID
+from typing import cast as _cast
 
 from kafka import KafkaProducer as _KafkaProducer
 
@@ -42,7 +44,7 @@ class KafkaNotifier:
     # message send. To make this more robust, we could add a flag to DB records to note that
     # messages have / not been sent, and on startup check for unsent messages.
 
-    # TODO KAFKA api method to resend messages by sample/link ID and by created/expired stamps.
+    # TODO KAFKA CLI to resend messages by sample/link ID and by created/expired stamps.
 
     # The confluent client is the other option here, but it is strictly asynchronous, and
     # so when throwing exceptions, there is no way to guarantee the exception is thrown in
@@ -62,6 +64,8 @@ class KafkaNotifier:
     _NEW_LINK = 'NEW_LINK'
     _EXPIRED_LINK = 'EXPIRED_LINK'
 
+    _KAFKA_TOPIC_ILLEGAL_CHARS_RE = _re.compile('[^a-zA-Z0-9-]+')
+
     def __init__(self, bootstrap_servers: str, topic: str):
         """
         Create the notifier.
@@ -73,7 +77,9 @@ class KafkaNotifier:
         """
         _check_string(bootstrap_servers, 'bootstrap_servers')
         self._topic = _check_string(topic, 'topic', max_len=249)
-        # TODO KAFKA check for bad characters in topic
+        match = self._KAFKA_TOPIC_ILLEGAL_CHARS_RE.search(_cast(str, self._topic))
+        if match:
+            raise ValueError(f'Illegal character in Kafka topic {self._topic}: {match.group()}')
 
         # TODO LATER KAFKA support delivery.timeout.ms when the client supports it
         # https://github.com/dpkp/kafka-python/issues/1723
