@@ -55,7 +55,7 @@ def test_config_get_validators(temp_dir):
     cfg = {
         'validators': {
             'key1': {'validators': [{'module': 'core.config_test_vals',
-                                     'callable-builder': 'val1'  # TODO SCHEMA switch to _
+                                     'callable_builder': 'val1'
                                      }],
                      'key_metadata': {'a': 'b', 'c': 1.56}
                      },
@@ -229,13 +229,10 @@ def _config_get_validators_fail_bad_params(temp_dir, key_):
         {key_: {'key': {'validators': [{'module': 'foo'}]}}}, temp_dir,
         ValidationError("'callable_builder' is a required property"))
     _config_get_validators_fail(
-        {key_: {'key': {'validators': [{'module': 'foo',
-                                        'callable_builder': 'baz',
-                                        'callable-builder': 'bar'}]}}},
+        {key_: {'key': {'validators': [{'module': 'foo', 'callable-builder': 'bar'}]}}},
         temp_dir,
         ValidationError(
-            "{'callable-builder': 'bar', 'callable_builder': 'baz', 'module': 'foo'} is valid " +
-            "under each of {'required': ['callable-builder']}, {'required': ['callable_builder']}"))
+            "Additional properties are not allowed ('callable-builder' was unexpected)"))
     _config_get_validators_fail(
         {key_: {'key': {'validators': [{'module': 'foo',
                                         'callable_builder': 'bar',

@@ -129,16 +129,16 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port, kafka_port):
     metacfg = {
         'validators': {
             'foo': {'validators': [{'module': 'SampleService.core.validator.builtin',
-                                    'callable-builder': 'noop'
+                                    'callable_builder': 'noop'
                                     }],
                     'key_metadata': {'a': 'b', 'c': 'd'}
                     },
             'stringlentest': {'validators': [{'module': 'SampleService.core.validator.builtin',
-                                              'callable-builder': 'string',
+                                              'callable_builder': 'string',
                                               'parameters': {'max-len': 5}
                                               },
                                              {'module': 'SampleService.core.validator.builtin',
-                                              'callable-builder': 'string',
+                                              'callable_builder': 'string',
                                               'parameters': {'keys': 'spcky', 'max-len': 2}
                                               }],
                               'key_metadata': {'h': 'i', 'j': 'k'}
@@ -146,7 +146,7 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port, kafka_port):
         },
         'prefix_validators': {
             'pre': {'validators': [{'module': 'core.config_test_vals',
-                                    'callable-builder': 'prefix_validator_test_builder',
+                                    'callable_builder': 'prefix_validator_test_builder',
                                     'parameters': {'fail_on_arg': 'fail_plz'}
                                     }],
                     'key_metadata': {'1': '2'}
