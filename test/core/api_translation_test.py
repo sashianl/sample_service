@@ -459,7 +459,7 @@ def test_sample_to_dict_fail():
 
 
 def test_acls_to_dict_minimal():
-    assert acls_to_dict(SampleACL(UserID('user'))) == {
+    assert acls_to_dict(SampleACL(UserID('user'), dt(1))) == {
         'owner': 'user',
         'admin': (),
         'write': (),
@@ -471,6 +471,7 @@ def test_acls_to_dict_maximal():
     assert acls_to_dict(
         SampleACL(
             UserID('user'),
+            dt(1),
             [UserID('foo'), UserID('bar')],
             [UserID('baz')],
             [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')])) == {

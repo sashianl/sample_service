@@ -81,7 +81,7 @@ def test_sample_node_build_fail_metadata():
 
     _sample_node_build_fail_metadata(
         {'wh\tee': {}},
-        f"{{}} metadata key wh\tee's character at index 2 is a control character.")
+        "{} metadata key wh\tee's character at index 2 is a control character.")
 
     _sample_node_build_fail_metadata(
         {'bat': {'a' * 255 + 'ff': 'whee'}},
@@ -90,12 +90,12 @@ def test_sample_node_build_fail_metadata():
 
     _sample_node_build_fail_metadata(
         {'wugga': {'wh\tee': {}}},
-        f"{{}} metadata value key wh\tee under key wugga's character at index 2 is a " +
+        "{} metadata value key wh\tee under key wugga's character at index 2 is a " +
         "control character.")
 
     _sample_node_build_fail_metadata(
         {'bat': {'whee': 'a' * 255 + 'f' * 770}},
-        f"{{}} metadata has value under root key bat and value key whee starting with " +
+        "{} metadata has value under root key bat and value key whee starting with " +
         f"{'a' * 255 + 'f'} that exceeds maximum length of 1024")
 
     _sample_node_build_fail_metadata(
