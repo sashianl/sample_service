@@ -1,3 +1,5 @@
+import datetime
+
 from pytest import raises
 
 from SampleService.core.acls import SampleACL, SampleACLOwnerless
@@ -8,6 +10,10 @@ from SampleService.core.user import UserID
 
 def u(user):
     return UserID(user)
+
+
+def dt(t):
+    return datetime.datetime.fromtimestamp(t, tz=datetime.timezone.utc)
 
 
 def test_build_ownerless():
@@ -82,77 +88,87 @@ def test_hash_ownerless():
 
 
 def test_build():
-    a = SampleACL(u('foo'))
+    a = SampleACL(u('foo'), dt(30))
     assert a.owner == u('foo')
+    assert a.lastupdate == dt(30)
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
 
     a = SampleACL(
         u('foo'),
+        dt(-56),
         [u('baz'), u('bat'), u('baz')],
         read=[u('wheee'), u('wheee')],
         write=[u('wugga'), u('a'), u('b'), u('wugga')])
     assert a.owner == u('foo')
+    assert a.lastupdate == dt(-56)
     assert a.admin == (u('baz'), u('bat'))
     assert a.write == (u('wugga'), u('a'), u('b'))
     assert a.read == (u('wheee'),)
 
 
 def test_build_fail():
-    _build_fail(None, None, None, None, ValueError(
+    t = dt(1)
+    _build_fail(None, t, None, None, None, ValueError(
         'owner cannot be a value that evaluates to false'))
-    _build_fail(u('foo'), [u('a'), None], None, None, ValueError(
+    _build_fail(u('f'), None, None, None, None, ValueError(
+        'lastupdate cannot be a value that evaluates to false'))
+    _build_fail(u('f'), datetime.datetime.fromtimestamp(1), None, None, None, ValueError(
+        'lastupdate cannot be a naive datetime'))
+    _build_fail(u('foo'), t, [u('a'), None], None, None, ValueError(
         'Index 1 of iterable admin cannot be a value that evaluates to false'))
-    _build_fail(u('foo'), None, [None, None], None, ValueError(
+    _build_fail(u('foo'), t, None, [None, None], None, ValueError(
         'Index 0 of iterable write cannot be a value that evaluates to false'))
-    _build_fail(u('foo'), None, None, [u('a'), u('b'), None], ValueError(
+    _build_fail(u('foo'), t, None, None, [u('a'), u('b'), None], ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
 
     # test that you cannot have an owner in another ACL
     _build_fail(
-        u('foo'), [u('c'), u('d'), u('foo')], None, [u('a'), u('b'), u('x')],
+        u('foo'), t, [u('c'), u('d'), u('foo')], None, [u('a'), u('b'), u('x')],
         IllegalParameterError('The owner cannot be in any other ACL'))
     _build_fail(
-        u('foo'), None, [u('a'), u('b'), u('foo')], [u('x')],
+        u('foo'), t, None, [u('a'), u('b'), u('foo')], [u('x')],
         IllegalParameterError('The owner cannot be in any other ACL'))
     _build_fail(
-        u('foo'), [u('y')], None, [u('a'), u('b'), u('foo')],
+        u('foo'), t, [u('y')], None, [u('a'), u('b'), u('foo')],
         IllegalParameterError('The owner cannot be in any other ACL'))
 
     # test that you cannot have a user in 2 acls
     _build_fail(
-        u('foo'), [u('a'), u('z')], [u('a'), u('c')], [u('w'), u('b')],
+        u('foo'), t, [u('a'), u('z')], [u('a'), u('c')], [u('w'), u('b')],
         IllegalParameterError('User a appears in two ACLs'))
     _build_fail(
-        u('foo'), [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('a')],
+        u('foo'), t, [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('a')],
         IllegalParameterError('User a appears in two ACLs'))
     _build_fail(
-        u('foo'), [u('x'), u('z')], [u('b'), u('c'), u('w')], [u('w'), u('a')],
+        u('foo'), t, [u('x'), u('z')], [u('b'), u('c'), u('w')], [u('w'), u('a')],
         IllegalParameterError('User w appears in two ACLs'))
 
 
-def _build_fail(owner, admin, write, read, expected):
+def _build_fail(owner, lastchanged, admin, write, read, expected):
     with raises(Exception) as got:
-        SampleACL(owner, admin, write, read)
+        SampleACL(owner, lastchanged, admin, write, read)
     assert_exception_correct(got.value, expected)
 
 
 def test_eq():
-    assert SampleACL(u('foo')) == SampleACL(u('foo'))
-    assert SampleACL(u('foo')) != SampleACL(u('bar'))
+    t = dt(3)
+    assert SampleACL(u('foo'), t) == SampleACL(u('foo'), t)
+    assert SampleACL(u('foo'), t) != SampleACL(u('bar'), t)
+    assert SampleACL(u('foo'), t) != SampleACL(u('foo'), dt(7))
 
-    assert SampleACL(u('foo'), [u('bar')]) == SampleACL(u('foo'), [u('bar')])
-    assert SampleACL(u('foo'), [u('bar')]) != SampleACL(u('foo'), [u('baz')])
+    assert SampleACL(u('foo'), t, [u('bar')]) == SampleACL(u('foo'), t, [u('bar')])
+    assert SampleACL(u('foo'), t, [u('bar')]) != SampleACL(u('foo'), t, [u('baz')])
 
-    assert SampleACL(u('foo'), write=[u('bar')]) == SampleACL(u('foo'), write=[u('bar')])
-    assert SampleACL(u('foo'), write=[u('bar')]) != SampleACL(u('foo'), write=[u('baz')])
+    assert SampleACL(u('foo'), t, write=[u('bar')]) == SampleACL(u('foo'), t, write=[u('bar')])
+    assert SampleACL(u('foo'), t, write=[u('bar')]) != SampleACL(u('foo'), t, write=[u('baz')])
 
-    assert SampleACL(u('foo'), read=[u('bar')]) == SampleACL(u('foo'), read=[u('bar')])
-    assert SampleACL(u('foo'), read=[u('bar')]) != SampleACL(u('foo'), read=[u('baz')])
+    assert SampleACL(u('foo'), t, read=[u('bar')]) == SampleACL(u('foo'), t, read=[u('bar')])
+    assert SampleACL(u('foo'), t, read=[u('bar')]) != SampleACL(u('foo'), t, read=[u('baz')])
 
-    assert SampleACL(u('foo')) != 1
-    assert u('foo') != SampleACL(u('foo'))
+    assert SampleACL(u('foo'), t) != 1
+    assert u('foo') != SampleACL(u('foo'), t)
 
 
 def test_hash():
@@ -160,17 +176,22 @@ def test_hash():
     # tests can't be written that directly test the hash value. See
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
 
-    assert hash(SampleACL(u('foo'))) == hash(SampleACL(u('foo')))
-    assert hash(SampleACL(u('bar'))) == hash(SampleACL(u('bar')))
-    assert hash(SampleACL(u('foo'))) != hash(SampleACL(u('bar')))
+    t = dt(56)
 
-    assert hash(SampleACL(u('foo'), [u('bar')])) == hash(SampleACL(u('foo'), [u('bar')]))
-    assert hash(SampleACL(u('foo'), [u('bar')])) != hash(SampleACL(u('foo'), [u('baz')]))
+    assert hash(SampleACL(u('foo'), t)) == hash(SampleACL(u('foo'), t))
+    assert hash(SampleACL(u('bar'), dt(5))) == hash(SampleACL(u('bar'), dt(5)))
+    assert hash(SampleACL(u('foo'), t)) != hash(SampleACL(u('bar'), t))
+    assert hash(SampleACL(u('foo'), t)) != hash(SampleACL(u('foo'), dt(55)))
 
-    assert hash(SampleACL(u('foo'), write=[u('bar')])) == hash(
-        SampleACL(u('foo'), write=[u('bar')]))
-    assert hash(SampleACL(u('foo'), write=[u('bar')])) != hash(
-        SampleACL(u('foo'), write=[u('baz')]))
+    assert hash(SampleACL(u('foo'), t, [u('bar')])) == hash(SampleACL(u('foo'), t, [u('bar')]))
+    assert hash(SampleACL(u('foo'), t, [u('bar')])) != hash(SampleACL(u('foo'), t, [u('baz')]))
 
-    assert hash(SampleACL(u('foo'), read=[u('bar')])) == hash(SampleACL(u('foo'), read=[u('bar')]))
-    assert hash(SampleACL(u('foo'), read=[u('bar')])) != hash(SampleACL(u('foo'), read=[u('baz')]))
+    assert hash(SampleACL(u('foo'), t, write=[u('bar')])) == hash(
+        SampleACL(u('foo'), t, write=[u('bar')]))
+    assert hash(SampleACL(u('foo'), t, write=[u('bar')])) != hash(
+        SampleACL(u('foo'), t, write=[u('baz')]))
+
+    assert hash(SampleACL(u('foo'), t, read=[u('bar')])) == hash(
+        SampleACL(u('foo'), t, read=[u('bar')]))
+    assert hash(SampleACL(u('foo'), t, read=[u('bar')])) != hash(
+        SampleACL(u('foo'), t, read=[u('baz')]))

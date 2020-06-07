@@ -2,11 +2,16 @@
 Classes and methods for working with sample ACLs.
 '''
 
+import datetime
+
 from enum import IntEnum
 
 from typing import Sequence, cast as _cast
-from SampleService.core.arg_checkers import not_falsy as _not_falsy
-from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
+from SampleService.core.arg_checkers import (
+    not_falsy as _not_falsy,
+    not_falsy_in_iterable as _not_falsy_in_iterable,
+    check_timestamp as _check_timestamp
+)
 from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
 from SampleService.core.user import UserID
 
@@ -88,11 +93,13 @@ class SampleACL(SampleACLOwnerless):
     :ivar admin: the list of admin usernames.
     :ivar write: the list of usernames with write privileges.
     :ivar read: the list of usernames with read privileges.
+    :ivar lastupdate: the date the last time the ACLs were updated.
     '''
 
     def __init__(
             self,
             owner: UserID,
+            lastupdate: datetime.datetime,
             admin: Sequence[UserID] = None,
             write: Sequence[UserID] = None,
             read: Sequence[UserID] = None):
@@ -100,12 +107,14 @@ class SampleACL(SampleACLOwnerless):
         Create the ACLs.
 
         :param owner: the owner username.
+        :param lastupdate: the last time the ACLs were updated.
         :param admin: the list of admin usernames.
         :param write: the list of usernames with write privileges.
         :param read: the list of usernames with read privileges.
         :raises IllegalParameterError: If a user appears in more than one ACL
         '''
         self.owner = _not_falsy(owner, 'owner')
+        self.lastupdate = _check_timestamp(lastupdate, 'lastupdate')
         super().__init__(admin, write, read)
         all_ = (self.admin, self.write, self.read)
         for i in range(len(all_)):
@@ -115,10 +124,11 @@ class SampleACL(SampleACLOwnerless):
     def __eq__(self, other):
         if type(other) is type(self):
             return (other.owner == self.owner
+                    and other.lastupdate == self.lastupdate
                     and other.admin == self.admin
                     and other.write == self.write
                     and other.read == self.read)
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.owner, self.admin, self.write, self.read))
+        return hash((self.owner, self.lastupdate, self.admin, self.write, self.read))

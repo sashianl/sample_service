@@ -111,6 +111,7 @@ _VAL_NO_VER = -1
 _FLD_NAME = 'name'
 _FLD_USER = 'user'
 _FLD_SAVE_TIME = 'saved'
+_FLD_ACL_UPDATE_TIME = 'aclupdate'
 
 _FLD_NODE_NAME = 'name'
 _FLD_NODE_TYPE = 'type'
@@ -393,6 +394,7 @@ class ArangoSampleStorage:
                   # yes, this is redundant. It'll match the ver & node collectons though
                   _FLD_ID: str(sample.id),  # TODO test this is saved
                   _FLD_VERSIONS: [str(versionid)],
+                  _FLD_ACL_UPDATE_TIME: sample.savetime.timestamp(),
                   _FLD_ACLS: {_FLD_OWNER: sample.user.id,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
@@ -733,6 +735,7 @@ class ArangoSampleStorage:
         acls = doc[_FLD_ACLS]
         return SampleACL(
             UserID(acls[_FLD_OWNER]),
+            self._timestamp_to_datetime(doc[_FLD_ACL_UPDATE_TIME]),
             [UserID(u) for u in acls[_FLD_ADMIN]],
             [UserID(u) for u in acls[_FLD_WRITE]],
             [UserID(u) for u in acls[_FLD_READ]])
@@ -755,13 +758,16 @@ class ArangoSampleStorage:
         '''
         _not_falsy(id_, 'id_')
         _not_falsy(acls, 'acls')
-
-        # could return a subset of s to save bandwith
+        # Could return a subset of s to save bandwith
+        # This will update the timestamp even for a noop. Maybe that's ok?
+        # Detecting a noop would make the query a lot more complicated. Don't worry about it for
+        # now.
         aql = f'''
             FOR s in @@col
                 FILTER s.{_FLD_ARANGO_KEY} == @id
                 FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
-                UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls)}} IN @@col
+                UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls),
+                                {_FLD_ACL_UPDATE_TIME}: {acls.lastupdate.timestamp()}}} IN @@col
                 RETURN s
             '''
         bind_vars = {'@col': self._col_sample.name,

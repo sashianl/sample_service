@@ -236,7 +236,8 @@ class Samples:
                 raise ValueError(f'Failed setting ACLs after 5 attempts for sample {id_}')
             acls = self._storage.get_sample_acls(id_)
             self._check_perms(id_, user, _SampleAccessType.ADMIN, acls, as_admin=as_admin)
-            new_acls = SampleACL(acls.owner, new_acls.admin, new_acls.write, new_acls.read)
+            new_acls = SampleACL(
+                acls.owner, self._now(), new_acls.admin, new_acls.write, new_acls.read)
             try:
                 self._storage.replace_sample_acls(id_, new_acls)
                 count = -1

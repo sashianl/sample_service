@@ -293,6 +293,7 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
     :param acls: The ACLs to convert.
     :return: the ACLs as a dict.
     '''
+    # don't expose mod time for now, could do later
     return {'owner': _not_falsy(acls, 'acls').owner.id,
             'admin': tuple(u.id for u in acls.admin),
             'write': tuple(u.id for u in acls.write),
