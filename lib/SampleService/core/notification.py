@@ -87,7 +87,8 @@ class KafkaNotifier:
         # See https://kafka.apache.org/documentation/#producerconfigs
         # this will fail if it can't connect
         self._prod = _KafkaProducer(
-            bootstrap_servers=[bootstrap_servers],
+            # can't test multiple servers without a massive PITA
+            bootstrap_servers=bootstrap_servers.split(','),
             acks='all',
             # retries can occur from 100-30000 ms by default. If we allow 300 retries, that means
             # the send can take from 30s to 150m. Presumably another server timeout will kill
