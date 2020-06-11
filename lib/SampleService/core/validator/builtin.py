@@ -361,7 +361,7 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
     oac=None
     try:
         oac=OntologyAPI(srv_wiz_url)
-        ret=oac.get_metadata({"id": ancestor_term, "ns": ontology})
+        ret=oac.get_terms({"ids": [ancestor_term], "ns": ontology})
         if len(ret["results"]) == 0:
             raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
     except ServerError as err:
@@ -371,7 +371,7 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
             raise
             
     def _get_ontology_ancestors(ontology, val):
-        ret=oac.get_terms({"ids": [val], "ns": ontology})
+        ret=oac.get_ancestors({"id": val, "ns": ontology})
         return list(map(lambda x: x["term"]["id"], ret["results"]))
     
     def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
