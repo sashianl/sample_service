@@ -332,12 +332,13 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
 
     The 'ancestor_term' parameter is required and must be a string. It is the ancestor name.
 
-    The 'kbase_endpoint' parameter is required and must be a string. It is kbase endpoint url for getting OntologyAPI service.
+    The 'srv_wiz_url' parameter is required and must be a string. It is kbase service wizard url for 
+    getting OntologyAPI service.
 
     :param d: the configuration map for the callable.
     :returns: a callable that validates metadata maps.
     '''
-    _check_unknown_keys(d, {'ontology', 'ancestor_term', 'kbase_endpoint'})
+    _check_unknown_keys(d, {'ontology', 'ancestor_term', 'srv_wiz_url'})
 
     ontology = d.get('ontology')
     if not ontology:
@@ -351,31 +352,27 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
     if type(ancestor_term) != str:
         raise ValueError('ancestor_term must be a string')
 
-    endpoint=d.get('kbase_endpoint')
-    if not endpoint:
-        raise ValueError('kbase_endpoint is a required paramter')
-    if type(endpoint) != str:
-        raise ValueError('kbase_endpoint must be a string')
+    srv_wiz_url=d.get('srv_wiz_url')
+    if not srv_wiz_url:
+        raise ValueError('srv_wiz_url is a required paramter')
+    if type(srv_wiz_url) != str:
+        raise ValueError('srv_wiz_url must be a string')
 
-    srv_wiz_url=endpoint.strip('/') + '/service_wizard'
     oac=None
     try:
         oac=OntologyAPI(srv_wiz_url)
-        if oac.status().get('state') != 'OK':
-            raise ValueError('the status of ontology api service is not ok')
-    except:
-        raise ValueError('failed connect to ontology api through kbase_endpoint')
-
-
+        ret=oac.get_metadata({"id": ancestor_term, "ns": ontology})
+        if len(ret["results"]) == 0:
+            raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
+    except ServerError as err:
+        if 'InvalidParamsError' in err.data:
+            raise ValueError(f'ontology {ontology} is not valid')
+        else:
+            raise
+            
     def _get_ontology_ancestors(ontology, val):
-        try:
-            ret=oac.get_ancestors({"id": val, "ns": ontology})
-            return list(map(lambda x: x["term"]["id"], ret["results"]))
-        except ServerError as err:
-            if 'InvalidParamsError' in err.data:
-                raise ValueError(f'ontology {ontology} is not valid')
-            else:
-                raise
+        ret=oac.get_terms({"ids": [val], "ns": ontology})
+        return list(map(lambda x: x["term"]["id"], ret["results"]))
     
     def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
         for k, v in d1.items():

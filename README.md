@@ -499,9 +499,9 @@ validators:
               parameters:
                   ontology: 'envo_ontology'
                   ancestor_term: 'ENVO:00010483'
-                  kbase_endpoint: 'https://kbase.us/services'
+                  srv_wiz_url: 'https://kbase.us/services/service_wizard'
 ```
 
 * `ontology` is the ontology that the meta value will be checked against.
 * `ancestor_term` is the ancestor ontology term that will be used to check whether meta value has such ancestor or not.   
-* `kbase_endpoint` is the url to kbase endpoint for getting OntologyAPI service.
+* `srv_wiz_url` is the kbase service wizard url for getting OntologyAPI service.
