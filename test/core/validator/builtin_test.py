@@ -410,7 +410,7 @@ def test_ontology_has_ancestor_build_fail():
     _ontology_has_ancestor_build_fail(
         {'ontology': 'foo', 'ancestor_term':'ENVO:00010483', 
             'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
-        ValueError('ontology foo is not valid'))
+        ValueError('ontology foo doesn\'t exist'))
     _ontology_has_ancestor_build_fail(
         {'ontology': 'envo_ontology', 'ancestor_term':'baz', 
             'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
