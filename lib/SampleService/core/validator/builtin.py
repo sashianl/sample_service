@@ -365,7 +365,7 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
         if len(ret["results"]) == 0:
             raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
     except Exception as err:
-        if 'Parameter validation error' in err.message:
+        if 'Parameter validation error' in str(err):
             raise ValueError(f'ontology {ontology} doesn\'t exist')
         else:
             raise
