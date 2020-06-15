@@ -489,3 +489,22 @@ Ensures all values are integers or floats.
 * `gt`, `gte`, `lt`, and `lte` are respectively greater than, greater than or equal,
   less than, and less than or equal, and specify a range in which the number or numbers must exist.
   If `gt` or `lt` are specified, `gte` or `lte` cannot be specified, respectively, and vice versa.
+
+### ontology_has_ancestor
+
+Example configuration:
+```
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: ontology_has_ancestor
+              parameters:
+                  ontology: 'envo_ontology'
+                  ancestor_term: 'ENVO:00010483'
+                  srv_wiz_url: 'https://kbase.us/services/service_wizard'
+```
+
+* `ontology` is the ontology that the meta value will be checked against.
+* `ancestor_term` is the ancestor ontology term that will be used to check whether meta value has such ancestor or not.   
+* `srv_wiz_url` is the kbase service wizard url for getting OntologyAPI service.

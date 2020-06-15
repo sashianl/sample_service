@@ -21,6 +21,7 @@ from pint import DimensionalityError as _DimensionalityError
 from pint import UndefinedUnitError as _UndefinedUnitError
 from pint import DefinitionSyntaxError as _DefinitionSyntaxError
 from SampleService.core.core_types import PrimitiveType
+from installed_clients.OntologyAPIClient import OntologyAPI
 
 
 def _check_unknown_keys(d, expected):
@@ -321,3 +322,64 @@ def _is_num(name, val):
     if val is not None and type(val) != float and type(val) != int:
         raise ValueError(f'Value for {name} parameter is not a number')
     return val
+
+def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+    '''
+    Build a validation callable that checks that value has valid ontology ancestor term provided
+
+    The 'ontology' parameter is required and must be a string. It is the ontology name.
+
+    The 'ancestor_term' parameter is required and must be a string. It is the ancestor name.
+
+    The 'srv_wiz_url' parameter is required and must be a string. It is kbase service wizard url for 
+    getting OntologyAPI service.
+
+    :param d: the configuration map for the callable.
+    :returns: a callable that validates metadata maps.
+    '''
+    _check_unknown_keys(d, {'ontology', 'ancestor_term', 'srv_wiz_url'})
+
+    ontology = d.get('ontology')
+    if not ontology:
+        raise ValueError('ontology is a required paramter')
+    if type(ontology) != str:
+        raise ValueError('ontology must be a string')
+
+    ancestor_term = d.get('ancestor_term')
+    if not ancestor_term:
+        raise ValueError('ancestor_term is a required paramter')
+    if type(ancestor_term) != str:
+        raise ValueError('ancestor_term must be a string')
+
+    srv_wiz_url=d.get('srv_wiz_url')
+    if not srv_wiz_url:
+        raise ValueError('srv_wiz_url is a required paramter')
+    if type(srv_wiz_url) != str:
+        raise ValueError('srv_wiz_url must be a string')
+
+    oac=None
+    try:
+        oac=OntologyAPI(srv_wiz_url)
+        ret=oac.get_terms({"ids": [ancestor_term], "ns": ontology})
+        if len(ret["results"]) == 0:
+            raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
+    except Exception as err:
+        if 'Parameter validation error' in str(err):
+            raise ValueError(f'ontology {ontology} doesn\'t exist')
+        else:
+            raise
+            
+    def _get_ontology_ancestors(ontology, val):
+        ret=oac.get_ancestors({"id": val, "ns": ontology})
+        return list(map(lambda x: x["term"]["id"], ret["results"]))
+    
+    def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        for k, v in d1.items():
+            if v is None:
+                return f'Metadata value at key {k} is None'
+            ancestors=_get_ontology_ancestors(ontology, v)
+            if ancestor_term not in ancestors:
+                return f'Metadata value at key {k} does not have {ontology} ancestor term {ancestor_term}'
+        return None
+    return ontology_has_ancestor_val
+
