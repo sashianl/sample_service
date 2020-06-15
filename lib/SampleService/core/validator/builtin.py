@@ -22,7 +22,6 @@ from pint import UndefinedUnitError as _UndefinedUnitError
 from pint import DefinitionSyntaxError as _DefinitionSyntaxError
 from SampleService.core.core_types import PrimitiveType
 from installed_clients.OntologyAPIClient import OntologyAPI
-from installed_clients.baseclient import ServerError
 
 
 def _check_unknown_keys(d, expected):
