@@ -44,24 +44,29 @@ class SampleACLOwnerless:
     :ivar admin: the list of admin usernames.
     :ivar write: the list of usernames with write privileges.
     :ivar read: the list of usernames with read privileges.
+    :ivar public_read: a boolean designating whether the sample is publically readable.
     '''
 
     def __init__(
             self,
             admin: Sequence[UserID] = None,
             write: Sequence[UserID] = None,
-            read: Sequence[UserID] = None):
+            read: Sequence[UserID] = None,
+            public_read: bool = False):
         '''
         Create the ACLs.
 
         :param admin: the list of admin usernames.
         :param write: the list of usernames with write privileges.
         :param read: the list of usernames with read privileges.
+        :param public_read: a boolean designating whether the sample is publically readable.
+            None is considered false.
         :raises IllegalParameterError: if a user appears in more than one ACL.
         '''
         self.admin = self._to_tuple(admin, 'admin')
         self.write = self._to_tuple(write, 'write')
         self.read = self._to_tuple(read, 'read')
+        self.public_read = bool(public_read)  # deal with None inputs
         for u in self.admin:
             if u in self.write or u in self.read:
                 raise _IllegalParameterError(f'User {u} appears in two ACLs')
@@ -78,11 +83,12 @@ class SampleACLOwnerless:
         if type(other) is type(self):
             return (other.admin == self.admin
                     and other.write == self.write
-                    and other.read == self.read)
+                    and other.read == self.read
+                    and other.public_read == self.public_read)
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.admin, self.write, self.read))
+        return hash((self.admin, self.write, self.read, self.public_read))
 
 
 class SampleACL(SampleACLOwnerless):
@@ -93,6 +99,7 @@ class SampleACL(SampleACLOwnerless):
     :ivar admin: the list of admin usernames.
     :ivar write: the list of usernames with write privileges.
     :ivar read: the list of usernames with read privileges.
+    :ivar public_read: a boolean designating whether the sample is publically readable.
     :ivar lastupdate: the date the last time the ACLs were updated.
     '''
 
@@ -102,7 +109,8 @@ class SampleACL(SampleACLOwnerless):
             lastupdate: datetime.datetime,
             admin: Sequence[UserID] = None,
             write: Sequence[UserID] = None,
-            read: Sequence[UserID] = None):
+            read: Sequence[UserID] = None,
+            public_read: bool = False):
         '''
         Create the ACLs.
 
@@ -111,11 +119,13 @@ class SampleACL(SampleACLOwnerless):
         :param admin: the list of admin usernames.
         :param write: the list of usernames with write privileges.
         :param read: the list of usernames with read privileges.
+        :param public_read: a boolean designating whether the sample is publically readable.
+            None is considered false.
         :raises IllegalParameterError: If a user appears in more than one ACL
         '''
         self.owner = _not_falsy(owner, 'owner')
         self.lastupdate = _check_timestamp(lastupdate, 'lastupdate')
-        super().__init__(admin, write, read)
+        super().__init__(admin, write, read, public_read)
         all_ = (self.admin, self.write, self.read)
         for i in range(len(all_)):
             if self.owner in all_[i]:
@@ -127,8 +137,10 @@ class SampleACL(SampleACLOwnerless):
                     and other.lastupdate == self.lastupdate
                     and other.admin == self.admin
                     and other.write == self.write
-                    and other.read == self.read)
+                    and other.read == self.read
+                    and other.public_read is self.public_read)
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.owner, self.lastupdate, self.admin, self.write, self.read))
+        return hash((self.owner, self.lastupdate, self.admin, self.write, self.read,
+                     self.public_read))
