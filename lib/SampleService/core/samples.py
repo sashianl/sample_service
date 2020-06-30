@@ -150,7 +150,7 @@ class Samples:
             return _SampleAccessType.ADMIN
         if user in acls.write:
             return _SampleAccessType.WRITE
-        if user in acls.read:
+        if user in acls.read or acls.public_read:
             return _SampleAccessType.READ
         return _SampleAccessType.NONE
 
