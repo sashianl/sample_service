@@ -21,15 +21,25 @@ def test_build_ownerless():
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
+    assert a.public_read is False
 
     # test duplicates are removed and order maintained
     a = SampleACLOwnerless(
         [u('baz'), u('bat'), u('baz')],
         read=[u('wheee'), u('wheee')],
-        write=[u('wugga'), u('a'), u('b'), u('a')])
+        write=[u('wugga'), u('a'), u('b'), u('a')],
+        public_read=True)
     assert a.admin == (u('baz'), u('bat'))
     assert a.write == (u('wugga'), u('a'), u('b'))
     assert a.read == (u('wheee'),)
+    assert a.public_read is True
+
+    # test None input for public read
+    a = SampleACLOwnerless(public_read=None)
+    assert a.admin == ()
+    assert a.write == ()
+    assert a.read == ()
+    assert a.public_read is False
 
 
 def test_build_fail_ownerless():
@@ -68,6 +78,9 @@ def test_eq_ownerless():
     assert SampleACLOwnerless(read=[u('bar')]) == SampleACLOwnerless(read=[u('bar')])
     assert SampleACLOwnerless(read=[u('bar')]) != SampleACLOwnerless(read=[u('baz')])
 
+    assert SampleACLOwnerless(public_read=True) == SampleACLOwnerless(public_read=True)
+    assert SampleACLOwnerless(public_read=True) != SampleACLOwnerless(public_read=False)
+
     assert SampleACLOwnerless([u('foo')]) != 1
     assert u('foo') != SampleACLOwnerless([u('foo')])
 
@@ -86,6 +99,9 @@ def test_hash_ownerless():
     assert hash(SampleACLOwnerless(read=[u('bar')])) == hash(SampleACLOwnerless(read=[u('bar')]))
     assert hash(SampleACLOwnerless(read=[u('bar')])) != hash(SampleACLOwnerless(read=[u('baz')]))
 
+    assert hash(SampleACLOwnerless(public_read=True)) == hash(SampleACLOwnerless(public_read=True))
+    assert hash(SampleACLOwnerless(public_read=True)) != hash(SampleACLOwnerless(public_read=False))
+
 
 def test_build():
     a = SampleACL(u('foo'), dt(30))
@@ -94,18 +110,29 @@ def test_build():
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
+    assert a.public_read is False
 
     a = SampleACL(
         u('foo'),
         dt(-56),
         [u('baz'), u('bat'), u('baz')],
         read=[u('wheee'), u('wheee')],
-        write=[u('wugga'), u('a'), u('b'), u('wugga')])
+        write=[u('wugga'), u('a'), u('b'), u('wugga')],
+        public_read=True)
     assert a.owner == u('foo')
     assert a.lastupdate == dt(-56)
     assert a.admin == (u('baz'), u('bat'))
     assert a.write == (u('wugga'), u('a'), u('b'))
     assert a.read == (u('wheee'),)
+    assert a.public_read is True
+
+    a = SampleACL(u('foo'), dt(30), public_read=None)
+    assert a.owner == u('foo')
+    assert a.lastupdate == dt(30)
+    assert a.admin == ()
+    assert a.write == ()
+    assert a.read == ()
+    assert a.public_read is False
 
 
 def test_build_fail():
@@ -167,6 +194,9 @@ def test_eq():
     assert SampleACL(u('foo'), t, read=[u('bar')]) == SampleACL(u('foo'), t, read=[u('bar')])
     assert SampleACL(u('foo'), t, read=[u('bar')]) != SampleACL(u('foo'), t, read=[u('baz')])
 
+    assert SampleACL(u('foo'), t, public_read=True) == SampleACL(u('foo'), t, public_read=True)
+    assert SampleACL(u('foo'), t, public_read=True) != SampleACL(u('foo'), t, public_read=False)
+
     assert SampleACL(u('foo'), t) != 1
     assert u('foo') != SampleACL(u('foo'), t)
 
@@ -195,3 +225,8 @@ def test_hash():
         SampleACL(u('foo'), t, read=[u('bar')]))
     assert hash(SampleACL(u('foo'), t, read=[u('bar')])) != hash(
         SampleACL(u('foo'), t, read=[u('baz')]))
+
+    assert hash(SampleACL(u('foo'), t, public_read=True)) == hash(
+        SampleACL(u('foo'), t, public_read=True))
+    assert hash(SampleACL(u('foo'), t, public_read=True)) != hash(
+        SampleACL(u('foo'), t, public_read=False))
