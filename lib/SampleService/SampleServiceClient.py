@@ -188,11 +188,14 @@ class SampleService(object):
            levels. owner - the user that created and owns the sample. admin -
            users that can administrate (e.g. alter ACLs) the sample. write -
            users that can write (e.g. create a new version) to the sample.
-           read - users that can view the sample.) -> structure: parameter
-           "owner" of type "user" (A user's username.), parameter "admin" of
-           list of type "user" (A user's username.), parameter "write" of
-           list of type "user" (A user's username.), parameter "read" of list
-           of type "user" (A user's username.)
+           read - users that can view the sample. public_read - whether any
+           user can read the sample, regardless of permissions.) ->
+           structure: parameter "owner" of type "user" (A user's username.),
+           parameter "admin" of list of type "user" (A user's username.),
+           parameter "write" of list of type "user" (A user's username.),
+           parameter "read" of list of type "user" (A user's username.),
+           parameter "public_read" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
         """
         return self._client.call_method('SampleService.get_sample_acls',
                                         [params], self._service_ver, context)
@@ -214,12 +217,15 @@ class SampleService(object):
            user that created and owns the sample. admin - users that can
            administrate (e.g. alter ACLs) the sample. write - users that can
            write (e.g. create a new version) to the sample. read - users that
-           can view the sample.) -> structure: parameter "owner" of type
-           "user" (A user's username.), parameter "admin" of list of type
-           "user" (A user's username.), parameter "write" of list of type
-           "user" (A user's username.), parameter "read" of list of type
-           "user" (A user's username.), parameter "as_admin" of type
-           "boolean" (A boolean value, 0 for false, 1 for true.)
+           can view the sample. public_read - whether any user can read the
+           sample, regardless of permissions.) -> structure: parameter
+           "owner" of type "user" (A user's username.), parameter "admin" of
+           list of type "user" (A user's username.), parameter "write" of
+           list of type "user" (A user's username.), parameter "read" of list
+           of type "user" (A user's username.), parameter "public_read" of
+           type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_admin" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
         """
         return self._client.call_method('SampleService.replace_sample_acls',
                                         [params], self._service_ver, context)

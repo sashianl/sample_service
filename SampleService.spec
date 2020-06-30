@@ -107,12 +107,14 @@ module SampleService {
         admin - users that can administrate (e.g. alter ACLs) the sample.
         write - users that can write (e.g. create a new version) to the sample.
         read - users that can view the sample.
+        public_read - whether any user can read the sample, regardless of permissions.
      */
     typedef structure {
         user owner;
         list<user> admin;
         list<user> write;
         list<user> read;
+        boolean public_read;
     } SampleACLs;
 
     /* A Sample ID and version.

@@ -298,6 +298,7 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
             'admin': tuple(u.id for u in acls.admin),
             'write': tuple(u.id for u in acls.write),
             'read': tuple(u.id for u in acls.read),
+            'public_read': 1 if acls.public_read else 0,
             }
 
 
@@ -317,7 +318,8 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     return SampleACLOwnerless(
         _get_acl(acls, 'admin'),
         _get_acl(acls, 'write'),
-        _get_acl(acls, 'read'))
+        _get_acl(acls, 'read'),
+        bool(acls.get('public_read')))
 
 
 def _get_acl(acls, type_):
