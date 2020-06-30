@@ -688,7 +688,8 @@ def test_save_and_get_sample(samplestorage):
     assert samplestorage.get_sample(id_) == SavedSample(
         id_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1)
 
-    assert samplestorage.get_sample_acls(id_) == SampleACL(UserID('auser'), dt(8))
+    assert samplestorage.get_sample_acls(id_) == SampleACL(
+        UserID('auser'), dt(8), public_read=False)
 
 
 def test_save_sample_fail_bad_input(samplestorage):
@@ -1006,6 +1007,46 @@ def test_sample_version_update(samplestorage):
     assert nodes == {('baz', 1), ('bat', 2)}
 
 
+def test_get_sample_acls_with_missing_public_read_key(samplestorage, arango):
+    """
+    Backwards compatibility test. Checks that a missing pubread key in the ACLs is registered as
+    false, and that then changing pubread to True works normally.
+    """
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR s in @@col
+            FILTER s.id == @id
+            UPDATE s WITH {acls: {pubread: null}} IN @@col
+            OPTIONS {keepNull: false}
+        """,
+        bind_vars={'@col': TEST_COL_SAMPLE, 'id': str(id1)}
+    )
+
+    cur = arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR s in @@col
+            FILTER s.id == @id
+            RETURN s
+        """,
+        bind_vars={'@col': TEST_COL_SAMPLE, 'id': str(id1)}
+    )
+    assert cur.next()['acls'] == {'owner': 'user',
+                                  'admin': [],
+                                  'write': [],
+                                  'read': []
+                                  }
+
+    assert samplestorage.get_sample_acls(id1) == SampleACL(UserID('user'), dt(1))
+
+    samplestorage.replace_sample_acls(id1, SampleACL(UserID('user'), dt(3), public_read=True))
+
+    assert samplestorage.get_sample_acls(id1) == SampleACL(UserID('user'), dt(3), public_read=True)
+
+
 def test_get_sample_acls_fail_bad_input(samplestorage):
     with raises(Exception) as got:
         samplestorage.get_sample_acls(None)
@@ -1034,14 +1075,16 @@ def test_replace_sample_acls(samplestorage):
         dt(56),
         [UserID('foo'), UserID('bar')],
         [UserID('baz'), UserID('bat')],
-        [UserID('whoo')]))
+        [UserID('whoo')],
+        True))
 
     assert samplestorage.get_sample_acls(id_) == SampleACL(
         UserID('user'),
         dt(56),
         [UserID('foo'), UserID('bar')],
         [UserID('baz'), UserID('bat')],
-        [UserID('whoo')])
+        [UserID('whoo')],
+        True)
 
     samplestorage.replace_sample_acls(id_, SampleACL(UserID('user'), dt(83), write=[UserID('baz')]))
 
