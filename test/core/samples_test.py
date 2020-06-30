@@ -299,7 +299,8 @@ def _save_sample_fail_unauthorized(user: UserID):
         dt(1),
         [u('otheruser')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        True)  # public read should not allow saving a new version of a sample
 
     with raises(Exception) as got:
         samples.save_sample(
@@ -322,13 +323,14 @@ def _save_sample_fail(samples, sample, user, id_, prior_version, expected):
 def test_get_sample():
     # sample versions other than 4 don't really make sense but the mock doesn't care
     _get_sample(UserID('someuser'), None, False)
-    _get_sample(UserID('otheruser'), None, False)
-    _get_sample(UserID('anotheruser'), None, False)
+    _get_sample(UserID('otheruser'), 4, False)
+    _get_sample(UserID('anotheruser'), 2, False)
     _get_sample(UserID('x'), None, False)
     _get_sample(UserID('notinacl'), None, True)
+    _get_sample(UserID('notinacl'), None, False, True)  # public read
 
 
-def _get_sample(user, version, as_admin):
+def _get_sample(user, version, as_admin, public_read=False):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -341,7 +343,8 @@ def _get_sample(user, version, as_admin):
         dt(1),
         [u('otheruser')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=public_read)
 
     storage.get_sample.return_value = SavedSample(
         UUID('1234567890abcdef1234567890abcdea'),
@@ -420,9 +423,10 @@ def test_get_sample_acls():
     _get_sample_acls(UserID('anotheruser'), False)
     _get_sample_acls(UserID('x'), False)
     _get_sample_acls(UserID('no_rights_here'), True)
+    _get_sample_acls(UserID('no_rights_here'), False, True)
 
 
-def _get_sample_acls(user, as_admin):
+def _get_sample_acls(user, as_admin, public_read=False):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -436,14 +440,16 @@ def _get_sample_acls(user, as_admin):
         dt(78),
         [u('otheruser')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=public_read)
 
     assert samples.get_sample_acls(id_, user, as_admin) == SampleACL(
         u('someuser'),
         dt(78),
         [u('otheruser')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=public_read)
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcde0'),), {})]
@@ -808,7 +814,8 @@ def _replace_sample_acls_fail_unauthorized(user: UserID):
         dt(1),
         [u('otheruser')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=True)  # public read shouldn't grant privs.
 
     _replace_sample_acls_fail(samples, id_, user, SampleACLOwnerless(), UnauthorizedError(
         f'User {user} cannot administrate sample 12345678-90ab-cdef-1234-567890abcde0'))
@@ -1064,7 +1071,8 @@ def _create_data_link_fail_no_sample_access(user):
         dt(1),
         [u('otheruser'), u('y')],
         [u('anotheruser'), u('writeonly')],
-        [u('readonly'), u('x')])
+        [u('readonly'), u('x')],
+        public_read=True)  # public read shouldn't grant privs
 
     _create_data_link_fail(
         s,
@@ -1113,9 +1121,10 @@ def test_get_links_from_sample():
     _get_links_from_sample(UserID('otheruser'))
     _get_links_from_sample(UserID('ur mum'))
     _get_links_from_sample(UserID('x'))
+    _get_links_from_sample(UserID('noaccess'), True)
 
 
-def _get_links_from_sample(user):
+def _get_links_from_sample(user, public_read=False):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1127,7 +1136,8 @@ def _get_links_from_sample(user):
         dt(1),
         [u('otheruser'), u('y')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=public_read)
 
     ws.get_user_workspaces.return_value = [7, 90, 106]
 
@@ -1660,7 +1670,8 @@ def _expire_data_link_fail_no_sample_access(user):
         dt(1),
         [u('otheruser'), u('y')],
         [u('anotheruser'), u('ur mum')],
-        [u('Fungus J. Pustule Jr.'), u('x')])
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=True)  # public read shouldn't grant perms
 
     _expire_data_link_fail(s, user, DataUnitID(UPA('9/1/2'), 'foo'),
                            UnauthorizedError(f'User {user} cannot administrate sample {sid}'))
