@@ -132,6 +132,7 @@ _FLD_OWNER = 'owner'
 _FLD_READ = 'read'
 _FLD_WRITE = 'write'
 _FLD_ADMIN = 'admin'
+_FLD_PUBLIC_READ = 'pubread'
 
 _FLD_VERSIONS = 'vers'
 
@@ -398,7 +399,8 @@ class ArangoSampleStorage:
                   _FLD_ACLS: {_FLD_OWNER: sample.user.id,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
-                              _FLD_READ: []
+                              _FLD_READ: [],
+                              _FLD_PUBLIC_READ: False
                               }
                   }
         try:
@@ -738,7 +740,9 @@ class ArangoSampleStorage:
             self._timestamp_to_datetime(doc[_FLD_ACL_UPDATE_TIME]),
             [UserID(u) for u in acls[_FLD_ADMIN]],
             [UserID(u) for u in acls[_FLD_WRITE]],
-            [UserID(u) for u in acls[_FLD_READ]])
+            [UserID(u) for u in acls[_FLD_READ]],
+            # allow None for backwards compability with DB entries missing the key
+            acls.get(_FLD_PUBLIC_READ))
 
     def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
@@ -775,7 +779,8 @@ class ArangoSampleStorage:
                      'owner': acls.owner.id,
                      'acls': {_FLD_ADMIN: [u.id for u in acls.admin],
                               _FLD_WRITE: [u.id for u in acls.write],
-                              _FLD_READ: [u.id for u in acls.read]
+                              _FLD_READ: [u.id for u in acls.read],
+                              _FLD_PUBLIC_READ: acls.public_read
                               }
                      }
         try:
