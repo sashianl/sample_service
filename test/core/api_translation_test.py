@@ -463,7 +463,8 @@ def test_acls_to_dict_minimal():
         'owner': 'user',
         'admin': (),
         'write': (),
-        'read': ()
+        'read': (),
+        'public_read': 0
     }
 
 
@@ -474,11 +475,13 @@ def test_acls_to_dict_maximal():
             dt(1),
             [UserID('foo'), UserID('bar')],
             [UserID('baz')],
-            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')])) == {
+            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')],
+            True)) == {
         'owner': 'user',
         'admin': ('foo', 'bar'),
         'write': ('baz',),
-        'read': ('hello', "I'm", 'a', 'robot')
+        'read': ('hello', "I'm", 'a', 'robot'),
+        'public_read': 1
     }
 
 
@@ -491,14 +494,17 @@ def test_acls_to_dict_fail():
 
 def test_acls_from_dict():
     assert acls_from_dict({'acls': {}}) == SampleACLOwnerless()
+    assert acls_from_dict({'acls': {'public_read': 0}}) == SampleACLOwnerless()
     assert acls_from_dict({'acls': {
         'read': [],
-        'admin': ['whee', 'whoo']}}) == SampleACLOwnerless([UserID('whee'), UserID('whoo')])
+        'admin': ['whee', 'whoo'],
+        'public_read': None}}) == SampleACLOwnerless([UserID('whee'), UserID('whoo')])
     assert acls_from_dict({'acls': {
         'read': ['a', 'b'],
         'write': ['x'],
-        'admin': ['whee', 'whoo']}}) == SampleACLOwnerless(
-            [UserID('whee'), UserID('whoo')], [UserID('x')], [UserID('a'), UserID('b')])
+        'admin': ['whee', 'whoo'],
+        'public_read': 1}}) == SampleACLOwnerless(
+            [UserID('whee'), UserID('whoo')], [UserID('x')], [UserID('a'), UserID('b')], True)
 
 
 def test_acls_from_dict_fail_bad_args():

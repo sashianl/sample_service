@@ -236,7 +236,7 @@ def auth(mongo):
     test_utils.create_auth_user(url, USER4, 'display4')
     TOKEN4 = test_utils.create_auth_login_token(url, USER4)
 
-    test_utils.create_auth_user(url, USER5, 'display4')
+    test_utils.create_auth_user(url, USER5, 'display5')
     TOKEN5 = test_utils.create_auth_login_token(url, USER5)
     test_utils.set_custom_roles(url, USER5, ['fulladmin2'])
 
@@ -735,6 +735,48 @@ def _create_sample_version_as_admin(sample_port, as_user, expected_user):
     }
 
 
+def test_get_sample_public_read(sample_port):
+    url = f'http://localhost:{sample_port}'
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _replace_acls(url, id_, TOKEN1, {'public_read': 1})
+
+    s = _get_sample(url, TOKEN4, id_)
+    assert_ms_epoch_close_to_now(s['save_date'])
+    del s['save_date']
+    assert s == {
+        'id': id_,
+        'version': 1,
+        'user': 'user1',
+        'name': 'mysample',
+        'node_tree': [{'id': 'root',
+                       'parent': None,
+                       'type': 'BioReplicate',
+                       'meta_controlled': {},
+                       'meta_user': {}
+                       },
+                      {'id': 'foo',
+                       'parent': 'root',
+                       'type': 'TechReplicate',
+                       'meta_controlled': {},
+                       'meta_user': {}
+                       }
+                      ]
+    }
+
+
+def _get_sample(url, token, id_):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_sample',
+        'version': '1.1',
+        'id': '43',
+        'params': [{'id': str(id_)}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    return ret.json()['result'][0]
+
+
 def test_get_sample_as_admin(sample_port):
     url = f'http://localhost:{sample_port}'
 
@@ -1082,7 +1124,8 @@ def test_get_and_replace_acls(sample_port, kafka):
         'owner': USER1,
         'admin': [],
         'write': [],
-        'read': []
+        'read': [],
+        'public_read': 0
     })
 
     _replace_acls(url, id_, TOKEN1, {
@@ -1097,7 +1140,8 @@ def test_get_and_replace_acls(sample_port, kafka):
             'owner': USER1,
             'admin': [USER2],
             'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
-            'read': [USER_NO_TOKEN3, USER4]
+            'read': [USER_NO_TOKEN3, USER4],
+            'public_read': 0
         })
 
         ret = requests.post(url, headers=get_authorized_headers(token), json={
@@ -1172,14 +1216,16 @@ def test_get_and_replace_acls(sample_port, kafka):
     _replace_acls(url, id_, TOKEN2, {
         'admin': [USER_NO_TOKEN2],
         'write': [],
-        'read': [USER2]
+        'read': [USER2],
+        'public_read': 1
     })
 
     _assert_acl_contents(url, id_, TOKEN1, {
         'owner': USER1,
         'admin': [USER_NO_TOKEN2],
         'write': [],
-        'read': [USER2]
+        'read': [USER2],
+        'public_read': 1
     })
 
     _check_kafka_messages(
@@ -1191,6 +1237,21 @@ def test_get_and_replace_acls(sample_port, kafka):
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 3},
             {'event_type': 'ACL_CHANGE', 'sample_id': id_},
         ])
+
+
+def test_get_acls_public_read(sample_port):
+    url = f'http://localhost:{sample_port}'
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _replace_acls(url, id_, TOKEN1, {'public_read': 1})
+
+    _assert_acl_contents(url, id_, TOKEN4, {
+        'owner': USER1,
+        'admin': [],
+        'write': [],
+        'read': [],
+        'public_read': 1
+    })
 
 
 def test_get_acls_as_admin(sample_port):
@@ -1219,7 +1280,8 @@ def test_get_acls_as_admin(sample_port):
         'owner': USER1,
         'admin': [],
         'write': [],
-        'read': []
+        'read': [],
+        'public_read': 0
         },
         as_admin=1)
 
@@ -1233,13 +1295,15 @@ def test_replace_acls_as_admin(sample_port):
         'owner': USER1,
         'admin': [],
         'write': [],
-        'read': []
+        'read': [],
+        'public_read': 0
     })
 
     _replace_acls(url, id_, TOKEN2, {
         'admin': [USER2],
         'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
         'read': [USER_NO_TOKEN3, USER4],
+        'public_read': 1
         },
         as_admin=1)
 
@@ -1248,6 +1312,7 @@ def test_replace_acls_as_admin(sample_port):
         'admin': [USER2],
         'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
         'read': [USER_NO_TOKEN3, USER4],
+        'public_read': 1
     })
 
 
@@ -2148,6 +2213,57 @@ def test_get_links_from_sample_as_admin(sample_port, workspace):
             'upa': '1/1/1',
             'dataid': None,
             'createdby': USER4,
+            'expiredby': None,
+            'expired': None
+         }
+
+
+def test_get_links_from_sample_public_read(sample_port, workspace):
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN1)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
+
+    # create sample
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    # create links
+    lid = _create_link(url, TOKEN1, USER1, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+
+    _replace_acls(url, id_, TOKEN1, {'public_read': 1})
+
+    # check correct links are returned, user 4 has no explicit permisions
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': id_, 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+    assert len(ret.json()['result'][0]['links']) == 1
+    link = ret.json()['result'][0]['links'][0]
+    assert_ms_epoch_close_to_now(link['created'])
+    del link['created']
+
+    assert link == {
+            'linkid': lid,
+            'id': id_,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': None,
+            'createdby': USER1,
             'expiredby': None,
             'expired': None
          }

@@ -14,6 +14,7 @@
   * change ACLs with more granularity. Right now it's replace all
   * cache known good users
   * cache user roles
+  * support anonymous users
   * remove self from acls (read/write)
   * change sample owner
     * Probably needs request / accept multistep flow

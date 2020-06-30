@@ -52,7 +52,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha17"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "4aa90e48f956162e91e7c5a4bec575a85c8269a5"
+    GIT_COMMIT_HASH = "208af320923599cab027cf022167238bb78ce785"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -250,11 +250,14 @@ Note that usage of the administration flags will be logged by the service.
            levels. owner - the user that created and owns the sample. admin -
            users that can administrate (e.g. alter ACLs) the sample. write -
            users that can write (e.g. create a new version) to the sample.
-           read - users that can view the sample.) -> structure: parameter
-           "owner" of type "user" (A user's username.), parameter "admin" of
-           list of type "user" (A user's username.), parameter "write" of
-           list of type "user" (A user's username.), parameter "read" of list
-           of type "user" (A user's username.)
+           read - users that can view the sample. public_read - whether any
+           user can read the sample, regardless of permissions.) ->
+           structure: parameter "owner" of type "user" (A user's username.),
+           parameter "admin" of list of type "user" (A user's username.),
+           parameter "write" of list of type "user" (A user's username.),
+           parameter "read" of list of type "user" (A user's username.),
+           parameter "public_read" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
         """
         # ctx is the context object
         # return variables are: acls
@@ -292,12 +295,15 @@ Note that usage of the administration flags will be logged by the service.
            user that created and owns the sample. admin - users that can
            administrate (e.g. alter ACLs) the sample. write - users that can
            write (e.g. create a new version) to the sample. read - users that
-           can view the sample.) -> structure: parameter "owner" of type
-           "user" (A user's username.), parameter "admin" of list of type
-           "user" (A user's username.), parameter "write" of list of type
-           "user" (A user's username.), parameter "read" of list of type
-           "user" (A user's username.), parameter "as_admin" of type
-           "boolean" (A boolean value, 0 for false, 1 for true.)
+           can view the sample. public_read - whether any user can read the
+           sample, regardless of permissions.) -> structure: parameter
+           "owner" of type "user" (A user's username.), parameter "admin" of
+           list of type "user" (A user's username.), parameter "write" of
+           list of type "user" (A user's username.), parameter "read" of list
+           of type "user" (A user's username.), parameter "public_read" of
+           type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_admin" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
         """
         # ctx is the context object
         #BEGIN replace_sample_acls
