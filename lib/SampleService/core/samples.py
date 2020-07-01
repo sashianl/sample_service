@@ -125,7 +125,7 @@ class Samples:
     def _check_perms(
             self,
             id_: UUID,
-            user: UserID,
+            user: Optional[UserID],
             access: _SampleAccessType,
             acls: SampleACL = None,
             as_admin: bool = False):
@@ -135,7 +135,8 @@ class Samples:
             acls = self._storage.get_sample_acls(id_)
         level = self._get_access_level(acls, user)
         if level < access:
-            errmsg = f'User {user} {self._unauth_errmap[access]} sample {id_}'
+            uerr = f'User {user}' if user else 'Anonymous users'
+            errmsg = f'{uerr} {self._unauth_errmap[access]} sample {id_}'
             raise _UnauthorizedError(errmsg)
 
     _unauth_errmap = {_SampleAccessType.OWNER: 'does not own',
@@ -143,7 +144,7 @@ class Samples:
                       _SampleAccessType.WRITE: 'cannot write to',
                       _SampleAccessType.READ: 'cannot read'}
 
-    def _get_access_level(self, acls: SampleACL, user: UserID):
+    def _get_access_level(self, acls: SampleACL, user: Optional[UserID]):
         if user == acls.owner:
             return _SampleAccessType.OWNER
         if user in acls.admin:
@@ -157,13 +158,13 @@ class Samples:
     def get_sample(
             self,
             id_: UUID,
-            user: UserID,
+            user: Optional[UserID],
             version: int = None,
             as_admin: bool = False) -> SavedSample:
         '''
         Get a sample.
         :param id_: the ID of the sample.
-        :param user: the username of the user getting the sample.
+        :param user: the username of the user getting the sample, or None for an anonymous user.
         :param version: The version of the sample to retrieve. Defaults to the latest version.
         :param as_admin: Skip ACL checks.
         :returns: the sample.
@@ -175,8 +176,7 @@ class Samples:
         '''
         if version is not None and version < 1:
             raise _IllegalParameterError('Version must be > 0')
-        self._check_perms(_not_falsy(id_, 'id_'), _not_falsy(user, 'user'),
-                          _SampleAccessType.READ, as_admin=as_admin)
+        self._check_perms(_not_falsy(id_, 'id_'), user, _SampleAccessType.READ, as_admin=as_admin)
         return self._storage.get_sample(id_, version)
 
     def get_sample_acls(self, id_: UUID, user: UserID, as_admin: bool = False) -> SampleACL:
