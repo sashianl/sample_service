@@ -328,6 +328,7 @@ def test_get_sample():
     _get_sample(UserID('x'), None, False)
     _get_sample(UserID('notinacl'), None, True)
     _get_sample(UserID('notinacl'), None, False, True)  # public read
+    _get_sample(None, None, False, True)  # public read & anon
 
 
 def _get_sample(user, version, as_admin, public_read=False):
@@ -383,12 +384,17 @@ def test_get_sample_fail_bad_args():
 
     _get_sample_fail(samples, None, UserID('foo'), 1, ValueError(
         'id_ cannot be a value that evaluates to false'))
-    _get_sample_fail(samples, id_, None, 1, ValueError(
-        'user cannot be a value that evaluates to false'))
     _get_sample_fail(samples, id_, UserID('a'), 0, IllegalParameterError('Version must be > 0'))
 
 
 def test_get_sample_fail_unauthorized():
+    _get_sample_fail_unauthorized(UserID('y'), UnauthorizedError(
+        'User y cannot read sample 12345678-90ab-cdef-1234-567890abcdef'))
+    _get_sample_fail_unauthorized(None, UnauthorizedError(
+        'Anonymous users cannot read sample 12345678-90ab-cdef-1234-567890abcdef'))
+
+
+def _get_sample_fail_unauthorized(user, expected):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -404,8 +410,7 @@ def test_get_sample_fail_unauthorized():
         [u('Fungus J. Pustule Jr.'), u('x')])
 
     _get_sample_fail(
-        samples, UUID('1234567890abcdef1234567890abcdef'), UserID('y'), 3,
-        UnauthorizedError('User y cannot read sample 12345678-90ab-cdef-1234-567890abcdef'))
+        samples, UUID('1234567890abcdef1234567890abcdef'), user, 3, expected)
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcdef'),), {})]
