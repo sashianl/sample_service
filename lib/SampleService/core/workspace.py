@@ -229,19 +229,23 @@ class WS:
             if not ret['infos'][0]:
                 raise _NoSuchWorkspaceDataError(f'Object {upa} does not exist')
 
-    def get_user_workspaces(self, user: UserID) -> List[int]:
+    def get_user_workspaces(self, user: Optional[UserID]) -> List[int]:
         '''
         Get a list of IDs of workspaces a user can read, including public workspaces.
 
-        :param user: The username of the user whose workspaces will be returned.
+        :param user: The username of the user whose workspaces will be returned, or null for an
+            anonymous user.
         :returns: A list of workspace IDs.
         :raises NoSuchUserError: if the user does not exist.
         '''
         # May also want write / admin / no public ws
         try:
-            ids = self._ws.administer({'command': 'listWorkspaceIDs',
-                                       'user': _not_falsy(user, 'user').id,
-                                       'params': {'perm': 'r', 'excludeGlobal': 0}})
+            if user:
+                ids = self._ws.administer({'command': 'listWorkspaceIDs',
+                                           'user': user.id,
+                                           'params': {'perm': 'r', 'excludeGlobal': 0}})
+            else:
+                ids = self._ws.list_workspace_ids({'onlyGlobal': 1})
         except _ServerError as se:
             # this is pretty ugly, need error codes
             if 'not a valid user' in se.args[0]:

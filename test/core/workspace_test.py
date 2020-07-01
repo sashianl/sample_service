@@ -357,23 +357,21 @@ def _get_user_workspaces(workspaces, pub, expected):
     assert wsc.administer.call_count == 2
 
 
-def test_get_user_workspaces_fail_bad_input():
-    _get_user_workspaces_fail(None, ValueError('user cannot be a value that evaluates to false'))
-
-
-def _get_user_workspaces_fail(user, expected):
+def test_get_user_workspaces_anonymous():
     wsc = create_autospec(Workspace, spec_set=True, instance=True)
 
     ws = WS(wsc)
 
     wsc.administer.assert_called_once_with({'command': 'listModRequests'})
 
-    with raises(Exception) as got:
-        ws.get_user_workspaces(user)
-    assert_exception_correct(got.value, expected)
+    wsc.list_workspace_ids.return_value = {'workspaces': [], 'pub': [6, 7]}
+
+    assert ws.get_user_workspaces(None) == [6, 7]
+
+    wsc.list_workspace_ids.assert_called_once_with({'onlyGlobal': 1})
 
 
-def test_get_user_workspaces_fail_no_user():
+def test_get_user_workspaces_fail_invalid_user():
     _get_user_workspaces_fail_ws_exception(
         ServerError('JSONRPCError', -32500, 'User foo is not a valid user'),
         NoSuchUserError('User foo is not a valid user')
@@ -398,4 +396,27 @@ def _get_user_workspaces_fail_ws_exception(ws_exception, expected):
 
     with raises(Exception) as got:
         ws.get_user_workspaces(UserID('foo'))
+    assert_exception_correct(got.value, expected)
+
+
+def test_get_user_workspaces_anonymous_fail_server_error():
+    _get_user_workspaces_anonymous_fail_ws_exception(
+        ServerError('JSONRPCError', -32500, 'aw crapadoodles'),
+        ServerError('JSONRPCError', -32500, 'aw crapadoodles')
+    )
+
+
+def _get_user_workspaces_anonymous_fail_ws_exception(ws_exception, expected):
+    wsc = create_autospec(Workspace, spec_set=True, instance=True)
+
+    ws = WS(wsc)
+
+    wsc.administer.assert_called_once_with({'command': 'listModRequests'})
+
+    wsc.list_workspace_ids.side_effect = ws_exception
+
+    wsc.administer.side_effect = ws_exception
+
+    with raises(Exception) as got:
+        ws.get_user_workspaces(None)
     assert_exception_correct(got.value, expected)
