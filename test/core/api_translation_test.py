@@ -581,8 +581,8 @@ def test_check_admin_fail_bad_args():
 
     _check_admin_fail(None, 't', p, 'm', lambda _: None, None, ValueError(
         'user_lookup cannot be a value that evaluates to false'))
-    _check_admin_fail(ul, '', p, 'm', lambda _: None, None, ValueError(
-        'token cannot be a value that evaluates to false'))
+    _check_admin_fail(ul, '', p, 'm', lambda _: None, None, UnauthorizedError(
+        'Anonymous users may not act as service administrators.'))
     _check_admin_fail(ul, 't', None, 'm', lambda _: None, None, ValueError(
         'perm cannot be a value that evaluates to false'))
     _check_admin_fail(ul, 't', p, None, lambda _: None, None, ValueError(
