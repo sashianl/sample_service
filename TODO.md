@@ -15,6 +15,11 @@
   * cache known good users
   * cache user roles
   * support anonymous users
+    * get sample
+    * get sample acls
+    * get links from sample
+    * get links from data
+    * get sample via data
   * remove self from acls (read/write)
   * change sample owner
     * Probably needs request / accept multistep flow

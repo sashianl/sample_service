@@ -2983,6 +2983,55 @@ def test_get_links_from_data_expired(sample_port, workspace):
         ]}
 
 
+def test_get_links_from_data_public_read(sample_port, workspace):
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN1)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
+
+    # create samples
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    # create links
+    lid = _create_link(url, TOKEN1, USER1, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+
+    # get links from object, user 4 has no explicit perms
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_data_links_from_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1'}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+    assert len(ret.json()['result'][0]['links']) == 1
+    link = ret.json()['result'][0]['links'][0]
+    assert_ms_epoch_close_to_now(link['created'])
+    del link['created']
+    assert link == {
+            'linkid': lid,
+            'id': id_,
+            'version': 1,
+            'node': 'foo',
+            'upa': '1/1/1',
+            'dataid': None,
+            'createdby': USER1,
+            'expiredby': None,
+            'expired': None
+         }
+
+
 def test_get_links_from_data_as_admin(sample_port, workspace):
 
     url = f'http://localhost:{sample_port}'
@@ -3322,6 +3371,60 @@ def test_get_sample_via_data_expired(sample_port, workspace):
         'version': 1,
         'name': 'mysample',
         'user': USER3,
+        'node_tree': [{'id': 'root',
+                       'type': 'BioReplicate',
+                       'parent': None,
+                       'meta_user': {},
+                       'meta_controlled': {},
+                       },
+                      {'id': 'foo',
+                       'type': 'TechReplicate',
+                       'parent': 'root',
+                       'meta_controlled': {},
+                       'meta_user': {}},
+                      ]
+        }
+    assert res == expected
+
+
+def test_get_sample_via_data_public_read(sample_port, workspace):
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN1)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
+
+    # create samples
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    # create links
+    _create_link(url, TOKEN1, USER1, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
+
+    # get sample via link from object 1/1/1 using a token that has no explicit access
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+        'method': 'SampleService.get_sample_via_data',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'upa': '1/1/1', 'id': str(id_), 'version': 1}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    res = ret.json()['result'][0]
+    assert_ms_epoch_close_to_now(res['save_date'])
+    del res['save_date']
+
+    expected = {
+        'id': id_,
+        'version': 1,
+        'name': 'mysample',
+        'user': USER1,
         'node_tree': [{'id': 'root',
                        'type': 'BioReplicate',
                        'parent': None,
