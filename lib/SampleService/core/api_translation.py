@@ -337,7 +337,7 @@ def _get_acl(acls, type_):
 
 def check_admin(
         user_lookup: KBaseUserLookup,
-        token: str,
+        token: Optional[str],
         perm: AdminPermission,
         method: str,
         log_fn: Callable[[str], None],
@@ -348,7 +348,8 @@ def check_admin(
     The request is logged.
 
     :param user_lookup: the service to use to look up user information.
-    :param token: the user's token.
+    :param token: the user's token, or None if the user is anonymous. In this case, if skip_check
+        is false, an UnauthorizedError will be thrown.
     :param perm: the required administration permission.
     :param method: the method the user is trying to run. This is used in logging and error
       messages.
@@ -363,6 +364,8 @@ def check_admin(
     '''
     if skip_check:
         return False
+    if not token:
+        raise _UnauthorizedError('Anonymous users may not act as service administrators.')
     _not_falsy(method, 'method')
     _not_falsy(log_fn, 'log_fn')
     if _not_falsy(perm, 'perm') == AdminPermission.NONE:
@@ -370,7 +373,7 @@ def check_admin(
                          'requirement? That totally makes no sense. Get a brain moran')
     if as_user and perm != AdminPermission.FULL:
         raise ValueError('as_user is supplied, but permission is not FULL')
-    p, user = _not_falsy(user_lookup, 'user_lookup').is_admin(_not_falsy(token, 'token'))
+    p, user = _not_falsy(user_lookup, 'user_lookup').is_admin(token)
     if p < perm:
         err = (f'User {user} does not have the necessary administration ' +
                f'privileges to run method {method}')
