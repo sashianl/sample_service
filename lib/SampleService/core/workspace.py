@@ -3,7 +3,7 @@ Methods for accessing workspace data.
 '''
 
 from enum import IntEnum
-from typing import List
+from typing import List, Optional, Dict as _Dict, Set as _Set
 
 from installed_clients.WorkspaceClient import Workspace
 from installed_clients.baseclient import ServerError as _ServerError
@@ -26,10 +26,12 @@ class WorkspaceAccessType(IntEnum):
     ADMIN = 4
 
 
-_PERM_TO_PERM_SET = {WorkspaceAccessType.READ: {'r', 'w', 'a'},
-                     WorkspaceAccessType.WRITE: {'w', 'a'},
-                     WorkspaceAccessType.ADMIN: {'a'}
-                     }
+_PERM_TO_PERM_SET: _Dict[WorkspaceAccessType, _Set[str]] = {
+    WorkspaceAccessType.NONE: set(),
+    WorkspaceAccessType.READ: {'r', 'w', 'a'},
+    WorkspaceAccessType.WRITE: {'w', 'a'},
+    WorkspaceAccessType.ADMIN: {'a'}
+    }
 
 _PERM_TO_PERM_TEXT = {WorkspaceAccessType.READ: 'read',
                       WorkspaceAccessType.WRITE: 'write to',
@@ -162,7 +164,7 @@ class WS:
 
     def has_permission(
             self,
-            user: UserID,
+            user: Optional[UserID],
             perm: WorkspaceAccessType,
             workspace_id: int = None,
             upa: UPA = None):
@@ -175,7 +177,7 @@ class WS:
 
         The user is not checked for existence.
 
-        :param user: The user's user name.
+        :param user: The user's user name, or None for an anonymous user.
         :param perm: The requested permission
         :param workspace_id: The ID of the workspace.
         :param upa: a workspace service UPA.
@@ -183,7 +185,6 @@ class WS:
         :raises UnauthorizedError: if the user doesn't have the requested permission.
         :raises NoSuchWorkspaceDataError: if the workspace or UPA doesn't exist.
         '''
-        _not_falsy(user, 'user')
         _not_falsy(perm, 'perm')
         if workspace_id is not None:
             wsid = workspace_id
@@ -201,18 +202,21 @@ class WS:
 
         try:
             p = self._ws.administer({'command': 'getPermissionsMass',
-                                    'params': {'workspaces': [{'id': wsid}]}})
+                                     'params': {'workspaces': [{'id': wsid}]}
+                                     }
+                                    )['perms'][0]
         except _ServerError as se:
             # this is pretty ugly, need error codes
             if 'No workspace' in se.args[0] or 'is deleted' in se.args[0]:
                 raise _NoSuchWorkspaceDataError(se.args[0]) from se
             else:
                 raise
+        publicaccess = p.get('*') == 'r' and perm == WorkspaceAccessType.READ
+        hasaccess = p.get(user.id) in _PERM_TO_PERM_SET[perm] if user else False
         # could optimize a bit if NONE and upa but not worth the code complication most likely
-        if (perm != WorkspaceAccessType.NONE and
-                p['perms'][0].get(user.id) not in _PERM_TO_PERM_SET[perm]):
-            raise _UnauthorizedError(
-                f'User {user} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
+        if (perm != WorkspaceAccessType.NONE and not hasaccess and not publicaccess):
+            u = f'User {user}' if user else 'Anonymous users'
+            raise _UnauthorizedError(f'{u} cannot {_PERM_TO_PERM_TEXT[perm]} {name} {target}')
         if upa:
             # Allow any server errors to percolate upwards
             # theoretically the workspace could've been deleted between the last call and this
