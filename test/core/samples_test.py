@@ -429,6 +429,7 @@ def test_get_sample_acls():
     _get_sample_acls(UserID('x'), False)
     _get_sample_acls(UserID('no_rights_here'), True)
     _get_sample_acls(UserID('no_rights_here'), False, True)
+    _get_sample_acls(None, False, True)
 
 
 def _get_sample_acls(user, as_admin, public_read=False):
@@ -467,15 +468,19 @@ def test_get_sample_acls_fail_bad_args():
     ws = create_autospec(WS, spec_set=True, instance=True)
     samples = Samples(
         storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
-    id_ = UUID('1234567890abcdef1234567890abcdef')
 
     _get_sample_acls_fail(samples, None, UserID('foo'), ValueError(
         'id_ cannot be a value that evaluates to false'))
-    _get_sample_acls_fail(samples, id_, None, ValueError(
-        'user cannot be a value that evaluates to false'))
 
 
 def test_get_sample_acls_fail_unauthorized():
+    _get_sample_acls_fail_unauthorized(UserID('y'), UnauthorizedError(
+        'User y cannot read sample 12345678-90ab-cdef-1234-567890abcdea'))
+    _get_sample_acls_fail_unauthorized(None, UnauthorizedError(
+        'Anonymous users cannot read sample 12345678-90ab-cdef-1234-567890abcdea'))
+
+
+def _get_sample_acls_fail_unauthorized(user, expected):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -491,8 +496,7 @@ def test_get_sample_acls_fail_unauthorized():
         [u('Fungus J. Pustule Jr.'), u('x')])
 
     _get_sample_acls_fail(
-        samples, UUID('1234567890abcdef1234567890abcdea'), UserID('y'),
-        UnauthorizedError('User y cannot read sample 12345678-90ab-cdef-1234-567890abcdea'))
+        samples, UUID('1234567890abcdef1234567890abcdea'), user, expected)
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcdea'),), {})]
