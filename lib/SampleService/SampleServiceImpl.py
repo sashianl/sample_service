@@ -53,7 +53,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha18"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "a1e16589e20404b119283c8bc42a0dcc97982dfc"
+    GIT_COMMIT_HASH = "5cb8e3652fdb244ee25998a3d96fa048fc6d7d81"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -266,10 +266,11 @@ Note that usage of the administration flags will be logged by the service.
         #BEGIN get_sample_acls
         id_ = _get_id_from_object(params, 'id', required=True)
         admin = _check_admin(
-            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+            self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
             'get_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
-        acls_ret = self._samples.get_sample_acls(id_, _UserID(ctx[_CTX_USER]), as_admin=admin)
+        acls_ret = self._samples.get_sample_acls(
+            id_, _get_user_from_object(ctx, _CTX_USER), as_admin=admin)
         acls = _acls_to_dict(acls_ret)
         #END get_sample_acls
 
