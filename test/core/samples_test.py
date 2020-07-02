@@ -1134,6 +1134,7 @@ def test_get_links_from_sample():
     _get_links_from_sample(UserID('ur mum'))
     _get_links_from_sample(UserID('x'))
     _get_links_from_sample(UserID('noaccess'), True)
+    _get_links_from_sample(None, True)
 
 
 def _get_links_from_sample(user, public_read=False):
@@ -1270,8 +1271,6 @@ def test_get_links_from_sample_fail_bad_args():
     sa = SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3)
     bt = datetime.datetime.fromtimestamp(1)
 
-    _get_links_from_sample_fail(s, None, sa, None, ValueError(
-        'user cannot be a value that evaluates to false'))
     _get_links_from_sample_fail(s, u, None, None, ValueError(
         'sample cannot be a value that evaluates to false'))
     _get_links_from_sample_fail(s, u, sa, bt, ValueError(
@@ -1279,6 +1278,13 @@ def test_get_links_from_sample_fail_bad_args():
 
 
 def test_get_links_from_sample_fail_unauthorized():
+    _get_links_from_sample_fail_unauthorized(UserID('z'), UnauthorizedError(
+        'User z cannot read sample 12345678-90ab-cdef-1234-567890abcdee'))
+    _get_links_from_sample_fail_unauthorized(None, UnauthorizedError(
+        'Anonymous users cannot read sample 12345678-90ab-cdef-1234-567890abcdee'))
+
+
+def _get_links_from_sample_fail_unauthorized(user, expected):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1294,10 +1300,10 @@ def test_get_links_from_sample_fail_unauthorized():
 
     _get_links_from_sample_fail(
         s,
-        UserID('z'),
+        user,
         SampleAddress(UUID('1234567890abcdef1234567890abcdee'), 3),
         None,
-        UnauthorizedError('User z cannot read sample 12345678-90ab-cdef-1234-567890abcdee'))
+        expected)
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcdee'))
 

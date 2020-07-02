@@ -359,14 +359,14 @@ class Samples:
 
     def get_links_from_sample(
             self,
-            user: UserID,
+            user: Optional[UserID],
             sample: SampleAddress,
             timestamp: datetime.datetime = None,
             as_admin: bool = False) -> Tuple[List[DataLink], datetime.datetime]:
         '''
         Get a set of data links originating from a sample at a particular time.
 
-        :param user: the user requesting the links.
+        :param user: the user requesting the links or None if the user is anonymous.
         :param sample: the sample from which the links originate.
         :param timestamp: the timestamp during which the links should be active, defaulting to
             the current time.
@@ -378,7 +378,6 @@ class Samples:
         :raises NoSuchSampleVersionError: if the sample version does not exist.
         :raises NoSuchUserError: if the user does not exist.
         '''
-        _not_falsy(user, 'user')
         _not_falsy(sample, 'sample')
         timestamp = self._resolve_timestamp(timestamp)
         self._check_perms(sample.sampleid, user, _SampleAccessType.READ, as_admin=as_admin)
