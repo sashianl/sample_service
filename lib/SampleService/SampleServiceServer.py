@@ -379,7 +379,7 @@ class Application(object):
         self.rpc_service.add(impl_SampleService.get_data_links_from_data,
                              name='SampleService.get_data_links_from_data',
                              types=[dict])
-        self.method_authentication['SampleService.get_data_links_from_data'] = 'required'  # noqa
+        self.method_authentication['SampleService.get_data_links_from_data'] = 'optional'  # noqa
         self.rpc_service.add(impl_SampleService.get_sample_via_data,
                              name='SampleService.get_sample_via_data',
                              types=[dict])
