@@ -394,14 +394,14 @@ class Samples:
 
     def get_links_from_data(
             self,
-            user: UserID,
+            user: Optional[UserID],
             upa: UPA,
             timestamp: datetime.datetime = None,
             as_admin: bool = False) -> Tuple[List[DataLink], datetime.datetime]:
         '''
         Get a set of data links originating from a workspace object at a particular time.
 
-        :param user: the user requesting the links.
+        :param user: the user requesting the links, or None for an anonymous user.
         :param upa: the data from which the links originate.
         :param timestamp: the timestamp during which the links should be active, defaulting to
             the current time.
@@ -413,7 +413,6 @@ class Samples:
         '''
         # may need to make this independent of the workspace. YAGNI.
         # handle ref path?
-        _not_falsy(user, 'user')
         _not_falsy(upa, 'upa')
         timestamp = self._resolve_timestamp(timestamp)
         # NONE still checks that WS/obj exists. If it's deleted this method should fail

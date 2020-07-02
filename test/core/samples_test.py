@@ -1347,7 +1347,7 @@ def test_get_links_from_data():
     storage.get_links_from_data.assert_called_once_with(UPA('2/4/6'), dt(6))
 
 
-def test_get_links_from_data_with_timestamp():
+def test_get_links_from_data_with_timestamp_and_anon_user():
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1364,10 +1364,10 @@ def test_get_links_from_data_with_timestamp():
 
     storage.get_links_from_data.return_value = [dl1]
 
-    assert s.get_links_from_data(UserID('u1'), UPA('2/4/6'), timestamp=dt(700)) == ([dl1], dt(700))
+    assert s.get_links_from_data(None, UPA('2/4/6'), timestamp=dt(700)) == ([dl1], dt(700))
 
     ws.has_permission.assert_called_once_with(
-        UserID('u1'), WorkspaceAccessType.READ, upa=UPA('2/4/6'))
+        None, WorkspaceAccessType.READ, upa=UPA('2/4/6'))
 
     storage.get_links_from_data.assert_called_once_with(UPA('2/4/6'), dt(700))
 
@@ -1416,8 +1416,6 @@ def test_get_links_from_data_fail_bad_args():
     up = UPA('1/1/1')
     bt = datetime.datetime.fromtimestamp(1)
 
-    _get_links_from_from_data_fail(s, None, up, None, ValueError(
-        'user cannot be a value that evaluates to false'))
     _get_links_from_from_data_fail(s, u, None, None, ValueError(
         'upa cannot be a value that evaluates to false'))
     _get_links_from_from_data_fail(s, u, up, bt, ValueError(
@@ -1425,6 +1423,11 @@ def test_get_links_from_data_fail_bad_args():
 
 
 def test_get_links_from_data_fail_no_ws_access():
+    _get_links_from_data_fail_no_ws_access(UserID('u'))
+    _get_links_from_data_fail_no_ws_access(None)
+
+
+def _get_links_from_data_fail_no_ws_access(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1433,11 +1436,11 @@ def test_get_links_from_data_fail_no_ws_access():
 
     ws.has_permission.side_effect = UnauthorizedError('oh honey')
 
-    _get_links_from_from_data_fail(s, UserID('u'), UPA('1/1/1'), None,
+    _get_links_from_from_data_fail(s, user, UPA('1/1/1'), None,
                                    UnauthorizedError('oh honey'))
 
     ws.has_permission.assert_called_once_with(
-        UserID('u'), WorkspaceAccessType.READ, upa=UPA('1/1/1'))
+        user, WorkspaceAccessType.READ, upa=UPA('1/1/1'))
 
 
 def _get_links_from_from_data_fail(samples, user, upa, ts, expected):
