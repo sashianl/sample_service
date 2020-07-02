@@ -367,7 +367,7 @@ module SampleService {
         can read are returned.
      */
     funcdef get_data_links_from_sample(GetDataLinksFromSampleParams params)
-        returns(GetDataLinksFromSampleResults results) authentication required;
+        returns(GetDataLinksFromSampleResults results) authentication optional;
 
     /* get_data_links_from_data parameters.
 
