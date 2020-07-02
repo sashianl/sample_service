@@ -20,7 +20,8 @@ from SampleService.core.api_translation import (
     get_upa_from_object as _get_upa_from_object,
     get_data_unit_id_from_object as _get_data_unit_id_from_object,
     get_admin_request_from_object as _get_admin_request_from_object,
-    datetime_to_epochmilliseconds as _datetime_to_epochmilliseconds
+    datetime_to_epochmilliseconds as _datetime_to_epochmilliseconds,
+    get_user_from_object as _get_user_from_object,
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.sample import SampleAddress as _SampleAddress
@@ -52,7 +53,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha18"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "208af320923599cab027cf022167238bb78ce785"
+    GIT_COMMIT_HASH = "a1e16589e20404b119283c8bc42a0dcc97982dfc"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -220,10 +221,11 @@ Note that usage of the administration flags will be logged by the service.
         # return variables are: sample
         #BEGIN get_sample
         id_, ver = _get_sample_address_from_object(params)
-        admin = _check_admin(self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+        admin = _check_admin(self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
                              # pretty annoying to test ctx.log_info is working, do it manually
                              'get_sample', ctx.log_info, skip_check=not params.get('as_admin'))
-        s = self._samples.get_sample(id_, _UserID(ctx[_CTX_USER]), ver, as_admin=admin)
+        s = self._samples.get_sample(
+            id_, _get_user_from_object(ctx, _CTX_USER), ver, as_admin=admin)
         sample = _sample_to_dict(s)
         #END get_sample
 

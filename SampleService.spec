@@ -167,7 +167,7 @@ module SampleService {
     } GetSampleParams;
 
     /* Get a sample. If the version is omitted the most recent sample is returned. */
-    funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication required;
+    funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication optional;
 
     /* get_sample_acls parameters.
         id - the ID of the sample to retrieve.

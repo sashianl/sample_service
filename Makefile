@@ -27,7 +27,7 @@ compile:
 # Don't compile server automatically, overwrites fixes to error handling
 # Temporarily add the next line to the command line args if recompiliation is needed to add
 # methods.
-# --pysrvname $(SERVICE_CAPS).$(SERVICE_CAPS)Server \
+#		--pysrvname $(SERVICE_CAPS).$(SERVICE_CAPS)Server \
 
 	kb-sdk compile $(SPEC_FILE) \
 		--out $(LIB_DIR) \

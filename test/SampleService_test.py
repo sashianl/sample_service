@@ -440,7 +440,10 @@ def test_status(sample_port):
 
 
 def get_authorized_headers(token):
-    return {'authorization': token, 'accept': 'application/json'}
+    headers = {'accept': 'application/json'}
+    if token is not None:
+        headers['authorization'] = token
+    return headers
 
 
 def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC, print_res=False):
@@ -741,28 +744,29 @@ def test_get_sample_public_read(sample_port):
 
     _replace_acls(url, id_, TOKEN1, {'public_read': 1})
 
-    s = _get_sample(url, TOKEN4, id_)
-    assert_ms_epoch_close_to_now(s['save_date'])
-    del s['save_date']
-    assert s == {
-        'id': id_,
-        'version': 1,
-        'user': 'user1',
-        'name': 'mysample',
-        'node_tree': [{'id': 'root',
-                       'parent': None,
-                       'type': 'BioReplicate',
-                       'meta_controlled': {},
-                       'meta_user': {}
-                       },
-                      {'id': 'foo',
-                       'parent': 'root',
-                       'type': 'TechReplicate',
-                       'meta_controlled': {},
-                       'meta_user': {}
-                       }
-                      ]
-    }
+    for token in [TOKEN4, None]:  # unauthed user and anonymous user
+        s = _get_sample(url, token, id_)
+        assert_ms_epoch_close_to_now(s['save_date'])
+        del s['save_date']
+        assert s == {
+            'id': id_,
+            'version': 1,
+            'user': 'user1',
+            'name': 'mysample',
+            'node_tree': [{'id': 'root',
+                           'parent': None,
+                           'type': 'BioReplicate',
+                           'meta_controlled': {},
+                           'meta_user': {}
+                           },
+                          {'id': 'foo',
+                           'parent': 'root',
+                           'type': 'TechReplicate',
+                           'meta_controlled': {},
+                           'meta_user': {}
+                           }
+                          ]
+        }
 
 
 def _get_sample(url, token, id_):
@@ -1049,17 +1053,18 @@ def test_get_sample_fail_permissions(sample_port):
     assert ret.json()['result'][0]['version'] == 1
     id_ = ret.json()['result'][0]['id']
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
-        'method': 'SampleService.get_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id_}]
-    })
-
-    # print(ret.text)
-    assert ret.status_code == 500
-    assert ret.json()['error']['message'] == (
+    _get_sample_fail(
+        url, TOKEN2, {'id': id_},
         f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+
+    _get_sample_fail(
+        url, None, {'id': id_},
+        f'Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}')
+
+    _get_sample_fail(
+        url, None, {'id': id_, 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: Anonymous users ' +
+        'may not act as service administrators.')
 
 
 def test_get_sample_fail_admin_permissions(sample_port):
@@ -1083,19 +1088,25 @@ def test_get_sample_fail_admin_permissions(sample_port):
     assert ret.json()['result'][0]['version'] == 1
     id_ = ret.json()['result'][0]['id']
 
+    _get_sample_fail(
+        url, TOKEN4, {'id': id_, 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
+        'necessary administration privileges to run method get_sample')
+
+
+def _get_sample_fail(url, token, params, expected):
+
     # user 4 has no admin permissions
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_sample',
         'version': '1.1',
         'id': '42',
-        'params': [{'id': id_, 'as_admin': 1}]
+        'params': [params]
     })
 
     # print(ret.text)
     assert ret.status_code == 500
-    assert ret.json()['error']['message'] == (
-        'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
-        'necessary administration privileges to run method get_sample')
+    assert ret.json()['error']['message'] == expected
 
 
 def test_get_and_replace_acls(sample_port, kafka):
