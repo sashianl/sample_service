@@ -1450,6 +1450,11 @@ def _get_links_from_from_data_fail(samples, user, upa, ts, expected):
 
 
 def test_get_sample_via_data():
+    _get_sample_via_data(None)
+    _get_sample_via_data(UserID('someguy'))
+
+
+def _get_sample_via_data(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1469,7 +1474,7 @@ def test_get_sample_via_data():
     )
 
     assert s.get_sample_via_data(
-        UserID('someguy'), UPA('4/5/7'), SampleAddress(id_, 4)) == SavedSample(
+        user, UPA('4/5/7'), SampleAddress(id_, 4)) == SavedSample(
             id_,
             UserID('yay'),
             [SampleNode('myname')],
@@ -1478,7 +1483,7 @@ def test_get_sample_via_data():
         )
 
     ws.has_permission.assert_called_once_with(
-        UserID('someguy'), WorkspaceAccessType.READ, upa=UPA('4/5/7'))
+        user, WorkspaceAccessType.READ, upa=UPA('4/5/7'))
 
     storage.has_data_link.assert_called_once_with(UPA('4/5/7'), id_)
     storage.get_sample.assert_called_once_with(id_, 4)
@@ -1495,8 +1500,6 @@ def test_get_sample_via_data_fail_bad_args():
     up = UPA('1/1/1')
     sa = SampleAddress(uuid.uuid4(), 1)
 
-    _get_sample_via_data_fail(s, None, up, sa, ValueError(
-        'user cannot be a value that evaluates to false'))
     _get_sample_via_data_fail(s, u, None, sa, ValueError(
         'upa cannot be a value that evaluates to false'))
     _get_sample_via_data_fail(s, u, up, None, ValueError(
@@ -1504,6 +1507,11 @@ def test_get_sample_via_data_fail_bad_args():
 
 
 def test_get_sample_via_data_fail_no_ws_access():
+    _get_sample_via_data_fail_no_ws_access(None)
+    _get_sample_via_data_fail_no_ws_access(UserID('u'))
+
+
+def _get_sample_via_data_fail_no_ws_access(user):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
     meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
@@ -1512,11 +1520,11 @@ def test_get_sample_via_data_fail_no_ws_access():
 
     ws.has_permission.side_effect = UnauthorizedError('oh honey boo boo')
 
-    _get_sample_via_data_fail(s, UserID('u'), UPA('1/1/1'), SampleAddress(uuid.uuid4(), 5),
+    _get_sample_via_data_fail(s, user, UPA('1/1/1'), SampleAddress(uuid.uuid4(), 5),
                               UnauthorizedError('oh honey boo boo'))
 
     ws.has_permission.assert_called_once_with(
-        UserID('u'), WorkspaceAccessType.READ, upa=UPA('1/1/1'))
+        user, WorkspaceAccessType.READ, upa=UPA('1/1/1'))
 
 
 def test_get_sample_via_data_fail_no_link():

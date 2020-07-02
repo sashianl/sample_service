@@ -422,14 +422,14 @@ class Samples:
 
     def get_sample_via_data(
             self,
-            user: UserID,
+            user: Optional[UserID],
             upa: UPA,
             sample_address: SampleAddress) -> SavedSample:
         '''
         Given a workspace object, get a sample linked to that object. The user must have read
         permissions for the object, but not necessarily the sample. The link may be expired.
 
-        :param user: The user requesting the sample.
+        :param user: The user requesting the sample or None if the user is anonymous.
         :param upa: the data from which the link to the sample originates.
         :param sample_address: the sample address.
         :returns: the linked sample.
@@ -441,7 +441,6 @@ class Samples:
         # no admin mode needed - use get_links or get sample
         # may need to make this independent of the workspace. YAGNI.
         # handle ref path?
-        _not_falsy(user, 'user')
         _not_falsy(upa, 'upa')
         _not_falsy(sample_address, 'sample_address')
         # the order of these checks is important, check read first, then we know link & sample
