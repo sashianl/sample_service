@@ -2265,35 +2265,36 @@ def test_get_links_from_sample_public_read(sample_port, workspace):
 
     _replace_acls(url, id_, TOKEN1, {'public_read': 1})
 
-    # check correct links are returned, user 4 has no explicit permisions
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id_, 'version': 1}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    for token in [None, TOKEN4]:  # anon user & user without explicit permission
+        # check correct links are returned
+        ret = requests.post(url, headers=get_authorized_headers(token), json={
+            'method': 'SampleService.get_data_links_from_sample',
+            'version': '1.1',
+            'id': '42',
+            'params': [{'id': id_, 'version': 1}]
+        })
+        # print(ret.text)
+        assert ret.ok is True
 
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    assert len(ret.json()['result'][0]['links']) == 1
-    link = ret.json()['result'][0]['links'][0]
-    assert_ms_epoch_close_to_now(link['created'])
-    del link['created']
+        assert len(ret.json()['result']) == 1
+        assert len(ret.json()['result'][0]) == 2
+        assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+        assert len(ret.json()['result'][0]['links']) == 1
+        link = ret.json()['result'][0]['links'][0]
+        assert_ms_epoch_close_to_now(link['created'])
+        del link['created']
 
-    assert link == {
-            'linkid': lid,
-            'id': id_,
-            'version': 1,
-            'node': 'foo',
-            'upa': '1/1/1',
-            'dataid': None,
-            'createdby': USER1,
-            'expiredby': None,
-            'expired': None
-         }
+        assert link == {
+                'linkid': lid,
+                'id': id_,
+                'version': 1,
+                'node': 'foo',
+                'upa': '1/1/1',
+                'dataid': None,
+                'createdby': USER1,
+                'expiredby': None,
+                'expired': None
+            }
 
 
 def test_create_link_fail(sample_port, workspace):
@@ -2420,6 +2421,9 @@ def test_get_links_from_sample_fail(sample_port):
     _get_link_from_sample_fail(
         sample_port, TOKEN4, {'id': id_, 'version': 1},
         f'Sample service error code 20000 Unauthorized: User user4 cannot read sample {id_}')
+    _get_link_from_sample_fail(
+        sample_port, None, {'id': id_, 'version': 1},
+        f'Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}')
     badid = uuid.uuid4()
     _get_link_from_sample_fail(
         sample_port, TOKEN3, {'id': str(badid), 'version': 1},
@@ -2430,6 +2434,10 @@ def test_get_links_from_sample_fail(sample_port):
         sample_port, TOKEN4, {'id': id_, 'version': 1, 'as_admin': 1},
         'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
         'necessary administration privileges to run method get_data_links_from_sample')
+    _get_link_from_sample_fail(
+        sample_port, None, {'id': id_, 'version': 1, 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: Anonymous users ' +
+        'may not act as service administrators.')
 
 
 def _get_link_from_sample_fail(sample_port, token, params, expected):

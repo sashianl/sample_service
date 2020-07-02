@@ -15,7 +15,6 @@
   * cache known good users
   * cache user roles
   * support anonymous users
-    * get links from sample
     * get links from data
     * get sample via data
   * remove self from acls (read/write)

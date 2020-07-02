@@ -53,7 +53,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha18"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "5cb8e3652fdb244ee25998a3d96fa048fc6d7d81"
+    GIT_COMMIT_HASH = "dc5bc302aea67790951dacca3df989fc25017ed5"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -549,11 +549,11 @@ Note that usage of the administration flags will be logged by the service.
         sid, ver = _get_sample_address_from_object(params, version_required=True)
         dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
         admin = _check_admin(
-            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.READ,
+            self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
             # pretty annoying to test ctx.log_info is working, do it manually
             'get_data_links_from_sample', ctx.log_info, skip_check=not params.get('as_admin'))
         links, ts = self._samples.get_links_from_sample(
-            _UserID(ctx[_CTX_USER]), _SampleAddress(sid, ver), dt, as_admin=admin)
+            _get_user_from_object(ctx, _CTX_USER), _SampleAddress(sid, ver), dt, as_admin=admin)
         results = {'links': _links_to_dicts(links),
                    'effective_time': _datetime_to_epochmilliseconds(ts)
                    }
