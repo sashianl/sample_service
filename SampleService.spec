@@ -181,7 +181,7 @@ module SampleService {
 
     /* Get a sample's ACLs. */
     funcdef get_sample_acls(GetSampleACLsParams params) returns (SampleACLs acls)
-        authentication required;
+        authentication optional;
 
     /* replace_sample_acls parameters.
 

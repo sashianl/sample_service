@@ -1256,13 +1256,14 @@ def test_get_acls_public_read(sample_port):
 
     _replace_acls(url, id_, TOKEN1, {'public_read': 1})
 
-    _assert_acl_contents(url, id_, TOKEN4, {
-        'owner': USER1,
-        'admin': [],
-        'write': [],
-        'read': [],
-        'public_read': 1
-    })
+    for token in [TOKEN4, None]:  # user with no explicit perms and anon user
+        _assert_acl_contents(url, id_, token, {
+            'owner': USER1,
+            'admin': [],
+            'write': [],
+            'read': [],
+            'public_read': 1
+        })
 
 
 def test_get_acls_as_admin(sample_port):
@@ -1340,14 +1341,15 @@ def _replace_acls(url, id_, token, acls, as_admin=0, print_resp=False):
     assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
 
 
-def _assert_acl_contents(url, id_, token, expected, as_admin=0):
+def _assert_acl_contents(url, id_, token, expected, as_admin=0, print_resp=False):
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_sample_acls',
         'version': '1.1',
         'id': '47',
         'params': [{'id': id_, 'as_admin': as_admin}]
     })
-    # print(ret.text)
+    if print_resp:
+        print(ret.text)
     assert ret.ok is True
     assert ret.json()['result'][0] == expected
 
@@ -1391,15 +1393,29 @@ def test_get_acls_fail_permissions(sample_port):
 
     id_ = _create_generic_sample(url, TOKEN1)
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+    _get_acls_fail_permissions(
+        url, TOKEN2, {'id': id_},
+        f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+
+    _get_acls_fail_permissions(
+        url, None, {'id': id_},
+        f'Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}')
+
+    _get_acls_fail_permissions(
+        url, None, {'id': id_, 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: Anonymous users ' +
+        'may not act as service administrators.')
+
+
+def _get_acls_fail_permissions(url, token, params, expected):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_sample_acls',
         'version': '1.1',
         'id': '42',
-        'params': [{'id': id_}]
+        'params': [params]
     })
     assert ret.status_code == 500
-    assert ret.json()['error']['message'] == (
-        f'Sample service error code 20000 Unauthorized: User user2 cannot read sample {id_}')
+    assert ret.json()['error']['message'] == expected
 
 
 def test_get_acls_fail_admin_permissions(sample_port):

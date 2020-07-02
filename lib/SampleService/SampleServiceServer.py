@@ -355,7 +355,7 @@ class Application(object):
         self.rpc_service.add(impl_SampleService.get_sample_acls,
                              name='SampleService.get_sample_acls',
                              types=[dict])
-        self.method_authentication['SampleService.get_sample_acls'] = 'required'  # noqa
+        self.method_authentication['SampleService.get_sample_acls'] = 'optional'  # noqa
         self.rpc_service.add(impl_SampleService.replace_sample_acls,
                              name='SampleService.replace_sample_acls',
                              types=[dict])
