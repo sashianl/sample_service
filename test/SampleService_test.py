@@ -3326,7 +3326,7 @@ def test_get_sample_via_data(sample_port, workspace):
     assert res == expected
 
 
-def test_get_sample_via_data_expired(sample_port, workspace):
+def test_get_sample_via_data_expired_with_anon_user(sample_port, workspace):
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN3)
@@ -3336,7 +3336,7 @@ def test_get_sample_via_data_expired(sample_port, workspace):
     wscli.save_objects({'id': 1, 'objects': [
         {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
         ]})
-    wscli.set_permissions({'id': 1, 'new_permission': 'r', 'users': [USER4]})
+    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
     # create samples
     id1 = _create_sample(
@@ -3376,7 +3376,7 @@ def test_get_sample_via_data_expired(sample_port, workspace):
     # pulled link from server to check the old link was expired
 
     # get sample via current link
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+    ret = requests.post(url, headers=get_authorized_headers(None), json={
         'method': 'SampleService.get_sample_via_data',
         'version': '1.1',
         'id': '42',
@@ -3410,7 +3410,7 @@ def test_get_sample_via_data_expired(sample_port, workspace):
     assert res == expected
 
     # get sample via expired link
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
+    ret = requests.post(url, headers=get_authorized_headers(None), json={
         'method': 'SampleService.get_sample_via_data',
         'version': '1.1',
         'id': '42',
@@ -3537,6 +3537,9 @@ def test_get_sample_via_data_fail(sample_port, workspace):
     _get_sample_via_data_fail(
         sample_port, TOKEN4, {'upa': '1/1/1', 'id': id1, 'version': 1},
         'Sample service error code 20000 Unauthorized: User user4 cannot read upa 1/1/1')
+    _get_sample_via_data_fail(
+        sample_port, None, {'upa': '1/1/1', 'id': id1, 'version': 1},
+        'Sample service error code 20000 Unauthorized: Anonymous users cannot read upa 1/1/1')
     _get_sample_via_data_fail(
         sample_port, TOKEN3, {'upa': '1/2/1', 'id': id1, 'version': 1},
         'Sample service error code 50040 No such workspace data: Object 1/2/1 does not exist')

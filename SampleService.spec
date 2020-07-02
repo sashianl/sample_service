@@ -419,7 +419,7 @@ module SampleService {
         read access to the sample.
     */
     funcdef get_sample_via_data(GetSampleViaDataParams params) returns(Sample sample)
-        authentication required;
+        authentication optional;
 
     /* get_data_link parameters.
 

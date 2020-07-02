@@ -53,7 +53,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha18"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "85b101160fee573bac94636d9829c61683f5a654"
+    GIT_COMMIT_HASH = "255f9ff92436c9367cdf94e074665600eceae743"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -707,7 +707,7 @@ Note that usage of the administration flags will be logged by the service.
         upa = _get_upa_from_object(params)
         sid, ver = _get_sample_address_from_object(params, version_required=True)
         sample = self._samples.get_sample_via_data(
-            _UserID(ctx[_CTX_USER]), upa, _SampleAddress(sid, ver))
+            _get_user_from_object(ctx, _CTX_USER), upa, _SampleAddress(sid, ver))
         sample = _sample_to_dict(sample)
         #END get_sample_via_data
 
