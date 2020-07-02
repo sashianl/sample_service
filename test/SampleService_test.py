@@ -2854,19 +2854,10 @@ def test_get_links_from_data(sample_port, workspace):
         {'id': id2, 'version': 2, 'node': 'foo3', 'upa': '1/2/2', 'dataid': 'column2'})
 
     # get links from object 1/2/2
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_data',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'upa': '1/2/2'}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    ret = _get_links_from_data(url, TOKEN3, {'upa': '1/2/2'})
 
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
+    assert_ms_epoch_close_to_now(ret['effective_time'])
+    res = ret['links']
     expected_links = [
         {
             'linkid': lid1,
@@ -2901,19 +2892,10 @@ def test_get_links_from_data(sample_port, workspace):
         assert link in res
 
     # get links from object 1/1/1
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_data',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'upa': '1/1/1'}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    ret = _get_links_from_data(url, TOKEN3, {'upa': '1/1/1'})
 
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
+    assert_ms_epoch_close_to_now(ret['effective_time'])
+    res = ret['links']
     assert_ms_epoch_close_to_now(res[0]['created'])
     del res[0]['created']
     assert res == [
@@ -2931,18 +2913,25 @@ def test_get_links_from_data(sample_port, workspace):
     ]
 
     # get links from object 1/2/1
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+    ret = _get_links_from_data(url, TOKEN3, {'upa': '1/2/1'})
+
+    assert_ms_epoch_close_to_now(ret['effective_time'])
+    assert ret['links'] == []
+
+
+def _get_links_from_data(url, token, params, print_resp=False):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_data_links_from_data',
         'version': '1.1',
         'id': '42',
-        'params': [{'upa': '1/2/1'}]
+        'params': [params]
     })
-    # print(ret.text)
+    if print_resp:
+        print(ret.text)
     assert ret.ok is True
     assert len(ret.json()['result']) == 1
     assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    assert ret.json()['result'][0]['links'] == []
+    return ret.json()['result'][0]
 
 
 def test_get_links_from_data_expired(sample_port, workspace):
@@ -3072,34 +3061,25 @@ def test_get_links_from_data_public_read(sample_port, workspace):
     # create links
     lid = _create_link(url, TOKEN1, USER1, {'id': id_, 'version': 1, 'node': 'foo', 'upa': '1/1/1'})
 
-    # get links from object, user 4 has no explicit perms
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN4), json={
-        'method': 'SampleService.get_data_links_from_data',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'upa': '1/1/1'}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    for token in [None, TOKEN4]:  # anon user, user 4 has no explicit perms
+        ret = _get_links_from_data(url, token, {'upa': '1/1/1'})
 
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    assert len(ret.json()['result'][0]['links']) == 1
-    link = ret.json()['result'][0]['links'][0]
-    assert_ms_epoch_close_to_now(link['created'])
-    del link['created']
-    assert link == {
-            'linkid': lid,
-            'id': id_,
-            'version': 1,
-            'node': 'foo',
-            'upa': '1/1/1',
-            'dataid': None,
-            'createdby': USER1,
-            'expiredby': None,
-            'expired': None
-         }
+        assert_ms_epoch_close_to_now(ret['effective_time'])
+        assert len(ret['links']) == 1
+        link = ret['links'][0]
+        assert_ms_epoch_close_to_now(link['created'])
+        del link['created']
+        assert link == {
+                'linkid': lid,
+                'id': id_,
+                'version': 1,
+                'node': 'foo',
+                'upa': '1/1/1',
+                'dataid': None,
+                'createdby': USER1,
+                'expiredby': None,
+                'expired': None
+            }
 
 
 def test_get_links_from_data_as_admin(sample_port, workspace):
@@ -3180,6 +3160,9 @@ def test_get_links_from_data_fail(sample_port, workspace):
         sample_port, TOKEN4, {'upa': '1/1/1'},
         'Sample service error code 20000 Unauthorized: User user4 cannot read upa 1/1/1')
     _get_link_from_data_fail(
+        sample_port, None, {'upa': '1/1/1'},
+        'Sample service error code 20000 Unauthorized: Anonymous users cannot read upa 1/1/1')
+    _get_link_from_data_fail(
         sample_port, TOKEN3, {'upa': '1/2/1'},
         'Sample service error code 50040 No such workspace data: Object 1/2/1 does not exist')
 
@@ -3188,6 +3171,10 @@ def test_get_links_from_data_fail(sample_port, workspace):
         sample_port, TOKEN4, {'upa': '1/1/1', 'as_admin': 1},
         'Sample service error code 20000 Unauthorized: User user4 does not have the necessary ' +
         'administration privileges to run method get_data_links_from_data')
+    _get_link_from_data_fail(
+        sample_port, None, {'upa': '1/1/1', 'as_admin': 1},
+        'Sample service error code 20000 Unauthorized: Anonymous users may not act ' +
+        'as service administrators.')
     _get_link_from_data_fail(
         sample_port, TOKEN3, {'upa': '1/1/2', 'as_admin': 1},
         'Sample service error code 50040 No such workspace data: Object 1/1/2 does not exist')

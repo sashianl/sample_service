@@ -399,7 +399,7 @@ module SampleService {
         The user must have read permissions to the workspace data.
      */
     funcdef get_data_links_from_data(GetDataLinksFromDataParams params)
-        returns(GetDataLinksFromDataResults results) authentication required;
+        returns(GetDataLinksFromDataResults results) authentication optional;
 
     /* get_sample_via_data parameters.
 
