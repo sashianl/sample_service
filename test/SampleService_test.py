@@ -2139,19 +2139,10 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
         url, TOKEN4, USER4,  {'id': id_, 'version': 1, 'node': 'foo', 'upa': '4/1/1'})
 
     # check correct links are returned
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id_, 'version': 1}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
+    ret = _get_links_from_sample(url, TOKEN3, {'id': id_, 'version': 1})
 
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
+    assert_ms_epoch_close_to_now(ret['effective_time'])
+    res = ret['links']
     expected_links = [
         {
             'linkid': lid1,
@@ -2195,6 +2186,50 @@ def test_get_links_from_sample_exclude_workspaces(sample_port, workspace):
 
     for link in expected_links:
         assert link in res
+
+    # test with anon user
+    _replace_acls(url, id_, TOKEN3, {'public_read': 1})
+    ret = _get_links_from_sample(url, None, {'id': id_, 'version': 1})
+
+    assert_ms_epoch_close_to_now(ret['effective_time'])
+    res = ret['links']
+    expected_links = [
+        {
+            'linkid': lid3,
+            'id': id_,
+            'version': 1,
+            'node': 'foo',
+            'upa': '3/1/1',
+            'dataid': 'whee',
+            'createdby': USER4,
+            'expiredby': None,
+            'expired': None
+         }
+    ]
+
+    assert len(res) == len(expected_links)
+    for link in res:
+        assert_ms_epoch_close_to_now(link['created'])
+        del link['created']
+
+    for link in expected_links:
+        assert link in res
+
+
+def _get_links_from_sample(url, token, params, print_resp=False):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [params]
+    })
+    if print_resp:
+        print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    return ret.json()['result'][0]
 
 
 def test_get_links_from_sample_as_admin(sample_port, workspace):
