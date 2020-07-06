@@ -284,8 +284,6 @@ def test_delta_build_fail():
         'Index 0 of iterable write cannot be a value that evaluates to false'))
     _build_delta_fail(t, None, None, [u('a'), u('b'), None], None, ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
-    _build_delta_fail(t, None, None, [u('a'), u('b'), None], None, ValueError(
-        'Index 2 of iterable read cannot be a value that evaluates to false'))
     _build_delta_fail(t, None, None, None, [None], ValueError(
         'Index 0 of iterable remove cannot be a value that evaluates to false'))
 

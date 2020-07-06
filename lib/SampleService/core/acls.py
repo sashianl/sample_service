@@ -156,13 +156,13 @@ class SampleACLDelta():
     An Access Control Sequence delta for a sample, consisting of user names that should be added
         for various privileges and and list of usernames that should be removed for all privileges.
 
-    :ivar admin: the list of usernames to be granted admin priveleges..
+    :ivar admin: the list of usernames to be granted admin privileges.
     :ivar write: the list of usernames to be granted write privileges.
     :ivar read: the list of usernames to be granted read privileges.
-    :ivar remove: the list of usernames to have all privilges removed.
+    :ivar remove: the list of usernames to have all privileges removed.
     :ivar public_read: a boolean designating whether the sample should be made publically readable.
         None signifies no change.
-    :ivar lastupdate: the date the last time the ACLs were updated.
+    :ivar lastupdate: the date and time the delta was applied to the ACLs.
     '''
 
     def __init__(
@@ -176,11 +176,11 @@ class SampleACLDelta():
         '''
         Create the ACLs.
 
-        :param lastupdate: the last time the ACLs were updated.
-        :param admin: the list of admin usernames.
-        :param write: the list of usernames with write privileges.
-        :param read: the list of usernames with read privileges.
-        :param remove: the list of usernames to have all privilges removed.
+        :param lastupdate: the date and time the delta was applied to the ACLs.
+        :param admin: the list of usernames to be granted admin privileges.
+        :param write: the list of usernames to be granted write privileges.
+        :param read: the list of usernames to be granted read privileges.
+        :param remove: the list of usernames to have all privileges removed.
         :param public_read: a boolean designating whether the sample is publically readable.
             None signifies no change.
         :raises IllegalParameterError: If a user appears in more than one ACL
