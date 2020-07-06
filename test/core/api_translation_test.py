@@ -478,9 +478,9 @@ def test_acls_to_dict_maximal():
             [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')],
             True)) == {
         'owner': 'user',
-        'admin': ('foo', 'bar'),
+        'admin': ('bar', 'foo'),
         'write': ('baz',),
-        'read': ('hello', "I'm", 'a', 'robot'),
+        'read': ("I'm", 'a', 'hello', 'robot'),
         'public_read': 1
     }
 

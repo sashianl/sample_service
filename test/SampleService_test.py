@@ -1150,8 +1150,8 @@ def test_get_and_replace_acls(sample_port, kafka):
         _assert_acl_contents(url, id_, token, {
             'owner': USER1,
             'admin': [USER2],
-            'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
-            'read': [USER_NO_TOKEN3, USER4],
+            'write': [USER3, USER_NO_TOKEN1, USER_NO_TOKEN2],
+            'read': [USER4, USER_NO_TOKEN3],
             'public_read': 0
         })
 
@@ -1322,8 +1322,8 @@ def test_replace_acls_as_admin(sample_port):
     _assert_acl_contents(url, id_, TOKEN1, {
         'owner': USER1,
         'admin': [USER2],
-        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
-        'read': [USER_NO_TOKEN3, USER4],
+        'write': [USER3, USER_NO_TOKEN1, USER_NO_TOKEN2],
+        'read': [USER4, USER_NO_TOKEN3],
         'public_read': 1
     })
 

@@ -84,7 +84,9 @@ class SampleACLOwnerless:
 def _to_tuple(seq, name) -> _Tuple[UserID, ...]:
     # dict.fromkeys removes dupes
     return tuple(dict.fromkeys(
-        _cast(Sequence[UserID], _not_falsy_in_iterable([] if seq is None else seq, name))))
+        sorted(  # sort to make equals and hash consistent
+            _cast(Sequence[UserID], _not_falsy_in_iterable([] if seq is None else seq, name)),
+            key=lambda u: u.id)))  # add comparison methods to user?
 
 
 def _check_acl_duplicates(admin, write, read):
