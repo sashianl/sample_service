@@ -537,7 +537,7 @@ def _replace_sample_acls(user: UserID, public_read, as_admin):
         [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], public_read),
         as_admin=as_admin)
 
-    lu.invalid_users.assert_called_once_with([u(x) for x in ['x', 'y', 'z', 'a', 'b', 'c']])
+    lu.invalid_users.assert_called_once_with([u(x) for x in ['x', 'y', 'a', 'z', 'b', 'c']])
 
     storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcde0'))
 
@@ -707,8 +707,8 @@ def test_replace_sample_acls_fail_nonexistent_user_4_users():
     _replace_sample_acls_fail(
         samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w'))
 
-    assert lu.invalid_users.call_args_list == [
-        (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z'), u('w')],), {})]
+    lu.invalid_users.assert_called_once_with(
+        [u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('w'), u('y'), u('z')])
 
 
 def test_replace_sample_acls_fail_nonexistent_user_5_users():
@@ -730,9 +730,8 @@ def test_replace_sample_acls_fail_nonexistent_user_5_users():
     _replace_sample_acls_fail(
         samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
 
-    assert lu.invalid_users.call_args_list == [
-        (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z'), u('w'),
-           u('c')],), {})]
+    lu.invalid_users.assert_called_once_with(
+        [u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('c'), u('w'), u('y'), u('z')])
 
 
 def test_replace_sample_acls_fail_nonexistent_user_6_users():
@@ -754,9 +753,9 @@ def test_replace_sample_acls_fail_nonexistent_user_6_users():
     _replace_sample_acls_fail(
         samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
 
-    assert lu.invalid_users.call_args_list == [
-        (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z'), u('w'), u('c'),
-           u('whee')],), {})]
+    lu.invalid_users.assert_called_once_with(
+        [u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('c'), u('w'), u('whee'), u('y'),
+         u('z')])
 
 
 def test_replace_sample_acls_fail_invalid_user():
@@ -778,7 +777,7 @@ def test_replace_sample_acls_fail_invalid_user():
     _replace_sample_acls_fail(samples, id_, UserID('foo'), acls, NoSuchUserError('o shit waddup'))
 
     assert lu.invalid_users.call_args_list == [
-        (([u('o shit waddup'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z')],), {})]
+        (([u('o shit waddup'), u('whoo'), u('fwew'), u('yay'), u('bugga'), u('y'), u('z')],), {})]
 
 
 def test_replace_sample_acls_fail_invalid_token():
@@ -801,7 +800,7 @@ def test_replace_sample_acls_fail_invalid_token():
         'user lookup token for KBase auth server is invalid, cannot continue'))
 
     assert lu.invalid_users.call_args_list == [
-        (([u('x'), u('whoo'), u('yay'), u('fwew'), u('y'), u('bugga'), u('z')],), {})]
+        (([u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('y'), u('z')],), {})]
 
 
 def test_replace_sample_acls_fail_unauthorized():

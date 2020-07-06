@@ -25,13 +25,13 @@ def test_build_ownerless():
 
     # test duplicates are removed and order maintained
     a = SampleACLOwnerless(
-        [u('baz'), u('bat'), u('baz')],
-        read=[u('wheee'), u('wheee')],
+        [u('baz'), u('baz')],
+        read=[u('wheee'), u('wheee'), u('c')],
         write=[u('wugga'), u('a'), u('b'), u('a')],
         public_read=True)
-    assert a.admin == (u('baz'), u('bat'))
-    assert a.write == (u('wugga'), u('a'), u('b'))
-    assert a.read == (u('wheee'),)
+    assert a.admin == (u('baz'),)
+    assert a.write == (u('a'), u('b'), u('wugga'))
+    assert a.read == (u('c'), u('wheee'))
     assert a.public_read is True
 
     # test None input for public read
@@ -121,8 +121,8 @@ def test_build():
         public_read=True)
     assert a.owner == u('foo')
     assert a.lastupdate == dt(-56)
-    assert a.admin == (u('baz'), u('bat'))
-    assert a.write == (u('wugga'), u('a'), u('b'))
+    assert a.admin == (u('bat'), u('baz'))
+    assert a.write == (u('a'), u('b'), u('wugga'))
     assert a.read == (u('wheee'),)
     assert a.public_read is True
 
@@ -246,13 +246,13 @@ def test_delta_build():
         [u('baz'), u('bat'), u('baz')],
         read=[u('wheee'), u('wheee')],
         write=[u('wugga'), u('a'), u('b'), u('wugga')],
-        remove=[u('bleah'), u('ffs')],
+        remove=[u('bleah'), u('ffs'), u('c')],
         public_read=True)
     assert a.lastupdate == dt(-56)
-    assert a.admin == (u('baz'), u('bat'))
-    assert a.write == (u('wugga'), u('a'), u('b'))
+    assert a.admin == (u('bat'), u('baz'))
+    assert a.write == (u('a'), u('b'), u('wugga'))
     assert a.read == (u('wheee'),)
-    assert a.remove == (u('bleah'), u('ffs'))
+    assert a.remove == (u('bleah'), u('c'), u('ffs'))
     assert a.public_read is True
 
     a = SampleACLDelta(dt(30), public_read=False)
