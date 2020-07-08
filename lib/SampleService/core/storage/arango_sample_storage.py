@@ -77,7 +77,7 @@ from typing import Dict as _Dict, Any as _Any
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
 
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SavedSample
@@ -88,13 +88,15 @@ from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
-from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
-from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
-from SampleService.core.errors import NoSuchLinkError as _NoSuchLinkError
-from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
-from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
-from SampleService.core.errors import NoSuchSampleNodeError as _NoSuchSampleNodeError
-from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinksError
+from SampleService.core.errors import (
+    ConcurrencyError as _ConcurrencyError,
+    DataLinkExistsError as _DataLinkExistsError,
+    NoSuchLinkError as _NoSuchLinkError,
+    NoSuchSampleError as _NoSuchSampleError,
+    NoSuchSampleVersionError as _NoSuchSampleVersionError,
+    NoSuchSampleNodeError as _NoSuchSampleNodeError,
+    TooManyDataLinksError as _TooManyDataLinksError,
+)
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
@@ -771,12 +773,14 @@ class ArangoSampleStorage:
                 FILTER s.{_FLD_ARANGO_KEY} == @id
                 FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
                 UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls),
-                                {_FLD_ACL_UPDATE_TIME}: {acls.lastupdate.timestamp()}}} IN @@col
+                                {_FLD_ACL_UPDATE_TIME}: @ts
+                                }} IN @@col
                 RETURN s
             '''
         bind_vars = {'@col': self._col_sample.name,
                      'id': str(id_),
                      'owner': acls.owner.id,
+                     'ts': acls.lastupdate.timestamp(),
                      'acls': {_FLD_ADMIN: [u.id for u in acls.admin],
                               _FLD_WRITE: [u.id for u in acls.write],
                               _FLD_READ: [u.id for u in acls.read],
@@ -792,7 +796,84 @@ class ArangoSampleStorage:
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    # TODO change acls with more granularity
+    def update_sample_acls(self, id_: UUID, update: SampleACLDelta) -> None:
+        '''
+        Update a sample's ACLs via a delta specification.
+
+        :param id_: the sample ID.
+        :param update: the update to apply to the ACLs.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        :raises UnauthorizedError: if the update attempts to alter the sample owner.
+        '''
+        # Needs to ensure owner is not added to another ACL
+        # could make an option to just ignore the update to the owner? YAGNI for now.
+        _not_falsy(update, 'update')
+        s = self.get_sample_acls(id_)
+        if not s.is_update(update):
+            # noop. Theoretically the values in the DB may have changed since we pulled the ACLs,
+            # but now we're talking about millisecond ordering differences, so don't worry
+            # about it.
+            return
+        self._update_sample_acls_pt2(id_, update, s.owner)
+
+    def _update_sample_acls_pt2(self, id_, update, owner):
+        # this method is split solely to allow testing the owner change case.
+
+        # At this point we're committed to a DB update and therefore an ACL update time bump
+        # (unless we make the query very complicated, which probably isn't worth the
+        # complexity). Even with the noop checking code above, it's still possible for the DB
+        # update to be a noop and yet bump the update time. What that means, though, is that
+        # some other thread of operation changed the ACLs to the exact state that application of
+        # our delta update would result in. The only issue here is that the update time stamp will
+        # be a few milliseconds later than it should be, so don't worry about it.
+
+        bind_vars = {'@col': self._col_sample.name,
+                     'id': str(id_),
+                     'owner': owner.id,
+                     'ts': update.lastupdate.timestamp(),
+                     'admin': [u.id for u in update.admin],
+                     'write': [u.id for u in update.write],
+                     'read': [u.id for u in update.read],
+                     'remove': [u.id for u in update.remove],
+                     }
+        # Could return a subset of s to save bandwith
+        # ensures the owner hasn't changed since we pulled the acls above.
+        aql = f'''
+            FOR s in @@col
+                FILTER s.{_FLD_ARANGO_KEY} == @id
+                FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
+                UPDATE s WITH {{
+                    {_FLD_ACL_UPDATE_TIME}: @ts,
+                    {_FLD_ACLS}: {{
+                        {_FLD_ADMIN}: REMOVE_VALUES(UNION_DISTINCT(
+                            s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin), @remove),
+                        {_FLD_WRITE}: REMOVE_VALUES(UNION_DISTINCT(
+                            s.{_FLD_ACLS}.{_FLD_WRITE}, @write), @remove),
+                        {_FLD_READ}: REMOVE_VALUES(UNION_DISTINCT(
+                            s.{_FLD_ACLS}.{_FLD_READ}, @read), @remove)
+        '''
+        if update.public_read is not None:
+            aql += f''',
+                        {_FLD_PUBLIC_READ}: @pubread'''
+            bind_vars['pubread'] = update.public_read
+        aql += '''
+                        }
+                    } IN @@col
+                RETURN s
+            '''
+
+        try:
+            cur = self._db.aql.execute(aql, bind_vars=bind_vars, count=True)
+            if not cur.count():
+                # Assume cur.count() is never > 1 as we're filtering on _key.
+                # We already know the sample exists, and samples at this point can't be
+                # deleted, so just raise.
+                raise _OwnerChangedError(  # if this happens a lot make a retry loop.
+                    'The sample owner unexpectedly changed during the operation. Please retry. ' +
+                    'If this error occurs frequently, code changes may be necessary.')
+        except _arango.exceptions.AQLQueryExecuteError as e:  # this is a real pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def create_data_link(self, link: DataLink, update: bool = False) -> Optional[UUID]:
         '''

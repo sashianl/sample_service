@@ -6,13 +6,15 @@ from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SavedSample, SampleNode, SubSampleType, SampleNodeAddress
 from SampleService.core.sample import SampleAddress
-from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
-from SampleService.core.errors import NoSuchSampleVersionError, DataLinkExistsError
-from SampleService.core.errors import TooManyDataLinksError, NoSuchLinkError, NoSuchSampleNodeError
+from SampleService.core.errors import (
+    MissingParameterError, NoSuchSampleError, ConcurrencyError, UnauthorizedError,
+    NoSuchSampleVersionError, DataLinkExistsError, TooManyDataLinksError, NoSuchLinkError,
+    NoSuchSampleNodeError
+)
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError
@@ -1135,6 +1137,174 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
         samplestorage.replace_sample_acls(
             id_, SampleACL(UserID('user'), dt(1), write=[UserID('foo')]))
     assert_exception_correct(got.value, OwnerChangedError())
+
+
+def test_update_sample_acls(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        dt(58),
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+        public_read=True))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(58),
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+        True)
+
+
+def test_update_sample_acls_noop(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True))
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        dt(98),
+        [UserID('foo')],
+        [UserID('bat')],
+        [UserID('whoo')],
+        [UserID('nouser'), UserID('nouser2')],
+        public_read=True))
+
+    res = samplestorage.get_sample_acls(id_)
+    print(res)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True)
+
+
+def test_update_sample_acls_with_remove_and_null_public(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True))
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        dt(98),
+        [UserID('admin')],
+        [UserID('write'), UserID('write2')],
+        [UserID('read')],
+        [UserID('foo'), UserID('bat'), UserID('whoo'), UserID('notauser')]
+    ))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(98),
+        [UserID('bar'), UserID('admin')],
+        [UserID('baz'), UserID('write'), UserID('write2')],
+        [UserID('read')],
+        True)
+
+
+def test_update_sample_acls_with_false_public(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True))
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(dt(98), public_read=False))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(98),
+        [UserID('bar'), UserID('foo')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        False)
+
+
+def test_update_sample_acls_fail_bad_args(samplestorage):
+    id_ = uuid.uuid4()
+    s = SampleACLDelta(dt(2))
+
+    _update_sample_acls_fail(
+        samplestorage, None, s, ValueError('id_ cannot be a value that evaluates to false'))
+    _update_sample_acls_fail(
+        samplestorage, id_, None, ValueError('update cannot be a value that evaluates to false'))
+
+
+def test_update_sample_acls_fail_no_sample(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    _update_sample_acls_fail(
+        samplestorage, uuid.UUID('1234567890abcdef1234567890abcde1'), SampleACLDelta(dt(1)),
+        NoSuchSampleError('12345678-90ab-cdef-1234-567890abcde1'))
+
+
+def test_update_sample_acls_fail_alters_owner(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('us'), [TEST_NODE], dt(1), 'foo')) is True
+
+    err = UnauthorizedError('ACLs for the sample owner us may not be modified by a delta update.')
+
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(dt(1), [UserID('us')]), err)
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(dt(1), write=[UserID('us')]), err)
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(dt(1), read=[UserID('us')]), err)
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(dt(1), remove=[UserID('us')]), err)
+
+
+def test_update_sample_acls_fail_owner_changed(samplestorage):
+    '''
+    This tests a race condition that could occur when the owner of a sample changes after
+    the sample ACLs are pulled from Arango to check against the sample delta to ensure the owner
+    is not altered by the delta.
+    '''
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    with raises(Exception) as got:
+        samplestorage._update_sample_acls_pt2(
+            id_, SampleACLDelta(dt(2), [UserID('a')]), UserID('user2'))
+    assert_exception_correct(got.value, OwnerChangedError(
+        # we don't really ever expect this to happen, but just in case...
+        'The sample owner unexpectedly changed during the operation. Please retry. ' +
+        'If this error occurs frequently, code changes may be necessary.'))
+
+
+def _update_sample_acls_fail(samplestorage, id_, update, expected):
+    with raises(Exception) as got:
+        samplestorage.update_sample_acls(id_, update)
+    assert_exception_correct(got.value, expected)
 
 
 def test_create_and_get_data_link(samplestorage):
