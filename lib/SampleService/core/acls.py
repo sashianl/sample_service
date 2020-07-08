@@ -98,61 +98,6 @@ def _check_acl_duplicates(admin, write, read):
             raise _IllegalParameterError(f'User {u} appears in two ACLs')
 
 
-class SampleACL(SampleACLOwnerless):
-    '''
-    An Access Control Sequence for a sample, consisting of user names for various privileges.
-
-    :ivar owner: the owner username.
-    :ivar admin: the list of admin usernames.
-    :ivar write: the list of usernames with write privileges.
-    :ivar read: the list of usernames with read privileges.
-    :ivar public_read: a boolean designating whether the sample is publically readable.
-    :ivar lastupdate: the date the last time the ACLs were updated.
-    '''
-
-    def __init__(
-            self,
-            owner: UserID,
-            lastupdate: datetime.datetime,
-            admin: Sequence[UserID] = None,
-            write: Sequence[UserID] = None,
-            read: Sequence[UserID] = None,
-            public_read: bool = False):
-        '''
-        Create the ACLs.
-
-        :param owner: the owner username.
-        :param lastupdate: the last time the ACLs were updated.
-        :param admin: the list of admin usernames.
-        :param write: the list of usernames with write privileges.
-        :param read: the list of usernames with read privileges.
-        :param public_read: a boolean designating whether the sample is publically readable.
-            None is considered false.
-        :raises IllegalParameterError: If a user appears in more than one ACL
-        '''
-        self.owner = _not_falsy(owner, 'owner')
-        self.lastupdate = _check_timestamp(lastupdate, 'lastupdate')
-        super().__init__(admin, write, read, public_read)
-        all_ = (self.admin, self.write, self.read)
-        for i in range(len(all_)):
-            if self.owner in all_[i]:
-                raise _IllegalParameterError('The owner cannot be in any other ACL')
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (other.owner == self.owner
-                    and other.lastupdate == self.lastupdate
-                    and other.admin == self.admin
-                    and other.write == self.write
-                    and other.read == self.read
-                    and other.public_read is self.public_read)
-        return NotImplemented
-
-    def __hash__(self):
-        return hash((self.owner, self.lastupdate, self.admin, self.write, self.read,
-                     self.public_read))
-
-
 class SampleACLDelta():
     '''
     An Access Control Sequence delta for a sample, consisting of user names that should be added
@@ -211,4 +156,59 @@ class SampleACLDelta():
 
     def __hash__(self):
         return hash((self.lastupdate, self.admin, self.write, self.read, self.remove,
+                     self.public_read))
+
+
+class SampleACL(SampleACLOwnerless):
+    '''
+    An Access Control Sequence for a sample, consisting of user names for various privileges.
+
+    :ivar owner: the owner username.
+    :ivar admin: the list of admin usernames.
+    :ivar write: the list of usernames with write privileges.
+    :ivar read: the list of usernames with read privileges.
+    :ivar public_read: a boolean designating whether the sample is publically readable.
+    :ivar lastupdate: the date the last time the ACLs were updated.
+    '''
+
+    def __init__(
+            self,
+            owner: UserID,
+            lastupdate: datetime.datetime,
+            admin: Sequence[UserID] = None,
+            write: Sequence[UserID] = None,
+            read: Sequence[UserID] = None,
+            public_read: bool = False):
+        '''
+        Create the ACLs.
+
+        :param owner: the owner username.
+        :param lastupdate: the last time the ACLs were updated.
+        :param admin: the list of admin usernames.
+        :param write: the list of usernames with write privileges.
+        :param read: the list of usernames with read privileges.
+        :param public_read: a boolean designating whether the sample is publically readable.
+            None is considered false.
+        :raises IllegalParameterError: If a user appears in more than one ACL
+        '''
+        self.owner = _not_falsy(owner, 'owner')
+        self.lastupdate = _check_timestamp(lastupdate, 'lastupdate')
+        super().__init__(admin, write, read, public_read)
+        all_ = (self.admin, self.write, self.read)
+        for i in range(len(all_)):
+            if self.owner in all_[i]:
+                raise _IllegalParameterError('The owner cannot be in any other ACL')
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (other.owner == self.owner
+                    and other.lastupdate == self.lastupdate
+                    and other.admin == self.admin
+                    and other.write == self.write
+                    and other.read == self.read
+                    and other.public_read is self.public_read)
+        return NotImplemented
+
+    def __hash__(self):
+        return hash((self.owner, self.lastupdate, self.admin, self.write, self.read,
                      self.public_read))
