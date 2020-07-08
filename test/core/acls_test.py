@@ -4,7 +4,7 @@ from pytest import raises
 
 from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from core.test_utils import assert_exception_correct
-from SampleService.core.errors import IllegalParameterError
+from SampleService.core.errors import IllegalParameterError, UnauthorizedError
 from SampleService.core.user import UserID
 
 
@@ -176,6 +176,64 @@ def test_build_fail():
 def _build_fail(owner, lastchanged, admin, write, read, expected):
     with raises(Exception) as got:
         SampleACL(owner, lastchanged, admin, write, read)
+    assert_exception_correct(got.value, expected)
+
+
+def test_is_update():
+    s = SampleACL(
+        u('o'),
+        dt(1),
+        [u('a1'), u('a2')],
+        [u('w1'), u('w2')],
+        [u('r1'), u('r2')],
+        True)
+
+    assert s.is_update(SampleACLDelta(dt(2))) is False
+
+    assert s.is_update(SampleACLDelta(dt(2), [u('a1')])) is False
+    assert s.is_update(SampleACLDelta(dt(2), [u('a3')])) is True
+
+    assert s.is_update(SampleACLDelta(dt(2), write=[u('w2')])) is False
+    assert s.is_update(SampleACLDelta(dt(2), write=[u('w4')])) is True
+
+    assert s.is_update(SampleACLDelta(dt(2), read=[u('r1')])) is False
+    assert s.is_update(SampleACLDelta(dt(2), read=[u('r3')])) is True
+
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r1')])) is True
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r3')])) is False
+
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('w2')])) is True
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('w4')])) is False
+
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r1')])) is True
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r3')])) is False
+
+    assert s.is_update(SampleACLDelta(dt(2), public_read=False)) is True
+    assert s.is_update(SampleACLDelta(dt(2), public_read=None)) is False
+    assert s.is_update(SampleACLDelta(dt(2), public_read=True)) is False
+
+
+def test_is_update_fail():
+    s = SampleACL(u('u'), dt(1))
+
+    is_update_fail(s, None, ValueError('update cannot be a value that evaluates to false'))
+    is_update_fail(
+        s, SampleACLDelta(dt(2), [u('a'), u('u')], [u('v')]),
+        UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
+    is_update_fail(
+        s, SampleACLDelta(dt(2), [u('a')], write=[u('v'), u('u')]),
+        UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
+    is_update_fail(
+        s, SampleACLDelta(dt(2), [u('a')], read=[u('v'), u('u')]),
+        UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
+    is_update_fail(
+        s, SampleACLDelta(dt(2), [u('a')], remove=[u('v'), u('u')]),
+        UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
+
+
+def is_update_fail(sample, delta, expected):
+    with raises(Exception) as got:
+        sample.is_update(delta)
     assert_exception_correct(got.value, expected)
 
 

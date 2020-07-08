@@ -12,7 +12,10 @@ from SampleService.core.arg_checkers import (
     not_falsy_in_iterable as _not_falsy_in_iterable,
     check_timestamp as _check_timestamp
 )
-from SampleService.core.errors import IllegalParameterError as _IllegalParameterError
+from SampleService.core.errors import (
+    IllegalParameterError as _IllegalParameterError,
+    UnauthorizedError as _UnauthorizedError,
+)
 from SampleService.core.user import UserID
 
 
@@ -198,6 +201,34 @@ class SampleACL(SampleACLOwnerless):
         for i in range(len(all_)):
             if self.owner in all_[i]:
                 raise _IllegalParameterError('The owner cannot be in any other ACL')
+
+    def is_update(self, update: SampleACLDelta) -> bool:
+        '''
+        Check if an acl delta update is actually an update or a noop for the sample.
+
+        :param update: the update.
+        :returns: True if the update would change the ACLs, False if not. The timestamp is not
+            considered.
+        :raises UnauthorizedError: if the update would affect the owner.
+        '''
+        _not_falsy(update, 'update')
+        o = self.owner
+        if o in update.admin or o in update.write or o in update.read or o in update.remove:
+            raise _UnauthorizedError(
+                f'ACLs for the sample owner {o.id} may not be modified by a delta update.')
+        rem = set(update.remove)
+        admin = set(self.admin)
+        write = set(self.write)
+        read = set(self.read)
+        pub = update.public_read
+
+        return (not set(update.admin).issubset(admin) or
+                not set(update.write).issubset(write) or
+                not set(update.read).issubset(read) or
+                not rem.isdisjoint(admin) or
+                not rem.isdisjoint(write) or
+                not rem.isdisjoint(read) or
+                (pub is not None and pub is not self.public_read))
 
     def __eq__(self, other):
         if type(other) is type(self):
