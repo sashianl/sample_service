@@ -199,8 +199,8 @@ def test_is_update():
     assert s.is_update(SampleACLDelta(dt(2), read=[u('r1')])) is False
     assert s.is_update(SampleACLDelta(dt(2), read=[u('r3')])) is True
 
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r1')])) is True
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r3')])) is False
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('a1')])) is True
+    assert s.is_update(SampleACLDelta(dt(2), remove=[u('a3')])) is False
 
     assert s.is_update(SampleACLDelta(dt(2), remove=[u('w2')])) is True
     assert s.is_update(SampleACLDelta(dt(2), remove=[u('w4')])) is False
