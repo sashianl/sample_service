@@ -217,19 +217,8 @@ class Samples:
         _not_falsy(id_, 'id_')
         _not_falsy(user, 'user')
         _not_falsy(new_acls, 'new_acls')
-        try:
-            bad_users = self._user_lookup.invalid_users(
-                _cast(List[UserID], []) + list(new_acls.admin) +
-                list(new_acls.write) + list(new_acls.read))
-            # let authentication errors propagate, not much to do
-            # could add retries to the client
-        except _user_lookup_mod.InvalidUserError as e:
-            raise _NoSuchUserError(e.args[0]) from e
-        except _user_lookup_mod.InvalidTokenError:
-            raise ValueError('user lookup token for KBase auth server is invalid, cannot continue')
-        if bad_users:
-            raise _NoSuchUserError(', '.join([u.id for u in bad_users[:5]]))
-
+        self._check_for_bad_users(_cast(List[UserID], []) + list(new_acls.admin) +
+                                  list(new_acls.write) + list(new_acls.read))
         count = 0
         while count >= 0:
             if count >= 5:
@@ -252,6 +241,18 @@ class Samples:
             self._kafka.notify_sample_acl_change(id_)
 
     # TODO change owner. Probably needs a request/accept flow.
+
+    def _check_for_bad_users(self, users: List[UserID]):
+        try:
+            bad_users = self._user_lookup.invalid_users(users)
+            # let authentication errors propagate, not much to do
+            # could add retries to the client
+        except _user_lookup_mod.InvalidUserError as e:
+            raise _NoSuchUserError(e.args[0]) from e
+        except _user_lookup_mod.InvalidTokenError:
+            raise ValueError('user lookup token for KBase auth server is invalid, cannot continue')
+        if bad_users:
+            raise _NoSuchUserError(', '.join([u.id for u in bad_users[:5]]))
 
     def get_key_static_metadata(
             self,
