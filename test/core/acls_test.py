@@ -216,22 +216,22 @@ def test_is_update():
 def test_is_update_fail():
     s = SampleACL(u('u'), dt(1))
 
-    is_update_fail(s, None, ValueError('update cannot be a value that evaluates to false'))
-    is_update_fail(
+    _is_update_fail(s, None, ValueError('update cannot be a value that evaluates to false'))
+    _is_update_fail(
         s, SampleACLDelta(dt(2), [u('a'), u('u')], [u('v')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
-    is_update_fail(
+    _is_update_fail(
         s, SampleACLDelta(dt(2), [u('a')], write=[u('v'), u('u')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
-    is_update_fail(
+    _is_update_fail(
         s, SampleACLDelta(dt(2), [u('a')], read=[u('v'), u('u')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
-    is_update_fail(
+    _is_update_fail(
         s, SampleACLDelta(dt(2), [u('a')], remove=[u('v'), u('u')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
 
 
-def is_update_fail(sample, delta, expected):
+def _is_update_fail(sample, delta, expected):
     with raises(Exception) as got:
         sample.is_update(delta)
     assert_exception_correct(got.value, expected)
