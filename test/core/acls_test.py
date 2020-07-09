@@ -188,29 +188,29 @@ def test_is_update():
         [u('r1'), u('r2')],
         True)
 
-    assert s.is_update(SampleACLDelta(dt(2))) is False
+    assert s.is_update(SampleACLDelta()) is False
 
-    assert s.is_update(SampleACLDelta(dt(2), [u('a1')])) is False
-    assert s.is_update(SampleACLDelta(dt(2), [u('a3')])) is True
+    assert s.is_update(SampleACLDelta([u('a1')])) is False
+    assert s.is_update(SampleACLDelta([u('a3')])) is True
 
-    assert s.is_update(SampleACLDelta(dt(2), write=[u('w2')])) is False
-    assert s.is_update(SampleACLDelta(dt(2), write=[u('w4')])) is True
+    assert s.is_update(SampleACLDelta(write=[u('w2')])) is False
+    assert s.is_update(SampleACLDelta(write=[u('w4')])) is True
 
-    assert s.is_update(SampleACLDelta(dt(2), read=[u('r1')])) is False
-    assert s.is_update(SampleACLDelta(dt(2), read=[u('r3')])) is True
+    assert s.is_update(SampleACLDelta(read=[u('r1')])) is False
+    assert s.is_update(SampleACLDelta(read=[u('r3')])) is True
 
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('a1')])) is True
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('a3')])) is False
+    assert s.is_update(SampleACLDelta(remove=[u('a1')])) is True
+    assert s.is_update(SampleACLDelta(remove=[u('a3')])) is False
 
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('w2')])) is True
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('w4')])) is False
+    assert s.is_update(SampleACLDelta(remove=[u('w2')])) is True
+    assert s.is_update(SampleACLDelta(remove=[u('w4')])) is False
 
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r1')])) is True
-    assert s.is_update(SampleACLDelta(dt(2), remove=[u('r3')])) is False
+    assert s.is_update(SampleACLDelta(remove=[u('r1')])) is True
+    assert s.is_update(SampleACLDelta(remove=[u('r3')])) is False
 
-    assert s.is_update(SampleACLDelta(dt(2), public_read=False)) is True
-    assert s.is_update(SampleACLDelta(dt(2), public_read=None)) is False
-    assert s.is_update(SampleACLDelta(dt(2), public_read=True)) is False
+    assert s.is_update(SampleACLDelta(public_read=False)) is True
+    assert s.is_update(SampleACLDelta(public_read=None)) is False
+    assert s.is_update(SampleACLDelta(public_read=True)) is False
 
 
 def test_is_update_fail():
@@ -218,16 +218,16 @@ def test_is_update_fail():
 
     _is_update_fail(s, None, ValueError('update cannot be a value that evaluates to false'))
     _is_update_fail(
-        s, SampleACLDelta(dt(2), [u('a'), u('u')], [u('v')]),
+        s, SampleACLDelta([u('a'), u('u')], [u('v')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
     _is_update_fail(
-        s, SampleACLDelta(dt(2), [u('a')], write=[u('v'), u('u')]),
+        s, SampleACLDelta([u('a')], write=[u('v'), u('u')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
     _is_update_fail(
-        s, SampleACLDelta(dt(2), [u('a')], read=[u('v'), u('u')]),
+        s, SampleACLDelta([u('a')], read=[u('v'), u('u')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
     _is_update_fail(
-        s, SampleACLDelta(dt(2), [u('a')], remove=[u('v'), u('u')]),
+        s, SampleACLDelta([u('a')], remove=[u('v'), u('u')]),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
 
 
@@ -291,8 +291,7 @@ def test_hash():
 
 
 def test_delta_build():
-    a = SampleACLDelta(dt(30))
-    assert a.lastupdate == dt(30)
+    a = SampleACLDelta()
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
@@ -300,29 +299,25 @@ def test_delta_build():
     assert a.public_read is None
 
     a = SampleACLDelta(
-        dt(-56),
         [u('baz'), u('bat'), u('baz')],
         read=[u('wheee'), u('wheee')],
         write=[u('wugga'), u('a'), u('b'), u('wugga')],
         remove=[u('bleah'), u('ffs'), u('c')],
         public_read=True)
-    assert a.lastupdate == dt(-56)
     assert a.admin == (u('bat'), u('baz'))
     assert a.write == (u('a'), u('b'), u('wugga'))
     assert a.read == (u('wheee'),)
     assert a.remove == (u('bleah'), u('c'), u('ffs'))
     assert a.public_read is True
 
-    a = SampleACLDelta(dt(30), public_read=False)
-    assert a.lastupdate == dt(30)
+    a = SampleACLDelta(public_read=False)
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
     assert a.remove == ()
     assert a.public_read is False
 
-    a = SampleACLDelta(dt(30), public_read=None)
-    assert a.lastupdate == dt(30)
+    a = SampleACLDelta(public_read=None)
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
@@ -331,71 +326,64 @@ def test_delta_build():
 
 
 def test_delta_build_fail():
-    t = dt(1)
-    _build_delta_fail(None, None, None, None, None, ValueError(
-        'lastupdate cannot be a value that evaluates to false'))
-    _build_delta_fail(datetime.datetime.fromtimestamp(1), None, None, None, None, ValueError(
-        'lastupdate cannot be a naive datetime'))
-    _build_delta_fail(t, [u('a'), None], None, None, None, ValueError(
+    _build_delta_fail([u('a'), None], None, None, None, ValueError(
         'Index 1 of iterable admin cannot be a value that evaluates to false'))
-    _build_delta_fail(t, None, [None, None], None, None, ValueError(
+    _build_delta_fail(None, [None, None], None, None, ValueError(
         'Index 0 of iterable write cannot be a value that evaluates to false'))
-    _build_delta_fail(t, None, None, [u('a'), u('b'), None], None, ValueError(
+    _build_delta_fail(None, None, [u('a'), u('b'), None], None, ValueError(
         'Index 2 of iterable read cannot be a value that evaluates to false'))
-    _build_delta_fail(t, None, None, None, [None], ValueError(
+    _build_delta_fail(None, None, None, [None], ValueError(
         'Index 0 of iterable remove cannot be a value that evaluates to false'))
 
     # test that you cannot have a user in 2 acls
     _build_delta_fail(
-        t, [u('a'), u('z')], [u('a'), u('c')], [u('w'), u('b')], None,
+        [u('a'), u('z')], [u('a'), u('c')], [u('w'), u('b')], None,
         IllegalParameterError('User a appears in two ACLs'))
     _build_delta_fail(
-        t, [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('a')], None,
+        [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('a')], None,
         IllegalParameterError('User a appears in two ACLs'))
     _build_delta_fail(
-        t, [u('x'), u('z')], [u('b'), u('c'), u('w')], [u('w'), u('a')], None,
+        [u('x'), u('z')], [u('b'), u('c'), u('w')], [u('w'), u('a')], None,
         IllegalParameterError('User w appears in two ACLs'))
 
     # test that you cannot have a user in the remove list and an acl
     _build_delta_fail(
-        t, [u('f'), u('z')], [u('b'), u('c'), u('g')], [u('w'), u('a')], [u('m'), u('f')],
+        [u('f'), u('z')], [u('b'), u('c'), u('g')], [u('w'), u('a')], [u('m'), u('f')],
         IllegalParameterError('Users in the remove list cannot be in any other ACL'))
     _build_delta_fail(
-        t, [u('a'), u('z')], [u('x'), u('c')], [u('w'), u('b')], [u('m'), u('x')],
+        [u('a'), u('z')], [u('x'), u('c')], [u('w'), u('b')], [u('m'), u('x')],
         IllegalParameterError('Users in the remove list cannot be in any other ACL'))
     _build_delta_fail(
-        t, [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('y')], [u('y')],
+        [u('a'), u('z')], [u('b'), u('c')], [u('w'), u('y')], [u('y')],
         IllegalParameterError('Users in the remove list cannot be in any other ACL'))
 
 
-def _build_delta_fail(lastchanged, admin, write, read, remove, expected):
+def _build_delta_fail(admin, write, read, remove, expected):
     with raises(Exception) as got:
-        SampleACLDelta(lastchanged, admin, write, read, remove)
+        SampleACLDelta(admin, write, read, remove)
     assert_exception_correct(got.value, expected)
 
 
 def test_delta_eq():
-    t = dt(3)
-    assert SampleACLDelta(t) == SampleACLDelta(t)
-    assert SampleACLDelta(t) != SampleACLDelta(dt(7))
+    assert SampleACLDelta() == SampleACLDelta()
 
-    assert SampleACLDelta(t, [u('bar')]) == SampleACLDelta(t, [u('bar')])
-    assert SampleACLDelta(t, [u('bar')]) != SampleACLDelta(t, [u('baz')])
+    assert SampleACLDelta([u('bar')]) == SampleACLDelta([u('bar')])
+    assert SampleACLDelta([u('bar')]) != SampleACLDelta([u('baz')])
 
-    assert SampleACLDelta(t, write=[u('bar')]) == SampleACLDelta(t, write=[u('bar')])
-    assert SampleACLDelta(t, write=[u('bar')]) != SampleACLDelta(t, write=[u('baz')])
+    assert SampleACLDelta(write=[u('bar')]) == SampleACLDelta(write=[u('bar')])
+    assert SampleACLDelta(write=[u('bar')]) != SampleACLDelta(write=[u('baz')])
 
-    assert SampleACLDelta(t, read=[u('bar')]) == SampleACLDelta(t, read=[u('bar')])
-    assert SampleACLDelta(t, read=[u('bar')]) != SampleACLDelta(t, read=[u('baz')])
+    assert SampleACLDelta(read=[u('bar')]) == SampleACLDelta(read=[u('bar')])
+    assert SampleACLDelta(read=[u('bar')]) != SampleACLDelta(read=[u('baz')])
 
-    assert SampleACLDelta(t, remove=[u('bar')]) == SampleACLDelta(t, remove=[u('bar')])
-    assert SampleACLDelta(t, remove=[u('bar')]) != SampleACLDelta(t, remove=[u('baz')])
+    assert SampleACLDelta(remove=[u('bar')]) == SampleACLDelta(remove=[u('bar')])
+    assert SampleACLDelta(remove=[u('bar')]) != SampleACLDelta(remove=[u('baz')])
 
-    assert SampleACLDelta(t, public_read=True) == SampleACLDelta(t, public_read=True)
-    assert SampleACLDelta(t, public_read=True) != SampleACLDelta(t, public_read=False)
+    assert SampleACLDelta(public_read=True) == SampleACLDelta(public_read=True)
+    assert SampleACLDelta(public_read=True) != SampleACLDelta(public_read=False)
 
-    assert SampleACLDelta(t) != 1
-    assert t != SampleACLDelta(t)
+    assert SampleACLDelta() != 1
+    assert [] != SampleACLDelta()
 
 
 def test_delta_hash():
@@ -403,30 +391,19 @@ def test_delta_hash():
     # tests can't be written that directly test the hash value. See
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
 
-    t = dt(56)
+    assert hash(SampleACLDelta()) == hash(SampleACLDelta())
 
-    assert hash(SampleACLDelta(t)) == hash(SampleACLDelta(t))
-    assert hash(SampleACLDelta(t)) != hash(SampleACLDelta(dt(55)))
+    assert hash(SampleACLDelta([u('bar')])) == hash(SampleACLDelta([u('bar')]))
+    assert hash(SampleACLDelta([u('bar')])) != hash(SampleACLDelta([u('baz')]))
 
-    assert hash(SampleACLDelta(t, [u('bar')])) == hash(SampleACLDelta(t, [u('bar')]))
-    assert hash(SampleACLDelta(t, [u('bar')])) != hash(SampleACLDelta(t, [u('baz')]))
+    assert hash(SampleACLDelta(write=[u('bar')])) == hash(SampleACLDelta(write=[u('bar')]))
+    assert hash(SampleACLDelta(write=[u('bar')])) != hash(SampleACLDelta(write=[u('baz')]))
 
-    assert hash(SampleACLDelta(t, write=[u('bar')])) == hash(
-        SampleACLDelta(t, write=[u('bar')]))
-    assert hash(SampleACLDelta(t, write=[u('bar')])) != hash(
-        SampleACLDelta(t, write=[u('baz')]))
+    assert hash(SampleACLDelta(read=[u('bar')])) == hash(SampleACLDelta(read=[u('bar')]))
+    assert hash(SampleACLDelta(read=[u('bar')])) != hash(SampleACLDelta(read=[u('baz')]))
 
-    assert hash(SampleACLDelta(t, read=[u('bar')])) == hash(
-        SampleACLDelta(t, read=[u('bar')]))
-    assert hash(SampleACLDelta(t, read=[u('bar')])) != hash(
-        SampleACLDelta(t, read=[u('baz')]))
+    assert hash(SampleACLDelta(remove=[u('bar')])) == hash(SampleACLDelta(remove=[u('bar')]))
+    assert hash(SampleACLDelta(remove=[u('bar')])) != hash(SampleACLDelta(remove=[u('baz')]))
 
-    assert hash(SampleACLDelta(t, remove=[u('bar')])) == hash(
-        SampleACLDelta(t, remove=[u('bar')]))
-    assert hash(SampleACLDelta(t, remove=[u('bar')])) != hash(
-        SampleACLDelta(t, remove=[u('baz')]))
-
-    assert hash(SampleACLDelta(t, public_read=True)) == hash(
-        SampleACLDelta(t, public_read=True))
-    assert hash(SampleACLDelta(t, public_read=True)) != hash(
-        SampleACLDelta(t, public_read=False))
+    assert hash(SampleACLDelta(public_read=True)) == hash(SampleACLDelta(public_read=True))
+    assert hash(SampleACLDelta(public_read=True)) != hash(SampleACLDelta(public_read=False))

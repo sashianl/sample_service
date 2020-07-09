@@ -112,12 +112,10 @@ class SampleACLDelta():
     :ivar remove: the list of usernames to have all privileges removed.
     :ivar public_read: a boolean designating whether the sample should be made publically readable.
         None signifies no change.
-    :ivar lastupdate: the date and time the delta was applied to the ACLs.
     '''
 
     def __init__(
             self,
-            lastupdate: datetime.datetime,
             admin: Sequence[UserID] = None,
             write: Sequence[UserID] = None,
             read: Sequence[UserID] = None,
@@ -126,7 +124,6 @@ class SampleACLDelta():
         '''
         Create the ACLs.
 
-        :param lastupdate: the date and time the delta was applied to the ACLs.
         :param admin: the list of usernames to be granted admin privileges.
         :param write: the list of usernames to be granted write privileges.
         :param read: the list of usernames to be granted read privileges.
@@ -135,7 +132,6 @@ class SampleACLDelta():
             None signifies no change.
         :raises IllegalParameterError: If a user appears in more than one ACL
         '''
-        self.lastupdate = _check_timestamp(lastupdate, 'lastupdate')
         self.admin = _to_tuple(admin, 'admin')
         self.write = _to_tuple(write, 'write')
         self.read = _to_tuple(read, 'read')
@@ -149,8 +145,7 @@ class SampleACLDelta():
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (other.lastupdate == self.lastupdate
-                    and other.admin == self.admin
+            return (other.admin == self.admin
                     and other.write == self.write
                     and other.read == self.read
                     and other.remove == self.remove
@@ -158,8 +153,7 @@ class SampleACLDelta():
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.lastupdate, self.admin, self.write, self.read, self.remove,
-                     self.public_read))
+        return hash((self.admin, self.write, self.read, self.remove, self.public_read))
 
 
 class SampleACL(SampleACLOwnerless):

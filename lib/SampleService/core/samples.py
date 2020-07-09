@@ -270,14 +270,6 @@ class Samples:
 
         self._check_perms(id_, user, _SampleAccessType.ADMIN, as_admin=as_admin)
 
-        update = SampleACLDelta(
-            self._now(),
-            update.admin,
-            update.write,
-            update.read,
-            update.remove,
-            update.public_read
-        )
         self._storage.update_sample_acls(id_, update, self._now())
         if self._kafka:
             self._kafka.notify_sample_acl_change(id_)
