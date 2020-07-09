@@ -84,10 +84,12 @@ from SampleService.core.sample import SavedSample
 from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
 from SampleService.core.sample import SampleNodeAddress as _SampleNodeAddress
 from SampleService.core.sample import SampleAddress
-from SampleService.core.arg_checkers import not_falsy as _not_falsy
-from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
-from SampleService.core.arg_checkers import check_string as _check_string
-from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
+from SampleService.core.arg_checkers import (
+    not_falsy as _not_falsy,
+    not_falsy_in_iterable as _not_falsy_in_iterable,
+    check_string as _check_string,
+    check_timestamp as _check_timestamp,
+)
 from SampleService.core.errors import (
     ConcurrencyError as _ConcurrencyError,
     DataLinkExistsError as _DataLinkExistsError,
@@ -796,12 +798,14 @@ class ArangoSampleStorage:
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    def update_sample_acls(self, id_: UUID, update: SampleACLDelta) -> None:
+    def update_sample_acls(
+            self, id_: UUID, update: SampleACLDelta, update_time: datetime.datetime) -> None:
         '''
         Update a sample's ACLs via a delta specification.
 
         :param id_: the sample ID.
         :param update: the update to apply to the ACLs.
+        :param update_time: the update time to save in the database.
         :raises NoSuchSampleError: if the sample does not exist.
         :raises SampleStorageError: if the sample could not be retrieved.
         :raises UnauthorizedError: if the update attempts to alter the sample owner.
@@ -809,15 +813,16 @@ class ArangoSampleStorage:
         # Needs to ensure owner is not added to another ACL
         # could make an option to just ignore the update to the owner? YAGNI for now.
         _not_falsy(update, 'update')
+        _check_timestamp(update_time, 'update_time')
         s = self.get_sample_acls(id_)
         if not s.is_update(update):
             # noop. Theoretically the values in the DB may have changed since we pulled the ACLs,
             # but now we're talking about millisecond ordering differences, so don't worry
             # about it.
             return
-        self._update_sample_acls_pt2(id_, update, s.owner)
+        self._update_sample_acls_pt2(id_, update, s.owner, update_time)
 
-    def _update_sample_acls_pt2(self, id_, update, owner):
+    def _update_sample_acls_pt2(self, id_, update, owner, update_time):
         # this method is split solely to allow testing the owner change case.
 
         # At this point we're committed to a DB update and therefore an ACL update time bump
@@ -831,7 +836,7 @@ class ArangoSampleStorage:
         bind_vars = {'@col': self._col_sample.name,
                      'id': str(id_),
                      'owner': owner.id,
-                     'ts': update.lastupdate.timestamp(),
+                     'ts': update_time.timestamp(),
                      'admin': [u.id for u in update.admin],
                      'write': [u.id for u in update.write],
                      'read': [u.id for u in update.read],

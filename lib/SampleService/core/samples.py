@@ -278,7 +278,7 @@ class Samples:
             update.remove,
             update.public_read
         )
-        self._storage.update_sample_acls(id_, update)
+        self._storage.update_sample_acls(id_, update, self._now())
         if self._kafka:
             self._kafka.notify_sample_acl_change(id_)
 
