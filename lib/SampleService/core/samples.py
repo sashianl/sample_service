@@ -11,7 +11,7 @@ from typing import Optional, Callable, Tuple, List, Dict, Union, cast as _cast
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.acls import SampleAccessType as _SampleAccessType
-from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.core_types import PrimitiveType
 from SampleService.core.data_link import DataLink
 from SampleService.core.errors import (
@@ -237,6 +237,48 @@ class Samples:
                 count = -1
             except _OwnerChangedError:
                 count += 1
+        if self._kafka:
+            self._kafka.notify_sample_acl_change(id_)
+
+    def update_sample_acls(
+            self,
+            id_: UUID,
+            user: UserID,
+            update: SampleACLDelta,
+            as_admin: bool = False) -> None:
+        '''
+        Completely replace a sample's ACLs.
+
+        :param id_: the sample's ID.
+        :param user: the user changing the ACLs.
+        :param update: the ACL update. Note the update time is ignored. If the sample owner is
+            in any of the lists in the update, the update will fail.
+        :param as_admin: Skip ACL checks.
+        :raises NoSuchUserError: if any of the users in the ACLs do not exist.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises UnauthorizedError: if the user does not have admin permission for the sample or
+            the request attempts to alter the owner.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        '''
+        # could make yet another ACL class that's a delta w/o an update time - probably not
+        # worth it. If people get confused do it.
+        _not_falsy(id_, 'id_')
+        _not_falsy(user, 'user')
+        _not_falsy(update, 'update')
+        self._check_for_bad_users(_cast(List[UserID], []) + list(update.admin) +
+                                  list(update.write) + list(update.read) + list(update.remove))
+
+        self._check_perms(id_, user, _SampleAccessType.ADMIN, as_admin=as_admin)
+
+        update = SampleACLDelta(
+            self._now(),
+            update.admin,
+            update.write,
+            update.read,
+            update.remove,
+            update.public_read
+        )
+        self._storage.update_sample_acls(id_, update)
         if self._kafka:
             self._kafka.notify_sample_acl_change(id_)
 
