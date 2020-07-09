@@ -868,7 +868,7 @@ def _update_sample_acls(user: UserID, public_read):
         [u('Fungus J. Pustule Jr.'), u('x')])
 
     samples.update_sample_acls(id_, user, SampleACLDelta(
-        dt(-100), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], [u('r'), u('q')],
+        [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], [u('r'), u('q')],
         public_read))
 
     lu.invalid_users.assert_called_once_with(
@@ -879,7 +879,6 @@ def _update_sample_acls(user: UserID, public_read):
     storage.update_sample_acls.assert_called_once_with(
         UUID('1234567890abcdef1234567890abcde0'),
         SampleACLDelta(
-            dt(6),
             [u('x'), u('y')],
             [u('z'), u('a')],
             [u('b'), u('c')],
@@ -913,7 +912,7 @@ def test_update_sample_acls_as_admin_without_notifier():
         [u('Fungus J. Pustule Jr.'), u('x')])
 
     samples.update_sample_acls(id_, UserID('someguy'), SampleACLDelta(
-        dt(-100), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], [u('r'), u('q')],
+        [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], [u('r'), u('q')],
         None),
         as_admin=True)
 
@@ -923,7 +922,6 @@ def test_update_sample_acls_as_admin_without_notifier():
     storage.update_sample_acls.assert_called_once_with(
         UUID('1234567890abcdef1234567890abcde0'),
         SampleACLDelta(
-            dt(6),
             [u('x'), u('y')],
             [u('z'), u('a')],
             [u('b'), u('c')],
@@ -942,9 +940,9 @@ def test_update_sample_acls_fail_bad_input():
     id_ = UUID('1234567890abcdef1234567890abcde0')
     u = UserID('u')
 
-    _update_sample_acls_fail(samples, None, u, SampleACLDelta(dt(1)), ValueError(
+    _update_sample_acls_fail(samples, None, u, SampleACLDelta(), ValueError(
         'id_ cannot be a value that evaluates to false'))
-    _update_sample_acls_fail(samples, id_, None, SampleACLDelta(dt(1)), ValueError(
+    _update_sample_acls_fail(samples, id_, None, SampleACLDelta(), ValueError(
         'user cannot be a value that evaluates to false'))
     _update_sample_acls_fail(samples, id_, u, None, ValueError(
         'update cannot be a value that evaluates to false'))
@@ -962,7 +960,6 @@ def test_update_sample_acls_fail_nonexistent_user_5_users():
     lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c')]
 
     acls = SampleACLDelta(
-        dt(1),
         [u('x'), u('whoo')],
         [u('yay'), u('fwew')],
         [u('y'), u('bugga'), u('z'), u('w'), u('c')],
@@ -988,7 +985,6 @@ def test_update_sample_acls_fail_nonexistent_user_6_users():
     lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c'), u('whee')]
 
     acls = SampleACLDelta(
-        dt(6),
         [u('x'), u('whoo')],
         [u('yay'), u('fwew')],
         [u('y'), u('bugga'), u('z'), u('w'), u('c'), u('whee')],
@@ -1014,7 +1010,6 @@ def test_update_sample_acls_fail_invalid_user():
     lu.invalid_users.side_effect = user_lookup.InvalidUserError('o shit waddup')
 
     acls = SampleACLDelta(
-        dt(67),
         [u('o shit waddup'), u('whoo')],
         [u('yay'), u('fwew')],
         [u('y'), u('bugga'), u('z')])
@@ -1037,7 +1032,6 @@ def test_update_sample_acls_fail_invalid_token():
     lu.invalid_users.side_effect = user_lookup.InvalidTokenError('you big dummy')
 
     acls = SampleACLDelta(
-        dt(1),
         [u('x'), u('whoo')],
         [u('yay'), u('fwew')],
         [u('y'), u('bugga'), u('z')])
@@ -1074,7 +1068,7 @@ def _update_sample_acls_fail_unauthorized(user: UserID):
         [u('Fungus J. Pustule Jr.'), u('x')],
         public_read=True)  # public read shouldn't grant privs.
 
-    _update_sample_acls_fail(samples, id_, user, SampleACLDelta(dt(1)), UnauthorizedError(
+    _update_sample_acls_fail(samples, id_, user, SampleACLDelta(), UnauthorizedError(
         f'User {user} cannot administrate sample 12345678-90ab-cdef-1234-567890abcde0'))
 
     assert lu.invalid_users.call_args_list == [(([],), {})]
