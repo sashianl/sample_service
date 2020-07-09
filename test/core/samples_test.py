@@ -6,7 +6,7 @@ from uuid import UUID
 from unittest.mock import create_autospec
 
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
-from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.data_link import DataLink
 from SampleService.core.errors import (
     IllegalParameterError,
@@ -840,6 +840,250 @@ def _replace_sample_acls_fail_unauthorized(user: UserID):
 def _replace_sample_acls_fail(samples, id_, user, acls: SampleACLOwnerless, expected):
     with raises(Exception) as got:
         samples.replace_sample_acls(id_, user, acls)
+    assert_exception_correct(got.value, expected)
+
+
+def test_update_sample_acls():
+    _update_sample_acls(UserID('someuser'), True)
+    _update_sample_acls(UserID('otheruser'), False)
+
+
+def _update_sample_acls(user: UserID, public_read):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    samples = Samples(storage, lu, meta, ws, kafka, now=nw,
+                      uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.return_value = []
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        dt(1),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    samples.update_sample_acls(id_, user, SampleACLDelta(
+        dt(-100), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], [u('r'), u('q')],
+        public_read))
+
+    lu.invalid_users.assert_called_once_with(
+        [u(x) for x in ['x', 'y', 'a', 'z', 'b', 'c', 'q', 'r']])
+
+    storage.get_sample_acls.assert_called_once_with(UUID('1234567890abcdef1234567890abcde0'))
+
+    storage.update_sample_acls.assert_called_once_with(
+        UUID('1234567890abcdef1234567890abcde0'),
+        SampleACLDelta(
+            dt(6),
+            [u('x'), u('y')],
+            [u('z'), u('a')],
+            [u('b'), u('c')],
+            [u('r'), u('q')],
+            public_read))
+
+    kafka.notify_sample_acl_change.assert_called_once_with(
+        UUID('1234567890abcdef1234567890abcde0'))
+
+
+def test_update_sample_acls_as_admin_without_notifier():
+    '''
+    Also use None for public read.
+    '''
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(storage, lu, meta, ws, now=nw,
+                      uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.return_value = []
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        dt(1),
+        [u('otheruser'), u('y')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')])
+
+    samples.update_sample_acls(id_, UserID('someguy'), SampleACLDelta(
+        dt(-100), [u('x'), u('y')], [u('z'), u('a')], [u('b'), u('c')], [u('r'), u('q')],
+        None),
+        as_admin=True)
+
+    lu.invalid_users.assert_called_once_with(
+        [u(x) for x in ['x', 'y', 'a', 'z', 'b', 'c', 'q', 'r']])
+
+    storage.update_sample_acls.assert_called_once_with(
+        UUID('1234567890abcdef1234567890abcde0'),
+        SampleACLDelta(
+            dt(6),
+            [u('x'), u('y')],
+            [u('z'), u('a')],
+            [u('b'), u('c')],
+            [u('r'), u('q')],
+            None))
+
+
+def test_update_sample_acls_fail_bad_input():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+    u = UserID('u')
+
+    _update_sample_acls_fail(samples, None, u, SampleACLDelta(dt(1)), ValueError(
+        'id_ cannot be a value that evaluates to false'))
+    _update_sample_acls_fail(samples, id_, None, SampleACLDelta(dt(1)), ValueError(
+        'user cannot be a value that evaluates to false'))
+    _update_sample_acls_fail(samples, id_, u, None, ValueError(
+        'update cannot be a value that evaluates to false'))
+
+
+def test_update_sample_acls_fail_nonexistent_user_5_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c')]
+
+    acls = SampleACLDelta(
+        dt(1),
+        [u('x'), u('whoo')],
+        [u('yay'), u('fwew')],
+        [u('y'), u('bugga'), u('z'), u('w'), u('c')],
+        [u('rem')])
+
+    _update_sample_acls_fail(
+        samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+
+    lu.invalid_users.assert_called_once_with(
+        [u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('c'), u('w'), u('y'), u('z'),
+         u('rem')])
+
+
+def test_update_sample_acls_fail_nonexistent_user_6_users():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.return_value = [u('whoo'), u('yay'), u('bugga'), u('w'), u('c'), u('whee')]
+
+    acls = SampleACLDelta(
+        dt(6),
+        [u('x'), u('whoo')],
+        [u('yay'), u('fwew')],
+        [u('y'), u('bugga'), u('z'), u('w'), u('c'), u('whee')],
+        [u('rem')])
+
+    _update_sample_acls_fail(
+        samples, id_, UserID('foo'), acls, NoSuchUserError('whoo, yay, bugga, w, c'))
+
+    lu.invalid_users.assert_called_once_with(
+        [u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('c'), u('w'), u('whee'), u('y'),
+         u('z'), u('rem')])
+
+
+def test_update_sample_acls_fail_invalid_user():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.side_effect = user_lookup.InvalidUserError('o shit waddup')
+
+    acls = SampleACLDelta(
+        dt(67),
+        [u('o shit waddup'), u('whoo')],
+        [u('yay'), u('fwew')],
+        [u('y'), u('bugga'), u('z')])
+
+    _update_sample_acls_fail(samples, id_, UserID('foo'), acls, NoSuchUserError('o shit waddup'))
+
+    assert lu.invalid_users.call_args_list == [
+        (([u('o shit waddup'), u('whoo'), u('fwew'), u('yay'), u('bugga'), u('y'), u('z')],), {})]
+
+
+def test_update_sample_acls_fail_invalid_token():
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.side_effect = user_lookup.InvalidTokenError('you big dummy')
+
+    acls = SampleACLDelta(
+        dt(1),
+        [u('x'), u('whoo')],
+        [u('yay'), u('fwew')],
+        [u('y'), u('bugga'), u('z')])
+
+    _update_sample_acls_fail(samples, id_, UserID('foo'), acls, ValueError(
+        'user lookup token for KBase auth server is invalid, cannot continue'))
+
+    assert lu.invalid_users.call_args_list == [
+        (([u('whoo'), u('x'), u('fwew'), u('yay'), u('bugga'), u('y'), u('z')],), {})]
+
+
+def test_update_sample_acls_fail_unauthorized():
+    _update_sample_acls_fail_unauthorized(UserID('anotheruser'))
+    _update_sample_acls_fail_unauthorized(UserID('x'))
+    _update_sample_acls_fail_unauthorized(UserID('MrsEntity'))
+
+
+def _update_sample_acls_fail_unauthorized(user: UserID):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, now=nw, uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    id_ = UUID('1234567890abcdef1234567890abcde0')
+
+    lu.invalid_users.return_value = []
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        dt(1),
+        [u('otheruser')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=True)  # public read shouldn't grant privs.
+
+    _update_sample_acls_fail(samples, id_, user, SampleACLDelta(dt(1)), UnauthorizedError(
+        f'User {user} cannot administrate sample 12345678-90ab-cdef-1234-567890abcde0'))
+
+    assert lu.invalid_users.call_args_list == [(([],), {})]
+
+    assert storage.get_sample_acls.call_args_list == [
+        ((UUID('1234567890abcdef1234567890abcde0'),), {})]
+
+
+def _update_sample_acls_fail(samples, id_, user, update, expected):
+    with raises(Exception) as got:
+        samples.update_sample_acls(id_, user, update)
     assert_exception_correct(got.value, expected)
 
 
