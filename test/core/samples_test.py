@@ -884,7 +884,8 @@ def _update_sample_acls(user: UserID, public_read):
             [u('z'), u('a')],
             [u('b'), u('c')],
             [u('r'), u('q')],
-            public_read))
+            public_read),
+        dt(6))
 
     kafka.notify_sample_acl_change.assert_called_once_with(
         UUID('1234567890abcdef1234567890abcde0'))
@@ -927,7 +928,8 @@ def test_update_sample_acls_as_admin_without_notifier():
             [u('z'), u('a')],
             [u('b'), u('c')],
             [u('r'), u('q')],
-            None))
+            None),
+        dt(6))
 
 
 def test_update_sample_acls_fail_bad_input():
