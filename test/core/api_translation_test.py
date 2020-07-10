@@ -18,7 +18,8 @@ from SampleService.core.api_translation import (
     get_upa_from_object,
     get_data_unit_id_from_object,
     get_user_from_object,
-    get_admin_request_from_object
+    get_admin_request_from_object,
+    acl_delta_from_dict
 )
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
@@ -29,7 +30,7 @@ from SampleService.core.sample import (
     SubSampleType,
     SavedSample
 )
-from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.errors import (
     IllegalParameterError,
     MissingParameterError,
@@ -529,6 +530,53 @@ def _acls_from_dict_fail_acl_check(acltype):
 def _acls_from_dict_fail(d, expected):
     with raises(Exception) as got:
         acls_from_dict(d)
+    assert_exception_correct(got.value, expected)
+
+
+def test_acl_delta_from_dict():
+    assert acl_delta_from_dict({}) == SampleACLDelta()
+    assert acl_delta_from_dict({'public_read': 0}) == SampleACLDelta()
+    assert acl_delta_from_dict({'public_read': 1}) == SampleACLDelta(public_read=True)
+    assert acl_delta_from_dict({'public_read': -1}) == SampleACLDelta(public_read=False)
+    assert acl_delta_from_dict({'public_read': -50}) == SampleACLDelta(public_read=False)
+    assert acl_delta_from_dict({
+        'read': [],
+        'admin': ['whee', 'whoo'],
+        'public_read': None}) == SampleACLDelta([UserID('whee'), UserID('whoo')])
+    assert acl_delta_from_dict({
+        'read': ['a', 'b'],
+        'write': ['c'],
+        'admin': ['whee', 'whoo'],
+        'remove': ['e', 'f'],
+        'public_read': 100}) == SampleACLDelta(
+            [UserID('whee'), UserID('whoo')], [UserID('c')], [UserID('a'), UserID('b')],
+            [UserID('e'), UserID('f')], True)
+
+
+def test_acl_delta_from_dict_fail_bad_args():
+    _acl_delta_from_dict_fail({'public_read': '0'}, IllegalParameterError(
+        'public_read must be an integer if present'))
+    _acl_delta_from_dict_fail({'admin': {}}, IllegalParameterError(
+        'admin ACL must be a list'))
+    _acl_delta_from_dict_fail({'admin': ['foo', 1, '32']}, IllegalParameterError(
+        'Index 1 of admin ACL does not contain a string'))
+    _acl_delta_from_dict_fail({'write': 'foo'}, IllegalParameterError(
+        'write ACL must be a list'))
+    _acl_delta_from_dict_fail({'write': [[], 1, '32']}, IllegalParameterError(
+        'Index 0 of write ACL does not contain a string'))
+    _acl_delta_from_dict_fail({'read': 64.2}, IllegalParameterError(
+        'read ACL must be a list'))
+    _acl_delta_from_dict_fail({'read': ['f', 'z', {}]}, IllegalParameterError(
+        'Index 2 of read ACL does not contain a string'))
+    _acl_delta_from_dict_fail({'remove': (1,)}, IllegalParameterError(
+        'remove ACL must be a list'))
+    _acl_delta_from_dict_fail({'remove': ['f', id, {}]}, IllegalParameterError(
+        'Index 1 of remove ACL does not contain a string'))
+
+
+def _acl_delta_from_dict_fail(d, expected):
+    with raises(Exception) as got:
+        acl_delta_from_dict(d)
     assert_exception_correct(got.value, expected)
 
 

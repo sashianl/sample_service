@@ -113,6 +113,7 @@ class SampleACLDelta():
     :ivar public_read: a boolean designating whether the sample should be made publically readable.
         None signifies no change.
     '''
+    # hmm, this is pretty similar to SampleACLOwnerless... semantics are different though.
 
     def __init__(
             self,

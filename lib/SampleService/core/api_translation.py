@@ -16,7 +16,7 @@ from SampleService.core.sample import (
     SampleNodeAddress,
     SubSampleType as _SubSampleType
 )
-from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission
+from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission, SampleACLDelta
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.arg_checkers import (
     not_falsy as _not_falsy,
@@ -306,7 +306,7 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     '''
     Given a dict, create a SampleACLOwnerless object from the contents of the acls key.
 
-    :param params: The dict containing the ACLS.
+    :param params: The dict containing the ACLs.
     :returns: the ACLs.
     :raises IllegalParameterError: if any of the arguments are illegal.
     '''
@@ -322,14 +322,39 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
         bool(acls.get('public_read')))
 
 
+def acl_delta_from_dict(d: Dict[str, Any]) -> SampleACLDelta:
+    '''
+    Given a dict, create a SampleACLDelta object from the contents of the dict.
+
+    :param params: The dict containing the ACL delta.
+    :returns: the ACL delta.
+    :raises IllegalParameterError: if any of the arguments are illegal.
+    '''
+    # since we're translating from SDK server data structures, we assume this is a dict
+    incpub = d.get('public_read')
+    if incpub is None or incpub == 0:
+        pub = None
+    elif type(incpub) != int:
+        raise _IllegalParameterError('public_read must be an integer if present')
+    else:
+        pub = incpub > 0
+
+    return SampleACLDelta(
+        _get_acl(d, 'admin'),
+        _get_acl(d, 'write'),
+        _get_acl(d, 'read'),
+        _get_acl(d, 'remove'),
+        pub)
+
+
 def _get_acl(acls, type_):
     ret = []
     if acls.get(type_) is not None:
         acl = acls[type_]
-        if not type(acl) == list:
+        if type(acl) != list:
             raise _IllegalParameterError(f'{type_} ACL must be a list')
         for i, item, in enumerate(acl):
-            if not type(item) == str:
+            if type(item) != str:
                 raise _IllegalParameterError(f'Index {i} of {type_} ACL does not contain a string')
             ret.append(UserID(item))
     return ret
