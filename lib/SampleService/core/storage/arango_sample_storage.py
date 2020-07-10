@@ -832,15 +832,21 @@ class ArangoSampleStorage:
         # some other thread of operation changed the ACLs to the exact state that application of
         # our delta update would result in. The only issue here is that the update time stamp will
         # be a few milliseconds later than it should be, so don't worry about it.
+        a = [u.id for u in update.admin]
+        w = [u.id for u in update.write]
+        r = [u.id for u in update.read]
+        rem = [u.id for u in update.remove]
 
         bind_vars = {'@col': self._col_sample.name,
                      'id': str(id_),
                      'owner': owner.id,
                      'ts': update_time.timestamp(),
-                     'admin': [u.id for u in update.admin],
-                     'write': [u.id for u in update.write],
-                     'read': [u.id for u in update.read],
-                     'remove': [u.id for u in update.remove],
+                     'admin': a,
+                     'admin_remove': w + r + rem,
+                     'write': w,
+                     'write_remove': a + r + rem,
+                     'read': r,
+                     'read_remove': a + w + rem,
                      }
         # Could return a subset of s to save bandwith
         # ensures the owner hasn't changed since we pulled the acls above.
@@ -852,11 +858,11 @@ class ArangoSampleStorage:
                     {_FLD_ACL_UPDATE_TIME}: @ts,
                     {_FLD_ACLS}: {{
                         {_FLD_ADMIN}: REMOVE_VALUES(UNION_DISTINCT(
-                            s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin), @remove),
+                            s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin), @admin_remove),
                         {_FLD_WRITE}: REMOVE_VALUES(UNION_DISTINCT(
-                            s.{_FLD_ACLS}.{_FLD_WRITE}, @write), @remove),
+                            s.{_FLD_ACLS}.{_FLD_WRITE}, @write), @write_remove),
                         {_FLD_READ}: REMOVE_VALUES(UNION_DISTINCT(
-                            s.{_FLD_ACLS}.{_FLD_READ}, @read), @remove)
+                            s.{_FLD_ACLS}.{_FLD_READ}, @read), @read_remove)
         '''
         if update.public_read is not None:
             aql += f''',

@@ -18,6 +18,8 @@ from SampleService.core.errors import (
 )
 from SampleService.core.user import UserID
 
+# may need to add sane limits on ACL sizes if people act like jerks
+
 
 class SampleAccessType(IntEnum):
     '''
