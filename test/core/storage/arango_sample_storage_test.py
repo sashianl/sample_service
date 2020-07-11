@@ -1248,6 +1248,92 @@ def test_update_sample_acls_with_false_public(samplestorage):
         False)
 
 
+def test_update_sample_acls_with_existing_users(samplestorage):
+    '''
+    Tests that when a user is added to an acl it's removed from any other acls.
+    '''
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        admin=[UserID('a1'), UserID('a2'), UserID('arem')],
+        write=[UserID('w1'), UserID('w2'), UserID('wrem')],
+        read=[UserID('r1'), UserID('r2'), UserID('rrem')]))
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        admin=[UserID('w1')], remove=[UserID('arem')]), dt(89))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(89),
+        [UserID('a1'), UserID('a2'), UserID('w1')],
+        [UserID('w2'), UserID('wrem')],
+        [UserID('r1'), UserID('r2'), UserID('rrem')],
+        False)
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(admin=[UserID('r1')]), dt(90))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(90),
+        [UserID('a1'), UserID('a2'), UserID('w1'), UserID('r1')],
+        [UserID('w2'), UserID('wrem')],
+        [UserID('r2'), UserID('rrem')],
+        False)
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        read=[UserID('w1')], remove=[UserID('wrem')]), dt(91))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(91),
+        [UserID('a1'), UserID('a2'), UserID('r1')],
+        [UserID('w2')],
+        [UserID('r2'), UserID('w1'), UserID('rrem')],
+        False)
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(read=[UserID('a1')]), dt(92))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(92),
+        [UserID('a2'), UserID('r1')],
+        [UserID('w2')],
+        [UserID('r2'), UserID('w1'), UserID('a1'), UserID('rrem')],
+        False)
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        write=[UserID('a2')], remove=[UserID('rrem')]), dt(93))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(93),
+        [UserID('r1')],
+        [UserID('w2'), UserID('a2')],
+        [UserID('r2'), UserID('w1'), UserID('a1')],
+        False)
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        write=[UserID('r2')], read=[UserID('a2'), UserID('a1')]), dt(94))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(94),
+        [UserID('r1')],
+        [UserID('w2'), UserID('r2')],
+        [UserID('w1'), UserID('a2'), UserID('a1')],
+        False)
+
+
 def test_update_sample_acls_fail_bad_args(samplestorage):
     id_ = uuid.uuid4()
     s = SampleACLDelta()
