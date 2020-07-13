@@ -316,7 +316,6 @@ Note that usage of the administration flags will be logged by the service.
             'update_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
         self._samples.update_sample_acls(id_, _UserID(ctx[_CTX_USER]), acldelta, as_admin=admin)
         #END update_sample_acls
-        pass
 
     def replace_sample_acls(self, ctx, params):
         """
