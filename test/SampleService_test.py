@@ -1597,6 +1597,205 @@ def test_replace_acls_fail_owner_in_another_acl(sample_port):
         'The owner cannot be in any other ACL')
 
 
+def test_update_acls(sample_port, kafka):
+    _update_acls_tst(sample_port, kafka, TOKEN1, False)  # owner
+    _update_acls_tst(sample_port, kafka, TOKEN2, False)  # admin
+    _update_acls_tst(sample_port, kafka, TOKEN5, True)  # as_admin = True
+
+
+def _update_acls_tst(sample_port, kafka, token, as_admin):
+    _clear_kafka_messages(kafka)
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _replace_acls(url, id_, TOKEN1, {
+        'admin': [USER2],
+        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
+        'read': [USER_NO_TOKEN3, USER4],
+        'public_read': 1
+        })
+
+    _update_acls(url, token, {
+        'id': str(id_),
+        'admin': [USER4],
+        'write': [USER2],
+        'read': [USER_NO_TOKEN2],
+        'remove': [USER3],
+        'public_read': 390,
+        'as_admin': 1 if as_admin else 0
+    })
+
+    _assert_acl_contents(url, id_, TOKEN1, {
+        'owner': USER1,
+        'admin': [USER4],
+        'write': [USER2, USER_NO_TOKEN1],
+        'read': [USER_NO_TOKEN2, USER_NO_TOKEN3],
+        'public_read': 1
+    })
+
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id_},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id_},
+        ])
+
+
+def test_update_acls_fail_no_id(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url, TOKEN1, {'ids': id_},
+        'Sample service error code 30000 Missing input parameter: id')
+
+
+def test_update_acls_fail_bad_pub(sample_port):
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url, TOKEN1, {'id': id_, 'public_read': 'thingy'},
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'public_read must be an integer if present')
+
+
+def test_update_acls_fail_permissions(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _replace_acls(url, id_, TOKEN1, {
+        'admin': [USER2],
+        'write': [USER3],
+        'read': [USER4]
+    })
+
+    for user, token in ((USER3, TOKEN3), (USER4, TOKEN4)):
+        _update_acls_fail(url, token, {'id': id_}, 'Sample service error code 20000 ' +
+                          f'Unauthorized: User {user} cannot administrate sample {id_}')
+
+
+def test_update_acls_fail_admin_permissions(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    for user, token in ((USER1, TOKEN1), (USER3, TOKEN3), (USER4, TOKEN4)):
+        _update_acls_fail(
+            url, token, {'id': id_, 'as_admin': 1},
+            f'Sample service error code 20000 Unauthorized: User {user} does not have the ' +
+            'necessary administration privileges to run method update_sample_acls')
+
+
+def test_update_acls_fail_bad_user(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url,
+        TOKEN1,
+        {'id': id_,
+         'admin': [USER2, 'a'],
+         'write': [USER3],
+         'read': [USER4, 'philbin_j_montgomery_iii'],
+         'remove': ['someguy']
+         },
+        'Sample service error code 50000 No such user: a, philbin_j_montgomery_iii, someguy')
+
+
+def test_update_acls_fail_user_2_acls(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url,
+        TOKEN1,
+        {'id': id_,
+         'admin': [USER2],
+         'write': [USER3],
+         'read': [USER4, USER2],
+         },
+        'Sample service error code 30001 Illegal input parameter: User user2 appears in two ACLs')
+
+
+def test_update_acls_fail_user_in_acl_and_remove(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url,
+        TOKEN1,
+        {'id': id_,
+         'admin': [USER2],
+         'write': [USER3],
+         'read': [USER4],
+         'remove': [USER2]
+         },
+        'Sample service error code 30001 Illegal input parameter: Users in the remove list ' +
+        'cannot be in any other ACL')
+
+
+def test_update_acls_fail_owner_in_another_acl(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url, TOKEN1, {'id': id_, 'write': [USER1]},
+        'Sample service error code 20000 Unauthorized: ' +
+        'ACLs for the sample owner user1 may not be modified by a delta update.')
+
+
+def test_update_acls_fail_owner_in_remove_acl(sample_port):
+
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _update_acls_fail(
+        url, TOKEN1, {'id': id_, 'remove': [USER1]},
+        'Sample service error code 20000 Unauthorized: ' +
+        'ACLs for the sample owner user1 may not be modified by a delta update.')
+
+
+def _update_acls_fail(url, token, params, expected):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.update_sample_acls',
+        'version': '1.1',
+        'id': '42',
+        'params': [params]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == expected
+
+
+def _update_acls(url, token, params, print_resp=False):
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.update_sample_acls',
+        'version': '1.1',
+        'id': '67',
+        'params': [params]
+    })
+    if print_resp:
+        print(ret.text)
+    assert ret.ok is True
+    assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
+
+
 def test_get_metadata_key_static_metadata(sample_port):
     _get_metadata_key_static_metadata(
         sample_port, {'keys': ['foo']}, {'foo': {'a': 'b', 'c': 'd'}})
