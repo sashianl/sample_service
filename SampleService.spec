@@ -183,12 +183,40 @@ module SampleService {
     funcdef get_sample_acls(GetSampleACLsParams params) returns (SampleACLs acls)
         authentication optional;
 
+    /* update_sample_acls parameters.
+
+        id - the ID of the sample to modify.
+        admin - a list of users that will receive admin privileges. Default none.
+        write - a list of users that will receive write privileges. Default none.
+        read - a list of users that will receive read privileges. Default none.
+        remove - a list of users that will have all privileges removed. Default none.
+        public_read - an integer that determines whether the sample will be set to publicly
+            readable:
+            > 0: public read.
+            0: No change (the default).
+            < 0: private.
+        as_admin - update the sample acls regardless of sample ACL contents as long as the user has
+            full service administration permissions.
+     */
+    typedef structure {
+        sample_id id;
+        list<user> admin;
+        list<user> write;
+        list<user> read;
+        list<user> remove;
+        int public_read;
+        boolean as_admin;
+    } UpdateSampleACLsParams;
+
+    /* Update a sample's ACLs.  */
+     funcdef update_sample_acls(UpdateSampleACLsParams params) returns() authentication required;
+
     /* replace_sample_acls parameters.
 
         id - the ID of the sample to modify.
         acls - the ACLs to set on the sample.
-        as_admin - replace the sample acls regardless of ACL contents as long as the user has
-            full administration permissions.
+        as_admin - replace the sample acls regardless of sample ACL contents as long as the user
+            has full service administration permissions.
      */
     typedef structure {
         sample_id id;

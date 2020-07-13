@@ -200,6 +200,33 @@ class SampleService(object):
         return self._client.call_method('SampleService.get_sample_acls',
                                         [params], self._service_ver, context)
 
+    def update_sample_acls(self, params, context=None):
+        """
+        Update a sample's ACLs.
+        :param params: instance of type "UpdateSampleACLsParams"
+           (update_sample_acls parameters. id - the ID of the sample to
+           modify. admin - a list of users that will receive admin
+           privileges. Default none. write - a list of users that will
+           receive write privileges. Default none. read - a list of users
+           that will receive read privileges. Default none. remove - a list
+           of users that will have all privileges removed. Default none.
+           public_read - an integer that determines whether the sample will
+           be set to publicly readable: > 0: public read. 0: No change (the
+           default). < 0: private. as_admin - update the sample acls
+           regardless of sample ACL contents as long as the user has full
+           service administration permissions.) -> structure: parameter "id"
+           of type "sample_id" (A Sample ID. Must be globally unique. Always
+           assigned by the Sample service.), parameter "admin" of list of
+           type "user" (A user's username.), parameter "write" of list of
+           type "user" (A user's username.), parameter "read" of list of type
+           "user" (A user's username.), parameter "remove" of list of type
+           "user" (A user's username.), parameter "public_read" of Long,
+           parameter "as_admin" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
+        """
+        return self._client.call_method('SampleService.update_sample_acls',
+                                        [params], self._service_ver, context)
+
     def replace_sample_acls(self, params, context=None):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
@@ -208,13 +235,13 @@ class SampleService(object):
         :param params: instance of type "ReplaceSampleACLsParams"
            (replace_sample_acls parameters. id - the ID of the sample to
            modify. acls - the ACLs to set on the sample. as_admin - replace
-           the sample acls regardless of ACL contents as long as the user has
-           full administration permissions.) -> structure: parameter "id" of
-           type "sample_id" (A Sample ID. Must be globally unique. Always
-           assigned by the Sample service.), parameter "acls" of type
-           "SampleACLs" (Access control lists for a sample. Access levels
-           include the privileges of the lower access levels. owner - the
-           user that created and owns the sample. admin - users that can
+           the sample acls regardless of sample ACL contents as long as the
+           user has full service administration permissions.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "acls"
+           of type "SampleACLs" (Access control lists for a sample. Access
+           levels include the privileges of the lower access levels. owner -
+           the user that created and owns the sample. admin - users that can
            administrate (e.g. alter ACLs) the sample. write - users that can
            write (e.g. create a new version) to the sample. read - users that
            can view the sample. public_read - whether any user can read the

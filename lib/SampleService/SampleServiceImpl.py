@@ -22,6 +22,7 @@ from SampleService.core.api_translation import (
     get_admin_request_from_object as _get_admin_request_from_object,
     datetime_to_epochmilliseconds as _datetime_to_epochmilliseconds,
     get_user_from_object as _get_user_from_object,
+    acl_delta_from_dict as _acl_delta_from_dict,
     )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.sample import SampleAddress as _SampleAddress
@@ -53,7 +54,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha19"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "255f9ff92436c9367cdf94e074665600eceae743"
+    GIT_COMMIT_HASH = "546f40c25082915554759778425080946081f4db"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -281,6 +282,42 @@ Note that usage of the administration flags will be logged by the service.
         # return the results
         return [acls]
 
+    def update_sample_acls(self, ctx, params):
+        """
+        Update a sample's ACLs.
+        :param params: instance of type "UpdateSampleACLsParams"
+           (update_sample_acls parameters. id - the ID of the sample to
+           modify. admin - a list of users that will receive admin
+           privileges. Default none. write - a list of users that will
+           receive write privileges. Default none. read - a list of users
+           that will receive read privileges. Default none. remove - a list
+           of users that will have all privileges removed. Default none.
+           public_read - an integer that determines whether the sample will
+           be set to publicly readable: > 0: public read. 0: No change (the
+           default). < 0: private. as_admin - update the sample acls
+           regardless of sample ACL contents as long as the user has full
+           service administration permissions.) -> structure: parameter "id"
+           of type "sample_id" (A Sample ID. Must be globally unique. Always
+           assigned by the Sample service.), parameter "admin" of list of
+           type "user" (A user's username.), parameter "write" of list of
+           type "user" (A user's username.), parameter "read" of list of type
+           "user" (A user's username.), parameter "remove" of list of type
+           "user" (A user's username.), parameter "public_read" of Long,
+           parameter "as_admin" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
+        """
+        # ctx is the context object
+        #BEGIN update_sample_acls
+        id_ = _get_id_from_object(params, 'id', required=True)
+        acldelta = _acl_delta_from_dict(params)
+        admin = _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'update_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
+        self._samples.update_sample_acls(id_, _UserID(ctx[_CTX_USER]), acldelta, as_admin=admin)
+        #END update_sample_acls
+        pass
+
     def replace_sample_acls(self, ctx, params):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
@@ -289,13 +326,13 @@ Note that usage of the administration flags will be logged by the service.
         :param params: instance of type "ReplaceSampleACLsParams"
            (replace_sample_acls parameters. id - the ID of the sample to
            modify. acls - the ACLs to set on the sample. as_admin - replace
-           the sample acls regardless of ACL contents as long as the user has
-           full administration permissions.) -> structure: parameter "id" of
-           type "sample_id" (A Sample ID. Must be globally unique. Always
-           assigned by the Sample service.), parameter "acls" of type
-           "SampleACLs" (Access control lists for a sample. Access levels
-           include the privileges of the lower access levels. owner - the
-           user that created and owns the sample. admin - users that can
+           the sample acls regardless of sample ACL contents as long as the
+           user has full service administration permissions.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "acls"
+           of type "SampleACLs" (Access control lists for a sample. Access
+           levels include the privileges of the lower access levels. owner -
+           the user that created and owns the sample. admin - users that can
            administrate (e.g. alter ACLs) the sample. write - users that can
            write (e.g. create a new version) to the sample. read - users that
            can view the sample. public_read - whether any user can read the
