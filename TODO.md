@@ -11,7 +11,6 @@
 * Workspace @sample integration
   * If user has access to sample set, should have access to embedded samples (?)
 * ACLs:
-  * change ACLs with more granularity. Right now it's replace all
   * cache known good users
   * cache user roles
   * remove self from acls (read/write)
