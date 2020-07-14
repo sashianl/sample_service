@@ -275,8 +275,9 @@ def test_create_sample_params_fail_bad_input():
     create_sample_params_fail(
         {'sample': {'node_tree': [
             {'id': 'foo', 'type': 'BioReplicate', 'meta_controlled': m}]}},
-        IllegalParameterError("Error for node at index 0: Controlled metadata value key b\nar " +
-                              "under key foo's character at index 1 is a control character."))
+        IllegalParameterError('Error for node at index 0: Controlled metadata value key b\nar ' +
+                              'associated with metadata key foo has a character at index 1 that ' +
+                              'is a control character.'))
 
     create_sample_params_fail(
         {'sample': {'node_tree': [{'id': 'foo', 'type': 'BioReplicate'},
