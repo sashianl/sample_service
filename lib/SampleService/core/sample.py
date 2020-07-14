@@ -126,41 +126,57 @@ class SampleNode:
 def _check_meta(m: Dict[str, Dict[str, PrimitiveType]], controlled: bool):
     c = 'Controlled' if controlled else 'User'
     for k in m:
-        if len(k) > _META_MAX_KEY_SIZE:
-            raise IllegalParameterError(
-                f'{c} metadata has key starting with {k[:_META_MAX_KEY_SIZE]} that ' +
-                f'exceeds maximum length of {_META_MAX_KEY_SIZE}')
-        cc = _control_char_first_pos(k)
-        if cc:
-            raise IllegalParameterError(
-                f"{c} metadata key {k}'s character at index {cc} is a control character.")
-        for vk in m[k]:
-            if len(vk) > _META_MAX_KEY_SIZE:
-                raise IllegalParameterError(
-                    f'{c} metadata has value key under root key {k} starting with ' +
-                    f'{vk[:_META_MAX_KEY_SIZE]} that exceeds maximum length of ' +
-                    f'{_META_MAX_KEY_SIZE}')
-            cc = _control_char_first_pos(vk)
-            if cc:
-                raise IllegalParameterError(
-                    f"{c} metadata value key {vk} under key {k}'s character at index {cc} " +
-                    'is a control character.')
-            val = m[k][vk]
-            if type(val) == str:
-                if len(_cast(str, val)) > _META_MAX_VALUE_SIZE:
-                    raise IllegalParameterError(
-                        f'{c} metadata has value under root key {k} and value key {vk} ' +
-                        f'starting with {_cast(str, val)[:_META_MAX_KEY_SIZE]} that ' +
-                        f'exceeds maximum length of {_META_MAX_VALUE_SIZE}')
-                cc = _control_char_first_pos(_cast(str, val), allow_tabs_and_lf=True)
-                if cc:
-                    raise IllegalParameterError(
-                        f"{c} metadata value under root key {k} and value key {vk}'s " +
-                        f'character at index {cc} is a control character.')
+        _check_metadata_key(k, c)
+        _check_metadata_value(k, m[k], c)
     if len(_json.dumps(m, ensure_ascii=False).encode('utf-8')) > _META_MAX_SIZE_B:
         # would be nice if that could be streamed so we don't make a new byte array
         raise IllegalParameterError(
             f'{c} metadata is larger than maximum of {_META_MAX_SIZE_B}B')
+
+
+def _check_metadata_key(key: str, name: str) -> str:
+    if not key or not key.strip():
+        raise IllegalParameterError(f'{name} metadata keys may not be null or whitespace only')
+    if len(key) > _META_MAX_KEY_SIZE:
+        raise IllegalParameterError(
+            f'{name} metadata has key starting with {key[:_META_MAX_KEY_SIZE]} that ' +
+            f'exceeds maximum length of {_META_MAX_KEY_SIZE}')
+    cc = _control_char_first_pos(key)
+    if cc:
+        raise IllegalParameterError(
+            f"{name} metadata key {key}'s character at index {cc} is a control character.")
+    return key
+
+
+def _check_metadata_value(
+        key: str, value: Dict[str, PrimitiveType], name: str) -> Dict[str, PrimitiveType]:
+    if value is None:
+        raise IllegalParameterError(
+            f'{name} metadata value associated with metadata key {key} is null')
+    for vk in value:
+        cc = _control_char_first_pos(vk)
+        if cc:
+            raise IllegalParameterError(
+                f"{name} metadata value key {vk} associated with metadata key {key} has a " +
+                f'character at index {cc} that is a control character.')
+        if len(vk) > _META_MAX_KEY_SIZE:
+            raise IllegalParameterError(
+                f'{name} metadata has a value key associated with metadata key {key} starting ' +
+                f'with {vk[:_META_MAX_KEY_SIZE]} that exceeds maximum length of ' +
+                f'{_META_MAX_KEY_SIZE}')
+        val = value[vk]
+        if type(val) == str:
+            cc = _control_char_first_pos(_cast(str, val), allow_tabs_and_lf=True)
+            if cc:
+                raise IllegalParameterError(
+                    f"{name} metadata value associated with metadata key {key} and " +
+                    f'value key {vk} has a character at index {cc} that is a control character.')
+            if len(_cast(str, val)) > _META_MAX_VALUE_SIZE:
+                raise IllegalParameterError(
+                    f'{name} metadata has a value associated with metadata key {key} ' +
+                    f'and value key {vk} starting with {_cast(str, val)[:_META_MAX_KEY_SIZE]} ' +
+                    f'that exceeds maximum length of {_META_MAX_VALUE_SIZE}')
+    return value
 
 
 def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):

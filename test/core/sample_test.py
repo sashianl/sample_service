@@ -75,6 +75,18 @@ def _sample_node_build_fail(name, type_, parent, expected):
 
 def test_sample_node_build_fail_metadata():
     _sample_node_build_fail_metadata(
+        {None: {}},
+        '{} metadata keys may not be null or whitespace only')
+
+    _sample_node_build_fail_metadata(
+        {'  \t  \n  ': {}},
+        '{} metadata keys may not be null or whitespace only')
+
+    _sample_node_build_fail_metadata(
+        {'foo': None},
+        '{} metadata value associated with metadata key foo is null')
+
+    _sample_node_build_fail_metadata(
         {'a' * 255 + 'ff': {}},
         f"{{}} metadata has key starting with {'a' * 255 + 'f'} " +
         "that exceeds maximum length of 256")
@@ -85,23 +97,23 @@ def test_sample_node_build_fail_metadata():
 
     _sample_node_build_fail_metadata(
         {'bat': {'a' * 255 + 'ff': 'whee'}},
-        f"{{}} metadata has value key under root key bat starting with {'a' * 255 + 'f'} " +
-        "that exceeds maximum length of 256")
+        '{} metadata has a value key associated with metadata key bat starting with ' +
+        f"{'a' * 255 + 'f'} that exceeds maximum length of 256")
 
     _sample_node_build_fail_metadata(
         {'wugga': {'wh\tee': {}}},
-        "{} metadata value key wh\tee under key wugga's character at index 2 is a " +
-        "control character.")
+        '{} metadata value key wh\tee associated with metadata key wugga has a character at ' +
+        'index 2 that is a control character.')
 
     _sample_node_build_fail_metadata(
         {'bat': {'whee': 'a' * 255 + 'f' * 770}},
-        "{} metadata has value under root key bat and value key whee starting with " +
-        f"{'a' * 255 + 'f'} that exceeds maximum length of 1024")
+        '{} metadata has a value associated with metadata key bat and value key whee starting ' +
+        f"with {'a' * 255 + 'f'} that exceeds maximum length of 1024")
 
     _sample_node_build_fail_metadata(
         {'bat': {'whee': 'whoop\bbutt'}},
-        "{} metadata value under root key bat and value key whee's character at index 5 " +
-        'is a control character.')
+        '{} metadata value associated with metadata key bat and value key whee has a ' +
+        'character at index 5 that is a control character.')
 
     # 100001B when serialized to json
     meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
