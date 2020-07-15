@@ -19,7 +19,7 @@ def test_source_metadata_build():
     sm = SourceMetadata('k' * 256, 'f' * 256, {
         'foo': 1,
         'a' * 256: 'whee\twhoo',
-        'k': 'b' * 1024,
+        'k': 'b\n' + 'b' * 1022,
         'f': 1.4,
         'g': True})
 
@@ -28,7 +28,7 @@ def test_source_metadata_build():
     assert sm.sourcevalue == {
         'foo': 1,
         'a' * 256: 'whee\twhoo',
-        'k': 'b' * 1024,
+        'k': 'b\n' + 'b' * 1022,
         'f': 1.4,
         'g': True}
 
@@ -49,9 +49,9 @@ def test_source_metadata_build_fail():
         IllegalParameterError(f"Controlled metadata has key starting with {'z' * 255 + 'f'} " +
                               'that exceeds maximum length of 256'))
     _source_metadata_build_fail(
-        'wh\tee', 'skey', {},
+        '\twhee', 'skey', {},
         IllegalParameterError(
-            "Controlled metadata key wh\tee's character at index 2 is a control character."))
+            "Controlled metadata key \twhee's character at index 0 is a control character."))
 
     _source_metadata_build_fail('k', None, {}, IllegalParameterError(
         'Source metadata keys may not be null or whitespace only'))
@@ -71,9 +71,9 @@ def test_source_metadata_build_fail():
     _source_metadata_build_fail('k', 'skey', {'a' * 255 + 'ff': 'whee'}, IllegalParameterError(
         'Source metadata has a value key associated with metadata key k starting with ' +
         f"{'a' * 255 + 'f'} that exceeds maximum length of 256"))
-    _source_metadata_build_fail('k2', 'skey', {'wh\tee': {}}, IllegalParameterError(
-        'Source metadata value key wh\tee associated with metadata key k2 has a character at ' +
-        'index 2 that is a control character.'))
+    _source_metadata_build_fail('k2', 'skey', {'\twhee': {}}, IllegalParameterError(
+        'Source metadata value key \twhee associated with metadata key k2 has a character at ' +
+        'index 0 that is a control character.'))
     _source_metadata_build_fail(
         'somekey', 'skey', {'whee': 'a' * 255 + 'f' * 770},
         IllegalParameterError(
@@ -215,9 +215,9 @@ def test_sample_node_build_fail_metadata():
         f"with {'a' * 255 + 'f'} that exceeds maximum length of 1024")
 
     _sample_node_build_fail_metadata(
-        {'bat': {'whee': 'whoop\bbutt'}},
+        {'bat': {'whee': '\bwhoopbutt'}},
         '{} metadata value associated with metadata key bat and value key whee has a ' +
-        'character at index 5 that is a control character.')
+        'character at index 0 that is a control character.')
 
     # 100001B when serialized to json
     meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
