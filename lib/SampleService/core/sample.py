@@ -175,7 +175,7 @@ def _check_metadata_key(key: str, name: str) -> str:
             f'{name} metadata has key starting with {key[:_META_MAX_KEY_SIZE]} that ' +
             f'exceeds maximum length of {_META_MAX_KEY_SIZE}')
     cc = _control_char_first_pos(key)
-    if cc:
+    if cc >= 0:
         raise IllegalParameterError(
             f"{name} metadata key {key}'s character at index {cc} is a control character.")
     return key
@@ -188,7 +188,7 @@ def _check_metadata_value(
             f'{name} metadata value associated with metadata key {key} is null')
     for vk in value:
         cc = _control_char_first_pos(vk)
-        if cc:
+        if cc >= 0:
             raise IllegalParameterError(
                 f"{name} metadata value key {vk} associated with metadata key {key} has a " +
                 f'character at index {cc} that is a control character.')
@@ -200,7 +200,7 @@ def _check_metadata_value(
         val = value[vk]
         if type(val) == str:
             cc = _control_char_first_pos(_cast(str, val), allow_tabs_and_lf=True)
-            if cc:
+            if cc >= 0:
                 raise IllegalParameterError(
                     f"{name} metadata value associated with metadata key {key} and " +
                     f'value key {vk} has a character at index {cc} that is a control character.')
@@ -217,7 +217,7 @@ def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):
         if _unicodedata.category(c)[0] == "C":
             if not allow_tabs_and_lf or (c != '\n' and c != '\t'):
                 return i
-    return 0  # TODO BUG should be -1, since 0 is a valid location
+    return -1
 
 
 class Sample:
