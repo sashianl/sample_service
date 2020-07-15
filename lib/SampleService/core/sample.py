@@ -53,6 +53,39 @@ def _fz(d: Dict[_T, _V]) -> Dict[_T, _V]:
     return _maps.FrozenMap.recurse(d)
 
 
+class SourceMetadata:
+    '''
+    Sample metadata as it existed at the source.
+
+    :ivar key: the controlled metadata key.
+    :ivar sourcekey: the metadata key as it existed at the source.
+    :ivar sourcevalue: the metadata value as it existed at the source.
+    '''
+
+    def __init__(self, key: str, sourcekey: str, sourcevalue: Dict[str, PrimitiveType]):
+        '''
+        Create the source metadata entry.
+
+        :param key: the controlled metadata key.
+        :param sourcekey: the metadata key as it existed at the source.
+        :param sourcevalue: the metadata value as it existed at the source.
+        '''
+        self.key = _check_metadata_key(key, 'Controlled')
+        self.sourcekey = _check_metadata_key(sourcekey, 'Source')
+        self.sourcevalue = _fz(_check_metadata_value(key, sourcevalue, 'Source'))
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (other.key == self.key
+                    and other.sourcekey == self.sourcekey
+                    and other.sourcevalue == self.sourcevalue
+                    )
+        return NotImplemented
+
+    def __hash__(self):
+        return hash((self.key, self.sourcekey, self.sourcevalue))
+
+
 class SampleNode:
     '''
     A node in the sample tree.
@@ -184,7 +217,7 @@ def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):
         if _unicodedata.category(c)[0] == "C":
             if not allow_tabs_and_lf or (c != '\n' and c != '\t'):
                 return i
-    return 0
+    return 0  # TODO BUG should be -1, since 0 is a valid location
 
 
 class Sample:
