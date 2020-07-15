@@ -13,6 +13,9 @@ TEST_SCRIPT_NAME = run_tests.sh
 # see https://stackoverflow.com/a/23324703/643675
 MAKEFILE_DIR:=$(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 
+# Override TEST_SPEC when running make test-sdkless to run different tests
+TEST_SPEC := $(TEST_DIR)  
+
 PYPATH=$(MAKEFILE_DIR)/$(LIB_DIR):$(MAKEFILE_DIR)/$(TEST_DIR)
 TSTFL=$(MAKEFILE_DIR)/$(TEST_DIR)/$(TEST_CONFIG_FILE)
 TSTFL_SDK=$(MAKEFILE_DIR)/$(TEST_DIR)/$(TEST_CONFIG_FILE_SDK)
@@ -85,7 +88,7 @@ test-sdkless:
 # TODO flake8 and bandit
 # TODO check tests run with kb-sdk test - will need to install mongo and update config
 	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
-	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_DIR)
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_SPEC)
 # to print test output immediately: --capture=tee-sys
 
 clean:
