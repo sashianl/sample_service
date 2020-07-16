@@ -233,20 +233,20 @@ def _check_source_meta(m, index) -> List[_SourceMetadata]:
         if type(sm.get('skey')) != str:
             raise _IllegalParameterError(
                 f'{errprefix} where the required skey field is not a string')
-        if type(sm.get('value')) != dict:
+        if type(sm.get('svalue')) != dict:
             raise _IllegalParameterError(
-                f'{errprefix} where the required value field is not a mapping')
-        for vk in sm['value']:
+                f'{errprefix} where the required svalue field is not a mapping')
+        for vk in sm['svalue']:
             if type(vk) != str:
                 raise _IllegalParameterError(
                     f'{errprefix} with a value mapping key that is not a string')
-            v = sm['value'][vk]
+            v = sm['svalue'][vk]
             if type(v) != str and type(v) != int and type(v) != float and type(v) != bool:
                 raise _IllegalParameterError(
                     f'{errprefix} with a value in the value mapping under key {vk} ' +
                     'that is not a primitive type')
         try:
-            ret.append(_SourceMetadata(sm['key'], sm['skey'], sm['value']))
+            ret.append(_SourceMetadata(sm['key'], sm['skey'], sm['svalue']))
         except _IllegalParameterError as e:
             raise _IllegalParameterError(
                 f"Node at index {index}'s source metadata has an error at index {i}: " +
@@ -307,7 +307,8 @@ def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
               'type': n.type.value,
               'parent': n.parent,
               'meta_controlled': _unfreeze_meta(n.controlled_metadata),
-              'meta_user': _unfreeze_meta(n.user_metadata)
+              'meta_user': _unfreeze_meta(n.user_metadata),
+              'source_meta': _source_meta_to_list(n.source_metadata)
               }
              for n in _not_falsy(sample, 'sample').nodes]
     return {ID: str(sample.id),
@@ -324,6 +325,10 @@ def _unfreeze_meta(m):
     for k in m:
         ret[k] = {ik: m[k][ik] for ik in m[k]}
     return ret
+
+
+def _source_meta_to_list(m):
+    return [{'key': sm.key, 'skey': sm.sourcekey, 'svalue': dict(sm.sourcevalue)} for sm in m]
 
 
 def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:

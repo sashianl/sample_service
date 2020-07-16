@@ -558,7 +558,9 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
                                                              'spcky': 'fa'},
                                            'prefixed': {'safe': 'args'}
                                            },
-                       'meta_user': {'a': {'b': 'c'}}}]
+                       'meta_user': {'a': {'b': 'c'}},
+                       'source_meta': [],
+                       }]
     }
 
     # get version 2
@@ -582,7 +584,9 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
                        'parent': None,
                        'type': 'BioReplicate',
                        'meta_controlled': {'foo': {'bar': 'bat'}},
-                       'meta_user': {'a': {'b': 'd'}}}]
+                       'meta_user': {'a': {'b': 'd'}},
+                       'source_meta': [],
+                       }]
     }
 
     _check_kafka_messages(
@@ -650,7 +654,9 @@ def _create_sample_as_admin(sample_port, as_user, get_token, expected_user):
                        'type': 'BioReplicate',
                        'meta_controlled': {'foo': {'bar': 'baz'}
                                            },
-                       'meta_user': {'a': {'b': 'c'}}}]
+                       'meta_user': {'a': {'b': 'c'}},
+                       'source_meta': [],
+                       }]
     }
 
 
@@ -734,7 +740,9 @@ def _create_sample_version_as_admin(sample_port, as_user, expected_user):
                        'parent': None,
                        'type': 'BioReplicate',
                        'meta_controlled': {'foo': {'bar': 'bat'}},
-                       'meta_user': {'a': {'b': 'd'}}}]
+                       'meta_user': {'a': {'b': 'd'}},
+                       'source_meta': [],
+                       }]
     }
 
 
@@ -757,13 +765,15 @@ def test_get_sample_public_read(sample_port):
                            'parent': None,
                            'type': 'BioReplicate',
                            'meta_controlled': {},
-                           'meta_user': {}
+                           'meta_user': {},
+                           'source_meta': [],
                            },
                           {'id': 'foo',
                            'parent': 'root',
                            'type': 'TechReplicate',
                            'meta_controlled': {},
-                           'meta_user': {}
+                           'meta_user': {},
+                           'source_meta': [],
                            }
                           ]
         }
@@ -828,7 +838,9 @@ def test_get_sample_as_admin(sample_port):
                        'type': 'BioReplicate',
                        'meta_controlled': {'foo': {'bar': 'baz'},
                                            },
-                       'meta_user': {'a': {'b': 'c'}}}]
+                       'meta_user': {'a': {'b': 'c'}},
+                       'source_meta': [],
+                       }]
     }
 
 
@@ -1179,7 +1191,9 @@ def test_get_and_replace_acls(sample_port, kafka):
                 'type': 'BioReplicate',
                 'parent': None,
                 'meta_controlled': {},
-                'meta_user': {}}]
+                'meta_user': {},
+                'source_meta': [],
+                }]
         }
 
     # test admins and writers can write
@@ -1223,7 +1237,8 @@ def test_get_and_replace_acls(sample_port, kafka):
                        'parent': None,
                        'type': 'BioReplicate',
                        'meta_controlled': {},
-                       'meta_user': {}
+                       'meta_user': {},
+                       'source_meta': [],
                        }]
     }
 
@@ -3485,12 +3500,15 @@ def test_get_sample_via_data(sample_port, workspace):
                        'parent': None,
                        'meta_user': {'a': {'b': 'f', 'e': 'g'}, 'c': {'d': 'h'}},
                        'meta_controlled': {'foo': {'bar': 'baz'}, 'premature': {'e': 'fakeout'}},
+                       'source_meta': [],
                        },
                       {'id': 'foo',
                        'type': 'TechReplicate',
                        'parent': 'root',
                        'meta_controlled': {},
-                       'meta_user': {}},
+                       'meta_user': {},
+                       'source_meta': [],
+                       },
                       ]
         }
     assert res == expected
@@ -3518,12 +3536,16 @@ def test_get_sample_via_data(sample_port, workspace):
                        'type': 'BioReplicate',
                        'parent': None,
                        'meta_controlled': {},
-                       'meta_user': {}},
+                       'meta_user': {},
+                       'source_meta': [],
+                       },
                       {'id': 'foo3',
                        'type': 'TechReplicate',
                        'parent': 'root3',
                        'meta_controlled': {},
-                       'meta_user': {}},
+                       'meta_user': {},
+                       'source_meta': [],
+                       },
                       ]
         }
     assert res == expected
@@ -3602,12 +3624,15 @@ def test_get_sample_via_data_expired_with_anon_user(sample_port, workspace):
                        'parent': None,
                        'meta_user': {},
                        'meta_controlled': {},
+                       'source_meta': [],
                        },
                       {'id': 'foo2',
                        'type': 'TechReplicate',
                        'parent': 'root2',
                        'meta_controlled': {},
-                       'meta_user': {}},
+                       'meta_user': {},
+                       'source_meta': [],
+                       },
                       ]
         }
     assert res == expected
@@ -3636,12 +3661,15 @@ def test_get_sample_via_data_expired_with_anon_user(sample_port, workspace):
                        'parent': None,
                        'meta_user': {},
                        'meta_controlled': {},
+                       'source_meta': [],
                        },
                       {'id': 'foo',
                        'type': 'TechReplicate',
                        'parent': 'root',
                        'meta_controlled': {},
-                       'meta_user': {}},
+                       'meta_user': {},
+                       'source_meta': [],
+                       },
                       ]
         }
     assert res == expected
@@ -3690,12 +3718,15 @@ def test_get_sample_via_data_public_read(sample_port, workspace):
                        'parent': None,
                        'meta_user': {},
                        'meta_controlled': {},
+                       'source_meta': [],
                        },
                       {'id': 'foo',
                        'type': 'TechReplicate',
                        'parent': 'root',
                        'meta_controlled': {},
-                       'meta_user': {}},
+                       'meta_user': {},
+                       'source_meta': [],
+                       },
                       ]
         }
     assert res == expected
