@@ -14,7 +14,8 @@ from SampleService.core.sample import (
     SavedSample,
     SampleAddress as _SampleAddress,
     SampleNodeAddress,
-    SubSampleType as _SubSampleType
+    SubSampleType as _SubSampleType,
+    SourceMetadata as _SourceMetadata,
 )
 from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission, SampleACLDelta
 from SampleService.core.user_lookup import KBaseUserLookup
@@ -173,8 +174,9 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
                 f'Node at index {i} has a parent entry that is not a string')
         mc = _check_meta(n.get('meta_controlled'), i, 'controlled metadata')
         mu = _check_meta(n.get('meta_user'), i, 'user metadata')
+        sm = _check_source_meta(n.get('source_meta'), i)
         try:
-            nodes.append(_SampleNode(n.get('id'), type_, n.get('parent'), mc, mu))
+            nodes.append(_SampleNode(n.get('id'), type_, n.get('parent'), mc, mu, sm))
             # already checked for the missing param error above, for id
         except _IllegalParameterError as e:
             raise _IllegalParameterError(
@@ -194,7 +196,6 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
         return None
     if type(m) != dict:
         raise _IllegalParameterError(f"Node at index {index}'s {name} entry must be a mapping")
-    # since this is coming from JSON we assume keys are strings
     for k1 in m:
         if type(k1) != str:
             raise _IllegalParameterError(
@@ -212,6 +213,45 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
                     f"Node at index {index}'s {name} entry does " +
                     f"not have a primitive type as the value at {k1}/{k2}")
     return m
+
+
+def _check_source_meta(m, index) -> List[_SourceMetadata]:
+    if not m:
+        return []
+    if type(m) != list:
+        raise _IllegalParameterError(f"Node at index {index}'s source metadata must be a list")
+    ret = []
+    for i, sm in enumerate(m):
+        errprefix = f"Node at index {index}'s source metadata has an entry at index {i}"
+        if type(sm) != dict:
+            raise _IllegalParameterError(f'{errprefix} that is not a dict')
+        if type(sm.get('key')) != str:
+            raise _IllegalParameterError(
+                f'{errprefix} where the required key field is not a string')
+        # there's some duplicate code here, but I find getting the error messages right
+        # is too difficult when DRYing up code like this. They're kind of sucky as is
+        if type(sm.get('skey')) != str:
+            raise _IllegalParameterError(
+                f'{errprefix} where the required skey field is not a string')
+        if type(sm.get('value')) != dict:
+            raise _IllegalParameterError(
+                f'{errprefix} where the required value field is not a mapping')
+        for vk in sm['value']:
+            if type(vk) != str:
+                raise _IllegalParameterError(
+                    f'{errprefix} with a value mapping key that is not a string')
+            v = sm['value'][vk]
+            if type(v) != str and type(v) != int and type(v) != float and type(v) != bool:
+                raise _IllegalParameterError(
+                    f'{errprefix} with a value in the value mapping under key {vk} ' +
+                    'that is not a primitive type')
+        try:
+            ret.append(_SourceMetadata(sm['key'], sm['skey'], sm['value']))
+        except _IllegalParameterError as e:
+            raise _IllegalParameterError(
+                f"Node at index {index}'s source metadata has an error at index {i}: " +
+                f'{e.message}') from e
+    return ret
 
 
 def _check_params(params):

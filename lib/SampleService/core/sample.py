@@ -72,6 +72,8 @@ class SourceMetadata:
         :param key: the controlled metadata key.
         :param sourcekey: the metadata key as it existed at the source.
         :param sourcevalue: the metadata value as it existed at the source.
+        :raises IllegalParameterError: if any of the various keys or values are missing, too
+            long, or contain control characters.
         '''
         self.key = _check_metadata_key(key, 'Controlled')
         self.sourcekey = _check_metadata_key(sourcekey, 'Source')
@@ -319,6 +321,9 @@ class Sample:
 
     def __hash__(self):
         return hash((self.name, self.nodes))
+
+    # def __repr__(self):
+    #     return (f'{self.name}, {self.nodes}')
 
 
 class SavedSample(Sample):
