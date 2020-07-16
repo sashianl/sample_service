@@ -32,11 +32,11 @@ def test_source_metadata_build():
         'f': 1.4,
         'g': True}
 
-    sm = SourceMetadata('k', 'f', {})
+    sm = SourceMetadata('k', 'f', {'x': 'y'})
 
     assert sm.key == 'k'
     assert sm.sourcekey == 'f'
-    assert sm.sourcevalue == {}
+    assert sm.sourcevalue == {'x': 'y'}
 
 
 def test_source_metadata_build_fail():
@@ -67,7 +67,9 @@ def test_source_metadata_build_fail():
             "Source metadata key thingy\n's character at index 6 is a control character."))
 
     _source_metadata_build_fail('k', 'sk', None, IllegalParameterError(
-        'Source metadata value associated with metadata key k is null'))
+        'Source metadata value associated with metadata key k is null or empty'))
+    _source_metadata_build_fail('k', 'sk', {}, IllegalParameterError(
+        'Source metadata value associated with metadata key k is null or empty'))
     _source_metadata_build_fail('k', 'skey', {'a' * 255 + 'ff': 'whee'}, IllegalParameterError(
         'Source metadata has a value key associated with metadata key k starting with ' +
         f"{'a' * 255 + 'f'} that exceeds maximum length of 256"))
@@ -92,13 +94,13 @@ def _source_metadata_build_fail(key, skey, value, expected):
 
 def test_source_metadata_eq():
 
-    assert SourceMetadata('k', 'f', {}) == SourceMetadata('k', 'f', {})
-    assert SourceMetadata('k', 'f', {}) != SourceMetadata('k1', 'f', {})
-    assert SourceMetadata('k', 'f', {}) != SourceMetadata('k', 'f1', {})
+    assert SourceMetadata('k', 'f', {'x': 'y'}) == SourceMetadata('k', 'f', {'x': 'y'})
+    assert SourceMetadata('k', 'f', {'x': 'y'}) != SourceMetadata('k1', 'f', {'x': 'y'})
+    assert SourceMetadata('k', 'f', {'x': 'y'}) != SourceMetadata('k', 'f1', {'x': 'y'})
     assert SourceMetadata('k', 'f', {'a': 'b'}) != SourceMetadata('k', 'f', {'a': 'c'})
 
-    assert SourceMetadata('k', 'f', {}) != 'k'
-    assert {} != SourceMetadata('k', 'f', {})
+    assert SourceMetadata('k', 'f', {'x': 'y'}) != 'k'
+    assert {} != SourceMetadata('k', 'f', {'x': 'y'})
 
 
 def test_source_metadata_hash():
@@ -106,9 +108,9 @@ def test_source_metadata_hash():
     # tests can't be written that directly test the hash value. See
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
 
-    assert hash(SourceMetadata('k', 'f', {})) == hash(SourceMetadata('k', 'f', {}))
-    assert hash(SourceMetadata('k', 'f', {})) != hash(SourceMetadata('k1', 'f', {}))
-    assert hash(SourceMetadata('k', 'f', {})) != hash(SourceMetadata('k', 'f1', {}))
+    assert hash(SourceMetadata('k', 'f', {'x': 'y'})) == hash(SourceMetadata('k', 'f', {'x': 'y'}))
+    assert hash(SourceMetadata('k', 'f', {'x': 'y'})) != hash(SourceMetadata('k1', 'f', {'x': 'y'}))
+    assert hash(SourceMetadata('k', 'f', {'x': 'y'})) != hash(SourceMetadata('k', 'f1', {'x': 'y'}))
     assert hash(SourceMetadata('k', 'f', {'a': 'b'})) != hash(SourceMetadata('k', 'f', {'a': 'c'}))
 
 
@@ -132,7 +134,8 @@ def test_sample_node_build():
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256,
                     {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
                      'wugga': {'a': 'b' * 1024},
-                     'z': {}},  # tests that having a controlled key doesn't force a source key
+                     # tests that having a controlled key doesn't force a source key
+                     'z': {'u': 'v'}},
                     {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}},
                     [SourceMetadata('a' * 256, 'sk', {'a': 'b'}),
                      SourceMetadata('wugga', 'sk', {'a': 'b'})])
@@ -141,7 +144,7 @@ def test_sample_node_build():
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
                                       'wugga': {'a': 'b' * 1024},
-                                      'z': {}}
+                                      'z': {'u': 'v'}}
     assert sn.user_metadata == {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}}
     assert sn.source_metadata == (SourceMetadata('a' * 256, 'sk', {'a': 'b'}),
                                   SourceMetadata('wugga', 'sk', {'a': 'b'}))
@@ -152,7 +155,7 @@ def test_sample_node_build():
 
     # Also 100KB when the size calculation routine is run
     smeta = [SourceMetadata(str(i), 'sksksk', {'x': '𐎦' * 25}) for i in range(848)]
-    smeta.append(SourceMetadata('a', 'b' * 43, {}))
+    smeta.append(SourceMetadata('a', 'b' * 35, {'u': 'v'}))
 
     sn = SampleNode('a', SubSampleType.SUB_SAMPLE, 'b', meta, meta, smeta)
     assert sn.name == 'a'
@@ -202,7 +205,10 @@ def test_sample_node_build_fail_metadata():
 
     _sample_node_build_fail_metadata(
         {'foo': None},
-        '{} metadata value associated with metadata key foo is null')
+        '{} metadata value associated with metadata key foo is null or empty')
+    _sample_node_build_fail_metadata(
+        {'foo': {}},
+        '{} metadata value associated with metadata key foo is null or empty')
 
     _sample_node_build_fail_metadata(
         {'a' * 255 + 'ff': {}},
@@ -250,27 +256,27 @@ def _sample_node_build_fail_metadata(meta, expected):
 
 def test_sample_node_build_fail_source_metadata():
     _sample_node_build_fail_source_metadata(
-        [SourceMetadata('k', 'k1', {}), None], ValueError(
+        [SourceMetadata('k', 'k1', {'a': 'b'}), None], ValueError(
             'Index 1 of iterable source_metadata cannot be a value that evaluates to false'))
     _sample_node_build_fail_source_metadata(
-        [SourceMetadata('f', 'k1', {}), SourceMetadata('k', 'k1', {})],
+        [SourceMetadata('f', 'k1', {'a': 'b'}), SourceMetadata('k', 'k1', {'c': 'd'})],
         IllegalParameterError(
             'Source metadata key k does not appear in the controlled metadata'),
-        cmeta={'f': {}})
+        cmeta={'f': {'x': 'y'}})
     _sample_node_build_fail_source_metadata(
-        [SourceMetadata('k', 'k1', {}), SourceMetadata('k', 'k2', {'a': 2})], IllegalParameterError(
-            'Duplicate source metadata key: k'))
+        [SourceMetadata('k', 'k1', {'a': 'b'}), SourceMetadata('k', 'k2', {'a': 2})],
+        IllegalParameterError('Duplicate source metadata key: k'))
 
     # 100001KB when the size calculation routine is run
     smeta = [SourceMetadata(str(i), 'sksksk', {'x': '𐎦' * 25}) for i in range(848)]
-    smeta.append(SourceMetadata('a', 'b' * 44, {}))
+    smeta.append(SourceMetadata('a', 'b' * 36, {'x': 'y'}))
     _sample_node_build_fail_source_metadata(smeta, IllegalParameterError(
         'Source metadata is larger than maximum of 100000B'))
 
 
 def _sample_node_build_fail_source_metadata(meta, expected, cmeta=None):
     if cmeta is None:
-        cmeta = {sm.key: {} for sm in meta if sm is not None}
+        cmeta = {sm.key: {'x': 'y'} for sm in meta if sm is not None}
     with raises(Exception) as got:
         SampleNode(
             'n',
@@ -317,24 +323,24 @@ def test_sample_node_eq():
         'foo',
         s,
         'bar',
-        controlled_metadata={'k': {}},
-        source_metadata=[SourceMetadata('k', 'k', {})]) == SampleNode(
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})]) == SampleNode(
             'foo',
             s,
             'bar',
-            controlled_metadata={'k': {}},
-            source_metadata=[SourceMetadata('k', 'k', {})])
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})])
     assert SampleNode(
         'foo',
         s,
         'bar',
-        controlled_metadata={'k': {}},
-        source_metadata=[SourceMetadata('k', 'k', {})]) != SampleNode(
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})]) != SampleNode(
             'foo',
             s,
             'bar',
-            controlled_metadata={'k': {}},
-            source_metadata=[SourceMetadata('k', 'v', {})])
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'v', {'c': 'd'})])
 
     assert SampleNode('foo') != 'foo'
     assert 'foo' != SampleNode('foo')
@@ -381,24 +387,24 @@ def test_sample_node_hash():
         'foo',
         s,
         'bar',
-        controlled_metadata={'k': {}},
-        source_metadata=[SourceMetadata('k', 'k', {})])) == hash(SampleNode(
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})])) == hash(SampleNode(
             'foo',
             s,
             'bar',
-            controlled_metadata={'k': {}},
-            source_metadata=[SourceMetadata('k', 'k', {})]))
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})]))
     assert hash(SampleNode(
         'foo',
         s,
         'bar',
-        controlled_metadata={'k': {}},
-        source_metadata=[SourceMetadata('k', 'k', {})])) != hash(SampleNode(
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})])) != hash(SampleNode(
             'foo',
             s,
             'bar',
-            controlled_metadata={'k': {}},
-            source_metadata=[SourceMetadata('k', 'v', {})]))
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'v', {'c': 'd'})]))
 
 
 def dt(timestamp):

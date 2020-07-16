@@ -198,9 +198,9 @@ def _check_metadata_key(key: str, name: str) -> str:
 
 def _check_metadata_value(
         key: str, value: Dict[str, PrimitiveType], name: str) -> Dict[str, PrimitiveType]:
-    if value is None:
+    if not value:
         raise IllegalParameterError(
-            f'{name} metadata value associated with metadata key {key} is null')
+            f'{name} metadata value associated with metadata key {key} is null or empty')
     for vk in value:
         cc = _control_char_first_pos(vk)
         if cc >= 0:
