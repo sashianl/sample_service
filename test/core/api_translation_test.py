@@ -188,7 +188,7 @@ def test_create_sample_params_maximal():
                                         'source_meta': [
                                             {'key': 'concentration/NO2',
                                              'skey': 'conc_nitrous_oxide',
-                                             'value': {
+                                             'svalue': {
                                                  'spec': 'nit ox',
                                                  'ppb': 0.07891,
                                                  'prot+2': 784,
@@ -197,7 +197,7 @@ def test_create_sample_params_maximal():
                                              },
                                             {'key': 'a',
                                              'skey': 'vscode',
-                                             'value': {'really': 'stinks'}
+                                             'svalue': {'really': 'stinks'}
                                              }
                                             ]
                                         }
@@ -347,50 +347,50 @@ def test_create_sample_params_source_metadata_fail():
         IllegalParameterError("Node at index 1's source metadata must be a list")
     )
     _create_sample_params_source_metadata_fail(
-        {'a': {'b': 'c'}}, [{'key': 'a', 'skey': 'b', 'value': {'b': 'c'}}, 'foo'],
+        {'a': {'b': 'c'}}, [{'key': 'a', 'skey': 'b', 'svalue': {'b': 'c'}}, 'foo'],
         IllegalParameterError(
             "Node at index 1's source metadata has an entry at index 1 that is not a dict")
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': 'b', 'value': {'b': 'c'}},
-         {'key': 8, 'skey': 'b', 'value': {'b': 'c'}}],
+        [{'key': 'a', 'skey': 'b', 'svalue': {'b': 'c'}},
+         {'key': 8, 'skey': 'b', 'svalue': {'b': 'c'}}],
         IllegalParameterError("Node at index 1's source metadata has an entry at index 1 " +
                               'where the required key field is not a string')
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': [], 'value': {'b': 'c'}},
-         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        [{'key': 'a', 'skey': [], 'svalue': {'b': 'c'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
         IllegalParameterError("Node at index 1's source metadata has an entry at index 0 " +
                               'where the required skey field is not a string')
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': 'a', 'value': {'b': 'c'}},
-         {'key': 'b', 'skey': 'b', 'value': ['f']}],
+        [{'key': 'a', 'skey': 'a', 'svalue': {'b': 'c'}},
+         {'key': 'b', 'skey': 'b', 'svalue': ['f']}],
         IllegalParameterError("Node at index 1's source metadata has an entry at index 1 " +
-                              'where the required value field is not a mapping')
+                              'where the required svalue field is not a mapping')
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': 'a', 'value': {8: 'c'}},
-         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        [{'key': 'a', 'skey': 'a', 'svalue': {8: 'c'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
         IllegalParameterError("Node at index 1's source metadata has an entry at index 0 " +
                               'with a value mapping key that is not a string')
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': 'a', 'value': {'c': [43]}},
-         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        [{'key': 'a', 'skey': 'a', 'svalue': {'c': [43]}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
         IllegalParameterError(
             "Node at index 1's source metadata has an entry at index 0 with a value in the " +
             'value mapping under key c that is not a primitive type')
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': 'a', 'value': {'c': 'x'}},
-         {'key': 'b', 'skey': 'b', 'value': {'b\n': 'c'}}],
+        [{'key': 'a', 'skey': 'a', 'svalue': {'c': 'x'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b\n': 'c'}}],
         IllegalParameterError(
             "Node at index 1's source metadata has an error at index 1: Source metadata value " +
             'key b\n associated with metadata key b has a character at index 1 that is a control ' +
@@ -398,8 +398,8 @@ def test_create_sample_params_source_metadata_fail():
     )
     _create_sample_params_source_metadata_fail(
         {'a': {'b': 'c'}},
-        [{'key': 'a', 'skey': 'a', 'value': {'c': 'x'}},
-         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        [{'key': 'a', 'skey': 'a', 'svalue': {'c': 'x'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
         IllegalParameterError(
             'Error for node at index 1: Source metadata key b does not appear in the ' +
             'controlled metadata')
@@ -497,6 +497,7 @@ def test_sample_to_dict_minimal():
                                'type': 'BioReplicate',
                                'meta_controlled': {},
                                'meta_user': {},
+                               'source_meta': [],
                                'parent': None
                                }],
                 'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
@@ -521,12 +522,17 @@ def test_sample_to_dict_maximal():
                                'type': 'BioReplicate',
                                'meta_controlled': {},
                                'meta_user': {},
+                               'source_meta': [],
                                'parent': None
                                },
                               {'id': 'bar',
                                'type': 'TechReplicate',
-                               'meta_controlled': {'a': {'b': 'c', 'm': 6.7}},
+                               'meta_controlled': {'a': {'b': 'c', 'm': 6.7}, 'b': {'c': 'd'}},
                                'meta_user': {'d': {'e': True}, 'g': {'h': 1}},
+                               'source_meta': [
+                                   {'key': 'a', 'skey': 'x', 'svalue': {'v': 2}},
+                                   {'key': 'b', 'skey': 'y', 'svalue': {'z': 3}}
+                                   ],
                                'parent': 'foo'
                                }],
                 'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
@@ -547,8 +553,9 @@ def test_sample_to_dict_maximal():
                  'bar',
                  SubSampleType.TECHNICAL_REPLICATE,
                  'foo',
-                 {'a': {'b': 'c', 'm': 6.7}},
-                 {'d': {'e': True}, 'g': {'h': 1}})
+                 {'a': {'b': 'c', 'm': 6.7}, 'b': {'c': 'd'}},
+                 {'d': {'e': True}, 'g': {'h': 1}},
+                 [SourceMetadata('a', 'x', {'v': 2}), SourceMetadata('b', 'y', {'z': 3})]),
              ],
             dt(87.8971),
             'myname',
