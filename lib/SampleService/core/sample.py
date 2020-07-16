@@ -168,7 +168,7 @@ class SampleNode:
 
     # def __repr__(self):
     #     return (f'{self.name}, {self.type}, {self.parent}, {self.controlled_metadata}, ' +
-    #             f'{self.uncontrolled_metadata}, {self.source_metadata}')
+    #             f'{self.user_metadata}, {self.source_metadata}')
 
 
 def _check_meta(m: Dict[str, Dict[str, PrimitiveType]], controlled: bool):
