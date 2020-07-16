@@ -500,7 +500,13 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
                                                                             'spcky': 'fa'},
                                                           'prefixed': {'safe': 'args'}
                                                           },
-                                      'meta_user': {'a': {'b': 'c'}}
+                                      'meta_user': {'a': {'b': 'c'}},
+                                      'source_meta': [
+                                          {'key': 'foo', 'skey': 'bar', 'svalue': {'whee': 'whoo'}},
+                                          {'key': 'stringlentest',
+                                           'skey': 'ya fer sure',
+                                           'svalue': {'just': 'some', 'data': 42}}
+                                          ]
                                       }
                                      ]
                        }
@@ -559,7 +565,12 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
                                            'prefixed': {'safe': 'args'}
                                            },
                        'meta_user': {'a': {'b': 'c'}},
-                       'source_meta': [],
+                       'source_meta': [
+                            {'key': 'foo', 'skey': 'bar', 'svalue': {'whee': 'whoo'}},
+                            {'key': 'stringlentest',
+                             'skey': 'ya fer sure',
+                             'svalue': {'just': 'some', 'data': 42}}
+                             ],
                        }]
     }
 
@@ -882,8 +893,17 @@ def test_create_sample_fail_bad_metadata(sample_port):
         "Sample service error code 30010 Metadata validation failed: Node at index 0: " +
         "Prefix validator pre, key prefix: pre, prefix, {'fail_plz': 'yes, or principal sayof'}")
 
+    _create_sample_fail_bad_metadata(
+        sample_port, {'prefix': {'foo': 'bar'}},
+        'Sample service error code 30001 Illegal input parameter: Error for node at ' +
+        'index 0: Duplicate source metadata key: prefix',
+        sourcemeta=[
+            {'key': 'prefix', 'skey': 'a', 'svalue': {'a': 'b'}},
+            {'key': 'prefix', 'skey': 'b', 'svalue': {'c': 'd'}}
+            ])
 
-def _create_sample_fail_bad_metadata(sample_port, meta, expected):
+
+def _create_sample_fail_bad_metadata(sample_port, meta, expected, sourcemeta=None):
     url = f'http://localhost:{sample_port}'
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.create_sample',
@@ -893,7 +913,8 @@ def _create_sample_fail_bad_metadata(sample_port, meta, expected):
             'sample': {'name': 'mysample',
                        'node_tree': [{'id': 'root',
                                       'type': 'BioReplicate',
-                                      'meta_controlled': meta
+                                      'meta_controlled': meta,
+                                      'source_meta': sourcemeta
                                       }
                                      ]
                        }
@@ -3444,7 +3465,9 @@ def test_get_sample_via_data(sample_port, workspace):
          'node_tree': [{'id': 'root',
                         'type': 'BioReplicate',
                         'meta_user': {'a': {'b': 'f', 'e': 'g'}, 'c': {'d': 'h'}},
-                        'meta_controlled': {'foo': {'bar': 'baz'}, 'premature': {'e': 'fakeout'}}},
+                        'meta_controlled': {'foo': {'bar': 'baz'}, 'premature': {'e': 'fakeout'}},
+                        'source_meta': [{'key': 'foo', 'skey': 'b', 'svalue': {'x': 'y'}}]
+                        },
                        {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
                        ]
          },
@@ -3500,7 +3523,7 @@ def test_get_sample_via_data(sample_port, workspace):
                        'parent': None,
                        'meta_user': {'a': {'b': 'f', 'e': 'g'}, 'c': {'d': 'h'}},
                        'meta_controlled': {'foo': {'bar': 'baz'}, 'premature': {'e': 'fakeout'}},
-                       'source_meta': [],
+                       'source_meta': [{'key': 'foo', 'skey': 'b', 'svalue': {'x': 'y'}}],
                        },
                       {'id': 'foo',
                        'type': 'TechReplicate',
