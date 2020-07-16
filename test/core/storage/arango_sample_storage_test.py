@@ -8,8 +8,14 @@ from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
 from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.data_link import DataLink
-from SampleService.core.sample import SavedSample, SampleNode, SubSampleType, SampleNodeAddress
-from SampleService.core.sample import SampleAddress
+from SampleService.core.sample import (
+    SavedSample,
+    SampleNode,
+    SubSampleType,
+    SampleNodeAddress,
+    SampleAddress,
+    SourceMetadata,
+)
 from SampleService.core.errors import (
     MissingParameterError, NoSuchSampleError, ConcurrencyError, UnauthorizedError,
     NoSuchSampleVersionError, DataLinkExistsError, TooManyDataLinksError, NoSuchLinkError,
@@ -677,7 +683,8 @@ def test_save_and_get_sample(samplestorage):
     n2 = SampleNode(
         'kid1', SubSampleType.TECHNICAL_REPLICATE, 'root',
         {'a': {'b': 'c', 'd': 'e'}, 'f': {'g': 'h'}},
-        {'m': {'n': 'o'}})
+        {'m': {'n': 'o'}},
+        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {})])
     n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
     n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
                     user_metadata={'f': {'g': 'h'}})
