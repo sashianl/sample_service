@@ -28,7 +28,8 @@ from SampleService.core.sample import (
     SampleAddress,
     SampleNodeAddress,
     SubSampleType,
-    SavedSample
+    SavedSample,
+    SourceMetadata,
 )
 from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.errors import (
@@ -180,9 +181,25 @@ def test_create_sample_params_maximal():
                                                  'value': 78.91,
                                                  'protocol_id': 782,
                                                  'some_boolean_or_other': True
+                                                 },
+                                             'a': {'b': 'c'}
+                                             },
+                                        'meta_user': {'location_name': {'name': 'my_buttocks'}},
+                                        'source_meta': [
+                                            {'key': 'concentration/NO2',
+                                             'skey': 'conc_nitrous_oxide',
+                                             'value': {
+                                                 'spec': 'nit ox',
+                                                 'ppb': 0.07891,
+                                                 'prot+2': 784,
+                                                 'is this totally made up': False
                                                  }
                                              },
-                                        'meta_user': {'location_name': {'name': 'my_buttocks'}}
+                                            {'key': 'a',
+                                             'skey': 'vscode',
+                                             'value': {'really': 'stinks'}
+                                             }
+                                            ]
                                         }
                                        ]
                          },
@@ -201,9 +218,22 @@ def test_create_sample_params_maximal():
                      'value': 78.91,
                      'protocol_id': 782,
                      'some_boolean_or_other': True
-                     }
+                     },
+                 'a': {'b': 'c'}
                  },
-                {'location_name': {'name': 'my_buttocks'}}
+                {'location_name': {'name': 'my_buttocks'}},
+                [SourceMetadata(
+                    'concentration/NO2',
+                    'conc_nitrous_oxide',
+                    {
+                     'spec': 'nit ox',
+                     'ppb': 0.07891,
+                     'prot+2': 784,
+                     'is this totally made up': False
+                     }
+                    ),
+                 SourceMetadata('a', 'vscode', {'really': 'stinks'})
+                 ]
                 )
             ],
             'myname'
@@ -309,6 +339,83 @@ def create_sample_params_meta_fail(m, expected):
             {'id': 'bar', 'type': 'BioReplicate'},
             {'id': 'foo', 'type': 'SubSample', 'parent': 'bar', 'meta_user': m}]}},
         IllegalParameterError(expected.format(1, 'user metadata')))
+
+
+def test_create_sample_params_source_metadata_fail():
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}}, {'a': {'b': 'c'}},
+        IllegalParameterError("Node at index 1's source metadata must be a list")
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}}, [{'key': 'a', 'skey': 'b', 'value': {'b': 'c'}}, 'foo'],
+        IllegalParameterError(
+            "Node at index 1's source metadata has an entry at index 1 that is not a dict")
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'b', 'value': {'b': 'c'}},
+         {'key': 8, 'skey': 'b', 'value': {'b': 'c'}}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 1 " +
+                              'where the required key field is not a string')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': [], 'value': {'b': 'c'}},
+         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 0 " +
+                              'where the required skey field is not a string')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'value': {'b': 'c'}},
+         {'key': 'b', 'skey': 'b', 'value': ['f']}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 1 " +
+                              'where the required value field is not a mapping')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'value': {8: 'c'}},
+         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 0 " +
+                              'with a value mapping key that is not a string')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'value': {'c': [43]}},
+         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        IllegalParameterError(
+            "Node at index 1's source metadata has an entry at index 0 with a value in the " +
+            'value mapping under key c that is not a primitive type')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'value': {'c': 'x'}},
+         {'key': 'b', 'skey': 'b', 'value': {'b\n': 'c'}}],
+        IllegalParameterError(
+            "Node at index 1's source metadata has an error at index 1: Source metadata value " +
+            'key b\n associated with metadata key b has a character at index 1 that is a control ' +
+            'character.')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'value': {'c': 'x'}},
+         {'key': 'b', 'skey': 'b', 'value': {'b': 'c'}}],
+        IllegalParameterError(
+            'Error for node at index 1: Source metadata key b does not appear in the ' +
+            'controlled metadata')
+    )
+
+
+def _create_sample_params_source_metadata_fail(m, s, expected):
+    create_sample_params_fail(
+        {'sample': {'node_tree': [
+            {'id': 'bar', 'type': 'BioReplicate'},
+            {'id': 'foo',
+             'type': 'SubSample',
+             'parent': 'bar',
+             'meta_controlled': m,
+             'source_meta': s}]}},
+        expected)
 
 
 def create_sample_params_fail(params, expected):
