@@ -534,6 +534,9 @@ class ArangoSampleStorage:
                  _FLD_NODE_META_VALUE: dict(m.sourcevalue)} for m in sm]
 
     def _list_to_source_meta(self, list_: List[_Dict[str, _Any]]) -> List[_SourceMetadata]:
+        # allow for compatibility with old samples without a source meta field
+        if not list_:
+            return []
         return [_SourceMetadata(
             sm[_FLD_NODE_META_KEY],
             sm[_FLD_NODE_META_SOURCE_KEY],
@@ -725,7 +728,8 @@ class ArangoSampleStorage:
                     n[_FLD_NODE_PARENT],
                     self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
                     self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
-                    self._list_to_source_meta(n[_FLD_NODE_SOURCE_METADATA]),
+                    # allow for compatatibility with old samples without a source meta field
+                    self._list_to_source_meta(n.get(_FLD_NODE_SOURCE_METADATA)),
                     )
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e

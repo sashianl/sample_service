@@ -782,6 +782,67 @@ def test_get_sample_with_non_updated_node_doc(samplestorage):
         assert v['ver'] == 1
 
 
+def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
+    """
+    Backwards compatibility test. Checks that a missing smeta key in the sample node returns an
+    empty source metadata list.
+    """
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(SavedSample(
+        id1,
+        UserID('user'),
+        [SampleNode('mynode',
+                    controlled_metadata={'a': {'c': 'd'}},
+                    source_metadata=[SourceMetadata('a', 'b', {'x': 'y'})]
+                    )
+         ],
+        dt(7),
+        'foo')) is True
+
+    arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR n in @@col
+            FILTER n.name == @name
+            UPDATE n WITH {smeta: null} IN @@col
+            OPTIONS {keepNull: false}
+        """,
+        bind_vars={'@col': TEST_COL_NODES, 'name': 'mynode'}
+    )
+
+    cur = arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR n in @@col
+            FILTER n.name == @name
+            RETURN n
+        """,
+        bind_vars={'@col': TEST_COL_NODES, 'name': 'mynode'}
+    )
+    doc = cur.next()
+    del doc['_rev']
+    del doc['_id']
+    del doc['_key']
+    del doc['uuidver']
+    assert doc == {
+        'id': str(id1),
+        'ver': 1,
+        'saved': 7,
+        'name': 'mynode',
+        'type': 'BIOLOGICAL_REPLICATE',
+        'parent': None,
+        'index': 0,
+        'cmeta': [{'k': 'c', 'ok': 'a', 'v': 'd'}],
+        'ucmeta': [],
+    }
+
+    assert samplestorage.get_sample(id1) == SavedSample(
+        id1,
+        UserID('user'),
+        [SampleNode('mynode', controlled_metadata={'a': {'c': 'd'}})],
+        dt(7),
+        'foo',
+        1)
+
+
 def test_get_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
         samplestorage.get_sample(None)
