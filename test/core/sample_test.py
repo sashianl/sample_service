@@ -119,6 +119,7 @@ def test_sample_node_build():
     assert sn.parent is None
     assert sn.controlled_metadata == {}
     assert sn.user_metadata == {}
+    assert sn.source_metadata == ()
 
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256)
     assert sn.name == 'a' * 256
@@ -126,27 +127,40 @@ def test_sample_node_build():
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {}
     assert sn.user_metadata == {}
+    assert sn.source_metadata == ()
 
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256,
-                    {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'}, 'wugga': {'a': 'b' * 1024}},
-                    {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}})
+                    {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
+                     'wugga': {'a': 'b' * 1024},
+                     'z': {}},  # tests that having a controlled key doesn't force a source key
+                    {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}},
+                    [SourceMetadata('a' * 256, 'sk', {'a': 'b'}),
+                     SourceMetadata('wugga', 'sk', {'a': 'b'})])
     assert sn.name == 'a' * 256
     assert sn.type == SubSampleType.TECHNICAL_REPLICATE
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
-                                      'wugga': {'a': 'b' * 1024}}
+                                      'wugga': {'a': 'b' * 1024},
+                                      'z': {}}
     assert sn.user_metadata == {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}}
+    assert sn.source_metadata == (SourceMetadata('a' * 256, 'sk', {'a': 'b'}),
+                                  SourceMetadata('wugga', 'sk', {'a': 'b'}))
 
     # 100KB when serialized to json
     meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
     meta['a'] = {'b': 'c' * 30}
 
-    sn = SampleNode('a', SubSampleType.SUB_SAMPLE, 'b', meta, meta)
+    # Also 100KB when the size calculation routine is run
+    smeta = [SourceMetadata(str(i), 'sksksk', {'x': '𐎦' * 25}) for i in range(848)]
+    smeta.append(SourceMetadata('a', 'b' * 43, {}))
+
+    sn = SampleNode('a', SubSampleType.SUB_SAMPLE, 'b', meta, meta, smeta)
     assert sn.name == 'a'
     assert sn.type == SubSampleType.SUB_SAMPLE
     assert sn.parent == 'b'
     assert sn.controlled_metadata == meta
     assert sn.user_metadata == meta
+    assert sn.source_metadata == tuple(smeta)
 
 
 def test_sample_node_build_fail():
@@ -234,6 +248,38 @@ def _sample_node_build_fail_metadata(meta, expected):
     assert_exception_correct(got.value, IllegalParameterError(expected.format('User')))
 
 
+def test_sample_node_build_fail_source_metadata():
+    _sample_node_build_fail_source_metadata(
+        [SourceMetadata('k', 'k1', {}), None], ValueError(
+            'Index 1 of iterable source_metadata cannot be a value that evaluates to false'))
+    _sample_node_build_fail_source_metadata(
+        [SourceMetadata('f', 'k1', {}), SourceMetadata('k', 'k1', {})],
+        IllegalParameterError(
+            'Source metadata key k does not appear in the controlled metadata'),
+        cmeta={'f': {}})
+    _sample_node_build_fail_source_metadata(
+        [SourceMetadata('k', 'k1', {}), SourceMetadata('k', 'k2', {'a': 2})], IllegalParameterError(
+            'Duplicate source metadata key: k'))
+
+    # 100001KB when the size calculation routine is run
+    smeta = [SourceMetadata(str(i), 'sksksk', {'x': '𐎦' * 25}) for i in range(848)]
+    smeta.append(SourceMetadata('a', 'b' * 44, {}))
+    _sample_node_build_fail_source_metadata(smeta, IllegalParameterError(
+        'Source metadata is larger than maximum of 100000B'))
+
+
+def _sample_node_build_fail_source_metadata(meta, expected, cmeta=None):
+    if cmeta is None:
+        cmeta = {sm.key: {} for sm in meta if sm is not None}
+    with raises(Exception) as got:
+        SampleNode(
+            'n',
+            SubSampleType.BIOLOGICAL_REPLICATE,
+            controlled_metadata=cmeta,
+            source_metadata=meta)
+    assert_exception_correct(got.value, expected)
+
+
 def test_sample_node_eq():
     t = SubSampleType.TECHNICAL_REPLICATE
     s = SubSampleType.SUB_SAMPLE
@@ -266,6 +312,29 @@ def test_sample_node_eq():
         'foo', s, 'bar', user_metadata={'foo': {'z': 'b'}})
     assert SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}) != SampleNode(
         'foo', s, 'bar', user_metadata={'fo': {'a': 'b'}})
+
+    assert SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {}},
+        source_metadata=[SourceMetadata('k', 'k', {})]) == SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {}},
+            source_metadata=[SourceMetadata('k', 'k', {})])
+    assert SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {}},
+        source_metadata=[SourceMetadata('k', 'k', {})]) != SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {}},
+            source_metadata=[SourceMetadata('k', 'v', {})])
 
     assert SampleNode('foo') != 'foo'
     assert 'foo' != SampleNode('foo')
@@ -307,6 +376,29 @@ def test_sample_node_hash():
         SampleNode('foo', s, 'bar', user_metadata={'foo': {'z': 'b'}}))
     assert hash(SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})) != hash(
         SampleNode('foo', s, 'bar', user_metadata={'fo': {'a': 'b'}}))
+
+    assert hash(SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {}},
+        source_metadata=[SourceMetadata('k', 'k', {})])) == hash(SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {}},
+            source_metadata=[SourceMetadata('k', 'k', {})]))
+    assert hash(SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {}},
+        source_metadata=[SourceMetadata('k', 'k', {})])) != hash(SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {}},
+            source_metadata=[SourceMetadata('k', 'v', {})]))
 
 
 def dt(timestamp):

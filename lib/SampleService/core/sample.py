@@ -11,7 +11,10 @@ from uuid import UUID
 from typing import Optional, List, Dict, TypeVar as _TypeVar
 from typing import Set as _Set, cast as _cast
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.arg_checkers import not_falsy as _not_falsy
+from SampleService.core.arg_checkers import (
+    not_falsy as _not_falsy,
+    not_falsy_in_iterable as _not_falsy_in_iterable,
+)
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
@@ -85,6 +88,9 @@ class SourceMetadata:
     def __hash__(self):
         return hash((self.key, self.sourcekey, self.sourcevalue))
 
+    # def __repr__(self):
+    #     return f'{self.key}, {self.sourcekey}, {self.sourcevalue}'
+
 
 class SampleNode:
     '''
@@ -95,6 +101,8 @@ class SampleNode:
     :ivar controlled_metadata: Sample metadata that has been checked against a controlled
         vocabulary.
     :ivar user_metadata: Unrestricted sample metadata.
+    :ivar source_metadata: Information about the controlled metadata as it existed at the data
+        source, prior to any possible transformations for ingest.
     '''
 
     def __init__(
@@ -103,7 +111,8 @@ class SampleNode:
             type_: SubSampleType = SubSampleType.BIOLOGICAL_REPLICATE,
             parent: Optional[str] = None,
             controlled_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None,
-            user_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None
+            user_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None,
+            source_metadata: Optional[List[SourceMetadata]] = None
             ):
         '''
         Create a sample node.
@@ -113,7 +122,9 @@ class SampleNode:
             BIOLOGICAL_REPLICATEs, cannot have parents.
         :param controlled_metadata: Sample metadata that has been checked against a controlled
             vocabulary.
-        :param controlled_metadata: Unrestricted sample metadata.
+        :param user_metadata: Unrestricted sample metadata.
+        :param source_metadata: Information about the controlled metadata as it existed at the data
+            source, prior to any possible transformations for ingest.
         :raises MissingParameterError: if the name is None or whitespace only.
         :raises IllegalParameterError: if the name or parent is too long or contains illegal
             characters, the parent is missing and the node type is not BIOLOGICAL_REPLICATE,
@@ -129,6 +140,9 @@ class SampleNode:
         um = user_metadata if user_metadata else {}
         _check_meta(um, False)
         self.user_metadata = _fz(um)
+        sm = source_metadata if source_metadata else []
+        _check_source_meta(sm, self.controlled_metadata)
+        self.source_metadata = tuple(sm)
         isbiorep = type_ == SubSampleType.BIOLOGICAL_REPLICATE
         if not _xor(bool(parent), isbiorep):
             raise IllegalParameterError(
@@ -144,16 +158,17 @@ class SampleNode:
                     and other.parent == self.parent
                     and other.controlled_metadata == self.controlled_metadata
                     and other.user_metadata == self.user_metadata
+                    and other.source_metadata == self.source_metadata
                     )
         return NotImplemented
 
     def __hash__(self):
         return hash((self.name, self.type, self.parent, self.controlled_metadata,
-                     self.user_metadata))
+                     self.user_metadata, self.source_metadata))
 
     # def __repr__(self):
     #     return (f'{self.name}, {self.type}, {self.parent}, {self.controlled_metadata}, ' +
-    #             f'{self.uncontrolled_metadata}')
+    #             f'{self.uncontrolled_metadata}, {self.source_metadata}')
 
 
 def _check_meta(m: Dict[str, Dict[str, PrimitiveType]], controlled: bool):
@@ -218,6 +233,32 @@ def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):
             if not allow_tabs_and_lf or (c != '\n' and c != '\t'):
                 return i
     return -1
+
+
+def _check_source_meta(m: List[SourceMetadata], controlled_metadata):
+    _not_falsy_in_iterable(m, 'source_metadata')
+    # it doesn't make sense to turn the whole thing into json as a rough measure of size as the
+    # user is not responsible for the field names.
+    total_bytes = 0
+    seen = set()
+    for sm in m:
+        if sm.key in seen:
+            raise IllegalParameterError(f'Duplicate source metadata key: {sm.key}')
+        seen.add(sm.key)
+        # could check for duplicate sm.sourcekeys too, but possibly the source data is split into
+        # two metadata keys?
+        if sm.key not in controlled_metadata:
+            raise IllegalParameterError(
+                f'Source metadata key {sm.key} does not appear in the controlled metadata')
+        total_bytes += len(sm.key.encode('utf-8')) + len(sm.sourcekey.encode('utf-8'))
+        total_bytes += len(_json.dumps(dict(sm.sourcevalue), ensure_ascii=False).encode('utf-8'))
+        # Would be nice if that could be streamed so we don't make a new byte array
+        # This calculation is more convoluted than I would like and hard to reproduce for users
+        # but it's really unlikely the limit is ever going to be hit so YAGNI re improvements,
+        # at least for now.
+    if total_bytes > _META_MAX_SIZE_B:
+        raise IllegalParameterError(
+            f'Source metadata is larger than maximum of {_META_MAX_SIZE_B}B')
 
 
 class Sample:
