@@ -71,7 +71,7 @@ import hashlib as _hashlib
 import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 from collections import defaultdict
-from typing import List, Tuple, Callable, cast as _cast, Optional
+from typing import List, Tuple, Callable, cast as _cast, Optional, Sequence as _Sequence
 from typing import Dict as _Dict, Any as _Any
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
@@ -80,10 +80,14 @@ from arango.database import StandardDatabase
 from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.data_link import DataLink
-from SampleService.core.sample import SavedSample
-from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
-from SampleService.core.sample import SampleNodeAddress as _SampleNodeAddress
-from SampleService.core.sample import SampleAddress
+from SampleService.core.sample import (
+    SavedSample,
+    SampleAddress,
+    SourceMetadata as _SourceMetadata,
+    SampleNode as _SampleNode,
+    SubSampleType as _SubSampleType,
+    SampleNodeAddress as _SampleNodeAddress,
+)
 from SampleService.core.arg_checkers import (
     not_falsy as _not_falsy,
     not_falsy_in_iterable as _not_falsy_in_iterable,
@@ -126,8 +130,10 @@ _FLD_NODE_UUID_VER = 'uuidver'
 _FLD_NODE_INDEX = 'index'
 _FLD_NODE_CONTROLLED_METADATA = 'cmeta'
 _FLD_NODE_UNCONTROLLED_METADATA = 'ucmeta'
+_FLD_NODE_SOURCE_METADATA = 'smeta'
 _FLD_NODE_META_OUTER_KEY = 'ok'
 _FLD_NODE_META_KEY = 'k'
+_FLD_NODE_META_SOURCE_KEY = 'sk'
 _FLD_NODE_META_VALUE = 'v'
 
 
@@ -458,6 +464,7 @@ class ArangoSampleStorage:
                     _FLD_NODE_INDEX: index,
                     _FLD_NODE_CONTROLLED_METADATA: self._meta_to_list(n.controlled_metadata),
                     _FLD_NODE_UNCONTROLLED_METADATA: self._meta_to_list(n.user_metadata),
+                    _FLD_NODE_SOURCE_METADATA: self._source_meta_to_list(n.source_metadata),
                     }
             if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
                 to = f'{self._col_version.name}/{verdocid}'
@@ -514,11 +521,24 @@ class ArangoSampleStorage:
         return ret
 
     def _list_to_meta(
-            self, list: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
+            self, list_: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
         ret: _Dict[str, _Dict[str, _PrimitiveType]] = defaultdict(dict)
-        for m in list:
+        for m in list_:
             ret[m[_FLD_NODE_META_OUTER_KEY]][m[_FLD_NODE_META_KEY]] = m[_FLD_NODE_META_VALUE]
         return dict(ret)  # some libs don't play nice with default dict, in particular maps
+
+    # source metadata is informational only and is not expected to be queryable
+    def _source_meta_to_list(self, sm: _Sequence[_SourceMetadata]) -> List[_Dict[str, _Any]]:
+        return [{_FLD_NODE_META_KEY: m.key,
+                 _FLD_NODE_META_SOURCE_KEY: m.sourcekey,
+                 _FLD_NODE_META_VALUE: dict(m.sourcevalue)} for m in sm]
+
+    def _list_to_source_meta(self, list_: List[_Dict[str, _Any]]) -> List[_SourceMetadata]:
+        return [_SourceMetadata(
+            sm[_FLD_NODE_META_KEY],
+            sm[_FLD_NODE_META_SOURCE_KEY],
+            sm[_FLD_NODE_META_VALUE]
+        ) for sm in list_]
 
     def _insert(self, col, doc, upsert=False):
         try:
@@ -705,6 +725,7 @@ class ArangoSampleStorage:
                     n[_FLD_NODE_PARENT],
                     self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
                     self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
+                    self._list_to_source_meta(n[_FLD_NODE_SOURCE_METADATA]),
                     )
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
