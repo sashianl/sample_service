@@ -684,7 +684,7 @@ def test_save_and_get_sample(samplestorage):
         'kid1', SubSampleType.TECHNICAL_REPLICATE, 'root',
         {'a': {'b': 'c', 'd': 'e'}, 'f': {'g': 'h'}},
         {'m': {'n': 'o'}},
-        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {})])
+        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {'c': 'd'})])
     n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
     n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
                     user_metadata={'f': {'g': 'h'}})
