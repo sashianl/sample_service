@@ -258,6 +258,20 @@ def chemical_species_builder(params: Dict[str, str]
     return validate_cs
 ```
 
+### Source metadata
+
+In some cases, metadata at the data source may be transformed prior to ingest into the
+Sample Service - for instance, two samples from different sources may be associated with
+metadata items that are semantically equivalent but have different names and are represented in
+different units. Prior to storage in the Sample Service, those items may be transformed to use
+the same metadata key and representation for the value.
+
+The Sample Service allows storing these source keys and values along with the controlled
+metadata such that the original metadata may be reconstructed. The data is not validated other
+than basic size checks and is stored on an informational basis only.
+
+See the API specification for more details.
+
 ## Static key metadata
 
 A service administrator can define metadata associated with the metadata keys - e.g. metadata

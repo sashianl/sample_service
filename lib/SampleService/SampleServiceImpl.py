@@ -54,7 +54,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha20"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "546f40c25082915554759778425080946081f4db"
+    GIT_COMMIT_HASH = "b6daa022f7eb7eb7a48156022619b21febf103f4"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -100,37 +100,71 @@ Note that usage of the administration flags will be logged by the service.
            BioReplicate nodes, and only BioReplicate nodes, do not have a
            parent. type - the type of the node. meta_controlled - metadata
            restricted by the sample controlled vocabulary and validators.
-           meta_user - unrestricted metadata.) -> structure: parameter "id"
-           of type "node_id" (A SampleNode ID. Must be unique within a Sample
-           and be less than 255 characters.), parameter "parent" of type
-           "node_id" (A SampleNode ID. Must be unique within a Sample and be
-           less than 255 characters.), parameter "type" of type
-           "samplenode_type" (The type of a sample node. One of: BioReplicate
-           - a biological replicate. Always at the top of the sample tree.
-           TechReplicate - a technical replicate. SubSample - a sub sample
-           that is not a technical replicate.), parameter "meta_controlled"
-           of type "metadata" (Metadata attached to a sample. The
-           UnspecifiedObject map values MUST be a primitive type - either
-           int, float, string, or equivalent typedefs.) -> mapping from type
-           "metadata_key" (A key in a metadata key/value pair. Less than 1000
-           unicode characters.) to mapping from type "metadata_value_key" (A
+           source_meta - the pre-transformation keys and values of the
+           controlled metadata at the data source for controlled metadata
+           keys. In some cases the source metadata may be transformed prior
+           to ingestion by the Sample Service; the contents of this data
+           structure allows for reconstructing the original representation.
+           The metadata here is not validated other than basic size checks
+           and is provided on an informational basis only. The metadata keys
+           in the SourceMetadata data structure must be a subset of the
+           meta_controlled mapping keys. meta_user - unrestricted metadata.)
+           -> structure: parameter "id" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "parent" of type "node_id" (A SampleNode ID. Must be
+           unique within a Sample and be less than 255 characters.),
+           parameter "type" of type "samplenode_type" (The type of a sample
+           node. One of: BioReplicate - a biological replicate. Always at the
+           top of the sample tree. TechReplicate - a technical replicate.
+           SubSample - a sub sample that is not a technical replicate.),
+           parameter "meta_controlled" of type "metadata" (Metadata attached
+           to a sample.) -> mapping from type "metadata_key" (A key in a
+           metadata key/value pair. Less than 1000 unicode characters.) to
+           type "metadata_value" (A metadata value, represented by a mapping
+           of value keys to primitive values. An example for a location
+           metadata key might be: { "name": "Castle Geyser", "lat":
+           44.463816, "long": -110.836471 } "primitive values" means an int,
+           float, string, or equivalent typedefs. Including any collection
+           types is an error.) -> mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "meta_user" of type "metadata"
-           (Metadata attached to a sample. The UnspecifiedObject map values
-           MUST be a primitive type - either int, float, string, or
-           equivalent typedefs.) -> mapping from type "metadata_key" (A key
-           in a metadata key/value pair. Less than 1000 unicode characters.)
-           to mapping from type "metadata_value_key" (A key for a value
-           associated with a piece of metadata. Less than 1000 unicode
-           characters. Examples: units, value, species) to unspecified
-           object, parameter "name" of type "sample_name" (A sample name.
-           Must be less than 255 characters.), parameter "save_date" of type
-           "timestamp" (A timestamp in epoch milliseconds.), parameter
-           "version" of type "version" (The version of a sample. Always >
-           0.), parameter "prior_version" of Long, parameter "as_admin" of
-           type "boolean" (A boolean value, 0 for false, 1 for true.),
-           parameter "as_user" of type "user" (A user's username.)
+           unspecified object, parameter "source_meta" of list of type
+           "SourceMetadata" (Information about a metadata key as it appeared
+           at the data source. The source key and value represents the
+           original state of the metadata before it was tranformed for
+           ingestion by the sample service. key - the metadata key. skey -
+           the key as it appeared at the data source. svalue - the value as
+           it appeared at the data source.) -> structure: parameter "key" of
+           type "metadata_key" (A key in a metadata key/value pair. Less than
+           1000 unicode characters.), parameter "skey" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.), parameter "svalue" of type "metadata_value" (A
+           metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter
+           "meta_user" of type "metadata" (Metadata attached to a sample.) ->
+           mapping from type "metadata_key" (A key in a metadata key/value
+           pair. Less than 1000 unicode characters.) to type "metadata_value"
+           (A metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter "name" of
+           type "sample_name" (A sample name. Must be less than 255
+           characters.), parameter "save_date" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "version" of type
+           "version" (The version of a sample. Always > 0.), parameter
+           "prior_version" of Long, parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.), parameter "as_user" of
+           type "user" (A user's username.)
         :returns: instance of type "SampleAddress" (A Sample ID and version.
            id - the ID of the sample. version - the version of the sample.)
            -> structure: parameter "id" of type "sample_id" (A Sample ID.
@@ -189,34 +223,68 @@ Note that usage of the administration flags will be logged by the service.
            BioReplicate nodes, and only BioReplicate nodes, do not have a
            parent. type - the type of the node. meta_controlled - metadata
            restricted by the sample controlled vocabulary and validators.
-           meta_user - unrestricted metadata.) -> structure: parameter "id"
-           of type "node_id" (A SampleNode ID. Must be unique within a Sample
-           and be less than 255 characters.), parameter "parent" of type
-           "node_id" (A SampleNode ID. Must be unique within a Sample and be
-           less than 255 characters.), parameter "type" of type
-           "samplenode_type" (The type of a sample node. One of: BioReplicate
-           - a biological replicate. Always at the top of the sample tree.
-           TechReplicate - a technical replicate. SubSample - a sub sample
-           that is not a technical replicate.), parameter "meta_controlled"
-           of type "metadata" (Metadata attached to a sample. The
-           UnspecifiedObject map values MUST be a primitive type - either
-           int, float, string, or equivalent typedefs.) -> mapping from type
-           "metadata_key" (A key in a metadata key/value pair. Less than 1000
-           unicode characters.) to mapping from type "metadata_value_key" (A
+           source_meta - the pre-transformation keys and values of the
+           controlled metadata at the data source for controlled metadata
+           keys. In some cases the source metadata may be transformed prior
+           to ingestion by the Sample Service; the contents of this data
+           structure allows for reconstructing the original representation.
+           The metadata here is not validated other than basic size checks
+           and is provided on an informational basis only. The metadata keys
+           in the SourceMetadata data structure must be a subset of the
+           meta_controlled mapping keys. meta_user - unrestricted metadata.)
+           -> structure: parameter "id" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "parent" of type "node_id" (A SampleNode ID. Must be
+           unique within a Sample and be less than 255 characters.),
+           parameter "type" of type "samplenode_type" (The type of a sample
+           node. One of: BioReplicate - a biological replicate. Always at the
+           top of the sample tree. TechReplicate - a technical replicate.
+           SubSample - a sub sample that is not a technical replicate.),
+           parameter "meta_controlled" of type "metadata" (Metadata attached
+           to a sample.) -> mapping from type "metadata_key" (A key in a
+           metadata key/value pair. Less than 1000 unicode characters.) to
+           type "metadata_value" (A metadata value, represented by a mapping
+           of value keys to primitive values. An example for a location
+           metadata key might be: { "name": "Castle Geyser", "lat":
+           44.463816, "long": -110.836471 } "primitive values" means an int,
+           float, string, or equivalent typedefs. Including any collection
+           types is an error.) -> mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "meta_user" of type "metadata"
-           (Metadata attached to a sample. The UnspecifiedObject map values
-           MUST be a primitive type - either int, float, string, or
-           equivalent typedefs.) -> mapping from type "metadata_key" (A key
-           in a metadata key/value pair. Less than 1000 unicode characters.)
-           to mapping from type "metadata_value_key" (A key for a value
-           associated with a piece of metadata. Less than 1000 unicode
-           characters. Examples: units, value, species) to unspecified
-           object, parameter "name" of type "sample_name" (A sample name.
-           Must be less than 255 characters.), parameter "save_date" of type
-           "timestamp" (A timestamp in epoch milliseconds.), parameter
-           "version" of type "version" (The version of a sample. Always > 0.)
+           unspecified object, parameter "source_meta" of list of type
+           "SourceMetadata" (Information about a metadata key as it appeared
+           at the data source. The source key and value represents the
+           original state of the metadata before it was tranformed for
+           ingestion by the sample service. key - the metadata key. skey -
+           the key as it appeared at the data source. svalue - the value as
+           it appeared at the data source.) -> structure: parameter "key" of
+           type "metadata_key" (A key in a metadata key/value pair. Less than
+           1000 unicode characters.), parameter "skey" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.), parameter "svalue" of type "metadata_value" (A
+           metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter
+           "meta_user" of type "metadata" (Metadata attached to a sample.) ->
+           mapping from type "metadata_key" (A key in a metadata key/value
+           pair. Less than 1000 unicode characters.) to type "metadata_value"
+           (A metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter "name" of
+           type "sample_name" (A sample name. Must be less than 255
+           characters.), parameter "save_date" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "version" of type
+           "version" (The version of a sample. Always > 0.)
         """
         # ctx is the context object
         # return variables are: sample
@@ -376,13 +444,16 @@ Note that usage of the administration flags will be logged by the service.
            (get_metadata_key_static_metadata results. static_metadata - the
            static metadata for the requested keys.) -> structure: parameter
            "static_metadata" of type "metadata" (Metadata attached to a
-           sample. The UnspecifiedObject map values MUST be a primitive type
-           - either int, float, string, or equivalent typedefs.) -> mapping
-           from type "metadata_key" (A key in a metadata key/value pair. Less
-           than 1000 unicode characters.) to mapping from type
-           "metadata_value_key" (A key for a value associated with a piece of
-           metadata. Less than 1000 unicode characters. Examples: units,
-           value, species) to unspecified object
+           sample.) -> mapping from type "metadata_key" (A key in a metadata
+           key/value pair. Less than 1000 unicode characters.) to type
+           "metadata_value" (A metadata value, represented by a mapping of
+           value keys to primitive values. An example for a location metadata
+           key might be: { "name": "Castle Geyser", "lat": 44.463816, "long":
+           -110.836471 } "primitive values" means an int, float, string, or
+           equivalent typedefs. Including any collection types is an error.)
+           -> mapping from type "metadata_value_key" (A key for a value
+           associated with a piece of metadata. Less than 1000 unicode
+           characters. Examples: units, value, species) to unspecified object
         """
         # ctx is the context object
         # return variables are: results
@@ -708,34 +779,68 @@ Note that usage of the administration flags will be logged by the service.
            BioReplicate nodes, and only BioReplicate nodes, do not have a
            parent. type - the type of the node. meta_controlled - metadata
            restricted by the sample controlled vocabulary and validators.
-           meta_user - unrestricted metadata.) -> structure: parameter "id"
-           of type "node_id" (A SampleNode ID. Must be unique within a Sample
-           and be less than 255 characters.), parameter "parent" of type
-           "node_id" (A SampleNode ID. Must be unique within a Sample and be
-           less than 255 characters.), parameter "type" of type
-           "samplenode_type" (The type of a sample node. One of: BioReplicate
-           - a biological replicate. Always at the top of the sample tree.
-           TechReplicate - a technical replicate. SubSample - a sub sample
-           that is not a technical replicate.), parameter "meta_controlled"
-           of type "metadata" (Metadata attached to a sample. The
-           UnspecifiedObject map values MUST be a primitive type - either
-           int, float, string, or equivalent typedefs.) -> mapping from type
-           "metadata_key" (A key in a metadata key/value pair. Less than 1000
-           unicode characters.) to mapping from type "metadata_value_key" (A
+           source_meta - the pre-transformation keys and values of the
+           controlled metadata at the data source for controlled metadata
+           keys. In some cases the source metadata may be transformed prior
+           to ingestion by the Sample Service; the contents of this data
+           structure allows for reconstructing the original representation.
+           The metadata here is not validated other than basic size checks
+           and is provided on an informational basis only. The metadata keys
+           in the SourceMetadata data structure must be a subset of the
+           meta_controlled mapping keys. meta_user - unrestricted metadata.)
+           -> structure: parameter "id" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "parent" of type "node_id" (A SampleNode ID. Must be
+           unique within a Sample and be less than 255 characters.),
+           parameter "type" of type "samplenode_type" (The type of a sample
+           node. One of: BioReplicate - a biological replicate. Always at the
+           top of the sample tree. TechReplicate - a technical replicate.
+           SubSample - a sub sample that is not a technical replicate.),
+           parameter "meta_controlled" of type "metadata" (Metadata attached
+           to a sample.) -> mapping from type "metadata_key" (A key in a
+           metadata key/value pair. Less than 1000 unicode characters.) to
+           type "metadata_value" (A metadata value, represented by a mapping
+           of value keys to primitive values. An example for a location
+           metadata key might be: { "name": "Castle Geyser", "lat":
+           44.463816, "long": -110.836471 } "primitive values" means an int,
+           float, string, or equivalent typedefs. Including any collection
+           types is an error.) -> mapping from type "metadata_value_key" (A
            key for a value associated with a piece of metadata. Less than
            1000 unicode characters. Examples: units, value, species) to
-           unspecified object, parameter "meta_user" of type "metadata"
-           (Metadata attached to a sample. The UnspecifiedObject map values
-           MUST be a primitive type - either int, float, string, or
-           equivalent typedefs.) -> mapping from type "metadata_key" (A key
-           in a metadata key/value pair. Less than 1000 unicode characters.)
-           to mapping from type "metadata_value_key" (A key for a value
-           associated with a piece of metadata. Less than 1000 unicode
-           characters. Examples: units, value, species) to unspecified
-           object, parameter "name" of type "sample_name" (A sample name.
-           Must be less than 255 characters.), parameter "save_date" of type
-           "timestamp" (A timestamp in epoch milliseconds.), parameter
-           "version" of type "version" (The version of a sample. Always > 0.)
+           unspecified object, parameter "source_meta" of list of type
+           "SourceMetadata" (Information about a metadata key as it appeared
+           at the data source. The source key and value represents the
+           original state of the metadata before it was tranformed for
+           ingestion by the sample service. key - the metadata key. skey -
+           the key as it appeared at the data source. svalue - the value as
+           it appeared at the data source.) -> structure: parameter "key" of
+           type "metadata_key" (A key in a metadata key/value pair. Less than
+           1000 unicode characters.), parameter "skey" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.), parameter "svalue" of type "metadata_value" (A
+           metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter
+           "meta_user" of type "metadata" (Metadata attached to a sample.) ->
+           mapping from type "metadata_key" (A key in a metadata key/value
+           pair. Less than 1000 unicode characters.) to type "metadata_value"
+           (A metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter "name" of
+           type "sample_name" (A sample name. Must be less than 255
+           characters.), parameter "save_date" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "version" of type
+           "version" (The version of a sample. Always > 0.)
         """
         # ctx is the context object
         # return variables are: sample
