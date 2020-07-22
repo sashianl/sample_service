@@ -297,25 +297,29 @@ def test_delta_build():
     assert a.read == ()
     assert a.remove == ()
     assert a.public_read is None
+    assert a.at_least is False
 
     a = SampleACLDelta(
         [u('baz'), u('bat'), u('baz')],
         read=[u('wheee'), u('wheee')],
         write=[u('wugga'), u('a'), u('b'), u('wugga')],
         remove=[u('bleah'), u('ffs'), u('c')],
-        public_read=True)
+        public_read=True,
+        at_least=True)
     assert a.admin == (u('bat'), u('baz'))
     assert a.write == (u('a'), u('b'), u('wugga'))
     assert a.read == (u('wheee'),)
     assert a.remove == (u('bleah'), u('c'), u('ffs'))
     assert a.public_read is True
+    assert a.at_least is True
 
-    a = SampleACLDelta(public_read=False)
+    a = SampleACLDelta(public_read=False, at_least=None)
     assert a.admin == ()
     assert a.write == ()
     assert a.read == ()
     assert a.remove == ()
     assert a.public_read is False
+    assert a.at_least is False
 
     a = SampleACLDelta(public_read=None)
     assert a.admin == ()
@@ -323,6 +327,7 @@ def test_delta_build():
     assert a.read == ()
     assert a.remove == ()
     assert a.public_read is None
+    assert a.at_least is False
 
 
 def test_delta_build_fail():
@@ -382,6 +387,9 @@ def test_delta_eq():
     assert SampleACLDelta(public_read=True) == SampleACLDelta(public_read=True)
     assert SampleACLDelta(public_read=True) != SampleACLDelta(public_read=False)
 
+    assert SampleACLDelta(at_least=True) == SampleACLDelta(at_least=True)
+    assert SampleACLDelta(at_least=True) != SampleACLDelta(at_least=False)
+
     assert SampleACLDelta() != 1
     assert [] != SampleACLDelta()
 
@@ -407,3 +415,6 @@ def test_delta_hash():
 
     assert hash(SampleACLDelta(public_read=True)) == hash(SampleACLDelta(public_read=True))
     assert hash(SampleACLDelta(public_read=True)) != hash(SampleACLDelta(public_read=False))
+
+    assert hash(SampleACLDelta(at_least=True)) == hash(SampleACLDelta(at_least=True))
+    assert hash(SampleACLDelta(at_least=True)) != hash(SampleACLDelta(at_least=False))
