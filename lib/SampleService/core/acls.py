@@ -114,6 +114,9 @@ class SampleACLDelta():
     :ivar remove: the list of usernames to have all privileges removed.
     :ivar public_read: a boolean designating whether the sample should be made publically readable.
         None signifies no change.
+    :ivar at_least: True signifies that the provided user's permissions should not be downgraded
+        if they are greater than the permission in the delta ACL. If False, the user's permission
+        will be set to exactly the permission in the delta ACL.
     '''
     # hmm, this is pretty similar to SampleACLOwnerless... semantics are different though.
 
@@ -123,7 +126,8 @@ class SampleACLDelta():
             write: Sequence[UserID] = None,
             read: Sequence[UserID] = None,
             remove: Sequence[UserID] = None,
-            public_read: Optional[bool] = None):
+            public_read: Optional[bool] = None,
+            at_least: bool = False):
         '''
         Create the ACLs.
 
@@ -133,6 +137,10 @@ class SampleACLDelta():
         :param remove: the list of usernames to have all privileges removed.
         :param public_read: a boolean designating whether the sample is publically readable.
             None signifies no change.
+        :ivar at_least: True signifies that the provided user's permissions should not be
+            downgraded if they are greater than the permission in the delta ACL. If False, the
+            user's permission will be set to exactly the permission in the delta ACL. None is
+            treated as False.
         :raises IllegalParameterError: If a user appears in more than one ACL
         '''
         self.admin = _to_tuple(admin, 'admin')
@@ -140,6 +148,7 @@ class SampleACLDelta():
         self.read = _to_tuple(read, 'read')
         self.remove = _to_tuple(remove, 'remove')
         self.public_read = public_read
+        self.at_least = bool(at_least)  # handle None
         _check_acl_duplicates(self.admin, self.write, self.read)
         all_ = set(self.admin + self.write + self.read)
         for r in self.remove:
@@ -152,11 +161,13 @@ class SampleACLDelta():
                     and other.write == self.write
                     and other.read == self.read
                     and other.remove == self.remove
-                    and other.public_read is self.public_read)
+                    and other.public_read is self.public_read
+                    and other.at_least is self.at_least)
         return NotImplemented
 
     def __hash__(self):
-        return hash((self.admin, self.write, self.read, self.remove, self.public_read))
+        return hash((self.admin, self.write, self.read, self.remove, self.public_read,
+                     self.at_least))
 
 
 class SampleACL(SampleACLOwnerless):
