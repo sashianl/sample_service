@@ -650,14 +650,18 @@ def _acls_from_dict_fail(d, expected):
 
 def test_acl_delta_from_dict():
     assert acl_delta_from_dict({}) == SampleACLDelta()
-    assert acl_delta_from_dict({'public_read': 0}) == SampleACLDelta()
-    assert acl_delta_from_dict({'public_read': 1}) == SampleACLDelta(public_read=True)
-    assert acl_delta_from_dict({'public_read': -1}) == SampleACLDelta(public_read=False)
-    assert acl_delta_from_dict({'public_read': -50}) == SampleACLDelta(public_read=False)
+    assert acl_delta_from_dict({'public_read': 0, 'at_least': 0}) == SampleACLDelta()
+    assert acl_delta_from_dict({'public_read': 1, 'at_least': None}) == SampleACLDelta(
+        public_read=True)
+    assert acl_delta_from_dict({'public_read': -1, 'at_least': 1}) == SampleACLDelta(
+        public_read=False, at_least=True)
+    assert acl_delta_from_dict({'public_read': -50, 'at_least': -50}) == SampleACLDelta(
+        public_read=False, at_least=True)
     assert acl_delta_from_dict({
         'read': [],
         'admin': ['whee', 'whoo'],
-        'public_read': None}) == SampleACLDelta([UserID('whee'), UserID('whoo')])
+        'public_read': None,
+        'at_least': 100}) == SampleACLDelta([UserID('whee'), UserID('whoo')], at_least=True)
     assert acl_delta_from_dict({
         'read': ['a', 'b'],
         'write': ['c'],
