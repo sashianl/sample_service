@@ -1653,7 +1653,7 @@ def _update_acls_tst(sample_port, kafka, token, as_admin):
         'admin': [USER2],
         'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
         'read': [USER_NO_TOKEN3, USER4],
-        'public_read': 1
+        'public_read': 0
         })
 
     _update_acls(url, token, {
@@ -1663,7 +1663,7 @@ def _update_acls_tst(sample_port, kafka, token, as_admin):
         'read': [USER_NO_TOKEN2],
         'remove': [USER3],
         'public_read': 390,
-        'as_admin': 1 if as_admin else 0
+        'as_admin': 1 if as_admin else 0,
     })
 
     _assert_acl_contents(url, id_, TOKEN1, {
@@ -1673,6 +1673,53 @@ def _update_acls_tst(sample_port, kafka, token, as_admin):
         'read': [USER_NO_TOKEN2, USER_NO_TOKEN3],
         'public_read': 1
     })
+
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id_},
+            {'event_type': 'ACL_CHANGE', 'sample_id': id_},
+        ])
+
+
+def test_update_acls_with_at_least(sample_port, kafka):
+    _update_acls_tst_with_at_least(sample_port, kafka, TOKEN1, False)  # owner
+    _update_acls_tst_with_at_least(sample_port, kafka, TOKEN2, False)  # admin
+    _update_acls_tst_with_at_least(sample_port, kafka, TOKEN5, True)  # as_admin = True
+
+
+def _update_acls_tst_with_at_least(sample_port, kafka, token, as_admin):
+    _clear_kafka_messages(kafka)
+    url = f'http://localhost:{sample_port}'
+
+    id_ = _create_generic_sample(url, TOKEN1)
+
+    _replace_acls(url, id_, TOKEN1, {
+        'admin': [USER2],
+        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER3],
+        'read': [USER_NO_TOKEN3, USER4],
+        'public_read': 0
+        })
+
+    _update_acls(url, token, {
+        'id': str(id_),
+        'admin': [USER4],
+        'write': [USER2, USER_NO_TOKEN3],
+        'read': [USER_NO_TOKEN2, USER5],
+        'remove': [USER3],
+        'public_read': 390,
+        'as_admin': 1 if as_admin else 0,
+        'at_least': 1,
+    })
+
+    _assert_acl_contents(url, id_, TOKEN1, {
+        'owner': USER1,
+        'admin': [USER2, USER4],
+        'write': [USER_NO_TOKEN1, USER_NO_TOKEN2, USER_NO_TOKEN3],
+        'read': [USER5],
+        'public_read': 1
+    }, print_resp=True)
 
     _check_kafka_messages(
         kafka,

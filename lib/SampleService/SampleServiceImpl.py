@@ -54,7 +54,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha21"
     GIT_URL = "https://github.com/mrcreosote/sample_service.git"
-    GIT_COMMIT_HASH = "b6daa022f7eb7eb7a48156022619b21febf103f4"
+    GIT_COMMIT_HASH = "67b70bb587fbf1212a06c716e2e44b0d161cd4c7"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -362,7 +362,14 @@ Note that usage of the administration flags will be logged by the service.
            of users that will have all privileges removed. Default none.
            public_read - an integer that determines whether the sample will
            be set to publicly readable: > 0: public read. 0: No change (the
-           default). < 0: private. as_admin - update the sample acls
+           default). < 0: private. at_least - false, the default, indicates
+           that the users should get the exact permissions as specified in
+           the user lists, which may mean a reduction in permissions. If
+           true, users that already exist in the sample ACLs will not have
+           their permissions reduced as part of the ACL update unless they
+           are in the remove list. E.g. if a user has write permissions and
+           read permissions are specified in the update, no changes will be
+           made to the user's permission. as_admin - update the sample acls
            regardless of sample ACL contents as long as the user has full
            service administration permissions.) -> structure: parameter "id"
            of type "sample_id" (A Sample ID. Must be globally unique. Always
@@ -371,8 +378,9 @@ Note that usage of the administration flags will be logged by the service.
            type "user" (A user's username.), parameter "read" of list of type
            "user" (A user's username.), parameter "remove" of list of type
            "user" (A user's username.), parameter "public_read" of Long,
-           parameter "as_admin" of type "boolean" (A boolean value, 0 for
-           false, 1 for true.)
+           parameter "at_least" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.)
         """
         # ctx is the context object
         #BEGIN update_sample_acls
