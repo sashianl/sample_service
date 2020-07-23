@@ -251,3 +251,7 @@ class SampleACL(SampleACLOwnerless):
     def __hash__(self):
         return hash((self.owner, self.lastupdate, self.admin, self.write, self.read,
                      self.public_read))
+
+    # def __repr__(self):
+    #     return (f'SampleACL[{self.owner}, {self.lastupdate}, {self.admin}, {self.write}, ' +
+    #             f'{self.read}, {self.public_read}]')
