@@ -847,6 +847,43 @@ class ArangoSampleStorage:
             return
         self._update_sample_acls_pt2(id_, update, s.owner, update_time)
 
+    _UPDATE_ACLS_AQL = f'''
+        FOR s in @@col
+            FILTER s.{_FLD_ARANGO_KEY} == @id
+            FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
+            UPDATE s WITH {{
+                {_FLD_ACL_UPDATE_TIME}: @ts,
+                {_FLD_ACLS}: {{
+                    {_FLD_ADMIN}: REMOVE_VALUES(
+                        UNION_DISTINCT(s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin),
+                        @admin_remove),
+                    {_FLD_WRITE}: REMOVE_VALUES(
+                        UNION_DISTINCT(s.{_FLD_ACLS}.{_FLD_WRITE}, @write),
+                        @write_remove),
+                    {_FLD_READ}: REMOVE_VALUES(
+                        UNION_DISTINCT(s.{_FLD_ACLS}.{_FLD_READ}, @read),
+                        @read_remove)
+        '''
+
+    _UPDATE_ACLS_AT_LEAST_AQL = f'''
+        FOR s in @@col
+            FILTER s.{_FLD_ARANGO_KEY} == @id
+            FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
+            UPDATE s WITH {{
+                {_FLD_ACL_UPDATE_TIME}: @ts,
+                {_FLD_ACLS}: {{
+                    {_FLD_ADMIN}: UNION_DISTINCT(
+                        REMOVE_VALUES(s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin_remove),
+                        @admin),
+                    {_FLD_WRITE}: UNION_DISTINCT(
+                        REMOVE_VALUES(s.{_FLD_ACLS}.{_FLD_WRITE}, @write_remove),
+                        REMOVE_VALUES(@write, s.{_FLD_ACLS}.{_FLD_ADMIN})),
+                    {_FLD_READ}: UNION_DISTINCT(
+                        REMOVE_VALUES(s.{_FLD_ACLS}.{_FLD_READ}, @read_remove),
+                        REMOVE_VALUES(@read, UNION_DISTINCT(
+                            s.{_FLD_ACLS}.{_FLD_ADMIN}, s.{_FLD_ACLS}.{_FLD_WRITE})))
+        '''
+
     def _update_sample_acls_pt2(self, id_, update, owner, update_time):
         # this method is split solely to allow testing the owner change case.
 
@@ -867,28 +904,19 @@ class ArangoSampleStorage:
                      'owner': owner.id,
                      'ts': update_time.timestamp(),
                      'admin': a,
-                     'admin_remove': w + r + rem,
                      'write': w,
-                     'write_remove': a + r + rem,
                      'read': r,
                      'read_remove': a + w + rem,
                      }
+        if update.at_least:
+            bind_vars['admin_remove'] = rem
+            bind_vars['write_remove'] = a + rem
+        else:
+            bind_vars['admin_remove'] = w + r + rem
+            bind_vars['write_remove'] = a + r + rem
         # Could return a subset of s to save bandwith
         # ensures the owner hasn't changed since we pulled the acls above.
-        aql = f'''
-            FOR s in @@col
-                FILTER s.{_FLD_ARANGO_KEY} == @id
-                FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
-                UPDATE s WITH {{
-                    {_FLD_ACL_UPDATE_TIME}: @ts,
-                    {_FLD_ACLS}: {{
-                        {_FLD_ADMIN}: REMOVE_VALUES(UNION_DISTINCT(
-                            s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin), @admin_remove),
-                        {_FLD_WRITE}: REMOVE_VALUES(UNION_DISTINCT(
-                            s.{_FLD_ACLS}.{_FLD_WRITE}, @write), @write_remove),
-                        {_FLD_READ}: REMOVE_VALUES(UNION_DISTINCT(
-                            s.{_FLD_ACLS}.{_FLD_READ}, @read), @read_remove)
-        '''
+        aql = self._UPDATE_ACLS_AT_LEAST_AQL if update.at_least else self._UPDATE_ACLS_AQL
         if update.public_read is not None:
             aql += f''',
                         {_FLD_PUBLIC_READ}: @pubread'''

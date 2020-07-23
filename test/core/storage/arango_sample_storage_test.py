@@ -1207,7 +1207,17 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
     assert_exception_correct(got.value, OwnerChangedError())
 
 
-def test_update_sample_acls(samplestorage):
+def test_update_sample_acls_with_at_least_False(samplestorage):
+    # at_least shouldn't change the results of the test, as none of the users are already in ACLs.
+    _update_sample_acls(samplestorage, False)
+
+
+def test_update_sample_acls_with_at_least_True(samplestorage):
+    # at_least shouldn't change the results of the test, as none of the users are already in ACLs.
+    _update_sample_acls(samplestorage, True)
+
+
+def _update_sample_acls(samplestorage, at_least):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
@@ -1216,7 +1226,8 @@ def test_update_sample_acls(samplestorage):
         [UserID('foo'), UserID('bar1')],
         [UserID('baz1'), UserID('bat')],
         [UserID('whoo1')],
-        public_read=True),
+        public_read=True,
+        at_least=at_least),
         dt(101))
 
     res = samplestorage.get_sample_acls(id_)
@@ -1229,7 +1240,15 @@ def test_update_sample_acls(samplestorage):
         True)
 
 
-def test_update_sample_acls_noop(samplestorage):
+def test_update_sample_acls_noop_with_at_least_False(samplestorage):
+    _update_sample_acls_noop(samplestorage, False)
+
+
+def test_update_sample_acls_noop_with_at_least_True(samplestorage):
+    _update_sample_acls_noop(samplestorage, True)
+
+
+def _update_sample_acls_noop(samplestorage, at_least):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
@@ -1247,7 +1266,8 @@ def test_update_sample_acls_noop(samplestorage):
         [UserID('bat')],
         [UserID('whoo')],
         [UserID('nouser'), UserID('nouser2')],
-        public_read=True),
+        public_read=True,
+        at_least=at_least),
         dt(103))
 
     res = samplestorage.get_sample_acls(id_)
@@ -1261,7 +1281,15 @@ def test_update_sample_acls_noop(samplestorage):
         True)
 
 
-def test_update_sample_acls_with_remove_and_null_public(samplestorage):
+def test_update_sample_acls_with_remove_and_null_public_and_at_least_False(samplestorage):
+    _update_sample_acls_with_remove_and_null_public(samplestorage, False)
+
+
+def test_update_sample_acls_with_remove_and_null_public_and_at_least_True(samplestorage):
+    _update_sample_acls_with_remove_and_null_public(samplestorage, True)
+
+
+def _update_sample_acls_with_remove_and_null_public(samplestorage, at_least):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
@@ -1278,7 +1306,8 @@ def test_update_sample_acls_with_remove_and_null_public(samplestorage):
         [UserID('admin')],
         [UserID('write'), UserID('write2')],
         [UserID('read')],
-        [UserID('foo'), UserID('bat'), UserID('whoo'), UserID('notauser')]),
+        [UserID('foo'), UserID('bat'), UserID('whoo'), UserID('notauser')],
+        at_least=at_least),
         dt(102))
 
     res = samplestorage.get_sample_acls(id_)
@@ -1291,7 +1320,15 @@ def test_update_sample_acls_with_remove_and_null_public(samplestorage):
         True)
 
 
-def test_update_sample_acls_with_false_public(samplestorage):
+def test_update_sample_acls_with_False_public_and_at_least_False(samplestorage):
+    _update_sample_acls_with_false_public(samplestorage, False)
+
+
+def test_update_sample_acls_with_False_public_and_at_least_True(samplestorage):
+    _update_sample_acls_with_false_public(samplestorage, True)
+
+
+def _update_sample_acls_with_false_public(samplestorage, at_least):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
     assert samplestorage.save_sample(
         SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
@@ -1304,7 +1341,8 @@ def test_update_sample_acls_with_false_public(samplestorage):
         [UserID('whoo')],
         True))
 
-    samplestorage.update_sample_acls(id_, SampleACLDelta(public_read=False), dt(89))
+    samplestorage.update_sample_acls(
+        id_, SampleACLDelta(public_read=False, at_least=at_least), dt(89))
 
     res = samplestorage.get_sample_acls(id_)
     assert res == SampleACL(
@@ -1331,6 +1369,7 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         write=[UserID('w1'), UserID('w2'), UserID('wrem')],
         read=[UserID('r1'), UserID('r2'), UserID('rrem')]))
 
+    # move user from write -> admin, remove admin
     samplestorage.update_sample_acls(id_, SampleACLDelta(
         admin=[UserID('w1')], remove=[UserID('arem')]), dt(89))
 
@@ -1343,6 +1382,7 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         [UserID('r1'), UserID('r2'), UserID('rrem')],
         False)
 
+    # move user from read -> admin
     samplestorage.update_sample_acls(id_, SampleACLDelta(admin=[UserID('r1')]), dt(90))
 
     res = samplestorage.get_sample_acls(id_)
@@ -1354,6 +1394,7 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         [UserID('r2'), UserID('rrem')],
         False)
 
+    # move user from write -> read, remove write
     samplestorage.update_sample_acls(id_, SampleACLDelta(
         read=[UserID('w1')], remove=[UserID('wrem')]), dt(91))
 
@@ -1366,6 +1407,7 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         [UserID('r2'), UserID('w1'), UserID('rrem')],
         False)
 
+    # move user from admin -> read
     samplestorage.update_sample_acls(id_, SampleACLDelta(read=[UserID('a1')]), dt(92))
 
     res = samplestorage.get_sample_acls(id_)
@@ -1377,6 +1419,7 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         [UserID('r2'), UserID('w1'), UserID('a1'), UserID('rrem')],
         False)
 
+    # move user from admin -> write, remove read
     samplestorage.update_sample_acls(id_, SampleACLDelta(
         write=[UserID('a2')], remove=[UserID('rrem')]), dt(93))
 
@@ -1389,6 +1432,7 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         [UserID('r2'), UserID('w1'), UserID('a1')],
         False)
 
+    # move user from read -> write, move user from write -> read, noop on read user
     samplestorage.update_sample_acls(id_, SampleACLDelta(
         write=[UserID('r2')], read=[UserID('a2'), UserID('a1')]), dt(94))
 
@@ -1400,6 +1444,62 @@ def test_update_sample_acls_with_existing_users(samplestorage):
         [UserID('w2'), UserID('r2')],
         [UserID('w1'), UserID('a2'), UserID('a1')],
         False)
+
+
+def test_update_sample_acls_with_existing_users_and_at_least_True(samplestorage):
+    '''
+    Tests that when a user is added to an acl it's state is unchanged if it's already in a
+    'better' acl.
+    '''
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        admin=[UserID('a1'), UserID('a2'), UserID('arem')],
+        write=[UserID('w1'), UserID('w2'), UserID('wrem')],
+        read=[UserID('r1'), UserID('r2'), UserID('rrem')]))
+
+    samplestorage.update_sample_acls(
+        id_,
+        SampleACLDelta(
+            admin=[UserID('a1')],                # noop admin->admin
+            write=[UserID('a2'), UserID('r1')],  # noop admin->write, read->write
+            read=[UserID('r2')],                 # noop read->read
+            remove=[UserID('arem')],             # remove admin
+            at_least=True),
+        dt(89))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(89),
+        [UserID('a1'), UserID('a2')],
+        [UserID('w1'), UserID('w2'), UserID('wrem'), UserID('r1')],
+        [UserID('r2'), UserID('rrem')],
+        False)
+
+    samplestorage.update_sample_acls(
+        id_,
+        SampleACLDelta(
+            admin=[UserID('r1'), UserID('r2')],       # write->admin, read->admin
+            write=[UserID('w2')],                     # noop write->write
+            read=[UserID('a1'), UserID('w1')],        # noop admin->read, noop write->read
+            remove=[UserID('rrem'), UserID('wrem')],  # remove read and write
+            at_least=True,
+            public_read=True),
+        dt(90))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(90),
+        [UserID('a1'), UserID('a2'), UserID('r1'), UserID('r2')],
+        [UserID('w1'), UserID('w2')],
+        [],
+        True)
 
 
 def test_update_sample_acls_fail_bad_args(samplestorage):
@@ -1426,6 +1526,13 @@ def test_update_sample_acls_fail_no_sample(samplestorage):
         samplestorage, uuid.UUID('1234567890abcdef1234567890abcde1'), SampleACLDelta(), dt(1),
         NoSuchSampleError('12345678-90ab-cdef-1234-567890abcde1'))
 
+    _update_sample_acls_fail(
+        samplestorage,
+        uuid.UUID('1234567890abcdef1234567890abcde1'),
+        SampleACLDelta(at_least=True),
+        dt(1),
+        NoSuchSampleError('12345678-90ab-cdef-1234-567890abcde1'))
+
 
 def test_update_sample_acls_fail_alters_owner(samplestorage):
     id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
@@ -1440,6 +1547,15 @@ def test_update_sample_acls_fail_alters_owner(samplestorage):
     _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(read=[UserID('us')]), t, err)
     _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(remove=[UserID('us')]), t, err)
 
+    _update_sample_acls_fail(
+        samplestorage, id_, SampleACLDelta([UserID('us')], at_least=True), t, err)
+    _update_sample_acls_fail(
+        samplestorage, id_, SampleACLDelta(write=[UserID('us')], at_least=True), t, err)
+    _update_sample_acls_fail(
+        samplestorage, id_, SampleACLDelta(read=[UserID('us')], at_least=True), t, err)
+    _update_sample_acls_fail(
+        samplestorage, id_, SampleACLDelta(remove=[UserID('us')], at_least=True), t, err)
+
 
 def test_update_sample_acls_fail_owner_changed(samplestorage):
     '''
@@ -1451,13 +1567,14 @@ def test_update_sample_acls_fail_owner_changed(samplestorage):
     assert samplestorage.save_sample(
         SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
 
-    with raises(Exception) as got:
-        samplestorage._update_sample_acls_pt2(
-            id_, SampleACLDelta([UserID('a')]), UserID('user2'), dt(1))
-    assert_exception_correct(got.value, OwnerChangedError(
-        # we don't really ever expect this to happen, but just in case...
-        'The sample owner unexpectedly changed during the operation. Please retry. ' +
-        'If this error occurs frequently, code changes may be necessary.'))
+    for al in [True, False]:
+        with raises(Exception) as got:
+            samplestorage._update_sample_acls_pt2(
+                id_, SampleACLDelta([UserID('a')], at_least=al), UserID('user2'), dt(1))
+        assert_exception_correct(got.value, OwnerChangedError(
+            # we don't really ever expect this to happen, but just in case...
+            'The sample owner unexpectedly changed during the operation. Please retry. ' +
+            'If this error occurs frequently, code changes may be necessary.'))
 
 
 def _update_sample_acls_fail(samplestorage, id_, update, update_time, expected):
