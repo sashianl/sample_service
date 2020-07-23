@@ -389,7 +389,8 @@ def acl_delta_from_dict(d: Dict[str, Any]) -> SampleACLDelta:
         _get_acl(d, 'write'),
         _get_acl(d, 'read'),
         _get_acl(d, 'remove'),
-        pub)
+        pub,
+        bool(d.get('at_least')))
 
 
 def _get_acl(acls, type_):
