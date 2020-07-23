@@ -226,6 +226,12 @@ module SampleService {
             > 0: public read.
             0: No change (the default).
             < 0: private.
+        at_least - false, the default, indicates that the users should get the exact permissions
+            as specified in the user lists, which may mean a reduction in permissions. If true,
+            users that already exist in the sample ACLs will not have their permissions reduced
+            as part of the ACL update unless they are in the remove list. E.g. if a user has
+            write permissions and read permissions are specified in the update, no changes will
+            be made to the user's permission.
         as_admin - update the sample acls regardless of sample ACL contents as long as the user has
             full service administration permissions.
      */
@@ -236,6 +242,7 @@ module SampleService {
         list<user> read;
         list<user> remove;
         int public_read;
+        boolean at_least;
         boolean as_admin;
     } UpdateSampleACLsParams;
 

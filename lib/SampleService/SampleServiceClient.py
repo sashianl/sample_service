@@ -280,7 +280,14 @@ class SampleService(object):
            of users that will have all privileges removed. Default none.
            public_read - an integer that determines whether the sample will
            be set to publicly readable: > 0: public read. 0: No change (the
-           default). < 0: private. as_admin - update the sample acls
+           default). < 0: private. at_least - false, the default, indicates
+           that the users should get the exact permissions as specified in
+           the user lists, which may mean a reduction in permissions. If
+           true, users that already exist in the sample ACLs will not have
+           their permissions reduced as part of the ACL update unless they
+           are in the remove list. E.g. if a user has write permissions and
+           read permissions are specified in the update, no changes will be
+           made to the user's permission. as_admin - update the sample acls
            regardless of sample ACL contents as long as the user has full
            service administration permissions.) -> structure: parameter "id"
            of type "sample_id" (A Sample ID. Must be globally unique. Always
@@ -289,8 +296,9 @@ class SampleService(object):
            type "user" (A user's username.), parameter "read" of list of type
            "user" (A user's username.), parameter "remove" of list of type
            "user" (A user's username.), parameter "public_read" of Long,
-           parameter "as_admin" of type "boolean" (A boolean value, 0 for
-           false, 1 for true.)
+           parameter "at_least" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.)
         """
         return self._client.call_method('SampleService.update_sample_acls',
                                         [params], self._service_ver, context)
