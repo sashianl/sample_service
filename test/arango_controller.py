@@ -72,9 +72,9 @@ class ArangoController:
 
     def destroy(self, delete_temp_files: bool) -> None:
         """
-        Shut down the MongoDB server.
+        Shut down the ArangoDB server.
 
-        :param delete_temp_files: delete all the MongoDB data files and logs generated during the
+        :param delete_temp_files: delete all the ArangoDB data files and logs generated during the
             test.
         """
         if self._proc:
