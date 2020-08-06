@@ -217,26 +217,43 @@ class SampleACL(SampleACLOwnerless):
         :param update: the update.
         :returns: True if the update would change the ACLs, False if not. The timestamp is not
             considered.
-        :raises UnauthorizedError: if the update would affect the owner.
+        :raises UnauthorizedError: if the update would affect the owner and update.at_least is
+            not true, or if the owner is in the remove list regardless of at_least.
         '''
         _not_falsy(update, 'update')
         o = self.owner
-        if o in update.admin or o in update.write or o in update.read or o in update.remove:
+        ownerchange = o in update.admin or o in update.write or o in update.read
+        if (ownerchange and not update.at_least) or o in update.remove:
             raise _UnauthorizedError(
                 f'ACLs for the sample owner {o.id} may not be modified by a delta update.')
+
         rem = set(update.remove)
         admin = set(self.admin)
         write = set(self.write)
         read = set(self.read)
-        pub = update.public_read
 
-        return (not set(update.admin).issubset(admin) or
-                not set(update.write).issubset(write) or
-                not set(update.read).issubset(read) or
-                not rem.isdisjoint(admin) or
-                not rem.isdisjoint(write) or
-                not rem.isdisjoint(read) or
-                (pub is not None and pub is not self.public_read))
+        # check if users are removed
+        if not rem.isdisjoint(admin) or not rem.isdisjoint(write) or not rem.isdisjoint(read):
+            return True
+
+        # check if public read is changed
+        if update.public_read is not None and update.public_read is not self.public_read:
+            return True
+
+        uadmin = set(update.admin)
+        uwrite = set(update.write)
+        uread = set(update.read)
+        owner = set([o])
+
+        # check if users' permission is changed
+        if update.at_least:
+            return (not uadmin.issubset(admin | owner) or
+                    not uwrite.issubset(write | admin | owner) or
+                    not uread.issubset(read | write | admin | owner))
+        else:
+            return (not uadmin.issubset(admin) or
+                    not uwrite.issubset(write) or
+                    not uread.issubset(read))
 
     def __eq__(self, other):
         if type(other) is type(self):
