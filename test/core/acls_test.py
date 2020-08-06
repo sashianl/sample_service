@@ -191,21 +191,36 @@ def test_is_update():
     assert s.is_update(SampleACLDelta()) is False
 
     assert s.is_update(SampleACLDelta([u('a1')])) is False
+    assert s.is_update(SampleACLDelta([u('a1')], at_least=True)) is False
+    assert s.is_update(SampleACLDelta([u('o')], at_least=True)) is False
     assert s.is_update(SampleACLDelta([u('a3')])) is True
 
     assert s.is_update(SampleACLDelta(write=[u('w2')])) is False
+    assert s.is_update(SampleACLDelta(write=[u('w2')], at_least=True)) is False
+    assert s.is_update(SampleACLDelta(write=[u('o')], at_least=True)) is False
+    assert s.is_update(SampleACLDelta(write=[u('a1')])) is True
+    assert s.is_update(SampleACLDelta(write=[u('a1')], at_least=True)) is False
     assert s.is_update(SampleACLDelta(write=[u('w4')])) is True
 
     assert s.is_update(SampleACLDelta(read=[u('r1')])) is False
+    assert s.is_update(SampleACLDelta(read=[u('r1')], at_least=True)) is False
+    assert s.is_update(SampleACLDelta(read=[u('o')], at_least=True)) is False
+    assert s.is_update(SampleACLDelta(read=[u('a1')])) is True
+    assert s.is_update(SampleACLDelta(read=[u('a1')], at_least=True)) is False
+    assert s.is_update(SampleACLDelta(read=[u('w1')])) is True
+    assert s.is_update(SampleACLDelta(read=[u('w1')], at_least=True)) is False
     assert s.is_update(SampleACLDelta(read=[u('r3')])) is True
 
     assert s.is_update(SampleACLDelta(remove=[u('a1')])) is True
+    assert s.is_update(SampleACLDelta(remove=[u('a1')], at_least=True)) is True
     assert s.is_update(SampleACLDelta(remove=[u('a3')])) is False
 
     assert s.is_update(SampleACLDelta(remove=[u('w2')])) is True
+    assert s.is_update(SampleACLDelta(remove=[u('w2')], at_least=True)) is True
     assert s.is_update(SampleACLDelta(remove=[u('w4')])) is False
 
     assert s.is_update(SampleACLDelta(remove=[u('r1')])) is True
+    assert s.is_update(SampleACLDelta(remove=[u('r1')], at_least=True)) is True
     assert s.is_update(SampleACLDelta(remove=[u('r3')])) is False
 
     assert s.is_update(SampleACLDelta(public_read=False)) is True
@@ -228,6 +243,9 @@ def test_is_update_fail():
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
     _is_update_fail(
         s, SampleACLDelta([u('a')], remove=[u('v'), u('u')]),
+        UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
+    _is_update_fail(
+        s, SampleACLDelta([u('a')], remove=[u('v'), u('u')], at_least=True),
         UnauthorizedError('ACLs for the sample owner u may not be modified by a delta update.'))
 
 

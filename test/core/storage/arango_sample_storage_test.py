@@ -1240,6 +1240,54 @@ def _update_sample_acls(samplestorage, at_least):
         True)
 
 
+def test_update_sample_acls_with_at_least_True_and_owner_in_admin_acl(samplestorage):
+    # owner should be included in any changes with at_least = True.
+    _update_sample_acls_with_owner_in_acl(
+        samplestorage,
+        [UserID('foo'), UserID('bar1'), UserID('user')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+    )
+
+
+def test_update_sample_acls_with_at_least_True_and_owner_in_write_acl(samplestorage):
+    # owner should be included in any changes with at_least = True.
+    _update_sample_acls_with_owner_in_acl(
+        samplestorage,
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat'), UserID('user')],
+        [UserID('whoo1')],
+    )
+
+
+def test_update_sample_acls_with_at_least_True_and_owner_in_read_acl(samplestorage):
+    # owner should be included in any changes with at_least = True.
+    _update_sample_acls_with_owner_in_acl(
+        samplestorage,
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1'), UserID('user')],
+    )
+
+
+def _update_sample_acls_with_owner_in_acl(samplestorage, admin, write, read):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.update_sample_acls(
+        id_, SampleACLDelta(admin, write, read, public_read=True, at_least=True), dt(101))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(101),
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+        True)
+
+
 def test_update_sample_acls_noop_with_at_least_False(samplestorage):
     _update_sample_acls_noop(samplestorage, False)
 
@@ -1546,13 +1594,6 @@ def test_update_sample_acls_fail_alters_owner(samplestorage):
     _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(write=[UserID('us')]), t, err)
     _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(read=[UserID('us')]), t, err)
     _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(remove=[UserID('us')]), t, err)
-
-    _update_sample_acls_fail(
-        samplestorage, id_, SampleACLDelta([UserID('us')], at_least=True), t, err)
-    _update_sample_acls_fail(
-        samplestorage, id_, SampleACLDelta(write=[UserID('us')], at_least=True), t, err)
-    _update_sample_acls_fail(
-        samplestorage, id_, SampleACLDelta(read=[UserID('us')], at_least=True), t, err)
     _update_sample_acls_fail(
         samplestorage, id_, SampleACLDelta(remove=[UserID('us')], at_least=True), t, err)
 

@@ -894,9 +894,13 @@ class ArangoSampleStorage:
         # some other thread of operation changed the ACLs to the exact state that application of
         # our delta update would result in. The only issue here is that the update time stamp will
         # be a few milliseconds later than it should be, so don't worry about it.
-        a = [u.id for u in update.admin]
-        w = [u.id for u in update.write]
-        r = [u.id for u in update.read]
+
+        # we remove the owner from the update list for the case where update.at_least is
+        # true so that we don't add the owner to another ACL. If at_least is false, the
+        # update class would've thrown an error.
+        a = [u.id for u in update.admin if u != owner]
+        w = [u.id for u in update.write if u != owner]
+        r = [u.id for u in update.read if u != owner]
         rem = [u.id for u in update.remove]
 
         bind_vars = {'@col': self._col_sample.name,
@@ -914,8 +918,8 @@ class ArangoSampleStorage:
         else:
             bind_vars['admin_remove'] = w + r + rem
             bind_vars['write_remove'] = a + r + rem
-        # Could return a subset of s to save bandwith
-        # ensures the owner hasn't changed since we pulled the acls above.
+        # Could return a subset of s to save bandwith (see query text)
+        # ensures the owner hasn't changed since we pulled the acls above (see query text).
         aql = self._UPDATE_ACLS_AT_LEAST_AQL if update.at_least else self._UPDATE_ACLS_AQL
         if update.public_read is not None:
             aql += f''',
