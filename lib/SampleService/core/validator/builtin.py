@@ -165,7 +165,7 @@ def _get_keys(d):
     return keys
 
 
-_UNIT_REG = _UnitRegistry()
+_UNIT_REG = _UnitRegistry(autoconvert_offset_to_baseunit=True)
 _UNIT_REG.load_definitions(
     os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
