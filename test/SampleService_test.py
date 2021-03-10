@@ -4042,7 +4042,7 @@ def test_user_lookup_build_fail_bad_auth_url(sample_port, auth):
 
 def test_user_lookup_build_fail_not_auth_url():
     _user_lookup_build_fail(
-        'https://ci.kbase.us/services',
+        'https://httpbin.org/status/404',
         TOKEN1,
         IOError('Non-JSON response from KBase auth server, status code: 404'))
 
