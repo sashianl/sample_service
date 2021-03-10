@@ -825,7 +825,7 @@ def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
     assert doc == {
         'id': str(id1),
         'ver': 1,
-        'saved': 7,
+        'saved': 7000,
         'name': 'mynode',
         'type': 'BIOLOGICAL_REPLICATE',
         'parent': None,
@@ -1696,7 +1696,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc2['uuidver'],
         'samintver': 2,
         'node': 'mynode1',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1864,7 +1864,7 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1984,7 +1984,7 @@ def test_create_data_link_with_update_noop(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -2101,9 +2101,9 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
-        'expired': 599.999,
+        'expired': 599999,
         'expireby': 'userb'
     }
 
@@ -3140,7 +3140,7 @@ def test_expire_data_link_fail_expire_before_create_by_id(samplestorage):
     )
 
     _expire_data_link_fail(samplestorage, dt(99), UserID('u'), lid1, None, ValueError(
-        'expired is < link created time: 100'))
+        'expired is < link created time: 100000'))
 
 
 def test_expire_data_link_fail_race_condition(samplestorage):
