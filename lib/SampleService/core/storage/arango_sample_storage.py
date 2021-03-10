@@ -316,7 +316,7 @@ class ArangoSampleStorage:
             for doc in cur:
                 id_ = UUID(doc[_FLD_ID])
                 uver = UUID(doc[_FLD_UUID_VER])
-                ts = self._timestamp_to_datetime(doc[_FLD_SAVE_TIME])
+                ts = self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(doc[_FLD_SAVE_TIME]))
                 sampledoc = self._get_sample_doc(id_, exception=False)
                 if not sampledoc:
                     # the sample document was never saved for this version doc
@@ -457,7 +457,7 @@ class ArangoSampleStorage:
                     _FLD_NODE_SAMPLE_ID: str(sample.id),
                     _FLD_NODE_UUID_VER: str(versionid),
                     _FLD_NODE_VER: _VAL_NO_VER,
-                    _FLD_SAVE_TIME: sample.savetime.timestamp(),
+                    _FLD_SAVE_TIME: self._timestamp_seconds_to_milliseconds(sample.savetime.timestamp()),
                     _FLD_NODE_NAME: n.name,
                     _FLD_NODE_TYPE: n.type.name,
                     _FLD_NODE_PARENT: n.parent,
@@ -489,7 +489,7 @@ class ArangoSampleStorage:
                   _FLD_USER: sample.user.id,
                   _FLD_VER: _VAL_NO_VER,
                   _FLD_UUID_VER: str(versionid),
-                  _FLD_SAVE_TIME: sample.savetime.timestamp(),
+                  _FLD_SAVE_TIME: self._timestamp_seconds_to_milliseconds(sample.savetime.timestamp()),
                   _FLD_NAME: sample.name
                   # TODO description
                   }
@@ -656,7 +656,7 @@ class ArangoSampleStorage:
         doc, verdoc, version = self._get_sample_and_version_doc(id_, version)
 
         nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
-        dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
+        dt = self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME]))
 
         return SavedSample(
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
@@ -683,6 +683,12 @@ class ArangoSampleStorage:
 
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
+
+    def _timestamp_seconds_to_milliseconds(self, ts: float) -> int:
+        return round(_not_falsy(ts, 'ts') * 1000)
+
+    def _timestamp_milliseconds_to_seconds(self, ts: int) -> float:
+        return _not_falsy(ts, 'ts') / 1000
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'
@@ -1030,7 +1036,7 @@ class ArangoSampleStorage:
                 # I'm not a fan of this, but a millisecond gap seems safe and most systems
                 # should have millisecond resolution.
                 # Consider rounding to millisecond resolution for consistency? Make a class?
-                oldlinkdoc[_FLD_LINK_EXPIRED] = link.created.timestamp() - 0.001
+                oldlinkdoc[_FLD_LINK_EXPIRED] = self._timestamp_seconds_to_milliseconds(link.created.timestamp() - 0.001)
                 oldlinkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(oldlinkdoc)
 
                 # since we're replacing a link we don't need to worry about counting links from
@@ -1124,8 +1130,8 @@ class ArangoSampleStorage:
 
     def _count_links(self, db, filters: str, bind_vars, created, expired):
         bind_vars['@col'] = self._col_data_link.name
-        bind_vars['created'] = created.timestamp()
-        bind_vars['expired'] = expired.timestamp() if expired else _ARANGO_MAX_INTEGER
+        bind_vars['created'] = self._timestamp_seconds_to_milliseconds(created.timestamp())
+        bind_vars['expired'] = self._timestamp_seconds_to_milliseconds(expired.timestamp()) if expired else _ARANGO_MAX_INTEGER
         # might need to include created / expired in compound indexes if we get a ton of expired
         # links. Might not work in a NOT though. Alternate formulation is
         # (d.creatd >= @created AND d.created <= @expired) OR
@@ -1160,7 +1166,8 @@ class ArangoSampleStorage:
     def _create_link_key_from_link_doc(self, link: dict):
         # arango sometimes removes trailing decimals and zeros from the number so we reformat
         # with datetime to ensure consistency
-        cr = (f'_{self._timestamp_to_datetime(link[_FLD_LINK_CREATED]).timestamp()}'
+        created=self._timestamp_milliseconds_to_seconds(link[_FLD_LINK_CREATED])
+        cr = (f'_{self._timestamp_to_datetime(created).timestamp()}'
               if link[_FLD_LINK_EXPIRED] != _ARANGO_MAX_INTEGER else '')
         dataid = (f'_{self._md5(link[_FLD_LINK_OBJECT_DATA_UNIT])}'
                   if link[_FLD_LINK_OBJECT_DATA_UNIT] else '')
@@ -1179,9 +1186,9 @@ class ArangoSampleStorage:
             _FLD_ARANGO_KEY: self._create_link_key(link),
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
-            _FLD_LINK_CREATED: link.created.timestamp(),
+            _FLD_LINK_CREATED: self._timestamp_seconds_to_milliseconds(link.created.timestamp()),
             _FLD_LINK_CREATED_BY: link.created_by.id,
-            _FLD_LINK_EXPIRED: link.expired.timestamp() if link.expired else _ARANGO_MAX_INTEGER,
+            _FLD_LINK_EXPIRED: self._timestamp_seconds_to_milliseconds(link.expired.timestamp()) if link.expired else _ARANGO_MAX_INTEGER,
             _FLD_LINK_EXPIRED_BY: link.expired_by.id if link.expired_by else None,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
@@ -1249,7 +1256,7 @@ class ArangoSampleStorage:
             linkdoc = self._get_link_doc_from_duid(duid)
             txtid = str(duid)
 
-        if expired.timestamp() < linkdoc[_FLD_LINK_CREATED]:
+        if self._timestamp_seconds_to_milliseconds(expired.timestamp()) < linkdoc[_FLD_LINK_CREATED]:
             raise ValueError(f'expired is < link created time: {linkdoc[_FLD_LINK_CREATED]}')
 
         return self._expire_data_link_pt2(linkdoc, expired, expired_by, txtid)
@@ -1260,7 +1267,7 @@ class ArangoSampleStorage:
 
         oldkey = self._create_link_key_from_link_doc(linkdoc)
 
-        linkdoc[_FLD_LINK_EXPIRED] = expired.timestamp()
+        linkdoc[_FLD_LINK_EXPIRED] = self._timestamp_seconds_to_milliseconds(expired.timestamp())
         linkdoc[_FLD_LINK_EXPIRED_BY] = expired_by.id
         linkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(linkdoc)
 
@@ -1335,9 +1342,9 @@ class ArangoSampleStorage:
                     UUID(doc[_FLD_LINK_SAMPLE_ID]),
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
-            self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
+            self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(doc[_FLD_LINK_CREATED])),
             UserID(doc[_FLD_LINK_CREATED_BY]),
-            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex),
+            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(ex)),
             UserID(doc[_FLD_LINK_EXPIRED_BY]) if doc[_FLD_LINK_EXPIRED_BY] else None
         )
 
@@ -1377,7 +1384,7 @@ class ArangoSampleStorage:
         _, versiondoc, _ = self._get_sample_and_version_doc(sample.sampleid, sample.version)
         bind_vars = {'@col': self._col_data_link.name,
                      'samplever': versiondoc[_FLD_UUID_VER],
-                     'ts': timestamp.timestamp()}
+                     'ts': self._timestamp_seconds_to_milliseconds(timestamp.timestamp())}
         wsidfilter = ''
         if readable_wsids:
             bind_vars['wsids'] = readable_wsids
@@ -1429,7 +1436,7 @@ class ArangoSampleStorage:
                      'wsid': upa.wsid,
                      'objid': upa.objid,
                      'ver': upa.version,
-                     'ts': timestamp.timestamp()}
+                     'ts': self._timestamp_seconds_to_milliseconds(timestamp.timestamp())}
         # may need an index on upa + created and expired? Assume for now links aren't
         # expired very often.
         return self._find_links_via_aql(q, bind_vars)
