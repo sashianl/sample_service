@@ -1718,7 +1718,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 600,
+        'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
         'expireby': None
@@ -1886,7 +1886,7 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
         'expireby': None
@@ -2006,7 +2006,7 @@ def test_create_data_link_with_update_noop(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
         'expireby': None
@@ -2123,9 +2123,9 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
-        'expired': 699.999,
+        'expired': 699999,
         'expireby': 'userc'
     }
 
@@ -2917,9 +2917,9 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': -100,
+        'created': -100000,
         'createby': 'userb',
-        'expired': expired,
+        'expired': expired * 1000,
         'expireby': 'yay'
     }
 
@@ -2990,7 +2990,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         'node': 'mynode',
         'created': 0.000562,
         'createby': 'usera',
-        'expired': expired,
+        'expired': expired * 1000,
         'expireby': 'user'
     }
 

@@ -685,10 +685,10 @@ class ArangoSampleStorage:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
 
     def _timestamp_seconds_to_milliseconds(self, ts: float) -> int:
-        return round(_not_falsy(ts, 'ts') * 1000)
+        return round(ts * 1000)
 
     def _timestamp_milliseconds_to_seconds(self, ts: int) -> float:
-        return _not_falsy(ts, 'ts') / 1000
+        return ts / 1000
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'
