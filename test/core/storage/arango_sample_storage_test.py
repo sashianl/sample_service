@@ -2974,7 +2974,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
 
     link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}5.0')
     assert link == {
-        '_key': f'1_1_1_{expectedmd5}0.000562',
+        '_key': f'1_1_1_{expectedmd5}5.0',
         '_id': f'data_link/1_1_1_{expectedmd5}5.0',
         '_from': 'ws_obj_ver/1:1:1',
         '_to': nodedoc1['_id'],
