@@ -2939,7 +2939,7 @@ def test_expire_and_get_data_link_via_id(samplestorage):
 
 
 def test_expire_and_get_data_link_via_id_with_dataid(samplestorage):
-    _expire_and_get_data_link_via_id(samplestorage, 1, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+    _expire_and_get_data_link_via_id(samplestorage, 10, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
 
 
 def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5):
