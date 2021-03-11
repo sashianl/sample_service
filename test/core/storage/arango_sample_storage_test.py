@@ -1740,7 +1740,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc3['uuidver'],
         'samintver': 1,
         'node': 'mynode2',
-        'created': 700,
+        'created': 700000,
         'createby': 'u',
         'expired': 9007199254740991,
         'expireby': None
@@ -1762,7 +1762,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 800,
+        'created': 800000,
         'createby': 'userd',
         'expired': 9007199254740991,
         'expireby': None
@@ -2145,7 +2145,7 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 600,
+        'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
         'expireby': None
@@ -2167,7 +2167,7 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode2',
-        'created': 700,
+        'created': 700000,
         'createby': 'userc',
         'expired': 9007199254740991,
         'expireby': None
@@ -2952,7 +2952,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(.00056211),
+        dt(5),
         UserID('usera'))
     )
 
@@ -2964,7 +2964,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(0.00056211),
+        dt(5),
         UserID('usera'),
         dt(expired),
         UserID('user')
@@ -2972,10 +2972,10 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
 
     assert samplestorage._col_data_link.count() == 1
 
-    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}0.000562')
+    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}5.0')
     assert link == {
         '_key': f'1_1_1_{expectedmd5}0.000562',
-        '_id': f'data_link/1_1_1_{expectedmd5}0.000562',
+        '_id': f'data_link/1_1_1_{expectedmd5}5.0',
         '_from': 'ws_obj_ver/1:1:1',
         '_to': nodedoc1['_id'],
         '_rev': link['_rev'],  # no need to test this
@@ -2988,7 +2988,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 0.000562,
+        'created': 5000,
         'createby': 'usera',
         'expired': expired * 1000,
         'expireby': 'user'
@@ -2999,7 +2999,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(0.000562),
+        dt(5),
         UserID('usera'),
         dt(expired),
         UserID('user')
