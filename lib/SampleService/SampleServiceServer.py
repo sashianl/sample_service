@@ -395,6 +395,10 @@ class Application(object):
         self.rpc_service.add(impl_SampleService.status,
                              name='SampleService.status',
                              types=[dict])
+        self.rpc_service.add(impl_SampleService.validate_samples,
+                             name='SampleService.validate_samples',
+                             types=[dict])
+        self.method_authentication['SampleService.validate_samples'] = 'optional'  # noqa
         authurl = config.get(AUTH) if config else None
         self.auth_client = _KBaseAuth(authurl)
 

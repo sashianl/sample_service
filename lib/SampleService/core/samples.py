@@ -98,7 +98,7 @@ class Samples:
         '''
         _not_falsy(sample, 'sample')
         _not_falsy(user, 'user')
-        self._validate_metadata(sample)
+        _ = self._validate_metadata(sample)
         if id_:
             if prior_version is not None and prior_version < 1:
                 raise _IllegalParameterError('Prior version must be > 0')
@@ -115,12 +115,19 @@ class Samples:
             self._kafka.notify_new_sample_version(id_, ver)
         return (id_, ver)
 
-    def _validate_metadata(self, sample: Sample):
+    def _validate_metadata(self, sample: Sample, return_error_strings: bool=False):
+        '''
+        :params sample: sample to be validated
+        :params return_exception: default=False, whether to return all errors found as a list exceptions.
+
+        :returns: list of excpetions
+        '''
         for i, n in enumerate(sample.nodes):
             try:
-                self._metaval.validate_metadata(n.controlled_metadata)
+                error_strings = self._metaval.validate_metadata(n.controlled_metadata, return_error_strings)
             except _MetadataValidationError as e:
                 raise _MetadataValidationError(f'Node at index {i}: {e.message}') from e
+        return error_strings
 
     def _check_perms(
             self,
@@ -499,3 +506,13 @@ class Samples:
         '''
         # if we expose this to users need to add ACL checking. Don't see a use case ATM.
         return self._storage.get_data_link(_not_falsy(link_id, 'link_id'))
+
+    def validate_sample(self, sample: Sample):
+        '''
+        This method performs only the validation steps on a sample
+
+        :param sample: the sample to validate
+        '''
+        _not_falsy(sample, 'sample')
+        error_strings = self._validate_metadata(sample, return_error_strings=True)
+        return error_strings

@@ -239,28 +239,45 @@ class MetadataValidatorSet:
                 f'index is {len(self._prefix_vals[prefix]) - 1}')
         return self._prefix_vals[prefix][index](prefix, key, value)
 
-    def validate_metadata(self, metadata: Dict[str, Dict[str, PrimitiveType]]):
+    def validate_metadata(
+            self,
+            metadata: Dict[str, Dict[str, PrimitiveType]],
+            return_error_strings: bool=False
+        ):
         '''
         Validate a set of metadata key/value pairs.
 
         :param metadata: the metadata.
         :raises MetadataValidationError: if the metadata is invalid.
+
+        :returns: list of errors raised during validation
         '''
         # if not isinstance(metadata, dict):  # doesn't work
         if type(metadata) != dict and type(metadata) != _maps.FrozenMap:
             raise ValueError('metadata must be a dict')
+        errors = []
         for k in metadata:
             sp = self._prefix_vals.shortest_prefix(k)
             if not self._vals.get(k) and not (sp and sp.value):
-                raise _MetadataValidationError(
-                    f'No validator available for metadata key {k}')
+                if return_error_strings:
+                    errors.append(f'No validator available for metadata key {k}')
+                else:
+                    raise _MetadataValidationError(
+                        f'No validator available for metadata key {k}')
             for valfunc in self._vals.get(k, []):
                 ret = valfunc(k, metadata[k])
                 if ret:
-                    raise _MetadataValidationError(f'Key {k}: ' + ret)
+                    if return_error_strings:
+                        errors.append(f'Key {k}: ' + ret)
+                    else:
+                        raise _MetadataValidationError(f'Key {k}: ' + ret)
             for p in self._prefix_vals.prefixes(k):
                 for f in p.value:
                     error = f(p.key, k, metadata[k])
                     if error:
-                        raise _MetadataValidationError(
-                            f'Prefix validator {p.key}, key {k}: {error}')
+                        if return_error_strings:
+                            errors.append(f'Prefix validator {p.key}, key {k}: {error}')
+                        else:
+                            raise _MetadataValidationError(
+                                f'Prefix validator {p.key}, key {k}: {error}')
+        return errors

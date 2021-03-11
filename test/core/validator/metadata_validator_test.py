@@ -406,6 +406,43 @@ def _call_prefix_validator_fail(vals, prefix, index, key, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_set_validate_metadata_return_errors():
+    _validate_metadata_errors(
+        [MetadataValidator('key1', [_noop]),
+         MetadataValidator('key2', [_noop]),
+         MetadataValidator('key', prefix_validators=[_noop3])],
+        {'key1': 'a', 'key2': 'b', 'kex': 'c'},
+        str('No validator available for metadata key kex'))
+    _validate_metadata_errors(
+        [MetadataValidator('key1', [_noop]), MetadataValidator('key2', [_noop])],
+        {'key1': 'a', 'key2': 'b', 'key3': 'c'},
+        str('No validator available for metadata key key3'))
+    _validate_metadata_errors(
+        [MetadataValidator('keyx', prefix_validators=[_noop3])],
+        {'keyx1': 'a', 'keyx2': 'b', 'key': 'c'},
+        str('No validator available for metadata key key'))
+    _validate_metadata_errors(
+        [MetadataValidator('key1', [_noop]),
+         MetadataValidator('key2', [_noop]),
+         MetadataValidator('key3', [_noop, lambda _, __: 'oh poop'])],
+        {'key1': 'a', 'key2': 'b', 'key3': 'c'},
+        str('Key key3: oh poop'))
+    _validate_metadata_errors(
+        [MetadataValidator('key1', prefix_validators=[_noop3]),
+         MetadataValidator('key2', prefix_validators=[_noop3]),
+         MetadataValidator('key3', prefix_validators=[_noop3, lambda _, __, ___: 'oh poop'])],
+        {'key1stuff': 'a', 'key2': 'b', 'key3yay': 'c'},
+        str('Prefix validator key3, key key3yay: oh poop'))
+
+
+def _validate_metadata_errors(vals, meta, expected):
+    mv = MetadataValidatorSet(vals)
+    # with raises(Exception) as got:
+    errors = mv.validate_metadata(meta, return_error_strings=True)
+    assert len(errors) == 1
+    assert str(errors[0]) == str(expected)
+
+
 def test_set_validate_metadata_fail():
     _validate_metadata_fail(
         [MetadataValidator('key1', [_noop]), MetadataValidator('key2', [_noop])],

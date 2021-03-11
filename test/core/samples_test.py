@@ -3,7 +3,7 @@ import uuid
 
 from pytest import raises
 from uuid import UUID
-from unittest.mock import create_autospec
+from unittest.mock import (create_autospec, call)
 
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
@@ -68,6 +68,33 @@ def _init_fail(storage, lookup, meta, ws, now, uuid_gen, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_validate_sample_with_name():
+    _validate_sample(None)
+    _validate_sample('foo')
+
+
+def _validate_sample(name):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    s.validate_sample(Sample([
+        SampleNode(
+            'foo',
+            controlled_metadata={'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},
+            user_metadata={'key_not_in_validator_map': {'val': 'yay'},
+                           'key1': {'val': 'wrong'}}
+            ),
+        SampleNode(
+            'foo2',
+            controlled_metadata={'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}},
+            )
+    ], name))
+
+
 def test_save_sample():
     _save_sample_with_name(None, True)
     _save_sample_with_name('bar', False)
@@ -118,10 +145,12 @@ def _save_sample_with_name(name, as_admin):
                       ),  # make a tuple
           ), {})]
 
-    assert meta.validate_metadata.call_args_list == [
-        (({'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},), {}),
-        (({'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}},), {})
+    call_arg_list = [
+        call({'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}}, False),
+        call({'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}}, False)
     ]
+
+    meta.validate_metadata.assert_has_calls(call_arg_list)
 
     kafka.notify_new_sample_version.assert_called_once_with(
         UUID('1234567890abcdef1234567890abcdef'), 1)
@@ -161,7 +190,7 @@ def _save_sample_version_per_user(user: UserID, name, prior_version):
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcdea'),), {})]
 
-    assert meta.validate_metadata.call_args_list == [(({},), {})]
+    meta.validate_metadata.assert_has_calls([call({}, False)])
 
     assert storage.save_sample_version.call_args_list == [
         ((SavedSample(UUID('1234567890abcdef1234567890abcdea'),
@@ -195,7 +224,7 @@ def test_save_sample_version_as_admin():
         UUID('1234567890abcdef1234567890abcdea'),
         as_admin=True) == (UUID('1234567890abcdef1234567890abcdea'), 3)
 
-    assert meta.validate_metadata.call_args_list == [(({},), {})]
+    meta.validate_metadata.assert_has_calls([call({}, False)])
 
     storage.save_sample_version.assert_called_once_with(
         SavedSample(UUID('1234567890abcdef1234567890abcdea'),

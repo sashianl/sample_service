@@ -46,7 +46,7 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.1.0-alpha23'
+VER = '0.1.0-alpha24'
 
 _AUTH_DB = 'test_auth_db'
 _WS_DB = 'test_ws_db'
@@ -4040,12 +4040,11 @@ def test_user_lookup_build_fail_bad_auth_url(sample_port, auth):
         IOError('Error from KBase auth server: HTTP 404 Not Found'))
 
 
-def test_user_lookup_build_fail_not_auth_url():
+def test_user_lookup_build_fail_not_auth_url(auth):
     _user_lookup_build_fail(
         'https://httpbin.org/status/404',
         TOKEN1,
         IOError('Non-JSON response from KBase auth server, status code: 404'))
-
 
 def _user_lookup_build_fail(url, token, expected):
     with raises(Exception) as got:
@@ -4400,3 +4399,32 @@ def _kafka_notifier_expired_link_fail(notifier, sample, expected):
     with raises(Exception) as got:
         notifier.notify_expired_link(sample)
     assert_exception_correct(got.value, expected)
+
+
+def test_validate_sample(sample_port):
+    _validate_sample_as_admin(sample_port, None, TOKEN2, USER2)
+
+
+def _validate_sample_as_admin(sample_port, as_user, get_token, expected_user):    
+    url = f'http://localhost:{sample_port}'
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
+        'method': 'SampleService.validate_samples',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'samples': [{
+                'name': 'mysample',
+                'node_tree': [{
+                    'id': 'root',
+                    'type': 'BioReplicate',
+                    'meta_controlled': {'foo': {'bar': 'baz'}},
+                    'meta_user': {'a': {'b': 'c'}}
+                }]
+            }]
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    ret_json = ret.json()['result'][0]
+    assert 'mysample' not in ret_json['errors']
