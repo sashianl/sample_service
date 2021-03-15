@@ -164,5 +164,5 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     )
 
     print(hash(samplestorage.get_sample(id1)))
-    print(hash(samplestorage.get_data_link(lid1))))
+    print(hash(samplestorage.get_data_link(lid1)))
 
