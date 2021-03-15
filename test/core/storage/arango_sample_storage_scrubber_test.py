@@ -146,7 +146,8 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
         UserID('user')
     )
 
-    arango.client.db(TEST_DB_NAME).aql.execute(
+    ##arango.client.db(TEST_DB_NAME).aql.execute(
+    samplestorage.db.aql.execute(
         """
         FOR sample IN samples_nodes
             FILTER sample.saved < 1000000000000
