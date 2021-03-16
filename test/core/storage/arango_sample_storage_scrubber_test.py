@@ -146,6 +146,12 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
         UserID('user')
     )
 
+    assert samplestorage.get_sample(id1).savetime == dt(ts3)
+    assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
+    assert samplestorage.get_sample(id2).savetime == dt(ts3)
+    assert samplestorage.get_data_link(lid1).created == dt(ts2)
+    assert samplestorage.get_data_link(lid2).created == dt(ts3)
+
     ##arango.client.db(TEST_DB_NAME).aql.execute(
     samplestorage._db.aql.execute(
         """
