@@ -105,6 +105,7 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     ts1=1614958000000 # milliseconds
     ts2=1614958000    # seconds
     ts3=1614958       # seconds
+    ts4=9007199254740.991 # seconds
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
@@ -150,9 +151,11 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
     assert samplestorage.get_sample(id2).savetime == dt(ts3)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
+    assert samplestorage.get_data_link(lid1).expired == dt(ts4)
     assert samplestorage.get_data_link(lid2).created == dt(ts3)
-    link3=samplestorage._col_data_link.get('5_89_33')
-    assert link3['expired'] == (ts3+100)
+    assert samplestorage.get_data_link(lid2).expired == dt(ts4)
+    assert samplestorage.get_data_link(lid3).created == dt(ts3)
+    assert samplestorage.get_data_link(lid3).expired == dt(ts3+100)
 
     samplestorage._db.aql.execute(
         """
@@ -175,7 +178,9 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
     assert samplestorage.get_sample(id2).savetime == dt(ts2)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
+    assert samplestorage.get_data_link(lid1).expired == dt(ts4)
     assert samplestorage.get_data_link(lid2).created == dt(ts2)
-    link3=samplestorage._col_data_link.get('5_89_33')
-    assert link3['expired'] == (ts2+100)
+    assert samplestorage.get_data_link(lid2).expired == dt(ts4)
+    assert samplestorage.get_data_link(lid3).created == dt(ts2)
+    assert samplestorage.get_data_link(lid3).expired == dt((ts2+100) * 1000)
 
