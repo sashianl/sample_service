@@ -102,8 +102,8 @@ def _create_and_expire_data_link(samplestorage, link, expired, user):
     samplestorage.expire_data_link(expired, user, link.id)
 
 def test_timestamp_seconds_to_milliseconds(samplestorage):
-    ts1=1614958965000 # milliseconds
-    ts2=1614958965    # seconds
+    ts1=1614958000000 # milliseconds
+    ts2=1614958000    # seconds
     ts3=1614958       # seconds
 
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
@@ -164,6 +164,6 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
         """
     )
 
-    print(hash(samplestorage.get_sample(id1)))
-    print(hash(samplestorage.get_data_link(lid1)))
+    assert samplestorage.get_sample(id1).savetime == dt(ts2)
+    assert samplestorage.get_data_link(lid1).created == dt(ts2)
 
