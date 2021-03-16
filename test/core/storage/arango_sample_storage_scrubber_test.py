@@ -138,7 +138,7 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
         samplestorage,
         DataLink(
             lid3,
-            DataUnitID(UPA('5/89/32'), 'dataunit1'),
+            DataUnitID(UPA('5/89/33'), 'dataunit1'),
             SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
             dt(ts3),
             UserID('user')),
@@ -151,8 +151,9 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_sample(id2).savetime == dt(ts3)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
     assert samplestorage.get_data_link(lid2).created == dt(ts3)
+    link3=samplestorage._col_data_link.get('5_89_33')
+    assert link3['expired'] == (ts3+100)
 
-    ##arango.client.db(TEST_DB_NAME).aql.execute(
     samplestorage._db.aql.execute(
         """
         FOR sample1 IN samples_nodes
@@ -175,4 +176,6 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_sample(id2).savetime == dt(ts2)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
     assert samplestorage.get_data_link(lid2).created == dt(ts2)
+    link3=samplestorage._col_data_link.get('5_89_33')
+    assert link3['expired'] == (ts2+100)
 
