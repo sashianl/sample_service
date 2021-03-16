@@ -109,9 +109,9 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
     id2 = uuid.UUID('1234567890abcdef1234567890abcdee')
     assert samplestorage.save_sample(
-        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(ts2), 'foo')) is True
+        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(ts3), 'foo')) is True
     assert samplestorage.save_sample_version(
-        SavedSample(id1, UserID('user'), [SampleNode('mynode1')], dt(ts3), 'foo')) == 2
+        SavedSample(id1, UserID('user'), [SampleNode('mynode1')], dt(ts2), 'foo')) == 2
     assert samplestorage.save_sample(
         SavedSample(id2, UserID('user'), [SampleNode('mynode2')], dt(ts3), 'foo')) is True
 
@@ -164,6 +164,9 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
         """
     )
 
-    assert samplestorage.get_sample(id1).savetime == dt(ts3)
+    assert samplestorage.get_sample(id1).savetime == dt(ts2)
+    assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
+    assert samplestorage.get_sample(id2).savetime == dt(ts2)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
+    assert samplestorage.get_data_link(lid2).created == dt(ts2)
 
