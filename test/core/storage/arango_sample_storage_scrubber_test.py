@@ -151,9 +151,7 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
     assert samplestorage.get_sample(id2).savetime == dt(ts3)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
-    assert samplestorage.get_data_link(lid1).expired == dt(ts4)
     assert samplestorage.get_data_link(lid2).created == dt(ts3)
-    assert samplestorage.get_data_link(lid2).expired == dt(ts4)
     assert samplestorage.get_data_link(lid3).created == dt(ts3)
     assert samplestorage.get_data_link(lid3).expired == dt(ts3+100)
 
@@ -178,9 +176,7 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
     assert samplestorage.get_sample(id2).savetime == dt(ts2)
     assert samplestorage.get_data_link(lid1).created == dt(ts2)
-    assert samplestorage.get_data_link(lid1).expired == dt(ts4)
     assert samplestorage.get_data_link(lid2).created == dt(ts2)
-    assert samplestorage.get_data_link(lid2).expired == dt(ts4)
     assert samplestorage.get_data_link(lid3).created == dt(ts2)
-    assert samplestorage.get_data_link(lid3).expired == dt((ts2+100) * 1000)
+    assert samplestorage.get_data_link(lid3).expired == dt((ts3+100) * 1000)
 
