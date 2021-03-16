@@ -31,7 +31,7 @@ TEST_NODE = SampleNode('foo')
 
 TEST_DB_NAME = 'test_sample_service'
 TEST_COL_SAMPLE = 'samples'
-TEST_COL_VERSION = 'versions'
+TEST_COL_VERSION = 'samples_version'
 TEST_COL_VER_EDGE = 'ver_to_sample'
 TEST_COL_NODES = 'samples_nodes'
 TEST_COL_NODE_EDGE = 'node_edges'
