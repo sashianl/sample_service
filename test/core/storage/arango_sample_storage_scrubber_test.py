@@ -155,12 +155,12 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
         FOR sample2 IN samples_version
             FILTER sample2.saved < 1000000000000
             UPDATE sample2 WITH { saved: ROUND(sample2.saved * 1000) } IN samples_version
-        FOR link1 IN samples_data_link
-            FILTER link1.expired < 1000000000000
-            UPDATE link1 WITH { expired: ROUND(link1.expired * 1000) } IN samples_data_link
-        FOR link2 IN samples_data_link
-            FILTER link2.created < 1000000000000
-            UPDATE link2 WITH { created: ROUND(link2.created * 1000) } IN samples_data_link
+        FOR link IN samples_data_link
+            FILTER link.expired < 1000000000000 OR link.created < 1000000000000
+            UPDATE link WITH { 
+                expired: link.expired < 1000000000000 ? ROUND(link.expired * 1000) : link.expired,
+                created: link.created < 1000000000000 ? ROUND(link.created * 1000) : link.created
+            } IN samples_data_link
         """
     )
 
