@@ -149,18 +149,18 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     ##arango.client.db(TEST_DB_NAME).aql.execute(
     samplestorage._db.aql.execute(
         """
-        FOR sample IN samples_nodes
-            FILTER sample.saved < 1000000000000
-            UPDATE sample WITH { saved: ROUND(sample.saved * 1000) } IN samples_nodes
-        FOR sample IN samples_version
-            FILTER sample.saved < 1000000000000
-            UPDATE sample WITH { saved: ROUND(sample.saved * 1000) } IN samples_version
-        FOR link IN samples_data_link
-            FILTER link.expired < 1000000000000
-            UPDATE link WITH { expired: ROUND(link.expired * 1000) } IN samples_data_link
-        FOR link IN samples_data_link
-            FILTER link.created < 1000000000000
-            UPDATE link WITH { created: ROUND(link.created * 1000) } IN samples_data_link
+        FOR sample1 IN samples_nodes
+            FILTER sample1.saved < 1000000000000
+            UPDATE sample1 WITH { saved: ROUND(sample1.saved * 1000) } IN samples_nodes
+        FOR sample2 IN samples_version
+            FILTER sample2.saved < 1000000000000
+            UPDATE sample2 WITH { saved: ROUND(sample2.saved * 1000) } IN samples_version
+        FOR link1 IN samples_data_link
+            FILTER link1.expired < 1000000000000
+            UPDATE link1 WITH { expired: ROUND(link1.expired * 1000) } IN samples_data_link
+        FOR link2 IN samples_data_link
+            FILTER link2.created < 1000000000000
+            UPDATE link2 WITH { created: ROUND(link2.created * 1000) } IN samples_data_link
         """
     )
 
