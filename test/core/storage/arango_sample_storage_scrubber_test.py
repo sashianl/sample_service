@@ -172,7 +172,7 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
                 created: link.created < @threshold ? ROUND(link.created * 1000) : link.created
             } IN samples_data_link
         """,
-         bind_vars={'shreshold': threshold}
+         bind_vars={'threshold': threshold}
     )
 
     assert samplestorage.get_sample(id1, 1).savetime == dt(ts2)
@@ -198,7 +198,7 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
                 created: link.created < @threshold ? ROUND(link.created * 1000) : link.created
             } IN samples_data_link
         """,
-         bind_vars={'shreshold': threshold}
+         bind_vars={'threshold': threshold}
     )
 
     assert samplestorage.get_sample(id1, 1).savetime == dt(ts2)
