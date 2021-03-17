@@ -155,21 +155,50 @@ def test_timestamp_seconds_to_milliseconds(samplestorage):
     assert samplestorage.get_data_link(lid3).created == dt(ts3)
     assert samplestorage.get_data_link(lid3).expired == dt(ts3+100)
 
+    threshold=1000000000000 # current timestamp in milliseconds is above 1600000000000
+
     samplestorage._db.aql.execute(
         """
         FOR sample1 IN samples_nodes
-            FILTER sample1.saved < 1000000000000
+            FILTER sample1.saved < @threshold
             UPDATE sample1 WITH { saved: ROUND(sample1.saved * 1000) } IN samples_nodes
         FOR sample2 IN samples_version
-            FILTER sample2.saved < 1000000000000
+            FILTER sample2.saved < @threshold
             UPDATE sample2 WITH { saved: ROUND(sample2.saved * 1000) } IN samples_version
         FOR link IN samples_data_link
-            FILTER link.expired < 1000000000000 OR link.created < 1000000000000
+            FILTER link.expired < @threshold OR link.created < @threshold
             UPDATE link WITH { 
-                expired: link.expired < 1000000000000 ? ROUND(link.expired * 1000) : link.expired,
-                created: link.created < 1000000000000 ? ROUND(link.created * 1000) : link.created
+                expired: link.expired < @threshold ? ROUND(link.expired * 1000) : link.expired,
+                created: link.created < @threshold ? ROUND(link.created * 1000) : link.created
             } IN samples_data_link
+        """,
+         bind_vars={'shreshold': threshold}
+    )
+
+    assert samplestorage.get_sample(id1, 1).savetime == dt(ts2)
+    assert samplestorage.get_sample(id1, 2).savetime == dt(ts2)
+    assert samplestorage.get_sample(id2).savetime == dt(ts2)
+    assert samplestorage.get_data_link(lid1).created == dt(ts2)
+    assert samplestorage.get_data_link(lid2).created == dt(ts2)
+    assert samplestorage.get_data_link(lid3).created == dt(ts2)
+    assert samplestorage.get_data_link(lid3).expired == dt((ts3+100) * 1000)
+
+    samplestorage._db.aql.execute(
         """
+        FOR sample1 IN samples_nodes
+            FILTER sample1.saved < @threshold
+            UPDATE sample1 WITH { saved: ROUND(sample1.saved * 1000) } IN samples_nodes
+        FOR sample2 IN samples_version
+            FILTER sample2.saved < @threshold
+            UPDATE sample2 WITH { saved: ROUND(sample2.saved * 1000) } IN samples_version
+        FOR link IN samples_data_link
+            FILTER link.expired < @threshold OR link.created < @threshold
+            UPDATE link WITH { 
+                expired: link.expired < @threshold ? ROUND(link.expired * 1000) : link.expired,
+                created: link.created < @threshold ? ROUND(link.created * 1000) : link.created
+            } IN samples_data_link
+        """,
+         bind_vars={'shreshold': threshold}
     )
 
     assert samplestorage.get_sample(id1, 1).savetime == dt(ts2)
