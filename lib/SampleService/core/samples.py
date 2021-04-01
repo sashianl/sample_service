@@ -6,7 +6,7 @@ import datetime
 import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 
-from typing import Optional, Callable, Tuple, List, Dict, Union, cast as _cast
+from typing import Optional, Callable, Tuple, List, Dict, Union, Any, cast as _cast
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
@@ -185,6 +185,17 @@ class Samples:
             raise _IllegalParameterError('Version must be > 0')
         self._check_perms(_not_falsy(id_, 'id_'), user, _SampleAccessType.READ, as_admin=as_admin)
         return self._storage.get_sample(id_, version)
+
+    def get_samples(
+        self,
+        ids_: List[Dict[str, Any]],
+        user: Optional[UserID],
+        as_admin: bool = False) -> list[SavedSample]:
+        '''
+        '''
+        for id_ in ids_:
+            self._check_perms(_not_falsy(id_['id'], 'id_'), user, _SampleAccessType.READ, as_admin=as_admin)
+        return self._storage.get_samples(ids_)
 
     def get_sample_acls(
             self, id_: UUID, user: Optional[UserID], as_admin: bool = False) -> SampleACL:

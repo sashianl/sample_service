@@ -661,6 +661,29 @@ class ArangoSampleStorage:
         return SavedSample(
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
+    def get_samples(self, ids_: list[_Dict[str, _Any]]) -> list[SavedSample]:
+        '''
+        ids_: list of dictionaries containing "id" and "version" field.
+        '''
+        docs, verdocs, versions = self._get_many_sample_and_version_doc(ids_)
+        id_to_nodes = self.get_many_nodes(ids_, [UUID(verdoc[_FLD_NODE_UUID_VER]) for verdoc in verdocs])
+
+        samples = []
+        for id_ in ids_:
+            doc = docs.get(id_['id'])
+            verdoc = verdocs.get(id_['id'])
+            nodes = id_to_nodes.get(id_['id'])
+            version = versions.get(id_['id'])
+            dt = self._timestamp_to_datetime(
+                self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
+            )
+            samples.append(SavedSample(
+                UUID(doc[_FLD_ID]),
+                UserID(verdoc[_FLD_USER]),
+                nodes, dt, verdoc[_FLD_NAME], version
+            ))
+        return samples
+
     def _get_sample_and_version_doc(
             self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, dict, int]:
         doc, uuidversion, version = self._get_sample_doc_and_versions(id_, version)
@@ -680,6 +703,26 @@ class ArangoSampleStorage:
         if version > maxver:
             raise _NoSuchSampleVersionError(f'{id_} ver {version}')
         return doc, UUID(doc[_FLD_VERSIONS][version - 1]), version
+
+    def _get_many_sample_and_version_doc(self, ids_: list[_Dict[str, _Any]]) -> list[Tuple[dict, dict, int]]:
+        docs, versions = self._get_many_sample_doc_and_versions(ids_)
+        verdocs = self._get_many_version_docs([(id_, UUID(doc[_FLD_VERSIONS][version - 1])) for id_, doc in docs.items()])  # sends id and version id
+        return docs, verdocs, versions
+
+    def _get_many_sample_doc_and_versions(self, ids_: list[_Dict[str, _Any]]) -> list[Tuple[dict, UUID, int]]:
+        docs = [_cast(dict, doc) for doc in self._get_many_sample_doc(ids_)]
+        ret_docs = {}
+        ret_versions = {}
+        for doc in docs:
+            # get doc id
+            id_ = doc['id']
+            maxver = len(doc[_FLD_VERSIONS])
+            version = version if version else maxver
+            if version > maxver:
+                raise _NoSuchSampleError(f"{id_} ver {version}")
+            ret_versions[id_] = doc
+            ret_docs[id_] = doc
+        return ret_docs, ret_versions
 
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
@@ -711,6 +754,15 @@ class ArangoSampleStorage:
         if not doc:
             raise _SampleStorageError(f'Corrupt DB: Missing version {ver} for sample {id_}')
         return doc
+
+    def _get_many_version_docs(self, ids_, exception: bool=True) -> list[dict]:
+        version_ids = [self._get_version_id(id_, ver) for id_, ver in ids_]
+        ver_docs = self._get_many_docs(self._col_version, version_ids)
+        if not docs:
+            if exception:
+                raise _NoSuchSampleError([str(id_) for id_ in ids_])
+            return None
+        return ver_docs
 
     # assumes ver came from the sample doc in the db.
     def _get_nodes(self, id_: UUID, ver: UUID, version: int) -> List[_SampleNode]:
@@ -745,6 +797,39 @@ class ArangoSampleStorage:
         nodes = [index_to_node[i] for i in range(len(index_to_node))]
         return nodes
 
+    def _get_many_nodes(self, ids_: _List[_Dict[str,_Any]], ver_uuids) -> dict[str, list[_SampleNode]]:
+        try:
+            nodedocs = self._col_nodes.find({_FLD_NODE_UUID_VER: ver_uuids})
+            if not nodedocs:
+                raise _SampleStorageError(
+                    f'Corrupt DB: Missing nodes for version of samples {ids_}')
+            id_to_nodes = {id_['id']: None for id_ in ids_}
+            for n in nodedocs:
+                # check which id this node is from
+                id_idx = [id_['id'] for id_ in ids_].index(n['id'])
+                id_ = ids_[id_idx]['id']
+                if n[_FLD_VER] == _VAL_NO_VER:
+                    # do an update here
+                    ver_idx = ver_uuids.index(n['uuidver'])
+                    ver = ver_uuids[ver_idx]
+                    version = ids_[id_idx]['version']
+                    self._update_version_and_node_docs_with_find(id_, ver, version)
+                sample_node = _SampleNode(
+                    n[_FLD_NODE_NAME],
+                    _SubSampleType[n[_FLD_NODE_TYPE]],
+                    n[_FLD_NODE_PARENT],
+                    self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
+                    self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
+                    # allow for compatatibility with old samples without a source meta field
+                    self._list_to_source_meta(n.get(_FLD_NODE_SOURCE_METADATA)),
+                )
+                id_to_nodes[id_][n[_FLD_NODE_INDEX]] = sample_node
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        # convert node storage to list:
+        id_to_nodes = {id_:[id_to_nodes[id_][node_idx] for node_idx in range(len(id_to_nodes[id_]))] for id_ in id_to_nodes}
+        return id_to_nodes
+
     def _get_sample_doc(self, id_: UUID, exception: bool = True) -> Optional[dict]:
         doc = self._get_doc(self._col_sample, str(_not_falsy(id_, 'id_')))
         if not doc:
@@ -753,9 +838,23 @@ class ArangoSampleStorage:
             return None
         return doc
 
+    def _get_many_sample_doc(self, ids_: list[_Dict[str, _Any]], exception: bool=True) -> Optional[list[dict]]:
+        docs = self._get_many_docs(self._col_sample, [str(_not_falsy(id_['id'], 'id_')) for id_ in ids_])
+        if not docs:
+            if exception:
+                raise _NoSuchSampleError([str(id_['id']) for id_ in ids_])
+            return None
+        return docs
+
     def _get_doc(self, col, id_: str) -> Optional[dict]:
         try:
             return col.get(id_)
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _get_many_docs(self, col, ids_:list[str]) -> Optional[list[dict]]:
+        try:
+            return col.get_many(ids_)
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
