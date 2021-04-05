@@ -24,7 +24,7 @@ class KBaseUserLookup:
             auth_url: str,
             auth_token: str,
             full_admin_roles: List[str] = None,
-            read_admin_roles: List[str] = None
+            read_admin_roles: List[str] = None,
             cache_max_size: int=10000,
             cache_admin_expiration: int=300,
             cache_valid_expiration: int=3600):
