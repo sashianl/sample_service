@@ -4121,11 +4121,11 @@ def _check_is_admin(port, results, full_roles=None, read_roles=None):
 
 def test_is_admin_cache(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN_SERVICE)
-    asserFalse(ul._admin_cache.get(TOKEN1, default=False))
-    asserFalse(ul._admin_cache.get(TOKEN2, default=False))
+    assertFalse(ul._admin_cache.get(TOKEN1, default=False))
+    assertFalse(ul._admin_cache.get(TOKEN2, default=False))
     ul.is_admin(TOKEN1)
-    asserTrue(ul._admin_cache.get(TOKEN1, default=False))
-    asserFalse(ul._admin_cache.get(TOKEN2, default=False))
+    assertTrue(ul._admin_cache.get(TOKEN1, default=False))
+    assertFalse(ul._admin_cache.get(TOKEN2, default=False))
 
 def test_is_admin_fail_bad_input(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN_SERVICE)
