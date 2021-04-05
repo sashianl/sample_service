@@ -4059,11 +4059,11 @@ def test_user_lookup(sample_port, auth):
 
 def test_user_lookup_cache(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode', TOKEN1)
-    assertFalse(ul._valid_cache.get(USER1, default=False)]) 
-    assertFalse(ul._valid_cache.get(USER2, default=False)]) 
+    assert ul._valid_cache.get(USER1, default=False) is False
+    assert ul._valid_cache.get(USER2, default=False) is False
     ul.invalid_users([UserID(USER1)])
-    assertTrue(ul._valid_cache.get(USER1, default=False)])
-    assertFalse(ul._valid_cache.get(USER2, default=False)])
+    assert ul._valid_cache.get(USER1, default=False) is True
+    assert ul._valid_cache.get(USER2, default=False) is False
 
 def test_user_lookup_bad_users(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN1)
@@ -4121,11 +4121,11 @@ def _check_is_admin(port, results, full_roles=None, read_roles=None):
 
 def test_is_admin_cache(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN_SERVICE)
-    assertFalse(ul._admin_cache.get(TOKEN1, default=False))
-    assertFalse(ul._admin_cache.get(TOKEN2, default=False))
+    assert ul._admin_cache.get(TOKEN1, default=False) is False
+    assert ul._admin_cache.get(TOKEN2, default=False) is False
     ul.is_admin(TOKEN1)
-    assertTrue(ul._admin_cache.get(TOKEN1, default=False))
-    assertFalse(ul._admin_cache.get(TOKEN2, default=False))
+    assert ul._admin_cache.get(TOKEN1, default=False) is not False
+    assert ul._admin_cache.get(TOKEN2, default=False) is False
 
 def test_is_admin_fail_bad_input(sample_port, auth):
     ul = KBaseUserLookup(f'http://localhost:{auth.port}/testmode/', TOKEN_SERVICE)
