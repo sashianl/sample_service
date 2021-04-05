@@ -13,7 +13,7 @@ from SampleService.core.acls import AdminPermission
 from SampleService.core.user import UserID
 
 import time
-from cacheout.lru import LRUCache
+from cacheout.lru import LRUCache # type: ignore
 
 
 class KBaseUserLookup:
