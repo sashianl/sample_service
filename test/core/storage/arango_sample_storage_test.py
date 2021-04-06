@@ -700,6 +700,38 @@ def test_save_and_get_sample(samplestorage):
     assert samplestorage.get_sample_acls(id_) == SampleACL(
         UserID('auser'), dt(8), public_read=False)
 
+def test_save_and_get_samples(samplestorage):
+    n1 = SampleNode('root')
+    n2 = SampleNode(
+        'kid1', SubSampleType.TECHNICAL_REPLICATE, 'root',
+        {'a': {'b': 'c', 'd': 'e'}, 'f': {'g': 'h'}},
+        {'m': {'n': 'o'}},
+        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {'c': 'd'})])
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
+                    user_metadata={'f': {'g': 'h'}})
+
+    id1_ = uuid.UUID('1234567890abcdef1234567890fbcdef')
+    id2_ = uuid.UUID('1234567890abcdef1234567890fbcdea')
+    id3_ = uuid.UUID('1234567890abcdef1234567890fbcdeb')
+
+    # save three separate samples
+    assert samplestorage.save_sample(
+        SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo')) is True
+    assert samplestorage.save_sample(
+        SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar')) is True
+    assert samplestorage.save_sample(
+        SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz')) is True
+
+    assert samplestorage.get_samples([
+        {"id": id1_, "version": 1},
+        {"id": id2_, "version": 1},
+        {"id": id3_, "version": 1}
+    ]) == [
+        SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1),
+        SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar', 1),
+        SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz', 1)
+    ]
 
 def test_save_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:

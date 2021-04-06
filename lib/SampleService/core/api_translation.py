@@ -4,7 +4,7 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple, List, Callable, cast as _cast
+from typing import Dict, Any, Optional, Tuple, List, Callable, Union, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
@@ -326,7 +326,7 @@ def get_sample_address_from_object(
             get_version_from_object(params, version_required))
 
 def get_sample_addresses_from_object(
-            params: Dict[str, Any], version_required: bool = False) -> Tuple[UUID, Optional[int]]:
+            params: Dict[str, Any], version_required: bool = False) -> List[Dict[str, Union[UUID, int, None]]]:
     '''
     Given a dict, get a sample ID and version from the dict. The sample ID is required but
     the version is not. The keys 'id' and 'version' are used.

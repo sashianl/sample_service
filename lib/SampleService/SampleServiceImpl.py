@@ -57,7 +57,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha24"
     GIT_URL = "https://github.com/slebras/sample_service.git"
-    GIT_COMMIT_HASH = "b2609f37ae2d3457c627f0566a291de11d130ada"
+    GIT_COMMIT_HASH = "bc803a28ccf44db30737ec1ff878f187fcde8be7"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -402,12 +402,12 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: samples
         #BEGIN get_samples
-        ids_ = get_sample_addresses_from_object(params)
+        ids_ = _get_sample_addresses_from_object(params)
         admin = _check_admin(self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
                              # pretty annoying to test ctx.log_info is working, do it manually
                              'get_sample', ctx.log_info, skip_check=not params.get('as_admin'))
         samples = self._samples.get_samples(
-            ids_, _get_user_from_object(ctx, _CTX_USER), ver, as_admin=admin)
+            ids_, _get_user_from_object(ctx, _CTX_USER), as_admin=admin)
         samples = [_sample_to_dict(s) for s in samples]
         #END get_samples
 

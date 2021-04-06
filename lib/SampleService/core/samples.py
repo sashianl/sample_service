@@ -190,7 +190,7 @@ class Samples:
         self,
         ids_: List[Dict[str, Any]],
         user: Optional[UserID],
-        as_admin: bool = False) -> list[SavedSample]:
+        as_admin: bool = False) -> List[SavedSample]:
         '''
         '''
         for id_ in ids_:
