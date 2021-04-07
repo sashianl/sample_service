@@ -120,7 +120,6 @@ class KBaseUserLookup:
             if u.id in good_users:
                 self._valid_cache.set(u.id, True)
 
-        # TODO ACL cache
         return [u for u in bad_usernames if u.id not in good_users]
 
     def is_admin(self, token: str) -> Tuple[AdminPermission, str]:
@@ -131,7 +130,6 @@ class KBaseUserLookup:
         :returns: A tuple consisting of an enum indicating the user's administration permissions,
           if any, and the username.
         '''
-        # TODO ACL cache admin users
         # TODO CODE should regex the token to check for \n etc., but the SDK has already checked it
         _not_falsy(token, 'token')
 
