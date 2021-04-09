@@ -325,25 +325,6 @@ def get_sample_address_from_object(
     return (_cast(UUID, get_id_from_object(params, ID, required=True)),
             get_version_from_object(params, version_required))
 
-def get_sample_addresses_from_object(
-            params: Dict[str, Any], version_required: bool = False) -> List[Dict[str, Union[UUID, int, None]]]:
-    '''
-    Given a dict, get a sample ID and version from the dict. The sample ID is required but
-    the version is not. The keys 'id' and 'version' are used.
-
-    :param params: the unmarshalled JSON recieved from the API as part of the API call.
-    :param version_required: require the version as well as the ID.
-    :returns: a tuple containing the ID and the version or None if no version was provided.
-    :raises MissingParameterError: if the ID is missing or the version is required and not present.
-    :raises IllegalParameterError: if the ID is malformed or if the version is not an
-        integer or < 1.
-    '''
-    return [
-        {"id": _cast(UUID, get_id_from_object(samp_obj, ID, required=True)),
-        "version":get_version_from_object(samp_obj, version_required)
-        }
-        for samp_obj in params['samples']
-    ]
 
 def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
     '''

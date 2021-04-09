@@ -7,7 +7,6 @@ from collections import defaultdict
 from SampleService.core.config import build_samples as _build_samples
 from SampleService.core.api_translation import (get_sample_address_from_object as
                                                 _get_sample_address_from_object)
-from SampleService.core.api_translation import (get_sample_addresses_from_object as _get_sample_addresses_from_object)
 from SampleService.core.api_translation import get_id_from_object as _get_id_from_object
 from SampleService.core.api_translation import acls_from_dict as _acls_from_dict
 from SampleService.core.api_translation import acls_to_dict as _acls_to_dict
@@ -402,7 +401,13 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: samples
         #BEGIN get_samples
-        ids_ = _get_sample_addresses_from_object(params)
+        if not params.get('samples'):
+          raise ValueError(f"")
+        ids_ = []
+        for samp_obj in params['samples']:
+          id_, ver = _get_sample_address_from_object(samp_obj)
+          ids_.append({'id': id_, 'version': ver})
+        # ids_ = _get_sample_addresses_from_object(params)
         admin = _check_admin(self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
                              # pretty annoying to test ctx.log_info is working, do it manually
                              'get_sample', ctx.log_info, skip_check=not params.get('as_admin'))
