@@ -4,7 +4,7 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple, List, Callable, cast as _cast
+from typing import Dict, Any, Optional, Tuple, List, Callable, Union, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType

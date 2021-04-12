@@ -46,7 +46,7 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.1.0-alpha24'
+VER = '0.1.0-alpha25'
 
 _AUTH_DB = 'test_auth_db'
 _WS_DB = 'test_ws_db'
@@ -605,6 +605,123 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 2}
+        ])
+
+
+def test_create_and_get_samples(sample_port, kafka):
+    _clear_kafka_messages(kafka)
+    url = f'http://localhost:{sample_port}'
+
+    # first sample
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '67',
+        'params': [{
+            'sample': {'name': 'mysample',
+                       'node_tree': [{'id': 'root',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'baz'},
+                                                          'stringlentest': {'foooo': 'barrr',
+                                                                            'spcky': 'fa'},
+                                                          'prefixed': {'safe': 'args'}
+                                                          },
+                                      'meta_user': {'a': {'b': 'c'}},
+                                      'source_meta': [
+                                          {'key': 'foo', 'skey': 'bar', 'svalue': {'whee': 'whoo'}},
+                                          {'key': 'stringlentest',
+                                           'skey': 'ya fer sure',
+                                           'svalue': {'just': 'some', 'data': 42}}
+                                          ]
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id1_ = ret.json()['result'][0]['id']
+
+    # second sample
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.create_sample',
+        'version': '1.1',
+        'id': '68',
+        'params': [{
+            'sample': {'name': 'mysample2',
+                       'node_tree': [{'id': 'root2',
+                                      'type': 'BioReplicate',
+                                      'meta_controlled': {'foo': {'bar': 'bat'}},
+                                      'meta_user': {'a': {'b': 'd'}}
+                                      }
+                                     ]
+                       }
+        }]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    assert ret.json()['result'][0]['version'] == 1
+    id2_ = ret.json()['result'][0]['id']
+
+    # get both samples
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_samples',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'samples': [{'id': id1_, 'version': 1}, {'id': id2_, 'version': 1}]}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+    j = ret.json()['result'][0]
+    for s in j:
+        assert_ms_epoch_close_to_now(s['save_date'])
+        del s['save_date']
+    print('-'*80)
+    import json
+    print(json.dumps(j))
+    print('-'*80)
+
+    assert j == [{
+        'id': id1_,
+        'version': 1,
+        'user': USER1,
+        'name': 'mysample',
+        'node_tree': [{
+           'id': 'root',
+           'parent': None,
+           'type': 'BioReplicate',
+           'meta_controlled': {'foo': {'bar': 'baz'},
+                               'stringlentest': {'foooo': 'barrr',
+                                                 'spcky': 'fa'},
+                               'prefixed': {'safe': 'args'}
+                               },
+           'meta_user': {'a': {'b': 'c'}},
+           'source_meta': [
+                {'key': 'foo', 'skey': 'bar', 'svalue': {'whee': 'whoo'}},
+                {'key': 'stringlentest',
+                 'skey': 'ya fer sure',
+                 'svalue': {'just': 'some', 'data': 42}}
+                 ],
+        }]
+    }, {
+        'id': id2_,
+        'version': 1,
+        'user': USER1,
+        'name': 'mysample2',
+        'node_tree': [{'id': 'root2',
+            'parent': None,
+            'type': 'BioReplicate',
+            'meta_controlled': {'foo': {'bar': 'bat'}},
+            'meta_user': {'a': {'b': 'd'}},
+            'source_meta': []
+        }]
+    }]
+    _check_kafka_messages(
+        kafka,
+        [
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id1_, 'sample_ver': 1},
+            {'event_type': 'NEW_SAMPLE', 'sample_id': id2_, 'sample_ver': 1}
         ])
 
 
