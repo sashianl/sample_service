@@ -185,6 +185,20 @@ module SampleService {
     funcdef create_sample(CreateSampleParams params) returns(SampleAddress address)
         authentication required;
 
+    typedef structure {
+        Sample sample;
+        int prior_version;
+    } SampleSave;
+
+    typedef structure {
+        list<SampleSave> samples;
+        boolean as_admin;
+        user as_user;
+    } CreateSamplesParams;
+
+    /* Create a new sample or a sample version. */
+    funcdef create_samples(CreateSamplesParams params) returns(list<SampleAddress> addresses) authentication required;
+
     /* get_sample parameters.
         id - the ID of the sample to retrieve.
         version - the version of the sample to retrieve, or the most recent sample if omitted.

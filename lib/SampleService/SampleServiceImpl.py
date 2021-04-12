@@ -56,7 +56,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha25"
     GIT_URL = "https://github.com/slebras/sample_service.git"
-    GIT_COMMIT_HASH = "8e742975323c9b0169cacf813ee955688cd6fca9"
+    GIT_COMMIT_HASH = "d82bb9ccba59a120ae667eb969884c7605b67cbf"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -196,6 +196,125 @@ Note that usage of the administration flags will be logged by the service.
                              'address is not type dict as required.')
         # return the results
         return [address]
+
+    def create_samples(self, ctx, params):
+        """
+        Create a new sample or a sample version.
+        :param params: instance of type "CreateSamplesParams" -> structure:
+           parameter "samples" of list of type "SampleSave" -> structure:
+           parameter "sample" of type "Sample" (A Sample, consisting of a
+           tree of subsamples and replicates. id - the ID of the sample. user
+           - the user that saved the sample. node_tree - the tree(s) of
+           sample nodes in the sample. The the roots of all trees must be
+           BioReplicate nodes. All the BioReplicate nodes must be at the
+           start of the list, and all child nodes must occur after their
+           parents in the list. name - the name of the sample. Must be less
+           than 255 characters. save_date - the date the sample version was
+           saved. version - the version of the sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "user"
+           of type "user" (A user's username.), parameter "node_tree" of list
+           of type "SampleNode" (A node in a sample tree. id - the ID of the
+           node. parent - the id of the parent node for the current node.
+           BioReplicate nodes, and only BioReplicate nodes, do not have a
+           parent. type - the type of the node. meta_controlled - metadata
+           restricted by the sample controlled vocabulary and validators.
+           source_meta - the pre-transformation keys and values of the
+           controlled metadata at the data source for controlled metadata
+           keys. In some cases the source metadata may be transformed prior
+           to ingestion by the Sample Service; the contents of this data
+           structure allows for reconstructing the original representation.
+           The metadata here is not validated other than basic size checks
+           and is provided on an informational basis only. The metadata keys
+           in the SourceMetadata data structure must be a subset of the
+           meta_controlled mapping keys. meta_user - unrestricted metadata.)
+           -> structure: parameter "id" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "parent" of type "node_id" (A SampleNode ID. Must be
+           unique within a Sample and be less than 255 characters.),
+           parameter "type" of type "samplenode_type" (The type of a sample
+           node. One of: BioReplicate - a biological replicate. Always at the
+           top of the sample tree. TechReplicate - a technical replicate.
+           SubSample - a sub sample that is not a technical replicate.),
+           parameter "meta_controlled" of type "metadata" (Metadata attached
+           to a sample.) -> mapping from type "metadata_key" (A key in a
+           metadata key/value pair. Less than 1000 unicode characters.) to
+           type "metadata_value" (A metadata value, represented by a mapping
+           of value keys to primitive values. An example for a location
+           metadata key might be: { "name": "Castle Geyser", "lat":
+           44.463816, "long": -110.836471 } "primitive values" means an int,
+           float, string, or equivalent typedefs. Including any collection
+           types is an error.) -> mapping from type "metadata_value_key" (A
+           key for a value associated with a piece of metadata. Less than
+           1000 unicode characters. Examples: units, value, species) to
+           unspecified object, parameter "source_meta" of list of type
+           "SourceMetadata" (Information about a metadata key as it appeared
+           at the data source. The source key and value represents the
+           original state of the metadata before it was tranformed for
+           ingestion by the sample service. key - the metadata key. skey -
+           the key as it appeared at the data source. svalue - the value as
+           it appeared at the data source.) -> structure: parameter "key" of
+           type "metadata_key" (A key in a metadata key/value pair. Less than
+           1000 unicode characters.), parameter "skey" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.), parameter "svalue" of type "metadata_value" (A
+           metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter
+           "meta_user" of type "metadata" (Metadata attached to a sample.) ->
+           mapping from type "metadata_key" (A key in a metadata key/value
+           pair. Less than 1000 unicode characters.) to type "metadata_value"
+           (A metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter "name" of
+           type "sample_name" (A sample name. Must be less than 255
+           characters.), parameter "save_date" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "version" of type
+           "version" (The version of a sample. Always > 0.), parameter
+           "prior_version" of Long, parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.), parameter "as_user" of
+           type "user" (A user's username.)
+        :returns: instance of list of type "SampleAddress" (A Sample ID and
+           version. id - the ID of the sample. version - the version of the
+           sample.) -> structure: parameter "id" of type "sample_id" (A
+           Sample ID. Must be globally unique. Always assigned by the Sample
+           service.), parameter "version" of type "version" (The version of a
+           sample. Always > 0.)
+        """
+        # ctx is the context object
+        # return variables are: addresses
+        #BEGIN create_samples
+        if not params.get('samples'):
+          raise ValueError(f"")
+        as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
+        addresses = []
+        _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'create_samples', ctx.log_info, as_user=user, skip_check=not as_admin)
+        for samp in params['samples']:
+          sample, id_, prev_ver = _create_sample_params(samp)
+          ret = self._samples.save_sample(
+              sample, user if user else _UserID(ctx[_CTX_USER]), id_, prev_ver, as_admin=as_admin)
+          addresses.append({'id': str(ret[0]), 'version': ret[1]})
+        #END create_samples
+
+        # At some point might do deeper type checking...
+        if not isinstance(addresses, list):
+            raise ValueError('Method create_samples return value ' +
+                             'addresses is not type list as required.')
+        # return the results
+        return [addresses]
 
     def get_sample(self, ctx, params):
         """

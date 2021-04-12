@@ -612,57 +612,47 @@ def test_create_and_get_samples(sample_port, kafka):
     _clear_kafka_messages(kafka)
     url = f'http://localhost:{sample_port}'
 
-    # first sample
+    # create multiple samples
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
-        'method': 'SampleService.create_sample',
+        'method': 'SampleService.create_samples',
         'version': '1.1',
         'id': '67',
         'params': [{
-            'sample': {'name': 'mysample',
-                       'node_tree': [{'id': 'root',
-                                      'type': 'BioReplicate',
-                                      'meta_controlled': {'foo': {'bar': 'baz'},
-                                                          'stringlentest': {'foooo': 'barrr',
-                                                                            'spcky': 'fa'},
-                                                          'prefixed': {'safe': 'args'}
-                                                          },
-                                      'meta_user': {'a': {'b': 'c'}},
-                                      'source_meta': [
-                                          {'key': 'foo', 'skey': 'bar', 'svalue': {'whee': 'whoo'}},
-                                          {'key': 'stringlentest',
-                                           'skey': 'ya fer sure',
-                                           'svalue': {'just': 'some', 'data': 42}}
-                                          ]
-                                      }
-                                     ]
-                       }
+            'samples': [{
+                'sample': {'name': 'mysample',
+                    'node_tree': [{'id': 'root',
+                       'type': 'BioReplicate',
+                       'meta_controlled': {'foo': {'bar': 'baz'},
+                                           'stringlentest': {'foooo': 'barrr',
+                                                             'spcky': 'fa'},
+                                           'prefixed': {'safe': 'args'}
+                                           },
+                       'meta_user': {'a': {'b': 'c'}},
+                       'source_meta': [
+                           {'key': 'foo', 'skey': 'bar', 'svalue': {'whee': 'whoo'}},
+                           {'key': 'stringlentest',
+                            'skey': 'ya fer sure',
+                            'svalue': {'just': 'some', 'data': 42}}
+                           ]
+                    }]
+                }
+            }, {
+                'sample': {
+                    'name': 'mysample2',
+                    'node_tree': [{'id': 'root2',
+                      'type': 'BioReplicate',
+                      'meta_controlled': {'foo': {'bar': 'bat'}},
+                      'meta_user': {'a': {'b': 'd'}}
+                    }]
+                }
+            }]
         }]
     })
-    # print(ret.text)
     assert ret.ok is True
-    assert ret.json()['result'][0]['version'] == 1
-    id1_ = ret.json()['result'][0]['id']
-
-    # second sample
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
-        'method': 'SampleService.create_sample',
-        'version': '1.1',
-        'id': '68',
-        'params': [{
-            'sample': {'name': 'mysample2',
-                       'node_tree': [{'id': 'root2',
-                                      'type': 'BioReplicate',
-                                      'meta_controlled': {'foo': {'bar': 'bat'}},
-                                      'meta_user': {'a': {'b': 'd'}}
-                                      }
-                                     ]
-                       }
-        }]
-    })
-    # print(ret.text)
-    assert ret.ok is True
-    assert ret.json()['result'][0]['version'] == 1
-    id2_ = ret.json()['result'][0]['id']
+    assert ret.json()['result'][0][0]['version'] == 1
+    id1_ = ret.json()['result'][0][0]['id']
+    assert ret.json()['result'][0][1]['version'] == 1
+    id2_ = ret.json()['result'][0][1]['id']
 
     # get both samples
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={

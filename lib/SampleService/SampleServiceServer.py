@@ -348,6 +348,10 @@ class Application(object):
                              name='SampleService.create_sample',
                              types=[dict])
         self.method_authentication['SampleService.create_sample'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.create_samples,
+                             name='SampleService.create_samples',
+                             types=[dict])
+        self.method_authentication['SampleService.create_samples'] = 'required'  # noqa
         self.rpc_service.add(impl_SampleService.get_sample,
                              name='SampleService.get_sample',
                              types=[dict])
