@@ -12,6 +12,9 @@ from SampleService.core.arg_checkers import not_falsy_in_iterable as _no_falsy_i
 from SampleService.core.acls import AdminPermission
 from SampleService.core.user import UserID
 
+import time
+from cacheout.lru import LRUCache # type: ignore
+
 
 class KBaseUserLookup:
     ''' A client for contacting the KBase authentication server to verify user names. '''
@@ -21,12 +24,21 @@ class KBaseUserLookup:
             auth_url: str,
             auth_token: str,
             full_admin_roles: List[str] = None,
-            read_admin_roles: List[str] = None):
+            read_admin_roles: List[str] = None,
+            cache_max_size: int=10000,
+            cache_admin_expiration: int=300,
+            cache_valid_expiration: int=3600):
         '''
         Create the client.
         :param auth_url: The root url of the authentication service.
         :param auth_token: A valid token for the authentication service.
         :raises InvalidTokenError: if the token is invalid
+        :param cache_max_size: the maximum size of the token -> admin and username -> validity
+            caches.
+        :param cache_admin_expiration: the default expiration time for the token -> admin cache in
+            seconds. This time can be overridden by a user handler on a per token basis.
+        :param cache_valid_expiration: the default expiration time for the  username ->
+            validity cache. This time can be overridden by a user handler on a per user basis.
         '''
         self._url = _not_falsy(auth_url, 'auth_url')
         if not self._url.endswith('/'):
@@ -36,6 +48,11 @@ class KBaseUserLookup:
         self._token = _not_falsy(auth_token, 'auth_token')
         self._full_roles = set(full_admin_roles) if full_admin_roles else set()
         self._read_roles = set(read_admin_roles) if read_admin_roles else set()
+        self._cache_timer = time.time
+        self._admin_cache = LRUCache(timer=self._cache_timer, maxsize=cache_max_size,
+            ttl=cache_admin_expiration)
+        self._valid_cache = LRUCache(timer=self._cache_timer, maxsize=cache_max_size,
+            ttl=cache_valid_expiration)
 
         # Auth 0.4.1 needs to be deployed before this will work
         # r = requests.get(self._url, headers={'Accept': 'application/json'})
@@ -91,12 +108,19 @@ class KBaseUserLookup:
             return []
         _no_falsy_in_iterable(usernames, 'usernames')
 
-        r = requests.get(self._user_url + ','.join([u.id for u in usernames]),
+        bad_usernames = [u for u in usernames if not self._valid_cache.get(u.id, default=False)]
+        if len(bad_usernames) == 0:
+            return []
+
+        r = requests.get(self._user_url + ','.join([u.id for u in bad_usernames]),
                          headers={'Authorization': self._token})
         self._check_error(r)
         good_users = r.json()
-        # TODO ACL cache
-        return [u for u in usernames if u.id not in good_users]
+        for u in bad_usernames:
+            if u.id in good_users:
+                self._valid_cache.set(u.id, True)
+
+        return [u for u in bad_usernames if u.id not in good_users]
 
     def is_admin(self, token: str) -> Tuple[AdminPermission, str]:
         '''
@@ -106,13 +130,18 @@ class KBaseUserLookup:
         :returns: A tuple consisting of an enum indicating the user's administration permissions,
           if any, and the username.
         '''
-        # TODO ACL cache admin users
         # TODO CODE should regex the token to check for \n etc., but the SDK has already checked it
         _not_falsy(token, 'token')
+
+        admin_cache = self._admin_cache.get(token, default=False)
+        if admin_cache:
+            return admin_cache 
         r = requests.get(self._me_url, headers={'Authorization': token})
         self._check_error(r)
         j = r.json()
-        return self._get_role(j['customroles']), j['user']
+        v = (self._get_role(j['customroles']), j['user'])
+        self._admin_cache.set(token, v)
+        return v
 
     def _get_role(self, roles):
         r = set(roles)
