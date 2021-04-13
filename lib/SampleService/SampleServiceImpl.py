@@ -56,7 +56,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-alpha25"
     GIT_URL = "https://github.com/slebras/sample_service.git"
-    GIT_COMMIT_HASH = "d82bb9ccba59a120ae667eb969884c7605b67cbf"
+    GIT_COMMIT_HASH = "5a663d81a4512869c4e0462a84159e8a7d52b519"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
