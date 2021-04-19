@@ -54,9 +54,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-alpha25"
-    GIT_URL = "https://github.com/slebras/sample_service.git"
-    GIT_COMMIT_HASH = "8e742975323c9b0169cacf813ee955688cd6fca9"
+    VERSION = "0.1.0-alpha26"
+    GIT_URL = "git@github.com:kbase/sample_service.git"
+    GIT_COMMIT_HASH = "85e6116babd262a7f7fd4adcfc4bf7a2f7a1f718"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -1130,29 +1130,23 @@ Note that usage of the administration flags will be logged by the service.
            timestamp in epoch milliseconds.), parameter "version" of type
            "version" (The version of a sample. Always > 0.)
         :returns: instance of type "ValidateSamplesResults" -> structure:
-           parameter "errors" of mapping from type "sample_name" (A sample
-           name. Must be less than 255 characters.) to list of String
+           parameter "errors" of list of type "ValidateSamplesError" ->
+           structure: parameter "message" of String, parameter "dev_message"
+           of String, parameter "sample_name" of type "sample_name" (A sample
+           name. Must be less than 255 characters.), parameter "node" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "key" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.)
         """
         # ctx is the context object
         # return variables are: results
         #BEGIN validate_samples
         samples = _validate_samples_params(params)
-        errors = {}
+        errors = []
         for sample in samples:
-          error_strings = self._samples.validate_sample(sample)
-          collisions = defaultdict(lambda: 0)
-          if error_strings:
-            if sample.name in errors:
-              # option 1: change sample name.
-              sample_name_edit = str(sample.name) + "-" + str(collisions[sample.name])
-              collisions[sample.name] += 1
-              errors[sample_name_edit] = error_strings
-              # option 2: throw an error of collision.
-              # raise ValueError(f"'{sample.name}' provided more than once as a sample name")
-              # option 3: merge the samples errors together.
-              # errors[sample.name] = erorrs[sample.name] + error_strings
-            else:
-              errors[sample.name] = error_strings
+          error_detail = self._samples.validate_sample(sample)
+          errors.extend(error_detail)
         results = {'errors': errors}
         #END validate_samples
 

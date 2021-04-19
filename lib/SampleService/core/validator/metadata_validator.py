@@ -239,10 +239,19 @@ class MetadataValidatorSet:
                 f'index is {len(self._prefix_vals[prefix]) - 1}')
         return self._prefix_vals[prefix][index](prefix, key, value)
 
+    def build_error_detail(self, message, dev_message=None, node=None, key=None, sample=None):
+        return {
+            'message': message,
+            'dev_message': dev_message if dev_message!=None else message,
+            'key': key,
+            'node': node,
+            'sample_name': sample
+        }
+
     def validate_metadata(
             self,
             metadata: Dict[str, Dict[str, PrimitiveType]],
-            return_error_strings: bool=False
+            return_error_detail: bool=False
         ):
         '''
         Validate a set of metadata key/value pairs.
@@ -259,24 +268,41 @@ class MetadataValidatorSet:
         for k in metadata:
             sp = self._prefix_vals.shortest_prefix(k)
             if not self._vals.get(k) and not (sp and sp.value):
-                if return_error_strings:
-                    errors.append(f'No validator available for metadata key {k}')
+                if return_error_detail:
+                    errors.append(
+                        self.build_error_detail(
+                            f'Cannot validate controlled field "{k}", no matching validator found',
+                            key=k
+                        )
+                    )
                 else:
                     raise _MetadataValidationError(
                         f'No validator available for metadata key {k}')
             for valfunc in self._vals.get(k, []):
                 ret = valfunc(k, metadata[k])
                 if ret:
-                    if return_error_strings:
-                        errors.append(f'Key {k}: ' + ret)
+                    if return_error_detail:
+                        errors.append(
+                            self.build_error_detail(
+                                f'Validation failed: "{ret}"',
+                                dev_message=f'Key {k}: {ret}',
+                                key=k
+                            )
+                        )
                     else:
                         raise _MetadataValidationError(f'Key {k}: ' + ret)
             for p in self._prefix_vals.prefixes(k):
                 for f in p.value:
                     error = f(p.key, k, metadata[k])
                     if error:
-                        if return_error_strings:
-                            errors.append(f'Prefix validator {p.key}, key {k}: {error}')
+                        if return_error_detail:
+                            errors.append(
+                                self.build_error_detail(
+                                    f'Validation failed: "{error}" from validator for prefix "{p.key}"',
+                                    dev_message=f'Prefix validator {p.key}, key {k}: {error}',
+                                    key=k
+                                )
+                            )
                         else:
                             raise _MetadataValidationError(
                                 f'Prefix validator {p.key}, key {k}: {error}')
