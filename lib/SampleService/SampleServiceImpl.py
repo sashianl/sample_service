@@ -402,7 +402,8 @@ Note that usage of the administration flags will be logged by the service.
         # return variables are: samples
         #BEGIN get_samples
         if not params.get('samples'):
-          raise ValueError(f"")
+          raise ValueError(f"get_samples function requires 'samples' as a parameter."
+                           "'samples' = [{'id': sample_id, optional('version': sample_version)}, ...]")
         ids_ = []
         for samp_obj in params['samples']:
           id_, ver = _get_sample_address_from_object(samp_obj)
