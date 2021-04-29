@@ -889,8 +889,14 @@ class SampleService(object):
            timestamp in epoch milliseconds.), parameter "version" of type
            "version" (The version of a sample. Always > 0.)
         :returns: instance of type "ValidateSamplesResults" -> structure:
-           parameter "errors" of mapping from type "sample_name" (A sample
-           name. Must be less than 255 characters.) to list of String
+           parameter "errors" of list of type "ValidateSamplesError" ->
+           structure: parameter "message" of String, parameter "dev_message"
+           of String, parameter "sample_name" of type "sample_name" (A sample
+           name. Must be less than 255 characters.), parameter "node" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "key" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.)
         """
         return self._client.call_method('SampleService.validate_samples',
                                         [params], self._service_ver, context)

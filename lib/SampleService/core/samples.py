@@ -115,7 +115,7 @@ class Samples:
             self._kafka.notify_new_sample_version(id_, ver)
         return (id_, ver)
 
-    def _validate_metadata(self, sample: Sample, return_error_strings: bool=False):
+    def _validate_metadata(self, sample: Sample, return_error_detail: bool=False):
         '''
         :params sample: sample to be validated
         :params return_exception: default=False, whether to return all errors found as a list exceptions.
@@ -124,10 +124,13 @@ class Samples:
         '''
         for i, n in enumerate(sample.nodes):
             try:
-                error_strings = self._metaval.validate_metadata(n.controlled_metadata, return_error_strings)
+                error_detail = self._metaval.validate_metadata(n.controlled_metadata, return_error_detail)
+                if return_error_detail:
+                    for e in error_detail:
+                        e['node'] = n.name
+                    return error_detail
             except _MetadataValidationError as e:
                 raise _MetadataValidationError(f'Node at index {i}: {e.message}') from e
-        return error_strings
 
     def _check_perms(
             self,
@@ -525,5 +528,7 @@ class Samples:
         :param sample: the sample to validate
         '''
         _not_falsy(sample, 'sample')
-        error_strings = self._validate_metadata(sample, return_error_strings=True)
-        return error_strings
+        error_detail = self._validate_metadata(sample, return_error_detail=True)
+        for e in error_detail:
+            e['sample_name'] = sample.name
+        return error_detail
