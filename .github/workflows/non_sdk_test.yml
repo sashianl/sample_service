@@ -93,6 +93,10 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
+          echo "Create fake deployment config"
+          echo "[SampleService]" > service.cfg
+          echo "srv_wiz_url = https://ci.kbase.us/services/service_wizard" >> service.cfg
+          export KB_DEPLOYMENT_CONFIG=`pwd`/service.cfg
           pipenv install --dev
           pipenv run make test-sdkless
 
