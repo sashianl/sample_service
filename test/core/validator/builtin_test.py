@@ -382,8 +382,7 @@ def _number_validate_fail(cfg, meta, expected):
 
 def test_ontology_has_ancestor():
   _ontology_has_ancestor_success(
-      {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483', 
-          'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
+      {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483' },
       {'Material': 'ENVO:00002041', 'ENVO:Material': 'ENVO:00002006'})
 
 def _ontology_has_ancestor_success(cfg, meta):
@@ -401,19 +400,11 @@ def test_ontology_has_ancestor_build_fail():
         ValueError('ancestor_term is a required paramter'))
     _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': ['foo']}, 
         ValueError('ancestor_term must be a string'))
-    _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': 'bar', 'srv_wiz_url': None}, 
-        ValueError('srv_wiz_url is a required paramter'))
-    _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': 'bar', 'srv_wiz_url': ['whoo']}, 
-        ValueError('srv_wiz_url must be a string'))
-    _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': 'bar', 'srv_wiz_url': 'whoo'}, 
-        ValueError("whoo isn't a valid http url"))
     _ontology_has_ancestor_build_fail(
-        {'ontology': 'foo', 'ancestor_term':'ENVO:00010483', 
-            'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
+        {'ontology': 'foo', 'ancestor_term':'ENVO:00010483'},
         ValueError('ontology foo doesn\'t exist'))
     _ontology_has_ancestor_build_fail(
-        {'ontology': 'envo_ontology', 'ancestor_term':'baz', 
-            'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
+        {'ontology': 'envo_ontology', 'ancestor_term':'baz' },
         ValueError('ancestor_term baz is not found in envo_ontology'))
 
 def _ontology_has_ancestor_build_fail(cfg, expected):
@@ -423,16 +414,13 @@ def _ontology_has_ancestor_build_fail(cfg, expected):
 
 def test_ontology_has_ancestor_validate_fail():
     _ontology_has_ancestor_validate_fail(
-        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483', 
-            'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
+        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483' }, 
         {'a': None}, 'Metadata value at key a is None')
     _ontology_has_ancestor_validate_fail(
-        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483', 
-            'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
+        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483' }, 
         {'a': 'foo'}, 'Metadata value at key a does not have envo_ontology ancestor term ENVO:00010483')
     _ontology_has_ancestor_validate_fail(
-        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00002010', 
-            'srv_wiz_url':'https://ci.kbase.us/services/service_wizard'}, 
+        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00002010' }, 
         {'a': 'ENVO:00002041'}, 'Metadata value at key a does not have envo_ontology ancestor term ENVO:00002010')
 
 def _ontology_has_ancestor_validate_fail(cfg, meta, expected):
