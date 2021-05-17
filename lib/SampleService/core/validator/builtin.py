@@ -358,7 +358,7 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
     try:
         oac=OntologyAPI(srv_wizard_url)
         ret=oac.get_terms({"ids": [ancestor_term], "ns": ontology})
-        if len(ret["results"]) == 0:
+        if len(ret["results"]) == 0 or ret["results"][0]==None:
             raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
     except Exception as err:
         if 'Parameter validation error' in str(err):
