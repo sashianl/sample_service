@@ -165,7 +165,7 @@ _META_VAL_JSONSCHEMA = {
                     'key_metadata': {
                         'type': 'object',
                         'additionalProperties': {
-                            'type': ['number', 'boolean', 'string', 'null']
+                            'type': ['array', 'object', 'number', 'boolean', 'string', 'null']
                         }
                     },
                     'validators': {
