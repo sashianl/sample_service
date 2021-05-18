@@ -1,27 +1,22 @@
 #!/bin/bash
 
-. /kb/deployment/user-env.sh
+#. /kb/deployment/user-env.sh
+#
+#python ./scripts/prepare_deploy_cfg.py ./deploy.cfg ./work/config.properties
 
-python ./scripts/prepare_deploy_cfg.py ./deploy.cfg ./work/config.properties
-
-if [ -f ./work/token ] ; then
-  export KB_AUTH_TOKEN=$(<./work/token)
+# Create deploy.cfg
+if [ ! -z "$CONFIG_URL" ] ; then
+    EXTRA=" -env ${CONFIG_URL} -env-header /run/secrets/auth_data"
 fi
+dockerize ${EXTRA} -template deploy.cfg.tmpl:deploy.cfg
 
 if [ $# -eq 0 ] ; then
-  sh ./scripts/start_server.sh
-elif [ "${1}" = "test" ] ; then
-  echo "Run Tests"
-  make test
-elif [ "${1}" = "async" ] ; then
-  sh ./scripts/run_async.sh
-elif [ "${1}" = "init" ] ; then
-  echo "Initialize module"
+  script_dir=$(dirname "$(readlink -f "$0")")
+  export KB_DEPLOYMENT_CONFIG=$script_dir/../deploy.cfg
+  export PYTHONPATH=$script_dir/../lib:$PATH:$PYTHONPATH
+  gunicorn --worker-class gevent --timeout 30 --workers 17 --bind :5000 --log-level info SampleService.SampleServiceServer:application
 elif [ "${1}" = "bash" ] ; then
   bash
-elif [ "${1}" = "report" ] ; then
-  export KB_SDK_COMPILE_REPORT_FILE=./work/compile_report.json
-  make compile
 else
   echo Unknown
 fi
