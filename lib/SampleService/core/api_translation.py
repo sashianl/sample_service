@@ -36,6 +36,8 @@ from SampleService.core.workspace import DataUnitID, UPA
 
 ID = 'id'
 ''' The ID of a sample. '''
+SERVICE_USER = ['indexer_user', 'jayrbolton']
+''' User to run service e.g. indexer '''
 
 
 def get_user_from_object(params: Dict[str, Any], key: str) -> Optional[UserID]:
@@ -372,7 +374,7 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
     return {'owner': _not_falsy(acls, 'acls').owner.id,
             'admin': tuple(u.id for u in acls.admin),
             'write': tuple(u.id for u in acls.write),
-            'read': tuple(u.id for u in acls.read),
+            'read': tuple(u.id for u in acls.read if u.id not in SERVICE_USER),
             'public_read': 1 if acls.public_read else 0,
             }
 
