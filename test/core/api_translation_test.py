@@ -608,12 +608,12 @@ def test_acls_to_dict_remove_service_token():
             dt(1),
             [UserID('foo'), UserID('bar')],
             [UserID('baz')],
-            [UserID('hello'), UserID('indexer_user'), UserID('jayrbolton')],
-            True)) == {
+            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')],
+            True), read_exempt_roles=["I'm", 'a']) == {
         'owner': 'user',
         'admin': ('bar', 'foo'),
         'write': ('baz',),
-        'read': ('hello',),
+        'read': ('hello', 'robot'),
         'public_read': 1
     }
 
