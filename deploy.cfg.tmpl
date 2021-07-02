@@ -21,6 +21,9 @@ auth-token = {{ default .Env.auth_token "" }}
 auth-full-admin-roles = {{ default .Env.auth_full_admin_roles "SAMPLE_SERVICE_FULL_ADMIN" }}
 auth-read-admin-roles = {{ default .Env.auth_read_admin_roles "SAMPLE_SERVICE_READ_ADMIN" }}
 
+# auth-read-exempt-roles is a comma separated list of roles that the read privileges for the sample service are REMOVED from get_sample_acls
+auth-read-exempt-roles = {{ default .Env.auth_read_exempt_roles "SAMPLE_SERVICE_EXEMPT_READ_USER" }}
+
 # Credentials for the KBase workspace service. The token must have read
 # administration permissions.
 

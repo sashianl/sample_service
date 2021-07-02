@@ -361,7 +361,7 @@ def _source_meta_to_list(m):
     return [{'key': sm.key, 'skey': sm.sourcekey, 'svalue': dict(sm.sourcevalue)} for sm in m]
 
 
-def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
+def acls_to_dict(acls: SampleACL, read_exempt_roles: List[str] = []) -> Dict[str, Any]:
     '''
     Convert sample ACLs to a JSONable structure to return to the SDK API.
 
@@ -372,7 +372,7 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
     return {'owner': _not_falsy(acls, 'acls').owner.id,
             'admin': tuple(u.id for u in acls.admin),
             'write': tuple(u.id for u in acls.write),
-            'read': tuple(u.id for u in acls.read),
+            'read': tuple(u.id for u in acls.read if u.id not in read_exempt_roles),
             'public_read': 1 if acls.public_read else 0,
             }
 
