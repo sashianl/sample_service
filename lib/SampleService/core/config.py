@@ -28,7 +28,7 @@ from SampleService.core.workspace import WS as _WS
 from installed_clients.WorkspaceClient import Workspace as _Workspace
 
 
-def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
+def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, List[str]]:
     '''
     Build the sample service instance from the SDK server provided parameters.
 
@@ -63,6 +63,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     auth_token = _check_string_req(config.get('auth-token'), 'config param auth-token')
     full_roles = split_value(config, 'auth-full-admin-roles')
     read_roles = split_value(config, 'auth-read-admin-roles')
+    read_exempt_roles = split_value(config, 'auth-read-exempt-roles')
 
     ws_url = _check_string_req(config.get('workspace-url'), 'config param workspace-url')
     ws_token = _check_string_req(config.get('workspace-read-admin-token'),
@@ -99,6 +100,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
             auth-token: [REDACTED FOR YOUR CONVENIENCE AND ENJOYMENT]
             auth-full-admin-roles: {', '.join(full_roles)}
             auth-read-admin-roles: {', '.join(read_roles)}
+            auth-read-exempt-roles: {', '.join(read_exempt_roles)}
             workspace-url: {ws_url}
             workspace-read-admin-token: [REDACTED FOR YOUR ULTIMATE PLEASURE]
             kafka-bootstrap-servers: {kafka_servers}
@@ -127,7 +129,7 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup]:
     kafka = _KafkaNotifer(kafka_servers, _cast(str, kafka_topic)) if kafka_servers else None
     user_lookup = KBaseUserLookup(auth_root_url, auth_token, full_roles, read_roles)
     ws = _WS(_Workspace(ws_url, token=ws_token))
-    return Samples(storage, user_lookup, metaval, ws, kafka), user_lookup
+    return Samples(storage, user_lookup, metaval, ws, kafka), user_lookup, read_exempt_roles
 
 
 def split_value(d: Dict[str, str], key: str):
@@ -165,7 +167,7 @@ _META_VAL_JSONSCHEMA = {
                     'key_metadata': {
                         'type': 'object',
                         'additionalProperties': {
-                            'type': ['number', 'boolean', 'string', 'null']
+                            'type': ['array', 'object', 'number', 'boolean', 'string', 'null']
                         }
                     },
                     'validators': {

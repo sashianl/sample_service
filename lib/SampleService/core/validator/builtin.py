@@ -27,7 +27,15 @@ from cacheout.lru import LRUCache
 
 _CACHE_MAX_SIZE = 10000
 _CACHE_EXPIRATION = 3600
-_ontology_has_ancestor_cache = LRUCache(timer=time.time, maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_EXPIRATION)
+_ontology_terms_cache = LRUCache(timer=time.time, maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_EXPIRATION)
+_ontology_ancestors_cache = LRUCache(timer=time.time, maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_EXPIRATION)
+
+srv_wizard_url = None
+if 'KB_DEPLOYMENT_CONFIG' in os.environ:
+    with open(os.environ['KB_DEPLOYMENT_CONFIG']) as f:
+        for line in f:
+            if line.startswith('srv-wiz-url'):
+                srv_wizard_url = line.split('=')[1].strip()
 
 
 def _check_unknown_keys(d, expected):
@@ -338,13 +346,10 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
 
     The 'ancestor_term' parameter is required and must be a string. It is the ancestor name.
 
-    The 'srv_wiz_url' parameter is required and must be a string. It is kbase service wizard url for
-    getting OntologyAPI service.
-
     :param d: the configuration map for the callable.
     :returns: a callable that validates metadata maps.
     '''
-    _check_unknown_keys(d, {'ontology', 'ancestor_term', 'srv_wiz_url'})
+    _check_unknown_keys(d, {'ontology', 'ancestor_term'})
 
     ontology = d.get('ontology')
     if not ontology:
@@ -358,18 +363,16 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
     if type(ancestor_term) != str:
         raise ValueError('ancestor_term must be a string')
 
-    srv_wiz_url = d.get('srv_wiz_url')
-    if not srv_wiz_url:
-        raise ValueError('srv_wiz_url is a required paramter')
-    if type(srv_wiz_url) != str:
-        raise ValueError('srv_wiz_url must be a string')
-
     oac = None
     try:
-        oac = OntologyAPI(srv_wiz_url)
-        ret = oac.get_terms({"ids": [ancestor_term], "ns": ontology})
-        if len(ret["results"]) == 0:
-            raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
+        oac = OntologyAPI(srv_wizard_url)
+        ontology_terms_cache = _ontology_terms_cache.get(ancestor_term, default=False)
+        if not ontology_terms_cache:
+            ret = oac.get_terms({"ids": [ancestor_term], "ns": ontology})
+            if len(ret["results"]) == 0 or ret["results"][0] is None:
+                raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
+            else:
+                _ontology_terms_cache.set(ancestor_term, True)
     except Exception as err:
         if 'Parameter validation error' in str(err):
             raise ValueError(f'ontology {ontology} doesn\'t exist')
@@ -377,14 +380,14 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
             raise
 
     def _get_ontology_ancestors(ontology, val):
-        ontology_has_ancestor_cache = _ontology_has_ancestor_cache.get(val, default=False)
+        ontology_ancestors_cache = _ontology_ancestors_cache.get(val, default=False)
         retval = None
-        if ontology_has_ancestor_cache:
-            retval = ontology_has_ancestor_cache
+        if ontology_ancestors_cache:
+            retval = ontology_ancestors_cache
         else:
             ret = oac.get_ancestors({"id": val, "ns": ontology})
             retval = list(map(lambda x: x["term"]["id"], ret["results"]))
-            _ontology_has_ancestor_cache.set(val, retval)
+            _ontology_ancestors_cache.set(val, retval)
         return retval
 
     def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:

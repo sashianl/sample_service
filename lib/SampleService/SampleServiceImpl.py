@@ -54,9 +54,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-alpha26"
-    GIT_URL = "git@github.com:kbase/sample_service.git"
-    GIT_COMMIT_HASH = "85e6116babd262a7f7fd4adcfc4bf7a2f7a1f718"
+    VERSION = "0.1.0-alpha27"
+    GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
+    GIT_COMMIT_HASH = "e99fcb5e2069e41a9f6adec8128408500cf80573"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -65,7 +65,7 @@ Note that usage of the administration flags will be logged by the service.
     # be found
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
-        self._samples, self._user_lookup = _build_samples(config)
+        self._samples, self._user_lookup, self._read_exempt_roles = _build_samples(config)
         #END_CONSTRUCTOR
         pass
 
@@ -458,7 +458,7 @@ Note that usage of the administration flags will be logged by the service.
             'get_sample_acls', ctx.log_info, skip_check=not params.get('as_admin'))
         acls_ret = self._samples.get_sample_acls(
             id_, _get_user_from_object(ctx, _CTX_USER), as_admin=admin)
-        acls = _acls_to_dict(acls_ret)
+        acls = _acls_to_dict(acls_ret, read_exempt_roles=self._read_exempt_roles)
         #END get_sample_acls
 
         # At some point might do deeper type checking...
