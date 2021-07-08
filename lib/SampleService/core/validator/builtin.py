@@ -23,7 +23,7 @@ from pint import DefinitionSyntaxError as _DefinitionSyntaxError
 from SampleService.core.core_types import PrimitiveType
 from installed_clients.OntologyAPIClient import OntologyAPI
 import time
-from cacheout.lru import LRUCache
+from cacheout.lru import LRUCache  # type: ignore
 
 _CACHE_MAX_SIZE = 10000
 _CACHE_EXPIRATION = 3600
