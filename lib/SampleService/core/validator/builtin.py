@@ -27,6 +27,7 @@ from cacheout.lru import LRUCache  # type: ignore
 
 _CACHE_MAX_SIZE = 10000
 _CACHE_EXPIRATION = 3600
+_TOKEN_SEP = '::'
 _ontology_terms_cache = LRUCache(timer=time.time, maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_EXPIRATION)
 _ontology_ancestors_cache = LRUCache(timer=time.time, maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_EXPIRATION)
 
@@ -366,13 +367,14 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
     oac = None
     try:
         oac = OntologyAPI(srv_wizard_url)
-        ontology_terms_cache = _ontology_terms_cache.get(ancestor_term, default=False)
+        terms_key = _TOKEN_SEP.join([ontology, ancestor_term])
+        ontology_terms_cache = _ontology_terms_cache.get(terms_key, default=False)
         if not ontology_terms_cache:
             ret = oac.get_terms({"ids": [ancestor_term], "ns": ontology})
             if len(ret["results"]) == 0 or ret["results"][0] is None:
                 raise ValueError(f"ancestor_term {ancestor_term} is not found in {ontology}")
             else:
-                _ontology_terms_cache.set(ancestor_term, True)
+                _ontology_terms_cache.set(terms_key, True)
     except Exception as err:
         if 'Parameter validation error' in str(err):
             raise ValueError(f'ontology {ontology} doesn\'t exist')
@@ -380,14 +382,15 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
             raise
 
     def _get_ontology_ancestors(ontology, val):
-        ontology_ancestors_cache = _ontology_ancestors_cache.get(val, default=False)
+        ancestors_key = _TOKEN_SEP.join([ontology, val])
+        ontology_ancestors_cache = _ontology_ancestors_cache.get(ancestors_key, default=False)
         retval = None
         if ontology_ancestors_cache:
             retval = ontology_ancestors_cache
         else:
             ret = oac.get_ancestors({"id": val, "ns": ontology})
             retval = list(map(lambda x: x["term"]["id"], ret["results"]))
-            _ontology_ancestors_cache.set(val, retval)
+            _ontology_ancestors_cache.set(ancestors_key, retval)
         return retval
 
     def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
