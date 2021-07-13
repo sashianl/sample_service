@@ -16,6 +16,7 @@ If an exception is not thrown, and a falsy value is returned, the validation suc
 import os
 import ranges
 from typing import Dict, Any, Callable, Optional, cast as _cast, Set as _Set
+from typing_extensions import TypedDict
 from pint import UnitRegistry as _UnitRegistry
 from pint import DimensionalityError as _DimensionalityError
 from pint import UndefinedUnitError as _UndefinedUnitError
@@ -37,8 +38,12 @@ def _check_unknown_keys(d, expected):
     if d2:
         raise ValueError(f'Unexpected configuration parameter: {sorted(d2)[0]}')
 
+class ValidatorMessage(TypedDict):
+    subkey: str
+    message: str
 
-def noop(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+
+def noop(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[ValidatorMessage]]:
     '''
     Build a validation callable that allows any value for the metadata key.
     :params d: The configuration parameters for the callable. Unused.
@@ -46,12 +51,12 @@ def noop(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optiona
     '''
     _check_unknown_keys(d, [])
 
-    def f(key: str, val: Dict[str, PrimitiveType]) -> Optional[str]:
+    def f(key: str, val: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
         return None
     return f  # mypy had trouble detecting the lambda type
 
 
-def string(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+def string(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[ValidatorMessage]]:
     '''
     Build a validation callable that performs string checking based on the following rules:
 
@@ -86,31 +91,31 @@ def string(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
     keys = _get_keys(d)
     if keys:
 
-        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k in keys:
                 if required and k not in d1:
-                    return f'Required key {k} is missing'
+                    return {'subkey':str(k), 'message':'Required key {k} is missing'}
                 v = d1.get(k)
                 if v is not None and type(v) != str:
-                    return f'Metadata value at key {k} is not a string'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not a string'}
                 if v and maxlen and len(_cast(str, v)) > maxlen:
-                    return f'Metadata value at key {k} is longer than max length of {maxlen}'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is longer than max length of {maxlen}'}
             return None
     elif maxlen:
-        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k, v in d1.items():
                 if len(k) > _cast(int, maxlen):
-                    return f'Metadata contains key longer than max length of {maxlen}'
+                    return {'subkey':str(k), 'message':'Metadata contains key longer than max length of {maxlen}'}
                 if type(v) == str:
                     if len(_cast(str, v)) > _cast(int, maxlen):
-                        return f'Metadata value at key {k} is longer than max length of {maxlen}'
+                        return {'subkey':str(k), 'message':'Metadata value at key {k} is longer than max length of {maxlen}'}
             return None
     else:
         raise ValueError('If the keys parameter is not specified, max-len must be specified')
     return strlen
 
 
-def enum(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+def enum(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[ValidatorMessage]]:
     '''
     Build a validation callable that checks that values are one of a set of specified values.
 
@@ -138,17 +143,17 @@ def enum(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optiona
     keys = _get_keys(d)
     if keys:
 
-        def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k in keys:
                 if d1.get(k) not in allowed:
-                    return f'Metadata value at key {k} is not in the allowed list of values'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not in the allowed list of values'}
             return None
     else:
 
-        def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k, v in d1.items():
                 if v not in allowed:
-                    return f'Metadata value at key {k} is not in the allowed list of values'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not in the allowed list of values'}
             return None
     return enumval
 
@@ -180,7 +185,7 @@ _UNIT_REG.load_definitions(
 )
 
 
-def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[ValidatorMessage]]:
     '''
     Build a validation callable that checks that values are equivalent to a provided example
     unit. E.g., if the example units are N, lb * ft / s^2 is also accepted.
@@ -212,28 +217,29 @@ def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Option
     except _DefinitionSyntaxError as e:
         raise ValueError(f"unable to parse units '{u}': syntax error: {e.args[0]}")
 
-    def unitval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+    def unitval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
         unitstr = d1.get(_cast(str, k))
         if not unitstr:
-            return f'metadata value key {k} is required'
+            return {'subkey':str(k), 'message':'metadata value key {k} is required'}
         if type(unitstr) != str:
-            return f'metadata value key {k} must be a string'
+            return {'subkey':str(k), 'message':'metadata value key {k} must be a string'}
         try:
             units = _UNIT_REG.parse_expression(unitstr)
         except _UndefinedUnitError as e:
-            return f"unable to parse units '{u}' at key {k}: undefined unit: {e.args[0]}"
+            return {'subkey':str(k), 'message':'unable to parse units \'{u}\' at key {k}: undefined unit: {e.args[0]}'}
         except _DefinitionSyntaxError as e:
-            return f"unable to parse units '{u}' at key {k}: syntax error: {e.args[0]}"
+            return {'subkey':str(k), 'message':'unable to parse units \'{u}\' at key {k}: syntax error: {e.args[0]}'}
         try:
             (1 * units).ito(req_units)
         except _DimensionalityError as e:
-            return (f"Units at key {k}, '{unitstr}', are not equivalent to " +
-                    f"required units, '{u}': {e}")
+            msg = (f"Units at key {k}, '{unitstr}', are not equivalent to " +
+                   f"required units, '{u}': {e}")
+            return  {'subkey':str(k), 'message':msg}
         return None
     return unitval
 
 
-def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[ValidatorMessage]]:
     '''
     Build a validation callable that checks that values are numerical, and optionally within a
     given range.
@@ -266,24 +272,24 @@ def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
     range_ = _get_range(d)
 
     if keys:
-        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k in keys:
                 if required and k not in d1:
-                    return f'Required key {k} is missing'
+                    return {'subkey':str(k), 'message':'Required key {k} is missing'}
                 v = d1.get(k)
                 if v is not None and type(v) not in types:
-                    return f'Metadata value at key {k} is not an accepted number type'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not an accepted number type'}
                 if v is not None and v not in range_:
-                    return f'Metadata value at key {k} is not within the range {range_}'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not within the range {range_}'}
             return None
     else:
-        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+        def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k, v in d1.items():
                 # duplicate of above, meh.
                 if v is not None and type(v) not in types:
-                    return f'Metadata value at key {k} is not an accepted number type'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not an accepted number type'}
                 if v is not None and v not in range_:
-                    return f'Metadata value at key {k} is not within the range {range_}'
+                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not within the range {range_}'}
             return None
     return strlen
 
@@ -329,7 +335,7 @@ def _is_num(name, val):
         raise ValueError(f'Value for {name} parameter is not a number')
     return val
 
-def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[str]]:
+def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optional[ValidatorMessage]]:
     '''
     Build a validation callable that checks that value has valid ontology ancestor term provided
 
@@ -370,13 +376,12 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
         ret=oac.get_ancestors({"id": val, "ns": ontology})
         return list(map(lambda x: x["term"]["id"], ret["results"]))
     
-    def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[str]:
+    def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
         for k, v in d1.items():
             if v is None:
-                return f'Metadata value at key {k} is None'
+                return {'subkey':str(k), 'message':'Metadata value at key {k} is None'}
             ancestors=_get_ontology_ancestors(ontology, v)
             if ancestor_term not in ancestors:
-                return f'Metadata value at key {k} does not have {ontology} ancestor term {ancestor_term}'
+                return {'subkey':str(k), 'message':'Metadata value at key {k} does not have {ontology} ancestor term {ancestor_term}'}
         return None
     return ontology_has_ancestor_val
-
