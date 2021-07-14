@@ -31,7 +31,7 @@ jobs:
           MONGODB_VER: mongodb-linux-x86_64-3.6.16
           ARANGODB_VER: 3.5.1
           ARANGODB_V: 35
-          KAFKA_VER: 2.6.1
+          KAFKA_VER: 2.6.2
           SCALA_VER: 2.12
         run: |
           # upgrade and update
@@ -93,6 +93,10 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
+          echo "Create fake deployment config"
+          echo "[SampleService]" > service.cfg
+          echo "srv_wiz_url = https://ci.kbase.us/services/service_wizard" >> service.cfg
+          export KB_DEPLOYMENT_CONFIG=`pwd`/service.cfg
           pipenv install --dev
           pipenv run make test-sdkless
 

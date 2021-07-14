@@ -601,6 +601,23 @@ def test_acls_to_dict_maximal():
     }
 
 
+def test_acls_to_dict_remove_service_token():
+    assert acls_to_dict(
+        SampleACL(
+            UserID('user'),
+            dt(1),
+            [UserID('foo'), UserID('bar')],
+            [UserID('baz')],
+            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')],
+            True), read_exempt_roles=["I'm", 'a']) == {
+        'owner': 'user',
+        'admin': ('bar', 'foo'),
+        'write': ('baz',),
+        'read': ('hello', 'robot'),
+        'public_read': 1
+    }
+
+
 def test_acls_to_dict_fail():
     with raises(Exception) as got:
         acls_to_dict(None)
