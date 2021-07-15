@@ -3,7 +3,7 @@ import uuid
 
 from pytest import raises
 from uuid import UUID
-from unittest.mock import create_autospec
+from unittest.mock import (create_autospec, call)
 
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
@@ -68,6 +68,33 @@ def _init_fail(storage, lookup, meta, ws, now, uuid_gen, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_validate_sample_with_name():
+    _validate_sample(None)
+    _validate_sample('foo')
+
+
+def _validate_sample(name):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    kafka = create_autospec(KafkaNotifier, spec_set=True, instance=True)
+    s = Samples(storage, lu, meta, ws, kafka, now=nw,
+                uuid_gen=lambda: UUID('1234567890abcdef1234567890abcdef'))
+    s.validate_sample(Sample([
+        SampleNode(
+            'foo',
+            controlled_metadata={'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},
+            user_metadata={'key_not_in_validator_map': {'val': 'yay'},
+                           'key1': {'val': 'wrong'}}
+            ),
+        SampleNode(
+            'foo2',
+            controlled_metadata={'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}},
+            )
+    ], name))
+
+
 def test_save_sample():
     _save_sample_with_name(None, True)
     _save_sample_with_name('bar', False)
@@ -118,10 +145,12 @@ def _save_sample_with_name(name, as_admin):
                       ),  # make a tuple
           ), {})]
 
-    assert meta.validate_metadata.call_args_list == [
-        (({'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}},), {}),
-        (({'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}},), {})
+    call_arg_list = [
+        call({'key1': {'val': 'foo'}, 'key2': {'val': 'bar'}}, False),
+        call({'key3': {'val': 'foo'}, 'key4': {'val': 'bar'}}, False)
     ]
+
+    meta.validate_metadata.assert_has_calls(call_arg_list)
 
     kafka.notify_new_sample_version.assert_called_once_with(
         UUID('1234567890abcdef1234567890abcdef'), 1)
@@ -161,7 +190,7 @@ def _save_sample_version_per_user(user: UserID, name, prior_version):
     assert storage.get_sample_acls.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcdea'),), {})]
 
-    assert meta.validate_metadata.call_args_list == [(({},), {})]
+    meta.validate_metadata.assert_has_calls([call({}, False)])
 
     assert storage.save_sample_version.call_args_list == [
         ((SavedSample(UUID('1234567890abcdef1234567890abcdea'),
@@ -195,7 +224,7 @@ def test_save_sample_version_as_admin():
         UUID('1234567890abcdef1234567890abcdea'),
         as_admin=True) == (UUID('1234567890abcdef1234567890abcdea'), 3)
 
-    assert meta.validate_metadata.call_args_list == [(({},), {})]
+    meta.validate_metadata.assert_has_calls([call({}, False)])
 
     storage.save_sample_version.assert_called_once_with(
         SavedSample(UUID('1234567890abcdef1234567890abcdea'),
@@ -331,6 +360,17 @@ def test_get_sample():
     _get_sample(None, None, False, True)  # public read & anon
 
 
+def test_get_samples():
+    # sample versions other than 4 don't really make sense but the mock doesn't care
+    _get_samples(UserID('someuser'), None, False)
+    _get_samples(UserID('otheruser'), 4, False)
+    _get_samples(UserID('anotheruser'), 2, False)
+    _get_samples(UserID('x'), None, False)
+    _get_samples(UserID('notinacl'), None, True)
+    _get_samples(UserID('notinacl'), None, False, True)  # public read
+    _get_samples(None, None, False, True)  # public read & anon
+
+
 def _get_sample(user, version, as_admin, public_read=False):
     storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
     lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
@@ -371,6 +411,80 @@ def _get_sample(user, version, as_admin, public_read=False):
 
     assert storage.get_sample.call_args_list == [
         ((UUID('1234567890abcdef1234567890abcdea'), version), {})]
+
+
+def _get_samples(user, version, as_admin, public_read=False):
+    storage = create_autospec(ArangoSampleStorage, spec_set=True, instance=True)
+    lu = create_autospec(KBaseUserLookup, spec_set=True, instance=True)
+    meta = create_autospec(MetadataValidatorSet, spec_set=True, instance=True)
+    ws = create_autospec(WS, spec_set=True, instance=True)
+    samples = Samples(
+        storage, lu, meta, ws, uuid_gen=lambda: UUID('1234567890abcdef1234567890fbcdef'))
+
+    storage.get_sample_acls.return_value = SampleACL(
+        u('someuser'),
+        dt(1),
+        [u('otheruser')],
+        [u('anotheruser'), u('ur mum')],
+        [u('Fungus J. Pustule Jr.'), u('x')],
+        public_read=public_read)
+
+    storage.get_samples.return_value = [
+        SavedSample(
+            UUID('1234567890abcdef1234567890fbcdef'),
+            UserID('anotheruser'),
+            [SampleNode('foo')],
+            datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
+            'bar',
+            4
+        ),
+        SavedSample(
+            UUID('1234567890abcdef1234567890fbcdeb'),
+            UserID('anotheruser'),
+            [SampleNode('fid')],
+            datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
+            'baz',
+            4
+        )
+    ]
+
+    assert samples.get_samples([
+        {'id': UUID('1234567890abcdef1234567890fbcdef'), 'version': version},
+        {'id': UUID('1234567890abcdef1234567890fbcdeb'), 'version': version}
+    ], user, as_admin) == [
+        SavedSample(
+            UUID('1234567890abcdef1234567890fbcdef'),
+            UserID('anotheruser'), [SampleNode('foo')],
+            datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
+            'bar', 4),
+        SavedSample(
+            UUID('1234567890abcdef1234567890fbcdeb'),
+            UserID('anotheruser'), [SampleNode('fid')],
+            datetime.datetime.fromtimestamp(42, tz=datetime.timezone.utc),
+            'baz', 4)
+    ]
+    if not as_admin:
+        assert storage.get_sample_acls.call_args_list == [
+            call(UUID('12345678-90ab-cdef-1234-567890fbcdef')),
+            call(UUID('12345678-90ab-cdef-1234-567890fbcdeb'))
+        ]
+    else:
+        assert storage.get_sample_acls.call_args_list == []
+
+    # print('-'*80)
+    # print(storage.get_samples.call_args_list)
+    # print('-'*80)
+
+    assert storage.get_samples.call_args_list == [
+        call([
+            {'id': UUID('12345678-90ab-cdef-1234-567890fbcdef'), 'version': version},
+            {'id': UUID('12345678-90ab-cdef-1234-567890fbcdeb'), 'version': version}
+        ])
+    ]
+
+    # assert storage.get_samples.call_args_list == [
+    #     ([{'id': UUID('1234567890abcdef1234567890fbcdef'),'version': version},
+    #     {'id': UUID('1234567890abcdef1234567890fbcdeb'), 'version': version}], {})]
 
 
 def test_get_sample_fail_bad_args():

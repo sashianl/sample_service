@@ -4,7 +4,7 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple, List, Callable, cast as _cast
+from typing import Dict, Any, Optional, Tuple, List, Callable, Union, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
@@ -157,6 +157,43 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
         raise _IllegalParameterError('sample node tree must be present and a list')
     if s.get('name') is not None and type(s.get('name')) != str:
         raise _IllegalParameterError('sample name must be omitted or a string')
+    nodes = _check_nodes(s)
+    id_ = get_id_from_object(s, ID, name='sample.id')
+
+    pv = params.get('prior_version')
+    if pv is not None and type(pv) != int:
+        raise _IllegalParameterError('prior_version must be an integer if supplied')
+    s = Sample(nodes, s.get('name'))
+    return (s, id_, pv)
+
+
+def validate_samples_params(params: Dict[str, Any]) -> List[Sample]:
+    '''
+    Process the input from the validate_samples API call and translate it into standard types.
+
+    :param params: The unmarshalled JSON recieved from the API as part of the create_sample
+        call.
+    :returns: A tuple of the sample to save, the UUID of the sample for which a new version should
+        be created or None if an entirely new sample should be created, and the previous version
+        of the sample expected when saving a new version.
+    :raises IllegalParameterError: if any of the arguments are illegal.
+    '''
+    _check_params(params)
+    if type(params.get('samples')) != list or len(params.get('samples', [])) == 0:
+        raise _IllegalParameterError('params must contain list of `samples`')
+    samples = []
+    for s in params['samples']:
+        if type(s.get('node_tree')) != list:
+            raise _IllegalParameterError('sample node tree must be present and a list')
+        if type(s.get('name')) != str or len(s.get('name')) <= 0:
+            raise _IllegalParameterError('sample name must be included as non-empty string')
+        nodes = _check_nodes(s)
+        s = Sample(nodes, s.get('name'))
+        samples.append(s)
+
+    return samples
+
+def _check_nodes(s):
     nodes = []
     for i, n in enumerate(s['node_tree']):
         if type(n) != dict:
@@ -181,14 +218,7 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
         except _IllegalParameterError as e:
             raise _IllegalParameterError(
                 f'Error for node at index {i}: ' + _cast(str, e.message)) from e
-
-    id_ = get_id_from_object(s, ID, name='sample.id')
-
-    pv = params.get('prior_version')
-    if pv is not None and type(pv) != int:
-        raise _IllegalParameterError('prior_version must be an integer if supplied')
-    s = Sample(nodes, s.get('name'))
-    return (s, id_, pv)
+    return nodes
 
 
 def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]:
@@ -331,7 +361,7 @@ def _source_meta_to_list(m):
     return [{'key': sm.key, 'skey': sm.sourcekey, 'svalue': dict(sm.sourcevalue)} for sm in m]
 
 
-def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
+def acls_to_dict(acls: SampleACL, read_exempt_roles: List[str] = []) -> Dict[str, Any]:
     '''
     Convert sample ACLs to a JSONable structure to return to the SDK API.
 
@@ -342,7 +372,7 @@ def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
     return {'owner': _not_falsy(acls, 'acls').owner.id,
             'admin': tuple(u.id for u in acls.admin),
             'write': tuple(u.id for u in acls.write),
-            'read': tuple(u.id for u in acls.read),
+            'read': tuple(u.id for u in acls.read if u.id not in read_exempt_roles),
             'public_read': 1 if acls.public_read else 0,
             }
 

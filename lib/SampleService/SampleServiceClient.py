@@ -240,6 +240,98 @@ class SampleService(object):
         return self._client.call_method('SampleService.get_sample',
                                         [params], self._service_ver, context)
 
+    def get_samples(self, params, context=None):
+        """
+        :param params: instance of type "GetSamplesParams" -> structure:
+           parameter "samples" of list of type "SampleIdentifier" ->
+           structure: parameter "id" of type "sample_id" (A Sample ID. Must
+           be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "as_admin" of type "boolean" (A boolean
+           value, 0 for false, 1 for true.)
+        :returns: instance of list of type "Sample" (A Sample, consisting of
+           a tree of subsamples and replicates. id - the ID of the sample.
+           user - the user that saved the sample. node_tree - the tree(s) of
+           sample nodes in the sample. The the roots of all trees must be
+           BioReplicate nodes. All the BioReplicate nodes must be at the
+           start of the list, and all child nodes must occur after their
+           parents in the list. name - the name of the sample. Must be less
+           than 255 characters. save_date - the date the sample version was
+           saved. version - the version of the sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "user"
+           of type "user" (A user's username.), parameter "node_tree" of list
+           of type "SampleNode" (A node in a sample tree. id - the ID of the
+           node. parent - the id of the parent node for the current node.
+           BioReplicate nodes, and only BioReplicate nodes, do not have a
+           parent. type - the type of the node. meta_controlled - metadata
+           restricted by the sample controlled vocabulary and validators.
+           source_meta - the pre-transformation keys and values of the
+           controlled metadata at the data source for controlled metadata
+           keys. In some cases the source metadata may be transformed prior
+           to ingestion by the Sample Service; the contents of this data
+           structure allows for reconstructing the original representation.
+           The metadata here is not validated other than basic size checks
+           and is provided on an informational basis only. The metadata keys
+           in the SourceMetadata data structure must be a subset of the
+           meta_controlled mapping keys. meta_user - unrestricted metadata.)
+           -> structure: parameter "id" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "parent" of type "node_id" (A SampleNode ID. Must be
+           unique within a Sample and be less than 255 characters.),
+           parameter "type" of type "samplenode_type" (The type of a sample
+           node. One of: BioReplicate - a biological replicate. Always at the
+           top of the sample tree. TechReplicate - a technical replicate.
+           SubSample - a sub sample that is not a technical replicate.),
+           parameter "meta_controlled" of type "metadata" (Metadata attached
+           to a sample.) -> mapping from type "metadata_key" (A key in a
+           metadata key/value pair. Less than 1000 unicode characters.) to
+           type "metadata_value" (A metadata value, represented by a mapping
+           of value keys to primitive values. An example for a location
+           metadata key might be: { "name": "Castle Geyser", "lat":
+           44.463816, "long": -110.836471 } "primitive values" means an int,
+           float, string, or equivalent typedefs. Including any collection
+           types is an error.) -> mapping from type "metadata_value_key" (A
+           key for a value associated with a piece of metadata. Less than
+           1000 unicode characters. Examples: units, value, species) to
+           unspecified object, parameter "source_meta" of list of type
+           "SourceMetadata" (Information about a metadata key as it appeared
+           at the data source. The source key and value represents the
+           original state of the metadata before it was tranformed for
+           ingestion by the sample service. key - the metadata key. skey -
+           the key as it appeared at the data source. svalue - the value as
+           it appeared at the data source.) -> structure: parameter "key" of
+           type "metadata_key" (A key in a metadata key/value pair. Less than
+           1000 unicode characters.), parameter "skey" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.), parameter "svalue" of type "metadata_value" (A
+           metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter
+           "meta_user" of type "metadata" (Metadata attached to a sample.) ->
+           mapping from type "metadata_key" (A key in a metadata key/value
+           pair. Less than 1000 unicode characters.) to type "metadata_value"
+           (A metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter "name" of
+           type "sample_name" (A sample name. Must be less than 255
+           characters.), parameter "save_date" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "version" of type
+           "version" (The version of a sample. Always > 0.)
+        """
+        return self._client.call_method('SampleService.get_samples',
+                                        [params], self._service_ver, context)
+
     def get_sample_acls(self, params, context=None):
         """
         Get a sample's ACLs.
@@ -338,8 +430,8 @@ class SampleService(object):
         Get static metadata for one or more metadata keys.
             The static metadata for a metadata key is metadata *about* the key - e.g. it may
             define the key's semantics or denote that the key is linked to an ontological ID.
-            The static metadata does not change without the service being restarted. Client
-            caching is recommended to improve performance.
+            The static metadata does not change without the service being restarted. Client caching is
+            recommended to improve performance.
         :param params: instance of type "GetMetadataKeyStaticMetadataParams"
            (get_metadata_key_static_metadata parameters. keys - the list of
            metadata keys to interrogate. prefix - 0 (the default) to
@@ -709,6 +801,104 @@ class SampleService(object):
            in epoch milliseconds.)
         """
         return self._client.call_method('SampleService.get_data_link',
+                                        [params], self._service_ver, context)
+
+    def validate_samples(self, params, context=None):
+        """
+        :param params: instance of type "ValidateSamplesParams" (Provide
+           sample and run through the validation steps, but without saving
+           them. Allows all the samples to be evaluated for validity first so
+           potential errors can be addressed.) -> structure: parameter
+           "samples" of list of type "Sample" (A Sample, consisting of a tree
+           of subsamples and replicates. id - the ID of the sample. user -
+           the user that saved the sample. node_tree - the tree(s) of sample
+           nodes in the sample. The the roots of all trees must be
+           BioReplicate nodes. All the BioReplicate nodes must be at the
+           start of the list, and all child nodes must occur after their
+           parents in the list. name - the name of the sample. Must be less
+           than 255 characters. save_date - the date the sample version was
+           saved. version - the version of the sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter "user"
+           of type "user" (A user's username.), parameter "node_tree" of list
+           of type "SampleNode" (A node in a sample tree. id - the ID of the
+           node. parent - the id of the parent node for the current node.
+           BioReplicate nodes, and only BioReplicate nodes, do not have a
+           parent. type - the type of the node. meta_controlled - metadata
+           restricted by the sample controlled vocabulary and validators.
+           source_meta - the pre-transformation keys and values of the
+           controlled metadata at the data source for controlled metadata
+           keys. In some cases the source metadata may be transformed prior
+           to ingestion by the Sample Service; the contents of this data
+           structure allows for reconstructing the original representation.
+           The metadata here is not validated other than basic size checks
+           and is provided on an informational basis only. The metadata keys
+           in the SourceMetadata data structure must be a subset of the
+           meta_controlled mapping keys. meta_user - unrestricted metadata.)
+           -> structure: parameter "id" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "parent" of type "node_id" (A SampleNode ID. Must be
+           unique within a Sample and be less than 255 characters.),
+           parameter "type" of type "samplenode_type" (The type of a sample
+           node. One of: BioReplicate - a biological replicate. Always at the
+           top of the sample tree. TechReplicate - a technical replicate.
+           SubSample - a sub sample that is not a technical replicate.),
+           parameter "meta_controlled" of type "metadata" (Metadata attached
+           to a sample.) -> mapping from type "metadata_key" (A key in a
+           metadata key/value pair. Less than 1000 unicode characters.) to
+           type "metadata_value" (A metadata value, represented by a mapping
+           of value keys to primitive values. An example for a location
+           metadata key might be: { "name": "Castle Geyser", "lat":
+           44.463816, "long": -110.836471 } "primitive values" means an int,
+           float, string, or equivalent typedefs. Including any collection
+           types is an error.) -> mapping from type "metadata_value_key" (A
+           key for a value associated with a piece of metadata. Less than
+           1000 unicode characters. Examples: units, value, species) to
+           unspecified object, parameter "source_meta" of list of type
+           "SourceMetadata" (Information about a metadata key as it appeared
+           at the data source. The source key and value represents the
+           original state of the metadata before it was tranformed for
+           ingestion by the sample service. key - the metadata key. skey -
+           the key as it appeared at the data source. svalue - the value as
+           it appeared at the data source.) -> structure: parameter "key" of
+           type "metadata_key" (A key in a metadata key/value pair. Less than
+           1000 unicode characters.), parameter "skey" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.), parameter "svalue" of type "metadata_value" (A
+           metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter
+           "meta_user" of type "metadata" (Metadata attached to a sample.) ->
+           mapping from type "metadata_key" (A key in a metadata key/value
+           pair. Less than 1000 unicode characters.) to type "metadata_value"
+           (A metadata value, represented by a mapping of value keys to
+           primitive values. An example for a location metadata key might be:
+           { "name": "Castle Geyser", "lat": 44.463816, "long": -110.836471 }
+           "primitive values" means an int, float, string, or equivalent
+           typedefs. Including any collection types is an error.) -> mapping
+           from type "metadata_value_key" (A key for a value associated with
+           a piece of metadata. Less than 1000 unicode characters. Examples:
+           units, value, species) to unspecified object, parameter "name" of
+           type "sample_name" (A sample name. Must be less than 255
+           characters.), parameter "save_date" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "version" of type
+           "version" (The version of a sample. Always > 0.)
+        :returns: instance of type "ValidateSamplesResults" -> structure:
+           parameter "errors" of list of type "ValidateSamplesError" ->
+           structure: parameter "message" of String, parameter "dev_message"
+           of String, parameter "sample_name" of type "sample_name" (A sample
+           name. Must be less than 255 characters.), parameter "node" of type
+           "node_id" (A SampleNode ID. Must be unique within a Sample and be
+           less than 255 characters.), parameter "key" of type "metadata_key"
+           (A key in a metadata key/value pair. Less than 1000 unicode
+           characters.)
+        """
+        return self._client.call_method('SampleService.validate_samples',
                                         [params], self._service_ver, context)
 
     def status(self, context=None):

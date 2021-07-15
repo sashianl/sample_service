@@ -352,6 +352,11 @@ class Application(object):
                              name='SampleService.get_sample',
                              types=[dict])
         self.method_authentication['SampleService.get_sample'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_samples,
+                             name='SampleService.get_samples',
+                             types=[dict])
+        self.method_authentication['SampleService.get_samples'] = 'optional'  # noqa
+
         self.rpc_service.add(impl_SampleService.get_sample_acls,
                              name='SampleService.get_sample_acls',
                              types=[dict])
@@ -395,6 +400,10 @@ class Application(object):
         self.rpc_service.add(impl_SampleService.status,
                              name='SampleService.status',
                              types=[dict])
+        self.rpc_service.add(impl_SampleService.validate_samples,
+                             name='SampleService.validate_samples',
+                             types=[dict])
+        self.method_authentication['SampleService.validate_samples'] = 'optional'  # noqa
         authurl = config.get(AUTH) if config else None
         self.auth_client = _KBaseAuth(authurl)
 

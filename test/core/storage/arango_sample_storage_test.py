@@ -700,6 +700,38 @@ def test_save_and_get_sample(samplestorage):
     assert samplestorage.get_sample_acls(id_) == SampleACL(
         UserID('auser'), dt(8), public_read=False)
 
+def test_save_and_get_samples(samplestorage):
+    n1 = SampleNode('root')
+    n2 = SampleNode(
+        'kid1', SubSampleType.TECHNICAL_REPLICATE, 'root',
+        {'a': {'b': 'c', 'd': 'e'}, 'f': {'g': 'h'}},
+        {'m': {'n': 'o'}},
+        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {'c': 'd'})])
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
+                    user_metadata={'f': {'g': 'h'}})
+
+    id1_ = uuid.UUID('1234567890abcdef1234567890fbcdef')
+    id2_ = uuid.UUID('1234567890abcdef1234567890fbcdea')
+    id3_ = uuid.UUID('1234567890abcdef1234567890fbcdeb')
+
+    # save three separate samples
+    assert samplestorage.save_sample(
+        SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo')) is True
+    assert samplestorage.save_sample(
+        SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar')) is True
+    assert samplestorage.save_sample(
+        SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz')) is True
+
+    assert samplestorage.get_samples([
+        {"id": id1_, "version": 1},
+        {"id": id2_, "version": 1},
+        {"id": id3_, "version": 1}
+    ]) == [
+        SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1),
+        SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar', 1),
+        SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz', 1)
+    ]
 
 def test_save_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
@@ -825,7 +857,7 @@ def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
     assert doc == {
         'id': str(id1),
         'ver': 1,
-        'saved': 7,
+        'saved': 7000,
         'name': 'mynode',
         'type': 'BIOLOGICAL_REPLICATE',
         'parent': None,
@@ -1696,7 +1728,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc2['uuidver'],
         'samintver': 2,
         'node': 'mynode1',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1718,7 +1750,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 600,
+        'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
         'expireby': None
@@ -1740,7 +1772,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc3['uuidver'],
         'samintver': 1,
         'node': 'mynode2',
-        'created': 700,
+        'created': 700000,
         'createby': 'u',
         'expired': 9007199254740991,
         'expireby': None
@@ -1762,7 +1794,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 800,
+        'created': 800000,
         'createby': 'userd',
         'expired': 9007199254740991,
         'expireby': None
@@ -1864,7 +1896,7 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1886,7 +1918,7 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
         'expireby': None
@@ -1984,7 +2016,7 @@ def test_create_data_link_with_update_noop(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -2006,7 +2038,7 @@ def test_create_data_link_with_update_noop(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
         'expireby': None
@@ -2101,9 +2133,9 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
-        'expired': 599.999,
+        'expired': 599999,
         'expireby': 'userb'
     }
 
@@ -2123,9 +2155,9 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
-        'expired': 699.999,
+        'expired': 699999,
         'expireby': 'userc'
     }
 
@@ -2145,7 +2177,7 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 600,
+        'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
         'expireby': None
@@ -2167,7 +2199,7 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode2',
-        'created': 700,
+        'created': 700000,
         'createby': 'userc',
         'expired': 9007199254740991,
         'expireby': None
@@ -2917,9 +2949,9 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': -100,
+        'created': -100000,
         'createby': 'userb',
-        'expired': expired,
+        'expired': expired * 1000,
         'expireby': 'yay'
     }
 
@@ -2939,7 +2971,7 @@ def test_expire_and_get_data_link_via_id(samplestorage):
 
 
 def test_expire_and_get_data_link_via_id_with_dataid(samplestorage):
-    _expire_and_get_data_link_via_id(samplestorage, 1, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+    _expire_and_get_data_link_via_id(samplestorage, 10, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
 
 
 def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5):
@@ -2952,7 +2984,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(.00056211),
+        dt(5),
         UserID('usera'))
     )
 
@@ -2964,7 +2996,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(0.00056211),
+        dt(5),
         UserID('usera'),
         dt(expired),
         UserID('user')
@@ -2972,10 +3004,10 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
 
     assert samplestorage._col_data_link.count() == 1
 
-    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}0.000562')
+    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}5.0')
     assert link == {
-        '_key': f'1_1_1_{expectedmd5}0.000562',
-        '_id': f'data_link/1_1_1_{expectedmd5}0.000562',
+        '_key': f'1_1_1_{expectedmd5}5.0',
+        '_id': f'data_link/1_1_1_{expectedmd5}5.0',
         '_from': 'ws_obj_ver/1:1:1',
         '_to': nodedoc1['_id'],
         '_rev': link['_rev'],  # no need to test this
@@ -2988,9 +3020,9 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 0.000562,
+        'created': 5000,
         'createby': 'usera',
-        'expired': expired,
+        'expired': expired * 1000,
         'expireby': 'user'
     }
 
@@ -2999,7 +3031,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(0.000562),
+        dt(5),
         UserID('usera'),
         dt(expired),
         UserID('user')
@@ -3140,7 +3172,7 @@ def test_expire_data_link_fail_expire_before_create_by_id(samplestorage):
     )
 
     _expire_data_link_fail(samplestorage, dt(99), UserID('u'), lid1, None, ValueError(
-        'expired is < link created time: 100'))
+        'expired is < link created time: 100000'))
 
 
 def test_expire_data_link_fail_race_condition(samplestorage):

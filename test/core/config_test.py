@@ -218,11 +218,6 @@ def _config_get_validators_fail_bad_params(temp_dir, key_):
                         'key_metadata': []}}},
         temp_dir, ValidationError("[] is not of type 'object'"))
     _config_get_validators_fail(
-        {key_: {'key': {'validators': [{'module': 'foo',
-                                        'callable_builder': 'bar'}],
-                        'key_metadata': {'a': {}}}}},
-        temp_dir, ValidationError("{} is not of type 'number', 'boolean', 'string', 'null'"))
-    _config_get_validators_fail(
         {key_: {'key': {'validators': [{}]}}}, temp_dir,
         ValidationError("'module' is a required property"))
     _config_get_validators_fail(

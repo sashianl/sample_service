@@ -406,6 +406,44 @@ def _call_prefix_validator_fail(vals, prefix, index, key, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_set_validate_metadata_return_errors():
+    _validate_metadata_errors(
+        [MetadataValidator('key1', [_noop]),
+         MetadataValidator('key2', [_noop]),
+         MetadataValidator('key', prefix_validators=[_noop3])],
+        {'key1': 'a', 'key2': 'b', 'kex': 'c'},
+        'kex', 'Cannot validate controlled field "kex", no matching validator found')
+    _validate_metadata_errors(
+        [MetadataValidator('key1', [_noop]), MetadataValidator('key2', [_noop])],
+        {'key1': 'a', 'key2': 'b', 'key3': 'c'},
+        'key3', 'Cannot validate controlled field "key3", no matching validator found')
+    _validate_metadata_errors(
+        [MetadataValidator('keyx', prefix_validators=[_noop3])],
+        {'keyx1': 'a', 'keyx2': 'b', 'key': 'c'},
+        'key', 'Cannot validate controlled field "key", no matching validator found')
+    _validate_metadata_errors(
+        [MetadataValidator('key1', [_noop]),
+         MetadataValidator('key2', [_noop]),
+         MetadataValidator('key3', [_noop, lambda _, __: 'oh poop'])],
+        {'key1': 'a', 'key2': 'b', 'key3': 'c'},
+        'key3', 'Key key3: oh poop')
+    _validate_metadata_errors(
+        [MetadataValidator('key1', prefix_validators=[_noop3]),
+         MetadataValidator('key2', prefix_validators=[_noop3]),
+         MetadataValidator('key3', prefix_validators=[_noop3, lambda _, __, ___: 'oh poop'])],
+        {'key1stuff': 'a', 'key2': 'b', 'key3yay': 'c'},
+        'key3yay', 'Prefix validator key3, key key3yay: oh poop')
+
+
+def _validate_metadata_errors(vals, meta, expected_key, expected_dev_message):
+    mv = MetadataValidatorSet(vals)
+    # with raises(Exception) as got:
+    errors = mv.validate_metadata(meta, return_error_detail=True)
+    assert len(errors) == 1
+    assert str(errors[0]['key']) == str(expected_key)
+    assert str(errors[0]['dev_message']) == str(expected_dev_message)
+
+
 def test_set_validate_metadata_fail():
     _validate_metadata_fail(
         [MetadataValidator('key1', [_noop]), MetadataValidator('key2', [_noop])],

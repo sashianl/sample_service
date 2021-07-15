@@ -200,6 +200,18 @@ module SampleService {
     /* Get a sample. If the version is omitted the most recent sample is returned. */
     funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication optional;
 
+    typedef structure {
+        sample_id id;
+        version version;
+    } SampleIdentifier;
+
+    typedef structure {
+        list<SampleIdentifier> samples;
+        boolean as_admin;
+    } GetSamplesParams;
+
+    funcdef get_samples(GetSamplesParams params) returns (list<Sample> samples) authentication optional;
+
     /* get_sample_acls parameters.
         id - the ID of the sample to retrieve.
         as_admin - get the sample acls regardless of ACL contents as long as the user has
@@ -499,4 +511,25 @@ module SampleService {
        for the service.
      */
     funcdef get_data_link(GetDataLinkParams params) returns(DataLink link) authentication required;
+
+    /* Provide sample and run through the validation steps, but without saving them. Allows all the samples to be evaluated for validity first so potential errors can be addressed.
+    */
+
+    typedef structure {
+        list<Sample> samples;
+    } ValidateSamplesParams;
+
+    typedef structure {
+        string message;
+        string dev_message;
+        sample_name sample_name;
+        node_id node;
+        metadata_key key;
+    } ValidateSamplesError;
+
+    typedef structure {
+        list<ValidateSamplesError> errors;
+    } ValidateSamplesResults;
+
+    funcdef validate_samples(ValidateSamplesParams params) returns (ValidateSamplesResults results) authentication required;
 };

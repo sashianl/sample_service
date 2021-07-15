@@ -6,7 +6,7 @@ import datetime
 import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 
-from typing import Optional, Callable, Tuple, List, Dict, Union, cast as _cast
+from typing import Optional, Callable, Tuple, List, Dict, Union, Any, cast as _cast
 
 from SampleService.core.arg_checkers import not_falsy as _not_falsy
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
@@ -98,7 +98,7 @@ class Samples:
         '''
         _not_falsy(sample, 'sample')
         _not_falsy(user, 'user')
-        self._validate_metadata(sample)
+        _ = self._validate_metadata(sample)
         if id_:
             if prior_version is not None and prior_version < 1:
                 raise _IllegalParameterError('Prior version must be > 0')
@@ -115,10 +115,20 @@ class Samples:
             self._kafka.notify_new_sample_version(id_, ver)
         return (id_, ver)
 
-    def _validate_metadata(self, sample: Sample):
+    def _validate_metadata(self, sample: Sample, return_error_detail: bool=False):
+        '''
+        :params sample: sample to be validated
+        :params return_exception: default=False, whether to return all errors found as a list exceptions.
+
+        :returns: list of excpetions
+        '''
         for i, n in enumerate(sample.nodes):
             try:
-                self._metaval.validate_metadata(n.controlled_metadata)
+                error_detail = self._metaval.validate_metadata(n.controlled_metadata, return_error_detail)
+                if return_error_detail:
+                    for e in error_detail:
+                        e['node'] = n.name
+                    return error_detail
             except _MetadataValidationError as e:
                 raise _MetadataValidationError(f'Node at index {i}: {e.message}') from e
 
@@ -178,6 +188,17 @@ class Samples:
             raise _IllegalParameterError('Version must be > 0')
         self._check_perms(_not_falsy(id_, 'id_'), user, _SampleAccessType.READ, as_admin=as_admin)
         return self._storage.get_sample(id_, version)
+
+    def get_samples(
+        self,
+        ids_: List[Dict[str, Any]],
+        user: Optional[UserID],
+        as_admin: bool = False) -> List[SavedSample]:
+        '''
+        '''
+        for id_ in ids_:
+            self._check_perms(_not_falsy(id_['id'], 'id_'), user, _SampleAccessType.READ, as_admin=as_admin)
+        return self._storage.get_samples(ids_)
 
     def get_sample_acls(
             self, id_: UUID, user: Optional[UserID], as_admin: bool = False) -> SampleACL:
@@ -499,3 +520,15 @@ class Samples:
         '''
         # if we expose this to users need to add ACL checking. Don't see a use case ATM.
         return self._storage.get_data_link(_not_falsy(link_id, 'link_id'))
+
+    def validate_sample(self, sample: Sample):
+        '''
+        This method performs only the validation steps on a sample
+
+        :param sample: the sample to validate
+        '''
+        _not_falsy(sample, 'sample')
+        error_detail = self._validate_metadata(sample, return_error_detail=True)
+        for e in error_detail:
+            e['sample_name'] = sample.name
+        return error_detail
