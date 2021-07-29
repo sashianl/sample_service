@@ -94,21 +94,21 @@ def string(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
         def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k in keys:
                 if required and k not in d1:
-                    return {'subkey':str(k), 'message':'Required key {k} is missing'}
+                    return {'subkey':str(k), 'message':f'Required key {k} is missing'}
                 v = d1.get(k)
                 if v is not None and type(v) != str:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not a string'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not a string'}
                 if v and maxlen and len(_cast(str, v)) > maxlen:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is longer than max length of {maxlen}'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is longer than max length of {maxlen}'}
             return None
     elif maxlen:
         def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k, v in d1.items():
                 if len(k) > _cast(int, maxlen):
-                    return {'subkey':str(k), 'message':'Metadata contains key longer than max length of {maxlen}'}
+                    return {'subkey':str(k), 'message':f'Metadata contains key longer than max length of {maxlen}'}
                 if type(v) == str:
                     if len(_cast(str, v)) > _cast(int, maxlen):
-                        return {'subkey':str(k), 'message':'Metadata value at key {k} is longer than max length of {maxlen}'}
+                        return {'subkey':str(k), 'message':f'Metadata value at key {k} is longer than max length of {maxlen}'}
             return None
     else:
         raise ValueError('If the keys parameter is not specified, max-len must be specified')
@@ -146,14 +146,14 @@ def enum(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optiona
         def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k in keys:
                 if d1.get(k) not in allowed:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not in the allowed list of values'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not in the allowed list of values'}
             return None
     else:
 
         def enumval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k, v in d1.items():
                 if v not in allowed:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not in the allowed list of values'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not in the allowed list of values'}
             return None
     return enumval
 
@@ -220,15 +220,15 @@ def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Option
     def unitval(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
         unitstr = d1.get(_cast(str, k))
         if not unitstr:
-            return {'subkey':str(k), 'message':'metadata value key {k} is required'}
+            return {'subkey':str(k), 'message':f'metadata value key {k} is required'}
         if type(unitstr) != str:
-            return {'subkey':str(k), 'message':'metadata value key {k} must be a string'}
+            return {'subkey':str(k), 'message':f'metadata value key {k} must be a string'}
         try:
             units = _UNIT_REG.parse_expression(unitstr)
         except _UndefinedUnitError as e:
-            return {'subkey':str(k), 'message':'unable to parse units \'{u}\' at key {k}: undefined unit: {e.args[0]}'}
+            return {'subkey':str(k), 'message':f'unable to parse units \'{u}\' at key {k}: undefined unit: {e.args[0]}'}
         except _DefinitionSyntaxError as e:
-            return {'subkey':str(k), 'message':'unable to parse units \'{u}\' at key {k}: syntax error: {e.args[0]}'}
+            return {'subkey':str(k), 'message':f'unable to parse units \'{u}\' at key {k}: syntax error: {e.args[0]}'}
         try:
             (1 * units).ito(req_units)
         except _DimensionalityError as e:
@@ -275,21 +275,21 @@ def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
         def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k in keys:
                 if required and k not in d1:
-                    return {'subkey':str(k), 'message':'Required key {k} is missing'}
+                    return {'subkey':str(k), 'message':f'Required key {k} is missing'}
                 v = d1.get(k)
                 if v is not None and type(v) not in types:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not an accepted number type'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not an accepted number type'}
                 if v is not None and v not in range_:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not within the range {range_}'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not within the range {range_}'}
             return None
     else:
         def strlen(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
             for k, v in d1.items():
                 # duplicate of above, meh.
                 if v is not None and type(v) not in types:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not an accepted number type'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not an accepted number type'}
                 if v is not None and v not in range_:
-                    return {'subkey':str(k), 'message':'Metadata value at key {k} is not within the range {range_}'}
+                    return {'subkey':str(k), 'message':f'Metadata value at key {k} is not within the range {range_}'}
             return None
     return strlen
 
@@ -379,9 +379,9 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
     def ontology_has_ancestor_val(key: str, d1: Dict[str, PrimitiveType]) -> Optional[ValidatorMessage]:
         for k, v in d1.items():
             if v is None:
-                return {'subkey':str(k), 'message':'Metadata value at key {k} is None'}
+                return {'subkey':str(k), 'message':f'Metadata value at key {k} is None'}
             ancestors=_get_ontology_ancestors(ontology, v)
             if ancestor_term not in ancestors:
-                return {'subkey':str(k), 'message':'Metadata value at key {k} does not have {ontology} ancestor term {ancestor_term}'}
+                return {'subkey':str(k), 'message':f'Metadata value at key {k} does not have {ontology} ancestor term {ancestor_term}'}
         return None
     return ontology_has_ancestor_val

@@ -1,6 +1,10 @@
 # SampleService release notes
 =========================================
 
+0.1.0-alpha28
+-----
+* Add metadata (sub)key information to returned error detail
+
 0.1.0-alpha27
 -----
 * Adding auth-read-exempt-roles to config file so that read privileges are removed from get_sample_acls

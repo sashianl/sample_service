@@ -55,8 +55,8 @@ Note that usage of the administration flags will be logged by the service.
     # the latter method is running.
     ######################################### noqa
     VERSION = "0.1.0-alpha27"
-    GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "e99fcb5e2069e41a9f6adec8128408500cf80573"
+    GIT_URL = "git@github.com:kbase/sample_service.git"
+    GIT_COMMIT_HASH = "57c4a309ae62140e7d3d86129f4f7c853ba2ffdb"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -1137,7 +1137,7 @@ Note that usage of the administration flags will be logged by the service.
            "node_id" (A SampleNode ID. Must be unique within a Sample and be
            less than 255 characters.), parameter "key" of type "metadata_key"
            (A key in a metadata key/value pair. Less than 1000 unicode
-           characters.)
+           characters.), parameter "subkey" of String
         """
         # ctx is the context object
         # return variables are: results
