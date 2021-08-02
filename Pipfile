@@ -31,6 +31,8 @@ gunicorn = "==20.0.4"
 kafka-python = "==2.0.1"
 greenlet = "==0.4.16"
 typing-extensions = "*"
+types-pyyaml = "*"
+types-requests = "*"
 
 [requires]
 python_version = "3.7"
