@@ -896,7 +896,7 @@ class SampleService(object):
            "node_id" (A SampleNode ID. Must be unique within a Sample and be
            less than 255 characters.), parameter "key" of type "metadata_key"
            (A key in a metadata key/value pair. Less than 1000 unicode
-           characters.)
+           characters.), parameter "subkey" of String
         """
         return self._client.call_method('SampleService.validate_samples',
                                         [params], self._service_ver, context)
