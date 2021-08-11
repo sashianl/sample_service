@@ -1,9 +1,13 @@
 # SampleService release notes
 =========================================
 
-0.1.0-alpha28
+0.1.0-alpha29
 -----
 * Adding autoconvert_offset_to_baseunit=True pint to UnitRegistry to handle temperature and other non-multiplicative unit scaling
+
+0.1.0-alpha28
+-----
+* Add metadata (sub)key information to returned error detail
 
 0.1.0-alpha27
 -----

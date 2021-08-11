@@ -525,6 +525,7 @@ module SampleService {
         sample_name sample_name;
         node_id node;
         metadata_key key;
+        string subkey;
     } ValidateSamplesError;
 
     typedef structure {

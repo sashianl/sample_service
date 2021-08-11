@@ -109,7 +109,7 @@ def test_string_validate_fail_bad_metadata_values():
 
 
 def _string_validate_fail(cfg, meta, expected):
-    assert builtin.string(cfg)('key', meta) == expected
+    assert builtin.string(cfg)('key', meta)['message'] == expected
 
 
 def test_enum():
@@ -170,7 +170,7 @@ def _enum_build_fail(cfg, expected):
 
 
 def _enum_validate_fail(cfg, meta, expected):
-    assert builtin.enum(cfg)('key', meta) == expected
+    assert builtin.enum(cfg)('key', meta)['message'] == expected
 
 
 def test_units():
@@ -229,7 +229,7 @@ def _units_build_fail(cfg, expected):
 
 
 def _units_validate_fail(cfg, meta, expected):
-    assert builtin.units(cfg)('key', meta) == expected
+    assert builtin.units(cfg)('key', meta)['message'] == expected
 
 
 def test_number():
@@ -378,7 +378,7 @@ def _number_build_fail(cfg, expected):
 
 
 def _number_validate_fail(cfg, meta, expected):
-    assert builtin.number(cfg)('key', meta) == expected
+    assert builtin.number(cfg)('key', meta)['message'] == expected
 
 def test_ontology_has_ancestor():
   _ontology_has_ancestor_success(
@@ -424,4 +424,4 @@ def test_ontology_has_ancestor_validate_fail():
         {'a': 'ENVO:00002041'}, 'Metadata value at key a does not have envo_ontology ancestor term ENVO:00002010')
 
 def _ontology_has_ancestor_validate_fail(cfg, meta, expected):
-    assert builtin.ontology_has_ancestor(cfg)('key', meta) == expected
+    assert builtin.ontology_has_ancestor(cfg)('key', meta)['message'] == expected
