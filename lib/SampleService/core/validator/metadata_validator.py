@@ -293,7 +293,7 @@ class MetadataValidatorSet:
                         errors.append(
                             self.build_error_detail(
                                 f'Validation failed: "{msg}"',
-                                dev_message=f'Key {k}: {ret}',
+                                dev_message=f'Key {k}: {msg}',
                                 key=k,
                                 subkey=subkey
                             )
