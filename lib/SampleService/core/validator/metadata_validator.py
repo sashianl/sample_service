@@ -245,6 +245,7 @@ class MetadataValidatorSet:
             'message': message,
             'dev_message': dev_message if dev_message!=None else message,
             'key': key,
+            'subkey': subkey,
             'node': node,
             'sample_name': sample
         }
@@ -281,13 +282,13 @@ class MetadataValidatorSet:
                         f'No validator available for metadata key {k}')
             for valfunc in self._vals.get(k, []):
                 ret = valfunc(k, metadata[k])
-                if isinstance(ret, dict):
-                    msg: str = ret['message']
-                    subkey: Optional[str] = ret['subkey']
-                else:
-                    msg = str(ret)
-                    subkey = None
                 if ret:
+                    try:
+                        msg: str = ret['message']
+                        subkey: Optional[str] = ret['subkey']
+                    except:
+                        msg = str(ret)
+                        subkey = None
                     if return_error_detail:
                         errors.append(
                             self.build_error_detail(
