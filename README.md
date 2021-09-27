@@ -281,10 +281,13 @@ defined in the validator configuration file (see below) and is accessible via th
 
 ## Configuration
 
-The `deploy.cfg` configuration file contains a key, `metadata-validator-config-url`, that if
-provided must be a url that points to a validator configuration file. The configuration file
-is loaded on service startup and used to configure the metadata validators. If changes are made
-to the configuration file the service must be restarted to reconfigure the validators.
+The `deploy.cfg` configuration file contains a key, `metadata-validator-config-repo`, that if
+provided must be a relative github path that points to a validator configuration github repo. 
+The configuration repo should have chronological releases containing a configuration file called 
+`metadata_validation.yml`. A direct file URL overide can also be provided with the 
+`metadata-validator-config-url` key. The configuration file is loaded on service startup and used 
+to configure the metadata validators. If changes are made to the configuration file the service 
+must be restarted to reconfigure the validators.
 
 The configuration file uses the YAML format and is validated against the following JSONSchema:
 

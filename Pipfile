@@ -33,6 +33,7 @@ greenlet = "==0.4.16"
 typing-extensions = "*"
 types-pyyaml = "*"
 types-requests = "*"
+pygithub = "*"
 
 [requires]
 python_version = "3.7"

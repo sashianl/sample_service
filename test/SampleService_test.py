@@ -412,7 +412,7 @@ def test_init_fail():
     # get_validators is tested elsewhere, just make sure it'll error out
     cfg['metadata-validator-config-url'] = 'https://kbase.us/services'
     init_fail(cfg, ValueError(
-        'Failed to open validator configuration file at https://kbase.us/services: Not Found'))
+        'Failed to open validator configuration file from https://kbase.us/services: Not Found'))
 
 
 def init_fail(config, expected):

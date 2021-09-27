@@ -69,7 +69,8 @@ schema-collection = {{ default .Env.schema_collection "samples_schema" }}
 
 # A URL pointing to a configuration file for any metadata validators to be installed on startup.
 # See the readme file for a description of the file contents.
-metadata-validator-config-url = {{ default .Env.metadata_validator_config_url "https://raw.githubusercontent.com/kbase/sample_service_validator_config/master/metadata_validation.yml" }}
+metadata-validator-config-repo = {{ default .Env.metadata_validator_config_repo "kbase/sample_service_validator_config" }}
+metadata-validator-config-url = {{ default .Env.metadata_validator_config_url "" }}
 
 # Parameters for Kafka notifications.
 #

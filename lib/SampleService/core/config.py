@@ -14,6 +14,7 @@ import yaml as _yaml
 from yaml.parser import ParserError as _ParserError
 from jsonschema import validate as _validate
 import arango as _arango
+from github import Github as _Github
 
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core.validator.metadata_validator import MetadataValidator as _MetadataValidator
@@ -76,6 +77,10 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, Lis
     if kafka_servers:  # have to start the server twice to test no kafka scenario
         kafka_topic = _check_string(config.get('kafka-topic'), 'config param kafka-topic')
 
+    metaval_repo = _check_string(config.get('metadata-validator-config-repo'),
+                                'config param metadata-validator-config-repo',
+                                optional=True)
+
     metaval_url = _check_string(config.get('metadata-validator-config-url'),
                                 'config param metadata-validator-config-url',
                                 optional=True)
@@ -105,11 +110,12 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, Lis
             workspace-read-admin-token: [REDACTED FOR YOUR ULTIMATE PLEASURE]
             kafka-bootstrap-servers: {kafka_servers}
             kafka-topic: {kafka_topic}
+            metadata-validators-config-repo: {metaval_repo}
             metadata-validators-config-url: {metaval_url}
     ''')
 
     # build the validators before trying to connect to arango
-    metaval = get_validators(metaval_url) if metaval_url else MetadataValidatorSet()
+    metaval = get_validators(repo_path=metaval_repo, url=(metaval_url or None)) if (metaval_url or metaval_repo) else MetadataValidatorSet()
 
     arangoclient = _arango.ArangoClient(hosts=arango_url)
     arango_db = arangoclient.db(
@@ -198,7 +204,7 @@ _META_VAL_JSONSCHEMA = {
 }
 
 
-def get_validators(url: str) -> MetadataValidatorSet:
+def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None) -> MetadataValidatorSet:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -207,15 +213,42 @@ def get_validators(url: str) -> MetadataValidatorSet:
     :returns: A set of metadata validators.
     '''
     # TODO VALIDATOR make validator CLI
+
     try:
-        with _urllib.request.urlopen(url) as res:
-            cfg = _yaml.safe_load(res)
+        token = ""
+        if url:
+            config_url = url
+        elif not repo_path:
+            raise ValueError(f'No metadata validator config URL or repo path.')
+        else:
+            repo = _Github(login_or_token=token).get_repo(repo_path)
+            releases = [rel for rel in repo.get_releases() if not rel.prerelease]
+            if not releases:
+                raise ValueError(f'No releases found in validator config repo {repo_path}')
+            latest_release = releases[0] # max(releases, key=lambda rel: rel.created_at)
+            assets = latest_release.get_assets()
+            if not assets:
+                raise ValueError(f'No assets found in validator config repo {repo_path}')
+            config_asset = next((a for a in assets if a.name=='metadata_validation.yml'), None)
+            if not config_asset:
+                raise ValueError(f'No config asset found in validator config repo {repo_path}')
+            config_url = config_asset.url
+
+        req = _urllib.request.Request(config_url)
+        req.add_header('Accept', 'application/octet-stream')
+        req.add_header('Authorization', f'token {token}')
+        with _urllib.request.urlopen(req) as response:
+            cfg = _yaml.safe_load(response)
+
     except _URLError as e:
-        raise ValueError(
-            f'Failed to open validator configuration file at {url}: {str(e.reason)}') from e
+        if config_asset:
+            raise ValueError(f'Error downloading config asset from {config_asset.url}: {str(e.reason)}') from e
+        else:
+            raise ValueError(f'Error downloading config asset from {url or repo_path}: {str(e.reason)}') from e
     except _ParserError as e:
         raise ValueError(
-            f'Failed to open validator configuration file at {url}: {str(e)}') from e
+            f'Failed to open validator configuration file from {url or repo_path}: {str(e)}') from e
+
     _validate(instance=cfg, schema=_META_VAL_JSONSCHEMA)
 
     mvals = _get_validators(
