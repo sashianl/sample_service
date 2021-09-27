@@ -283,6 +283,7 @@ defined in the validator configuration file (see below) and is accessible via th
 
 The `deploy.cfg` configuration file contains a key, `metadata-validator-config-repo`, that if
 provided must be a relative github path that points to a validator configuration github repo. 
+Setting `github-token` will help to avoid any rate limiting that may occur (1k/hr vs 60/hr requests.)
 The configuration repo should have chronological releases containing a configuration file called 
 `metadata_validation.yml`. A direct file URL overide can also be provided with the 
 `metadata-validator-config-url` key. The configuration file is loaded on service startup and used 

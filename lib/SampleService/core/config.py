@@ -85,6 +85,10 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, Lis
                                 'config param metadata-validator-config-url',
                                 optional=True)
 
+    github_token = _check_string(config.get('github-token'),
+                                'config param github-token',
+                                optional=True)
+
     # meta params may have info that shouldn't be logged so don't log any for now.
     # Add code to deal with this later if needed
     print(f'''
@@ -115,7 +119,11 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, Lis
     ''')
 
     # build the validators before trying to connect to arango
-    metaval = get_validators(repo_path=metaval_repo, url=(metaval_url or None)) if (metaval_url or metaval_repo) else MetadataValidatorSet()
+    metaval = get_validators(
+        repo_path=metaval_repo,
+        url=(metaval_url or None),
+        token=(github_token or None)) if (
+            metaval_url or metaval_repo) else MetadataValidatorSet()
 
     arangoclient = _arango.ArangoClient(hosts=arango_url)
     arango_db = arangoclient.db(
@@ -204,7 +212,7 @@ _META_VAL_JSONSCHEMA = {
 }
 
 
-def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None) -> MetadataValidatorSet:
+def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None, token: Optional[str] = None) -> MetadataValidatorSet:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -215,7 +223,6 @@ def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None) -
     # TODO VALIDATOR make validator CLI
 
     try:
-        token = None
         config_asset = None
         if url:
             config_url = url

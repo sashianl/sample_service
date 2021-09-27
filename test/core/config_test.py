@@ -159,7 +159,7 @@ def test_config_get_validators_fail_bad_file(temp_dir):
     with raises(Exception) as got:
         get_validators(url='file://' + tf)
     assert_exception_correct(got.value, ValueError(
-        f"Failed to open validator configuration file at file://{tf}: " +
+        f"Error downloading config asset from file://{tf}: " +
         f"[Errno 2] No such file or directory: '{tf}'"))
 
 
@@ -172,7 +172,7 @@ def test_config_get_validators_fail_bad_yaml(temp_dir):
     with raises(Exception) as got:
         get_validators(url='file://' + tf[1])
     assert_exception_correct(got.value, ValueError(
-        f'Failed to open validator configuration file at file://{tf[1]}: while parsing a ' +
+        f'Failed to open validator configuration file from file://{tf[1]}: while parsing a ' +
         'flow sequence\n  in "<urllib response>", line 1, column 1\nexpected \',\' or \']\', ' +
         'but got \'<stream end>\'\n  in "<urllib response>", line 1, column 10'
     ))
