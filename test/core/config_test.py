@@ -100,7 +100,7 @@ def test_config_get_validators(temp_dir):
         }
     }
     tf = _write_validator_config(cfg, temp_dir)
-    vals = get_validators('file://' + tf)
+    vals = get_validators(url='file://' + tf)
     assert len(vals.keys()) == 3
     assert len(vals.prefix_keys()) == 3
     # the test validators always fail
@@ -148,7 +148,7 @@ def test_config_get_validators(temp_dir):
     # noop entry
     cfg = {}
     tf = _write_validator_config(cfg, temp_dir)
-    vals = get_validators('file://' + tf)
+    vals = get_validators(url='file://' + tf)
     assert len(vals.keys()) == 0
     assert len(vals.prefix_keys()) == 0
 
@@ -157,7 +157,7 @@ def test_config_get_validators_fail_bad_file(temp_dir):
     tf = _write_validator_config({}, temp_dir)
     os.remove(tf)
     with raises(Exception) as got:
-        get_validators('file://' + tf)
+        get_validators(url='file://' + tf)
     assert_exception_correct(got.value, ValueError(
         f"Failed to open validator configuration file at file://{tf}: " +
         f"[Errno 2] No such file or directory: '{tf}'"))
@@ -170,7 +170,7 @@ def test_config_get_validators_fail_bad_yaml(temp_dir):
     with open(tf[1], 'w') as temp:
         temp.write('[bad yaml')
     with raises(Exception) as got:
-        get_validators('file://' + tf[1])
+        get_validators(url='file://' + tf[1])
     assert_exception_correct(got.value, ValueError(
         f'Failed to open validator configuration file at file://{tf[1]}: while parsing a ' +
         'flow sequence\n  in "<urllib response>", line 1, column 1\nexpected \',\' or \']\', ' +
@@ -295,5 +295,5 @@ def test_config_get_prefix_validators_fail_function_exception(temp_dir):
 def _config_get_validators_fail(cfg, temp_dir, expected):
     tf = _write_validator_config(cfg, temp_dir)
     with raises(Exception) as got:
-        get_validators('file://' + tf)
+        get_validators(url='file://' + tf)
     assert_exception_correct(got.value, expected)

@@ -215,7 +215,8 @@ def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None) -
     # TODO VALIDATOR make validator CLI
 
     try:
-        token = ""
+        token = None
+        config_asset = None
         if url:
             config_url = url
         elif not repo_path:
@@ -236,7 +237,8 @@ def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None) -
 
         req = _urllib.request.Request(config_url)
         req.add_header('Accept', 'application/octet-stream')
-        req.add_header('Authorization', f'token {token}')
+        if token:
+            req.add_header('Authorization', f'token {token}')
         with _urllib.request.urlopen(req) as response:
             cfg = _yaml.safe_load(response)
 
