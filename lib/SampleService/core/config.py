@@ -80,6 +80,14 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, Lis
     metaval_repo = _check_string(config.get('metadata-validator-config-repo'),
                                 'config param metadata-validator-config-repo',
                                 optional=True)
+    
+    metaval_filename = _check_string(config.get('metadata-validator-config-filename'),
+                                'config param metadata-validator-config-filename',
+                                optional=True)
+    
+    metaval_prelease_ok = _check_string(config.get('metadata-validator-config-prerelease'),
+                                'config param metadata-validator-config-prerelease',
+                                optional=True)
 
     metaval_url = _check_string(config.get('metadata-validator-config-url'),
                                 'config param metadata-validator-config-url',
@@ -121,6 +129,8 @@ def build_samples(config: Dict[str, str]) -> Tuple[Samples, KBaseUserLookup, Lis
     # build the validators before trying to connect to arango
     metaval = get_validators(
         repo_path=metaval_repo,
+        repo_file=metaval_filename,
+        prerelease_ok= (metaval_prelease_ok or '').lower() in ('true', 'yes', 'y', '1'),
         url=(metaval_url or None),
         token=(github_token or None)) if (
             metaval_url or metaval_repo) else MetadataValidatorSet()
@@ -212,7 +222,7 @@ _META_VAL_JSONSCHEMA = {
 }
 
 
-def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None, token: Optional[str] = None) -> MetadataValidatorSet:
+def get_validators(repo_path: Optional[str] = None, repo_file: Optional[str] = None, prerelease_ok: Optional[bool] = False, url: Optional[str] = None, token: Optional[str] = None) -> MetadataValidatorSet:
     '''
     Given a url pointing to a config file, initialize any metadata validators present
     in the configuration.
@@ -230,14 +240,14 @@ def get_validators(repo_path: Optional[str] = None, url: Optional[str] = None, t
             raise ValueError(f'No metadata validator config URL or repo path.')
         else:
             repo = _Github(login_or_token=token).get_repo(repo_path)
-            releases = [rel for rel in repo.get_releases() if not rel.prerelease]
+            releases = [rel for rel in repo.get_releases() if prerelease_ok or not rel.prerelease]
             if not releases:
                 raise ValueError(f'No releases found in validator config repo {repo_path}')
             latest_release = releases[0] # max(releases, key=lambda rel: rel.created_at)
             assets = latest_release.get_assets()
             if not assets:
                 raise ValueError(f'No assets found in validator config repo {repo_path}')
-            config_asset = next((a for a in assets if a.name=='metadata_validation.yml'), None)
+            config_asset = next((a for a in assets if a.name==repo_file), None)
             if not config_asset:
                 raise ValueError(f'No config asset found in validator config repo {repo_path}')
             config_url = config_asset.url
