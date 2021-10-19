@@ -127,7 +127,7 @@ class MetadataValidatorSet:
         '''
         return self._prefix_vals.keys()
 
-    def key_metadata(self, keys: List[str]) -> Dict[str, Dict[str, PrimitiveType]]:
+    def key_metadata(self, keys: List[str], verbose: bool = False) -> Dict[str, Dict[str, PrimitiveType]]:
         '''
         Get any metdata associated with the specified keys.
 
@@ -136,22 +136,30 @@ class MetadataValidatorSet:
         :raises IllegalParameterError: if one of the provided keys does not exist in this
             validator.
         '''
-        return self._key_metadata(keys, self._vals_meta, '')
+        return self._key_metadata(keys, self._vals_meta, '', verbose=verbose)
 
-    def _key_metadata(self, keys, meta, name_):
+    def _key_metadata(self, keys, meta, name_, verbose = False):
         if keys is None:
             raise ValueError('keys cannot be None')
         ret = {}
+        err_keys = []
         for k in keys:
             if k not in meta:
-                raise _IllegalParameterError(f'No such {name_}metadata key: {k}')
-            ret[k] = meta[k]
+                if verbose:
+                    err_keys.append(k)
+                else:
+                    raise _IllegalParameterError(f'No such {name_}metadata key: {k}')
+            else:
+                ret[k] = meta[k]
+        if err_keys:
+            raise _IllegalParameterError(f'No such {name_}metadata keys: ' + ', '.join([str(k) for k in err_keys]))
         return ret
 
     def prefix_key_metadata(
             self,
             keys: List[str],
-            exact_match: bool = True
+            exact_match: bool = True,
+            verbose: bool = False
             ) -> Dict[str, Dict[str, PrimitiveType]]:
         '''
         Get any metdata associated with the specified prefix keys.
@@ -164,16 +172,23 @@ class MetadataValidatorSet:
             validator.
         '''
         if exact_match:
-            return self._key_metadata(keys, self._prefix_vals_meta, 'prefix ')
+            return self._key_metadata(keys, self._prefix_vals_meta, 'prefix ', verbose=verbose)
         else:
             if keys is None:
                 raise ValueError('keys cannot be None')
             ret = {}
+            err_keys = []
             for k in keys:
                 if not self._prefix_vals.shortest_prefix(k):
-                    raise _IllegalParameterError(f'No prefix metadata keys matching key {k}')
-                for p in self._prefix_vals.prefixes(k):
-                    ret[p.key] = self._prefix_vals_meta[p.key]
+                    if verbose:
+                        err_keys.append(k)
+                    else:
+                        raise _IllegalParameterError(f'No prefix metadata keys matching key {k}')
+                else:
+                    for p in self._prefix_vals.prefixes(k):
+                        ret[p.key] = self._prefix_vals_meta[p.key]
+            if err_keys:
+                raise _IllegalParameterError('No prefix metadata keys matching keys: ' + ', '.join([str(k) for k in err_keys]))
             return ret
 
     def validator_count(self, key: str):

@@ -289,10 +289,14 @@ module SampleService {
             1 to interrogate prefix metadata keys, but require an exact match to the prefix key.
             2 to interrogate prefix metadata keys, but any keys which are a prefix of the
                 provided keys will be included in the results.
+        verbose - optional (default = False)
+            False - raise first key error as it comes up
+            True - raise all key errors together
      */
     typedef structure {
         list<metadata_key> keys;
         int prefix;
+        boolean verbose;
     } GetMetadataKeyStaticMetadataParams;
 
     /* get_metadata_key_static_metadata results.

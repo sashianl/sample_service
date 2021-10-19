@@ -1212,11 +1212,11 @@ def test_get_key_metadata():
 
     assert s.get_key_static_metadata(['a', 'b']) == {'a': {'c': 'd'}, 'b': {'e': 3}}
 
-    meta.key_metadata.assert_called_once_with(['a', 'b'])
+    meta.key_metadata.assert_called_once_with(['a', 'b'], verbose=False)
 
     assert s.get_key_static_metadata(['a', 'b'], prefix=False) == {'a': {'c': 'e'}, 'b': {'e': 4}}
 
-    meta.key_metadata.assert_called_with(['a', 'b'])
+    meta.key_metadata.assert_called_with(['a', 'b'], verbose=False)
 
     assert meta.key_metadata.call_count == 2
 
@@ -1237,12 +1237,12 @@ def test_get_prefix_key_metadata():
     assert s.get_key_static_metadata(['a', 'b'], prefix=None) == {
         'a': {'c': 'd'}, 'b': {'e': 3}}
 
-    meta.prefix_key_metadata.assert_called_once_with(['a', 'b'], exact_match=True)
+    meta.prefix_key_metadata.assert_called_once_with(['a', 'b'], exact_match=True, verbose=False)
 
     assert s.get_key_static_metadata(['a', 'b'], prefix=True) == {
         'a': {'c': 'f'}, 'b': {'e': 5}}
 
-    meta.prefix_key_metadata.assert_called_with(['a', 'b'], exact_match=False)
+    meta.prefix_key_metadata.assert_called_with(['a', 'b'], exact_match=False, verbose=False)
 
     assert meta.prefix_key_metadata.call_count == 2
 

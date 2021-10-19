@@ -831,14 +831,14 @@ def _check_admin_fail(ul, token, perm, method, logfn, as_user, expected):
 
 
 def test_get_static_key_metadata_params():
-    assert get_static_key_metadata_params({'keys': []}) == ([], False)
-    assert get_static_key_metadata_params({'keys': ['foo'], 'prefix': None}) == (['foo'], False)
+    assert get_static_key_metadata_params({'keys': []}) == ([], False, False)
+    assert get_static_key_metadata_params({'keys': ['foo'], 'prefix': None}) == (['foo'], False, False)
     assert get_static_key_metadata_params({'keys': ['bar', 'foo'], 'prefix': 0}) == (
-        ['bar', 'foo'], False)
-    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': False}) == (['bar'], False)
-    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 1}) == (['bar'], None)
-    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 2}) == (['bar'], True)
-
+        ['bar', 'foo'], False, False)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': False}) == (['bar'], False, False)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 1}) == (['bar'], None, False)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 2}) == (['bar'], True, False)
+    assert get_static_key_metadata_params({'keys': ['bar'], 'prefix': 2, 'verbose': 1}) == (['bar'], True, True)
 
 def test_get_static_key_metadata_params_fail_bad_args():
     _get_static_key_metadata_params_fail(None, ValueError('params cannot be None'))

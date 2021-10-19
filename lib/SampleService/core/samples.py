@@ -312,7 +312,8 @@ class Samples:
     def get_key_static_metadata(
             self,
             keys: List[str],
-            prefix: Union[bool, None] = False
+            prefix: Union[bool, None] = False,
+            verbose: bool = False
             ) -> Dict[str, Dict[str, PrimitiveType]]:
         '''
         Get any static metadata associated with the provided list of keys.
@@ -325,9 +326,9 @@ class Samples:
         if keys is None:
             raise ValueError('keys cannot be None')
         if prefix is False:
-            return self._metaval.key_metadata(keys)
+            return self._metaval.key_metadata(keys, verbose=verbose)
         else:
-            return self._metaval.prefix_key_metadata(keys, exact_match=not bool(prefix))
+            return self._metaval.prefix_key_metadata(keys, exact_match=not bool(prefix), verbose=verbose)
 
     def create_data_link(
             self,

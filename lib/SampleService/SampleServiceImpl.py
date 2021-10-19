@@ -586,8 +586,8 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: results
         #BEGIN get_metadata_key_static_metadata
-        keys, prefix = _get_static_key_metadata_params(params)
-        results = {'static_metadata': self._samples.get_key_static_metadata(keys, prefix=prefix)}
+        keys, prefix, verbose = _get_static_key_metadata_params(params)
+        results = {'static_metadata': self._samples.get_key_static_metadata(keys, prefix=prefix, verbose=verbose)}
         #END get_metadata_key_static_metadata
 
         # At some point might do deeper type checking...

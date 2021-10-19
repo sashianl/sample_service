@@ -2011,6 +2011,8 @@ def test_get_metadata_key_static_metadata(sample_port):
         sample_port, {'keys': ['pre'], 'prefix': 1}, {'pre': {'1': '2'}})
     _get_metadata_key_static_metadata(
         sample_port, {'keys': ['premature'], 'prefix': 2}, {'pre': {'1': '2'}})
+    _get_metadata_key_static_metadata(
+        sample_port, {'keys': ['foo'], 'prefix': 0, 'verbose': 1}, {'foo': {'a': 'b', 'c': 'd'}})
 
 
 def _get_metadata_key_static_metadata(sample_port, params, expected):
@@ -2047,6 +2049,21 @@ def test_get_metadata_key_static_metadata_fail_bad_args(sample_port):
         {'keys': ['somekey'], 'prefix': 2},
         'Sample service error code 30001 Illegal input parameter: No prefix metadata keys ' +
         'matching key somekey')
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {'keys': ['yabadoo', 'tumtum'], 'prefix': 0, 'verbose': 1},
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'No such metadata keys: yabadoo, tumtum')
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {'keys': ['yabadoo', 'tumtum'], 'prefix': 1, 'verbose': 1},
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'No such prefix metadata keys: yabadoo, tumtum')
+    _get_metadata_key_static_metadata_fail(
+        sample_port,
+        {'keys': ['yabadoo', 'tumtum'], 'prefix': 2, 'verbose': 1},
+        'Sample service error code 30001 Illegal input parameter: ' +
+        'No prefix metadata keys matching keys: yabadoo, tumtum')
 
 
 def _get_metadata_key_static_metadata_fail(sample_port, params, error):
