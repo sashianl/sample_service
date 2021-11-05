@@ -75,7 +75,7 @@ def string(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
     If any of the values for the provided keys are not strings, an error is returned. If the
     `max-len` parameter is provided, the value of which must be an integer, the values' lengths
     must be less than 'max-len'. If the 'required' parameter's value is truthy, an error is
-    thrown if any of the keys in the 'keys' parameter do not exist in the map, athough the
+    thrown if any of the keys in the 'keys' parameter do not exist in the map, although the
     values may be None.
 
     If the 'keys' parameter is not provided, 'max-len' must be provided, in which case all
@@ -270,7 +270,7 @@ def number(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Optio
     provided string(s) are used by the returned callable to query the metadata map.
     If any of the values for the provided keys are not a number as specified, an error is
     returned. If the 'required' parameter's value is truthy, an error is
-    thrown if any of the keys in the 'keys' parameter do not exist in the map, athough the
+    thrown if any of the keys in the 'keys' parameter do not exist in the map, although the
     values may be None.
 
     :param d: the configuration map for the callable.
@@ -363,13 +363,13 @@ def ontology_has_ancestor(d: Dict[str, Any]) -> Callable[[str, Dict[str, Primiti
 
     ontology = d.get('ontology')
     if not ontology:
-        raise ValueError('ontology is a required paramter')
+        raise ValueError('ontology is a required parameter')
     if type(ontology) != str:
         raise ValueError('ontology must be a string')
 
     ancestor_term = d.get('ancestor_term')
     if not ancestor_term:
-        raise ValueError('ancestor_term is a required paramter')
+        raise ValueError('ancestor_term is a required parameter')
     if type(ancestor_term) != str:
         raise ValueError('ancestor_term must be a string')
 
