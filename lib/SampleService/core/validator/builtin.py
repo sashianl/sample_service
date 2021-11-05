@@ -17,6 +17,7 @@ import os
 import ranges
 from typing import Dict, Any, Callable, Optional, cast as _cast, Set as _Set
 from typing_extensions import TypedDict
+import pint
 from pint import UnitRegistry as _UnitRegistry
 from pint import DimensionalityError as _DimensionalityError
 from pint import UndefinedUnitError as _UndefinedUnitError
@@ -239,7 +240,10 @@ def units(d: Dict[str, Any]) -> Callable[[str, Dict[str, PrimitiveType]], Option
         except _DefinitionSyntaxError as e:
             return {'subkey':str(k), 'message':f'unable to parse units \'{u}\' at key {k}: syntax error: {e.args[0]}'}
         try:
-            (1 * units).ito(req_units)
+            # Here we attempt to convert a quantity of "1" in the provided unit to 
+            # the canonical (also referred to as "example") unit provided in the
+            # validation spec.
+            pint.quantity.Quantity(1, units).to(req_units)
         except _DimensionalityError as e:
             msg = (f"Units at key {k}, '{unitstr}', are not equivalent to " +
                    f"required units, '{u}': {e}")
