@@ -4,6 +4,7 @@
 
 * To fix temperature unit conversion check which breaks for celsius and (gasp) Fahrenheit,
   use the quantity api rather than multiplication (SAM-91).
+* Pin flake8 and pipenv in requirements.txt for usage by GHA workflows or local development.
 
 ## 0.1.0-alpha28
 
