@@ -393,11 +393,11 @@ def test_ontology_has_ancestor_build_fail():
     _ontology_has_ancestor_build_fail({'whee': 'whoo'}, 
         ValueError('Unexpected configuration parameter: whee'))
     _ontology_has_ancestor_build_fail({'ontology': None}, 
-        ValueError('ontology is a required paramter'))
+        ValueError('ontology is a required parameter'))
     _ontology_has_ancestor_build_fail({'ontology': ['foo']}, 
         ValueError('ontology must be a string'))
     _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': None}, 
-        ValueError('ancestor_term is a required paramter'))
+        ValueError('ancestor_term is a required parameter'))
     _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': ['foo']}, 
         ValueError('ancestor_term must be a string'))
     _ontology_has_ancestor_build_fail(
