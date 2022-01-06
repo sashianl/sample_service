@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Add black as development dependency; apply black to all python source in lib and test
+
 ## 0.1.0
 
 * To fix temperature unit conversion check which breaks for celsius and (gasp) Fahrenheit,
