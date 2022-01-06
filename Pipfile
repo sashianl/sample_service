@@ -12,6 +12,7 @@ flake8 = "*"
 pymongo = "*"
 semver = "*"
 ipython = "*"
+black = "*"
 
 [packages]
 python-arango = "==5.0.0"
