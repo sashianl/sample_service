@@ -7,6 +7,7 @@
 ############################################################
 
 from __future__ import print_function
+
 # the following is a hack to get the baseclient to import whether we're in a
 # package or not. This makes pep8 unhappy hence the annotations.
 try:
@@ -18,22 +19,32 @@ except ImportError:
 
 
 class SampleService(object):
-
     def __init__(
-            self, url=None, timeout=30 * 60, user_id=None,
-            password=None, token=None, ignore_authrc=False,
-            trust_all_ssl_certificates=False,
-            auth_svc='https://ci.kbase.us/services/auth/api/legacy/KBase/Sessions/Login',
-            service_ver='release'):
+        self,
+        url=None,
+        timeout=30 * 60,
+        user_id=None,
+        password=None,
+        token=None,
+        ignore_authrc=False,
+        trust_all_ssl_certificates=False,
+        auth_svc="https://ci.kbase.us/services/auth/api/legacy/KBase/Sessions/Login",
+        service_ver="release",
+    ):
         if url is None:
-            raise ValueError('A url is required')
+            raise ValueError("A url is required")
         self._service_ver = service_ver
         self._client = _BaseClient(
-            url, timeout=timeout, user_id=user_id, password=password,
-            token=token, ignore_authrc=ignore_authrc,
+            url,
+            timeout=timeout,
+            user_id=user_id,
+            password=password,
+            token=token,
+            ignore_authrc=ignore_authrc,
             trust_all_ssl_certificates=trust_all_ssl_certificates,
             auth_svc=auth_svc,
-            lookup_url=True)
+            lookup_url=True,
+        )
 
     def create_sample(self, params, context=None):
         """
@@ -141,8 +152,9 @@ class SampleService(object):
            parameter "version" of type "version" (The version of a sample.
            Always > 0.)
         """
-        return self._client.call_method('SampleService.create_sample',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.create_sample", [params], self._service_ver, context
+        )
 
     def get_sample(self, params, context=None):
         """
@@ -237,8 +249,9 @@ class SampleService(object):
            timestamp in epoch milliseconds.), parameter "version" of type
            "version" (The version of a sample. Always > 0.)
         """
-        return self._client.call_method('SampleService.get_sample',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_sample", [params], self._service_ver, context
+        )
 
     def get_samples(self, params, context=None):
         """
@@ -329,8 +342,9 @@ class SampleService(object):
            timestamp in epoch milliseconds.), parameter "version" of type
            "version" (The version of a sample. Always > 0.)
         """
-        return self._client.call_method('SampleService.get_samples',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_samples", [params], self._service_ver, context
+        )
 
     def get_sample_acls(self, params, context=None):
         """
@@ -357,8 +371,9 @@ class SampleService(object):
            parameter "public_read" of type "boolean" (A boolean value, 0 for
            false, 1 for true.)
         """
-        return self._client.call_method('SampleService.get_sample_acls',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_sample_acls", [params], self._service_ver, context
+        )
 
     def update_sample_acls(self, params, context=None):
         """
@@ -392,8 +407,9 @@ class SampleService(object):
            false, 1 for true.), parameter "as_admin" of type "boolean" (A
            boolean value, 0 for false, 1 for true.)
         """
-        return self._client.call_method('SampleService.update_sample_acls',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.update_sample_acls", [params], self._service_ver, context
+        )
 
     def replace_sample_acls(self, params, context=None):
         """
@@ -422,8 +438,9 @@ class SampleService(object):
            parameter "as_admin" of type "boolean" (A boolean value, 0 for
            false, 1 for true.)
         """
-        return self._client.call_method('SampleService.replace_sample_acls',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.replace_sample_acls", [params], self._service_ver, context
+        )
 
     def get_metadata_key_static_metadata(self, params, context=None):
         """
@@ -457,8 +474,12 @@ class SampleService(object):
            associated with a piece of metadata. Less than 1000 unicode
            characters. Examples: units, value, species) to unspecified object
         """
-        return self._client.call_method('SampleService.get_metadata_key_static_metadata',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_metadata_key_static_metadata",
+            [params],
+            self._service_ver,
+            context,
+        )
 
     def create_data_link(self, params, context=None):
         """
@@ -524,8 +545,9 @@ class SampleService(object):
            username.), parameter "expired" of type "timestamp" (A timestamp
            in epoch milliseconds.)
         """
-        return self._client.call_method('SampleService.create_data_link',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.create_data_link", [params], self._service_ver, context
+        )
 
     def expire_data_link(self, params, context=None):
         """
@@ -552,8 +574,9 @@ class SampleService(object):
            boolean value, 0 for false, 1 for true.), parameter "as_user" of
            type "user" (A user's username.)
         """
-        return self._client.call_method('SampleService.expire_data_link',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.expire_data_link", [params], self._service_ver, context
+        )
 
     def get_data_links_from_sample(self, params, context=None):
         """
@@ -608,8 +631,12 @@ class SampleService(object):
            in epoch milliseconds.), parameter "effective_time" of type
            "timestamp" (A timestamp in epoch milliseconds.)
         """
-        return self._client.call_method('SampleService.get_data_links_from_sample',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_data_links_from_sample",
+            [params],
+            self._service_ver,
+            context,
+        )
 
     def get_data_links_from_data(self, params, context=None):
         """
@@ -661,8 +688,12 @@ class SampleService(object):
            in epoch milliseconds.), parameter "effective_time" of type
            "timestamp" (A timestamp in epoch milliseconds.)
         """
-        return self._client.call_method('SampleService.get_data_links_from_data',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_data_links_from_data",
+            [params],
+            self._service_ver,
+            context,
+        )
 
     def get_sample_via_data(self, params, context=None):
         """
@@ -760,8 +791,9 @@ class SampleService(object):
            timestamp in epoch milliseconds.), parameter "version" of type
            "version" (The version of a sample. Always > 0.)
         """
-        return self._client.call_method('SampleService.get_sample_via_data',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_sample_via_data", [params], self._service_ver, context
+        )
 
     def get_data_link(self, params, context=None):
         """
@@ -800,8 +832,9 @@ class SampleService(object):
            username.), parameter "expired" of type "timestamp" (A timestamp
            in epoch milliseconds.)
         """
-        return self._client.call_method('SampleService.get_data_link',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.get_data_link", [params], self._service_ver, context
+        )
 
     def validate_samples(self, params, context=None):
         """
@@ -898,9 +931,11 @@ class SampleService(object):
            (A key in a metadata key/value pair. Less than 1000 unicode
            characters.), parameter "subkey" of String
         """
-        return self._client.call_method('SampleService.validate_samples',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.validate_samples", [params], self._service_ver, context
+        )
 
     def status(self, context=None):
-        return self._client.call_method('SampleService.status',
-                                        [], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.status", [], self._service_ver, context
+        )

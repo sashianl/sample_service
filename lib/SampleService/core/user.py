@@ -1,25 +1,25 @@
-''' User oriented classes and functions. '''
+""" User oriented classes and functions. """
 
 from SampleService.core.arg_checkers import check_string as _check_string
 
 
 class UserID:
-    '''
+    """
     A users's unique name / identifier.
 
     The ID is expected to be checked against a user registry and so only minimal constraints are
     enforced here.
 
     :ivar id: the user id.
-    '''
+    """
 
     def __init__(self, userid):
-        '''
+        """
         Create the user id.
 
         :param id: the user's id, a maximum of 256 unicode characters.
-        '''
-        self.id = _check_string(userid, 'userid', max_len=256)
+        """
+        self.id = _check_string(userid, "userid", max_len=256)
 
     def __str__(self):
         return self.id

@@ -11,22 +11,32 @@ from .baseclient import BaseClient as _BaseClient
 
 
 class OntologyAPI(object):
-
     def __init__(
-            self, url=None, timeout=30 * 60, user_id=None,
-            password=None, token=None, ignore_authrc=False,
-            trust_all_ssl_certificates=False,
-            auth_svc='https://ci.kbase.us/services/auth/api/legacy/KBase/Sessions/Login',
-            service_ver='dev'):
+        self,
+        url=None,
+        timeout=30 * 60,
+        user_id=None,
+        password=None,
+        token=None,
+        ignore_authrc=False,
+        trust_all_ssl_certificates=False,
+        auth_svc="https://ci.kbase.us/services/auth/api/legacy/KBase/Sessions/Login",
+        service_ver="dev",
+    ):
         if url is None:
-            url = 'https://kbase.us/services/service_wizard'
+            url = "https://kbase.us/services/service_wizard"
         self._service_ver = service_ver
         self._client = _BaseClient(
-            url, timeout=timeout, user_id=user_id, password=password,
-            token=token, ignore_authrc=ignore_authrc,
+            url,
+            timeout=timeout,
+            user_id=user_id,
+            password=password,
+            token=token,
+            ignore_authrc=ignore_authrc,
             trust_all_ssl_certificates=trust_all_ssl_certificates,
             auth_svc=auth_svc,
-            lookup_url=True)
+            lookup_url=True,
+        )
 
     def get_descendants(self, GenericParams, context=None):
         """
@@ -49,8 +59,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_descendants',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_descendants", [GenericParams], self._service_ver, context
+        )
 
     def get_ancestors(self, GenericParams, context=None):
         """
@@ -73,8 +84,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_ancestors',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_ancestors", [GenericParams], self._service_ver, context
+        )
 
     def get_children(self, GenericParams, context=None):
         """
@@ -97,8 +109,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_children',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_children", [GenericParams], self._service_ver, context
+        )
 
     def get_parents(self, GenericParams, context=None):
         """
@@ -121,8 +134,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_parents',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_parents", [GenericParams], self._service_ver, context
+        )
 
     def get_related(self, GenericParams, context=None):
         """
@@ -145,8 +159,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_related',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_related", [GenericParams], self._service_ver, context
+        )
 
     def get_siblings(self, GenericParams, context=None):
         """
@@ -169,8 +184,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_siblings',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_siblings", [GenericParams], self._service_ver, context
+        )
 
     def get_terms(self, GetTermsParams, context=None):
         """
@@ -191,8 +207,9 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_terms',
-                                        [GetTermsParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_terms", [GetTermsParams], self._service_ver, context
+        )
 
     def get_hierarchical_ancestors(self, GenericParams, context=None):
         """
@@ -215,8 +232,12 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_hierarchical_ancestors',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_hierarchical_ancestors",
+            [GenericParams],
+            self._service_ver,
+            context,
+        )
 
     def get_hierarchical_children(self, GenericParams, context=None):
         """
@@ -239,8 +260,12 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_hierarchical_children',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_hierarchical_children",
+            [GenericParams],
+            self._service_ver,
+            context,
+        )
 
     def get_hierarchical_descendants(self, GenericParams, context=None):
         """
@@ -263,8 +288,12 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_hierarchical_descendants',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_hierarchical_descendants",
+            [GenericParams],
+            self._service_ver,
+            context,
+        )
 
     def get_hierarchical_parents(self, GenericParams, context=None):
         """
@@ -287,8 +316,12 @@ class OntologyAPI(object):
            unspecified object, parameter "ts" of Long, parameter "ns" of
            String
         """
-        return self._client.call_method('OntologyAPI.get_hierarchical_parents',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_hierarchical_parents",
+            [GenericParams],
+            self._service_ver,
+            context,
+        )
 
     def get_associated_ws_objects(self, GenericParams, context=None):
         """
@@ -319,8 +352,12 @@ class OntologyAPI(object):
            "feature_id" of String, parameter "updated_at" of Long, parameter
            "ts" of Long, parameter "ns" of String
         """
-        return self._client.call_method('OntologyAPI.get_associated_ws_objects',
-                                        [GenericParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_associated_ws_objects",
+            [GenericParams],
+            self._service_ver,
+            context,
+        )
 
     def get_terms_from_ws_feature(self, GetTermsFromWSFeatureParams, context=None):
         """
@@ -355,8 +392,12 @@ class OntologyAPI(object):
            "workspace_id" of Long, parameter "object_id" of Long, parameter
            "version" of Long, parameter "ts" of Long, parameter "ns" of String
         """
-        return self._client.call_method('OntologyAPI.get_terms_from_ws_feature',
-                                        [GetTermsFromWSFeatureParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_terms_from_ws_feature",
+            [GetTermsFromWSFeatureParams],
+            self._service_ver,
+            context,
+        )
 
     def get_terms_from_ws_obj(self, GetTermsFromWSObjParams, context=None):
         """
@@ -389,9 +430,14 @@ class OntologyAPI(object):
            "workspace_id" of Long, parameter "object_id" of Long, parameter
            "version" of Long, parameter "ts" of Long, parameter "ns" of String
         """
-        return self._client.call_method('OntologyAPI.get_terms_from_ws_obj',
-                                        [GetTermsFromWSObjParams], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.get_terms_from_ws_obj",
+            [GetTermsFromWSObjParams],
+            self._service_ver,
+            context,
+        )
 
     def status(self, context=None):
-        return self._client.call_method('OntologyAPI.status',
-                                        [], self._service_ver, context)
+        return self._client.call_method(
+            "OntologyAPI.status", [], self._service_ver, context
+        )

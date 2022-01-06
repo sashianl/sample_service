@@ -12,7 +12,7 @@ from kafka import KafkaProducer as _KafkaProducer
 
 from SampleService.core.arg_checkers import (
     not_falsy as _not_falsy,
-    check_string as _check_string
+    check_string as _check_string,
 )
 
 
@@ -20,6 +20,7 @@ class KafkaNotifier:
     """
     A notifier that sends JSON messages to Kafka.
     """
+
     # Unfortunately kafka-python does not yet support exactly once guarantees:
     # https://github.com/dpkp/kafka-python/issues/1063
     # TODO LATER KAFKA enable idempotence when kafka-python supports it.
@@ -55,16 +56,16 @@ class KafkaNotifier:
     # we do some really gross monkey patching). As such, it's only tested in the intergration
     # tests.
 
-    _EVENT_TYPE = 'event_type'
-    _SAMPLE_ID = 'sample_id'
-    _SAMPLE_VERSION = 'sample_ver'
-    _NEW_SAMPLE = 'NEW_SAMPLE'
-    _ACL_CHANGE = 'ACL_CHANGE'
-    _LINK_ID = 'link_id'
-    _NEW_LINK = 'NEW_LINK'
-    _EXPIRED_LINK = 'EXPIRED_LINK'
+    _EVENT_TYPE = "event_type"
+    _SAMPLE_ID = "sample_id"
+    _SAMPLE_VERSION = "sample_ver"
+    _NEW_SAMPLE = "NEW_SAMPLE"
+    _ACL_CHANGE = "ACL_CHANGE"
+    _LINK_ID = "link_id"
+    _NEW_LINK = "NEW_LINK"
+    _EXPIRED_LINK = "EXPIRED_LINK"
 
-    _KAFKA_TOPIC_ILLEGAL_CHARS_RE = _re.compile('[^a-zA-Z0-9-]+')
+    _KAFKA_TOPIC_ILLEGAL_CHARS_RE = _re.compile("[^a-zA-Z0-9-]+")
 
     def __init__(self, bootstrap_servers: str, topic: str):
         """
@@ -75,11 +76,13 @@ class KafkaNotifier:
             name to consist of ASCII alphanumeric values and the hyphen to avoid Kafka issues
             around ambiguity between period and underscore values.
         """
-        _check_string(bootstrap_servers, 'bootstrap_servers')
-        self._topic = _check_string(topic, 'topic', max_len=249)
+        _check_string(bootstrap_servers, "bootstrap_servers")
+        self._topic = _check_string(topic, "topic", max_len=249)
         match = self._KAFKA_TOPIC_ILLEGAL_CHARS_RE.search(_cast(str, self._topic))
         if match:
-            raise ValueError(f'Illegal character in Kafka topic {self._topic}: {match.group()}')
+            raise ValueError(
+                f"Illegal character in Kafka topic {self._topic}: {match.group()}"
+            )
 
         # TODO LATER KAFKA support delivery.timeout.ms when the client supports it
         # https://github.com/dpkp/kafka-python/issues/1723
@@ -88,8 +91,8 @@ class KafkaNotifier:
         # this will fail if it can't connect
         self._prod = _KafkaProducer(
             # can't test multiple servers without a massive PITA
-            bootstrap_servers=bootstrap_servers.split(','),
-            acks='all',
+            bootstrap_servers=bootstrap_servers.split(","),
+            acks="all",
             # retries can occur from 100-30000 ms by default. If we allow 300 retries, that means
             # the send can take from 30s to 150m. Presumably another server timeout will kill
             # the request before then.
@@ -100,7 +103,7 @@ class KafkaNotifier:
             request_timeout_ms=30000,  # default is 30000
             # presumably this can be removed once idempotence is supported
             max_in_flight_requests_per_connection=1,
-            )
+        )
         self._closed = False
 
     def notify_new_sample_version(self, sample_id: UUID, sample_ver: int):
@@ -111,12 +114,14 @@ class KafkaNotifier:
         :param sample_ver: the version of the sample.
         """
         if sample_ver < 1:
-            raise ValueError('sample_ver must be > 0')
-        self._send_message({
-            self._EVENT_TYPE: self._NEW_SAMPLE,
-            self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id')),
-            self._SAMPLE_VERSION: sample_ver
-            })
+            raise ValueError("sample_ver must be > 0")
+        self._send_message(
+            {
+                self._EVENT_TYPE: self._NEW_SAMPLE,
+                self._SAMPLE_ID: str(_not_falsy(sample_id, "sample_id")),
+                self._SAMPLE_VERSION: sample_ver,
+            }
+        )
 
     def notify_sample_acl_change(self, sample_id: UUID):
         """
@@ -124,10 +129,12 @@ class KafkaNotifier:
 
         :param sample_id: the sample ID.
         """
-        self._send_message({
-            self._EVENT_TYPE: self._ACL_CHANGE,
-            self._SAMPLE_ID: str(_not_falsy(sample_id, 'sample_id'))
-            })
+        self._send_message(
+            {
+                self._EVENT_TYPE: self._ACL_CHANGE,
+                self._SAMPLE_ID: str(_not_falsy(sample_id, "sample_id")),
+            }
+        )
 
     def notify_new_link(self, link_id: UUID):
         """
@@ -135,10 +142,12 @@ class KafkaNotifier:
 
         :param link_id: the link ID.
         """
-        self._send_message({
-            self._EVENT_TYPE: self._NEW_LINK,
-            self._LINK_ID: str(_not_falsy(link_id, 'link_id'))
-            })
+        self._send_message(
+            {
+                self._EVENT_TYPE: self._NEW_LINK,
+                self._LINK_ID: str(_not_falsy(link_id, "link_id")),
+            }
+        )
 
     def notify_expired_link(self, link_id: UUID):
         """
@@ -146,15 +155,17 @@ class KafkaNotifier:
 
         :param link_id: the link ID.
         """
-        self._send_message({
-            self._EVENT_TYPE: self._EXPIRED_LINK,
-            self._LINK_ID: str(_not_falsy(link_id, 'link_id'))
-            })
+        self._send_message(
+            {
+                self._EVENT_TYPE: self._EXPIRED_LINK,
+                self._LINK_ID: str(_not_falsy(link_id, "link_id")),
+            }
+        )
 
     def _send_message(self, message):
         if self._closed:
-            raise ValueError('client is closed')
-        future = self._prod.send(self._topic, _json.dumps(message).encode('utf-8'))
+            raise ValueError("client is closed")
+        future = self._prod.send(self._topic, _json.dumps(message).encode("utf-8"))
         # ensure the message was send correctly, or if not throw an exeption in the correct thread
         future.get(timeout=35)  # this is very difficult to test
 
