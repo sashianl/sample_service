@@ -9,18 +9,18 @@ from typing import List
 from logging import LogRecord
 import time
 
-ARANGO_EXE = 'test.arango.exe'
-ARANGO_JS = 'test.arango.js'
-KAFKA_BIN_DIR = 'test.kafka.bin.dir'
-MONGO_EXE = 'test.mongo.exe'
-MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
-JARS_DIR = 'test.jars.dir'
-TEST_TEMP_DIR = 'test.temp.dir'
-KEEP_TEMP_DIR = 'test.temp.dir.keep'
+ARANGO_EXE = "test.arango.exe"
+ARANGO_JS = "test.arango.js"
+KAFKA_BIN_DIR = "test.kafka.bin.dir"
+MONGO_EXE = "test.mongo.exe"
+MONGO_USE_WIRED_TIGER = "test.mongo.wired_tiger"
+JARS_DIR = "test.jars.dir"
+TEST_TEMP_DIR = "test.temp.dir"
+KEEP_TEMP_DIR = "test.temp.dir.keep"
 
-TEST_CONFIG_FILE_SECTION = 'sampleservicetest'
+TEST_CONFIG_FILE_SECTION = "sampleservicetest"
 
-TEST_FILE_LOC_ENV_KEY = 'SAMPLESERV_TEST_FILE'
+TEST_FILE_LOC_ENV_KEY = "SAMPLESERV_TEST_FILE"
 
 _CONFIG = None
 
@@ -42,7 +42,7 @@ def get_mongo_exe() -> Path:
 
 
 def get_use_wired_tiger() -> bool:
-    return _get_test_property(MONGO_USE_WIRED_TIGER) == 'true'
+    return _get_test_property(MONGO_USE_WIRED_TIGER) == "true"
 
 
 def get_jars_dir() -> Path:
@@ -54,13 +54,15 @@ def get_temp_dir() -> Path:
 
 
 def get_delete_temp_files() -> bool:
-    return _get_test_property(KEEP_TEMP_DIR) != 'true'
+    return _get_test_property(KEEP_TEMP_DIR) != "true"
 
 
 def _get_test_config_file_path() -> Path:
     p = os.environ.get(TEST_FILE_LOC_ENV_KEY)
     if not p:
-        raise TestException("Can't find key {} in environment".format(TEST_FILE_LOC_ENV_KEY))
+        raise TestException(
+            "Can't find key {} in environment".format(TEST_FILE_LOC_ENV_KEY)
+        )
     return Path(p)
 
 
@@ -71,21 +73,27 @@ def _get_test_property(prop: str) -> str:
         config = configparser.ConfigParser()
         config.read(test_cfg)
         if TEST_CONFIG_FILE_SECTION not in config:
-            raise TestException('No section {} found in test config file {}'
-                                .format(TEST_CONFIG_FILE_SECTION, test_cfg))
+            raise TestException(
+                "No section {} found in test config file {}".format(
+                    TEST_CONFIG_FILE_SECTION, test_cfg
+                )
+            )
         sec = config[TEST_CONFIG_FILE_SECTION]
         # a section is not a real map and is missing methods
         _CONFIG = {x: sec[x] for x in sec.keys()}
     if prop not in _CONFIG:
         test_cfg = _get_test_config_file_path()
-        raise TestException('Property {} in section {} of test file {} is missing'
-                            .format(prop, TEST_CONFIG_FILE_SECTION, test_cfg))
+        raise TestException(
+            "Property {} in section {} of test file {} is missing".format(
+                prop, TEST_CONFIG_FILE_SECTION, test_cfg
+            )
+        )
     return _CONFIG[prop]
 
 
 def find_free_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         return s.getsockname()[1]
 
 
@@ -109,7 +117,7 @@ class TerstFermerttr(Formatter):
 
     def format(self, record):
         self.logs.append(record)
-        return 'no logs here, no sir'
+        return "no logs here, no sir"
 
 
 class TestException(Exception):
@@ -118,36 +126,40 @@ class TestException(Exception):
 
 def create_auth_user(auth_url, username, displayname):
     ret = requests.post(
-        auth_url + '/testmode/api/V2/testmodeonly/user',
-        headers={'accept': 'application/json'},
-        json={'user': username, 'display': displayname})
+        auth_url + "/testmode/api/V2/testmodeonly/user",
+        headers={"accept": "application/json"},
+        json={"user": username, "display": displayname},
+    )
     if not ret.ok:
         ret.raise_for_status()
 
 
 def create_auth_login_token(auth_url, username):
     ret = requests.post(
-        auth_url + '/testmode/api/V2/testmodeonly/token',
-        headers={'accept': 'application/json'},
-        json={'user': username, 'type': 'Login'})
+        auth_url + "/testmode/api/V2/testmodeonly/token",
+        headers={"accept": "application/json"},
+        json={"user": username, "type": "Login"},
+    )
     if not ret.ok:
         ret.raise_for_status()
-    return ret.json()['token']
+    return ret.json()["token"]
 
 
 def create_auth_role(auth_url, role, description):
     ret = requests.post(
-        auth_url + '/testmode/api/V2/testmodeonly/customroles',
-        headers={'accept': 'application/json'},
-        json={'id': role, 'desc': description})
+        auth_url + "/testmode/api/V2/testmodeonly/customroles",
+        headers={"accept": "application/json"},
+        json={"id": role, "desc": description},
+    )
     if not ret.ok:
         ret.raise_for_status()
 
 
 def set_custom_roles(auth_url, user, roles):
     ret = requests.put(
-        auth_url + '/testmode/api/V2/testmodeonly/userroles',
-        headers={'accept': 'application/json'},
-        json={'user': user, 'customroles': roles})
+        auth_url + "/testmode/api/V2/testmodeonly/userroles",
+        headers={"accept": "application/json"},
+        json={"user": user, "customroles": roles},
+    )
     if not ret.ok:
         ret.raise_for_status()
