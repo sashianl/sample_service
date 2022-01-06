@@ -1,3 +1,4 @@
 test/test.cfg
 test_local
 __pycache__
+venv
