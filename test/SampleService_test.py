@@ -2178,7 +2178,7 @@ def _check_sample_data_links(url, sample_id, version, expected_links):
     _check_data_links(links, expected_links)
 
 
-def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
+def test_create_and_propagate_data_links(sample_port, workspace, kafka):
 
     _clear_kafka_messages(kafka)
 
@@ -2226,7 +2226,7 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
 
     # propagate data links from sample version 1 to version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.propagate_data_link',
+        'method': 'SampleService.propagate_data_links',
         'version': '1.1',
         'id': '38',
         'params': [{'id': sid, 'version': 2, 'previous_version': 1}]
@@ -2254,7 +2254,7 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
     _check_sample_data_links(url, sid, 2, expected_new_links)
 
 
-def test_create_link_and_propagate_data_link_type_specific(sample_port, workspace, kafka):
+def test_create_and_propagate_data_links_type_specific(sample_port, workspace, kafka):
 
     _clear_kafka_messages(kafka)
 
@@ -2302,7 +2302,7 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
 
     # propagate data links from sample version 1 to version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.propagate_data_link',
+        'method': 'SampleService.propagate_data_links',
         'version': '1.1',
         'id': '38',
         'params': [{'id': sid, 'version': 2, 'previous_version': 1,

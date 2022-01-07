@@ -398,7 +398,7 @@ module SampleService {
     funcdef create_data_link(CreateDataLinkParams params) returns(CreateDataLinkResults results)
         authentication required;
 
-    /* propagate_data_link parameters.
+    /* propagate_data_links parameters.
 
         id - the sample id.
         version - the sample version. (data links are propagated to)
@@ -427,7 +427,7 @@ module SampleService {
         user as_user;
     } PropagateDataLinkParams;
 
-    /* propagate_data_link results.
+    /* propagate_data_links results.
 
         links - the links.
      */
@@ -440,7 +440,7 @@ module SampleService {
         The user must have admin permissions for the sample and write permissions for the
         Workspace object.
      */
-    funcdef propagate_data_link(PropagateDataLinkParams params) returns(PropagateDataLinkResults results)
+    funcdef propagate_data_links(PropagateDataLinkParams params) returns(PropagateDataLinkResults results)
         authentication required;
 
     /* expire_data_link parameters.

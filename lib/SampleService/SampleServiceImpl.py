@@ -56,7 +56,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0"
     GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "79b6368da56e13e0bd827ee1e625045641475f84"
+    GIT_COMMIT_HASH = "745c7ad0351712e69487c1e384440ef3d492a527"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -686,45 +686,46 @@ Note that usage of the administration flags will be logged by the service.
         # return the results
         return [results]
 
-    def propagate_data_link(self, ctx, params):
+    def propagate_data_links(self, ctx, params):
         """
         Propagates data links from a previous sample to the current (latest) version
                 The user must have admin permissions for the sample and write permissions for the
                 Workspace object.
         :param params: instance of type "PropagateDataLinkParams"
-           (propagate_data_link parameters. id - the sample id. version - the
-           sample version. (data links are propagated to) previous_version -
-           the previouse sample version. (data links are propagated from)
-           ignore_types - the workspace data type ignored from propagating.
-           default empty. update - if false (the default), fail if a link
-           already exists from the data unit (the combination of the UPA and
-           dataid). if true, expire the old link and create the new link
-           unless the link is already to the requested sample node, in which
-           case the operation is a no-op. effective_time - the effective time
-           at which the query should be run - the default is the current
-           time. Providing a time allows for reproducibility of previous
-           results. as_admin - run the method as a service administrator. The
-           user must have full administration permissions. as_user - create
-           the link as a different user. Ignored if as_admin is not true.
-           Neither the administrator nor the impersonated user need have
-           permissions to the data or sample.) -> structure: parameter "id"
-           of type "sample_id" (A Sample ID. Must be globally unique. Always
-           assigned by the Sample service.), parameter "version" of type
-           "version" (The version of a sample. Always > 0.), parameter
-           "previous_version" of type "version" (The version of a sample.
-           Always > 0.), parameter "ignore_types" of list of type
-           "ws_type_string" (A workspace type string. Specifies the workspace
-           data type a single string in the format [module].[typename]:
-           module - a string. The module name of the typespec containing the
-           type. typename - a string. The name of the type as assigned by the
-           typedef statement. Example: KBaseSets.SampleSet), parameter
-           "update" of type "boolean" (A boolean value, 0 for false, 1 for
-           true.), parameter "effective_time" of type "timestamp" (A
-           timestamp in epoch milliseconds.), parameter "as_admin" of type
-           "boolean" (A boolean value, 0 for false, 1 for true.), parameter
-           "as_user" of type "user" (A user's username.)
+           (propagate_data_links parameters. id - the sample id. version -
+           the sample version. (data links are propagated to)
+           previous_version - the previouse sample version. (data links are
+           propagated from) ignore_types - the workspace data type ignored
+           from propagating. default empty. update - if false (the default),
+           fail if a link already exists from the data unit (the combination
+           of the UPA and dataid). if true, expire the old link and create
+           the new link unless the link is already to the requested sample
+           node, in which case the operation is a no-op. effective_time - the
+           effective time at which the query should be run - the default is
+           the current time. Providing a time allows for reproducibility of
+           previous results. as_admin - run the method as a service
+           administrator. The user must have full administration permissions.
+           as_user - create the link as a different user. Ignored if as_admin
+           is not true. Neither the administrator nor the impersonated user
+           need have permissions to the data or sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter
+           "version" of type "version" (The version of a sample. Always >
+           0.), parameter "previous_version" of type "version" (The version
+           of a sample. Always > 0.), parameter "ignore_types" of list of
+           type "ws_type_string" (A workspace type string. Specifies the
+           workspace data type a single string in the format
+           [module].[typename]: module - a string. The module name of the
+           typespec containing the type. typename - a string. The name of the
+           type as assigned by the typedef statement. Example:
+           KBaseSets.SampleSet), parameter "update" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.), parameter
+           "effective_time" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "as_admin" of type "boolean" (A boolean
+           value, 0 for false, 1 for true.), parameter "as_user" of type
+           "user" (A user's username.)
         :returns: instance of type "PropagateDataLinkResults"
-           (propagate_data_link results. links - the links.) -> structure:
+           (propagate_data_links results. links - the links.) -> structure:
            parameter "links" of list of type "DataLink" (A data link from a
            KBase workspace object to a sample. upa - the workspace UPA of the
            linked object. dataid - the dataid of the linked data, if any,
@@ -755,7 +756,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        #BEGIN propagate_data_link
+        #BEGIN propagate_data_links
         sid = params.get('id')
         ver = params.get('version')
 
@@ -786,11 +787,11 @@ Note that usage of the administration flags will be logged by the service.
                 links.append(new_link)
 
         results = {'links': links}
-        #END propagate_data_link
+        #END propagate_data_links
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method propagate_data_link return value ' +
+            raise ValueError('Method propagate_data_links return value ' +
                              'results is not type dict as required.')
         # return the results
         return [results]
