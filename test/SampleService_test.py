@@ -2148,15 +2148,15 @@ def _create_sample_and_links_for_propagate_links(url):
     return sid, lid1, lid2
 
 
-def _check_data_links(res, expected_links):
+def _check_data_links(links, expected_links):
 
-    assert len(res) == len(expected_links)
-    for link in res:
+    assert len(links) == len(expected_links)
+    for link in links:
         assert_ms_epoch_close_to_now(link['created'])
         del link['created']
 
     for link in expected_links:
-        assert link in res
+        assert link in links
 
 
 def _check_sample_data_links(url, sample_id, version, expected_links):
@@ -2173,9 +2173,9 @@ def _check_sample_data_links(url, sample_id, version, expected_links):
     assert len(ret.json()['result']) == 1
     assert len(ret.json()['result'][0]) == 2
     assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
+    links = ret.json()['result'][0]['links']
 
-    _check_data_links(res, expected_links)
+    _check_data_links(links, expected_links)
 
 
 def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
@@ -2236,9 +2236,9 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
     assert ret.ok is True
     assert len(ret.json()['result']) == 1
     assert len(ret.json()['result'][0]) == 1
-    res = ret.json()['result'][0]['links']
+    links = ret.json()['result'][0]['links']
 
-    new_link_ids = [i['linkid'] for i in res]
+    new_link_ids = [i['linkid'] for i in links]
     expected_new_links = copy.deepcopy(expected_links)
 
     # propagated links should have new link id, dataid and version
@@ -2247,7 +2247,7 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
         expected_link['dataid'] = expected_link['dataid'] + '_2'
         expected_link['version'] = 2
 
-    _check_data_links(res, expected_new_links)
+    _check_data_links(links, expected_new_links)
 
     # check links again for sample version 1 and 2
     _check_sample_data_links(url, sid, 1, expected_links)
@@ -2313,9 +2313,9 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
     assert ret.ok is True
     assert len(ret.json()['result']) == 1
     assert len(ret.json()['result'][0]) == 1
-    res = ret.json()['result'][0]['links']
+    links = ret.json()['result'][0]['links']
 
-    new_link_ids = [i['linkid'] for i in res]
+    new_link_ids = [i['linkid'] for i in links]
     expected_new_links = copy.deepcopy(expected_links)
     expected_new_links.pop()
     assert len(expected_new_links) == 1
@@ -2326,7 +2326,7 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
         expected_link['dataid'] = expected_link['dataid'] + '_2'
         expected_link['version'] = 2
 
-    _check_data_links(res, expected_new_links)
+    _check_data_links(links, expected_new_links)
 
     # check links again for sample version 1 and 2
     _check_sample_data_links(url, sid, 1, expected_links)
