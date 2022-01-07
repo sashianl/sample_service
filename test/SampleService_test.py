@@ -2159,9 +2159,9 @@ def _check_data_links(links, expected_links):
         assert link in links
 
 
-def _check_sample_data_links(url, sample_id, version, expected_links):
+def _check_sample_data_links(url, sample_id, version, expected_links, token):
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_data_links_from_sample',
         'version': '1.1',
         'id': '42',
@@ -2221,8 +2221,8 @@ def test_create_and_propagate_data_links(sample_port, workspace, kafka):
             'expired': None
         }
     ]
-    _check_sample_data_links(url, sid, 1, expected_links)
-    _check_sample_data_links(url, sid, 2, [])
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, [], TOKEN3)
 
     # propagate data links from sample version 1 to version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2250,8 +2250,8 @@ def test_create_and_propagate_data_links(sample_port, workspace, kafka):
     _check_data_links(links, expected_new_links)
 
     # check links again for sample version 1 and 2
-    _check_sample_data_links(url, sid, 1, expected_links)
-    _check_sample_data_links(url, sid, 2, expected_new_links)
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, expected_new_links, TOKEN3)
 
 
 def test_create_and_propagate_data_links_type_specific(sample_port, workspace, kafka):
@@ -2297,8 +2297,8 @@ def test_create_and_propagate_data_links_type_specific(sample_port, workspace, k
             'expired': None
         }
     ]
-    _check_sample_data_links(url, sid, 1, expected_links)
-    _check_sample_data_links(url, sid, 2, [])
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, [], TOKEN3)
 
     # propagate data links from sample version 1 to version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
@@ -2329,8 +2329,8 @@ def test_create_and_propagate_data_links_type_specific(sample_port, workspace, k
     _check_data_links(links, expected_new_links)
 
     # check links again for sample version 1 and 2
-    _check_sample_data_links(url, sid, 1, expected_links)
-    _check_sample_data_links(url, sid, 2, expected_new_links)
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, expected_new_links, TOKEN3)
 
 
 def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, kafka):
