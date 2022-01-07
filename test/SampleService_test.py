@@ -2112,6 +2112,72 @@ def _create_link(url, token, expected_user, params, print_resp=False):
     return id_
 
 
+def _create_sample_and_links_for_propagate_links(url):
+    # create samples
+    sid = _create_sample(
+        url,
+        TOKEN3,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+    # ver 2
+    _create_sample(
+        url,
+        TOKEN3,
+        {'id': sid,
+         'name': 'mysample2',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        2
+        )
+
+    # create links
+    lid1 = _create_link(
+        url, TOKEN3, USER3,
+        {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
+    lid2 = _create_link(
+        url, TOKEN3, USER3,
+        {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/2/1', 'dataid': 'column2'})
+
+    return sid, lid1, lid2
+
+
+def _check_data_links(res, expected_links):
+
+    assert len(res) == len(expected_links)
+    for link in res:
+        assert_ms_epoch_close_to_now(link['created'])
+        del link['created']
+
+    for link in expected_links:
+        assert link in res
+
+
+def _check_sample_data_links(url, sample_id, version, expected_links):
+
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': sample_id, 'version': version}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+    res = ret.json()['result'][0]['links']
+
+    _check_data_links(res, expected_links)
+
+
 def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
 
     _clear_kafka_messages(kafka)
@@ -2128,56 +2194,13 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
         ]})
     wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
-    # create samples
-    id1 = _create_sample(
-        url,
-        TOKEN3,
-        {'name': 'mysample',
-         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
-                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
-                       ]
-         },
-        1
-        )
-    # ver 2
-    _create_sample(
-        url,
-        TOKEN3,
-        {'id': id1,
-         'name': 'mysample2',
-         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
-                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
-                       ]
-         },
-        2
-        )
+    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url)
 
-    # create links
-    lid1 = _create_link(
-        url, TOKEN3, USER3,
-        {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
-    lid2 = _create_link(
-        url, TOKEN3, USER3,
-        {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/2/1', 'dataid': 'column2'})
-
-    # get links from sample 1 version 1
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 1}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
-
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
+    # check initial links for both version
     expected_links = [
         {
             'linkid': lid1,
-            'id': id1,
+            'id': sid,
             'version': 1,
             'node': 'root',
             'upa': '1/1/1',
@@ -2188,7 +2211,7 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
         },
         {
             'linkid': lid2,
-            'id': id1,
+            'id': sid,
             'version': 1,
             'node': 'root',
             'upa': '1/2/1',
@@ -2198,38 +2221,15 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
             'expired': None
         }
     ]
+    _check_sample_data_links(url, sid, 1, expected_links)
+    _check_sample_data_links(url, sid, 2, [])
 
-    assert len(res) == len(expected_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
-
-    for link in expected_links:
-        assert link in res
-
-    # get links from sample 1 version 2
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 2}]
-    })
-
-    assert ret.ok is True
-
-    # should return no link now
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-
-    res = ret.json()['result'][0]['links']
-    assert len(res) == 0
-
-    # propagate data links from version 1 to version 2
+    # propagate data links from sample version 1 to version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
         'method': 'SampleService.propagate_data_link',
         'version': '1.1',
         'id': '38',
-        'params': [{'id': id1, 'version': 2, 'previous_version': 1}]
+        'params': [{'id': sid, 'version': 2, 'previous_version': 1}]
     })
 
     # print(ret.text)
@@ -2241,67 +2241,17 @@ def test_create_link_and_propagate_data_link(sample_port, workspace, kafka):
     new_link_ids = [i['linkid'] for i in res]
     expected_new_links = copy.deepcopy(expected_links)
 
-    # propagated links should have new id, dataid and version
+    # propagated links should have new link id, dataid and version
     for idx, expected_link in enumerate(expected_new_links):
         expected_link['linkid'] = new_link_ids[idx]
         expected_link['dataid'] = expected_link['dataid'] + '_2'
         expected_link['version'] = 2
 
-    assert len(res) == len(expected_new_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
+    _check_data_links(res, expected_new_links)
 
-    for link in expected_new_links:
-        assert link in res
-
-    # get links again from sample version 1 and 2
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 2}]
-    })
-
-    # print(ret.text)
-    assert ret.ok is True
-
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
-
-    assert len(res) == len(expected_new_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
-
-    for link in expected_new_links:
-        assert link in res
-
-    # sample version 1 should keep original data links
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 1}]
-    })
-
-    # print(ret.text)
-    assert ret.ok is True
-
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
-
-    assert len(res) == len(expected_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
-
-    for link in expected_links:
-        assert link in res
+    # check links again for sample version 1 and 2
+    _check_sample_data_links(url, sid, 1, expected_links)
+    _check_sample_data_links(url, sid, 2, expected_new_links)
 
 
 def test_create_link_and_propagate_data_link_type_specific(sample_port, workspace, kafka):
@@ -2320,56 +2270,13 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
         ]})
     wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
-    # create samples
-    id1 = _create_sample(
-        url,
-        TOKEN3,
-        {'name': 'mysample',
-         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
-                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
-                       ]
-         },
-        1
-        )
-    # ver 2
-    _create_sample(
-        url,
-        TOKEN3,
-        {'id': id1,
-         'name': 'mysample2',
-         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
-                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
-                       ]
-         },
-        2
-        )
+    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url)
 
-    # create links
-    lid1 = _create_link(
-        url, TOKEN3, USER3,
-        {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
-    lid2 = _create_link(
-        url, TOKEN3, USER3,
-        {'id': id1, 'version': 1, 'node': 'root', 'upa': '1/2/1', 'dataid': 'column2'})
-
-    # get links from sample 1 version 1
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 1}]
-    })
-    # print(ret.text)
-    assert ret.ok is True
-
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
+    # check initial links for both version
     expected_links = [
         {
             'linkid': lid1,
-            'id': id1,
+            'id': sid,
             'version': 1,
             'node': 'root',
             'upa': '1/1/1',
@@ -2380,7 +2287,7 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
         },
         {
             'linkid': lid2,
-            'id': id1,
+            'id': sid,
             'version': 1,
             'node': 'root',
             'upa': '1/2/1',
@@ -2390,38 +2297,15 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
             'expired': None
         }
     ]
+    _check_sample_data_links(url, sid, 1, expected_links)
+    _check_sample_data_links(url, sid, 2, [])
 
-    assert len(res) == len(expected_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
-
-    for link in expected_links:
-        assert link in res
-
-    # get links from sample 1 version 2
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 2}]
-    })
-
-    assert ret.ok is True
-
-    # should return no link now
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-
-    res = ret.json()['result'][0]['links']
-    assert len(res) == 0
-
-    # propagate data links from version 1 to version 2
+    # propagate data links from sample version 1 to version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
         'method': 'SampleService.propagate_data_link',
         'version': '1.1',
         'id': '38',
-        'params': [{'id': id1, 'version': 2, 'previous_version': 1,
+        'params': [{'id': sid, 'version': 2, 'previous_version': 1,
                     'ignore_types': ['Trivial.Object2']}]
     })
 
@@ -2436,67 +2320,17 @@ def test_create_link_and_propagate_data_link_type_specific(sample_port, workspac
     expected_new_links.pop()
     assert len(expected_new_links) == 1
 
-    # propagated links should have new id, dataid and version
+    # propagated links should have new link id, dataid and version
     for idx, expected_link in enumerate(expected_new_links):
         expected_link['linkid'] = new_link_ids[idx]
         expected_link['dataid'] = expected_link['dataid'] + '_2'
         expected_link['version'] = 2
 
-    assert len(res) == len(expected_new_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
+    _check_data_links(res, expected_new_links)
 
-    for link in expected_new_links:
-        assert link in res
-
-    # get links again from sample version 1 and 2
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 2}]
-    })
-
-    # print(ret.text)
-    assert ret.ok is True
-
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
-
-    assert len(res) == len(expected_new_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
-
-    for link in expected_new_links:
-        assert link in res
-
-    # sample version 1 should keep original data links
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
-        'method': 'SampleService.get_data_links_from_sample',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'id': id1, 'version': 1}]
-    })
-
-    # print(ret.text)
-    assert ret.ok is True
-
-    assert len(ret.json()['result']) == 1
-    assert len(ret.json()['result'][0]) == 2
-    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
-    res = ret.json()['result'][0]['links']
-
-    assert len(res) == len(expected_links)
-    for link in res:
-        assert_ms_epoch_close_to_now(link['created'])
-        del link['created']
-
-    for link in expected_links:
-        assert link in res
+    # check links again for sample version 1 and 2
+    _check_sample_data_links(url, sid, 1, expected_links)
+    _check_sample_data_links(url, sid, 2, expected_new_links)
 
 
 def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, kafka):
