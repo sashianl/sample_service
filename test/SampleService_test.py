@@ -2112,11 +2112,11 @@ def _create_link(url, token, expected_user, params, print_resp=False):
     return id_
 
 
-def _create_sample_and_links_for_propagate_links(url):
+def _create_sample_and_links_for_propagate_links(url, token, user):
     # create samples
     sid = _create_sample(
         url,
-        TOKEN3,
+        token,
         {'name': 'mysample',
          'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
                        {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
@@ -2127,7 +2127,7 @@ def _create_sample_and_links_for_propagate_links(url):
     # ver 2
     _create_sample(
         url,
-        TOKEN3,
+        token,
         {'id': sid,
          'name': 'mysample2',
          'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
@@ -2139,10 +2139,10 @@ def _create_sample_and_links_for_propagate_links(url):
 
     # create links
     lid1 = _create_link(
-        url, TOKEN3, USER3,
+        url, token, user,
         {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
     lid2 = _create_link(
-        url, TOKEN3, USER3,
+        url, token, user,
         {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/2/1', 'dataid': 'column2'})
 
     return sid, lid1, lid2
@@ -2194,7 +2194,7 @@ def test_create_and_propagate_data_links(sample_port, workspace, kafka):
         ]})
     wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
-    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url)
+    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url, TOKEN3, USER3)
 
     # check initial links for both version
     expected_links = [
