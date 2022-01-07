@@ -10,7 +10,7 @@ fi
 # specified in the Dockerfile.
 dockerize ${EXTRA} -template deploy.cfg.tmpl:deploy.cfg
 
-echo "[ENTRYPOINT] using option ${1}"
+echo "[ENTRYPOINT] using option '${1}'"
 
 script_dir=$(dirname "$(readlink -f "$0")")
 export KB_DEPLOYMENT_CONFIG=$script_dir/../deploy.cfg

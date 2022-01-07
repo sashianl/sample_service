@@ -1,7 +1,7 @@
 #
 # The path to data for the mock services service
 #
-DEFAULT_MOCK_DATASET_PATH="${PWD}/dev/data/SampleService"
+DEFAULT_MOCK_DATASET_PATH="${PWD}/dev/data/mock"
 if [ -z "$MOCK_DATASET_PATH" ]; then
   echo "'MOCK_DATASET_PATH' environment variable set - default of '${DEFAULT_MOCK_DATASET_PATH}' will be used"
   export DC_MOCK_DATASET_PATH=$DEFAULT_MOCK_DATASET_PATH

@@ -7,7 +7,7 @@ These dependencies include:
 - arangodb
 - 
 
-PORT=5001 MOCK_DATASET_PATH=`pwd`/dev/data/SampleService make host-start-dev-server
+PORT=5001 MOCK_DATASET_PATH=`pwd`/dev/data/mock make host-start-dev-server
 
 
 ## Requirements
@@ -52,7 +52,7 @@ where:
 
     Generally 5000 is a reserved port, but it is the KBase default for services.
 
-- `MOCK_DATASET_PATH` is a filesystem path to the parent directory for data provided for the mock services server; optional, defaults to `"${PWD}/dev/data/SampleService"` which contains just a little bit of mock data as an example.
+- `MOCK_DATASET_PATH` is a filesystem path to the parent directory for data provided for the mock services server; optional, defaults to `"${PWD}/dev/data/mock"` which contains just a little bit of mock data as an example.
 
 - `VALIDATION_SPEC_URL` is a url to the validation spec file; optional, defaults to the production validation specs `https://raw.githubusercontent.com/kbase/sample_service_validator_config/master/metadata_validation.yml`
 
