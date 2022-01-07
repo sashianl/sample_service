@@ -50,8 +50,8 @@ module SampleService {
      */
     typedef string metadata_value_key;
 
-    /* A worksapce type string.
-        Specifies the worksapce data type a single string in the format
+    /* A workspace type string.
+        Specifies the workspace data type a single string in the format
         [module].[typename]:
 
         module - a string. The module name of the typespec containing the type.

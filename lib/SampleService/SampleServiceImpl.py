@@ -56,7 +56,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0"
     GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "ff27665f7f15a0e1c7b7e72d930abd442080499b"
+    GIT_COMMIT_HASH = "79b6368da56e13e0bd827ee1e625045641475f84"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -713,7 +713,7 @@ Note that usage of the administration flags will be logged by the service.
            "version" (The version of a sample. Always > 0.), parameter
            "previous_version" of type "version" (The version of a sample.
            Always > 0.), parameter "ignore_types" of list of type
-           "ws_type_string" (A worksapce type string. Specifies the worksapce
+           "ws_type_string" (A workspace type string. Specifies the workspace
            data type a single string in the format [module].[typename]:
            module - a string. The module name of the typespec containing the
            type. typename - a string. The name of the type as assigned by the
