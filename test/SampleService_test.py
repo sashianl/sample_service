@@ -2270,7 +2270,7 @@ def test_create_and_propagate_data_links_type_specific(sample_port, workspace, k
         ]})
     wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
-    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url)
+    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url, TOKEN3, USER3)
 
     # check initial links for both version
     expected_links = [

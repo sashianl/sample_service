@@ -770,10 +770,15 @@ Note that usage of the administration flags will be logged by the service.
         for data_link in data_links:
             upa = data_link['upa']
 
-            wsClient = self._samples._ws._ws
-            obj_info = wsClient.get_object_info3({'objects': [{'ref': upa}]})
+            ignored = False
+            if ignore_types:
+                wsClient = self._samples._ws._ws
+                obj_info = wsClient.get_object_info3({'objects': [{'ref': upa}]})
 
-            if obj_info['infos'][0][2].split('-')[0] not in ignore_types:
+                if obj_info['infos'][0][2].split('-')[0] in ignore_types:
+                    ignored = True
+
+            if not ignored:
                 create_link_params = {'upa': upa,
                                       'dataid': data_link.get('dataid') + '_' + str(ver),
                                       'node': data_link.get('node'),
