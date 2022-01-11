@@ -2307,7 +2307,7 @@ def test_create_and_propagate_data_links_type_specific(sample_port, workspace, k
                     'ignore_types': ['Trivial.Object2']}]
     })
 
-    print(ret.text)
+    # print(ret.text)
     assert ret.ok is True
     assert len(ret.json()['result']) == 1
     assert len(ret.json()['result'][0]) == 1

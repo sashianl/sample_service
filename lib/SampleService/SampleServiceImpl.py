@@ -66,7 +66,6 @@ Note that usage of the administration flags will be logged by the service.
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
         self._samples, self._user_lookup, self._read_exempt_roles = _build_samples(config)
-        self.workspace_url = config.get('workspace-url')
         #END_CONSTRUCTOR
         pass
 
