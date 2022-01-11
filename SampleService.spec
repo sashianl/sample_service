@@ -50,6 +50,18 @@ module SampleService {
      */
     typedef string metadata_value_key;
 
+    /* A workspace type string.
+        Specifies the workspace data type a single string in the format
+        [module].[typename]:
+
+        module - a string. The module name of the typespec containing the type.
+        typename - a string. The name of the type as assigned by the typedef
+            statement.
+
+        Example: KBaseSets.SampleSet
+    */
+    typedef string ws_type_string;
+
     /* A metadata value, represented by a mapping of value keys to primitive values. An example for
         a location metadata key might be:
         {
@@ -384,6 +396,51 @@ module SampleService {
         Workspace object.
      */
     funcdef create_data_link(CreateDataLinkParams params) returns(CreateDataLinkResults results)
+        authentication required;
+
+    /* propagate_data_links parameters.
+
+        id - the sample id.
+        version - the sample version. (data links are propagated to)
+        previous_version - the previouse sample version. (data links are propagated from)
+        ignore_types - the workspace data type ignored from propagating. default empty.
+        update - if false (the default), fail if a link already exists from the data unit (the
+            combination of the UPA and dataid). if true, expire the old link and create the new
+            link unless the link is already to the requested sample node, in which case the
+            operation is a no-op.
+        effective_time - the effective time at which the query should be run - the default is
+            the current time. Providing a time allows for reproducibility of previous results.
+        as_admin - run the method as a service administrator. The user must have full
+            administration permissions.
+        as_user - create the link as a different user. Ignored if as_admin is not true. Neither
+            the administrator nor the impersonated user need have permissions to the data or
+            sample.
+        */
+    typedef structure {
+        sample_id id;
+        version version;
+        version previous_version;
+        list<ws_type_string> ignore_types;
+        boolean update;
+        timestamp effective_time;
+        boolean as_admin;
+        user as_user;
+    } PropagateDataLinkParams;
+
+    /* propagate_data_links results.
+
+        links - the links.
+     */
+    typedef structure {
+        list<DataLink> links;
+    } PropagateDataLinkResults;
+
+    /* Propagates data links from a previous sample to the current (latest) version
+
+        The user must have admin permissions for the sample and write permissions for the
+        Workspace object.
+     */
+    funcdef propagate_data_links(PropagateDataLinkParams params) returns(PropagateDataLinkResults results)
         authentication required;
 
     /* expire_data_link parameters.

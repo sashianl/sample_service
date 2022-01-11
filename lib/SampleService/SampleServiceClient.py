@@ -527,6 +527,77 @@ class SampleService(object):
         return self._client.call_method('SampleService.create_data_link',
                                         [params], self._service_ver, context)
 
+    def propagate_data_links(self, params, context=None):
+        """
+        Propagates data links from a previous sample to the current (latest) version
+                The user must have admin permissions for the sample and write permissions for the
+                Workspace object.
+        :param params: instance of type "PropagateDataLinkParams"
+           (propagate_data_links parameters. id - the sample id. version -
+           the sample version. (data links are propagated to)
+           previous_version - the previouse sample version. (data links are
+           propagated from) ignore_types - the workspace data type ignored
+           from propagating. default empty. update - if false (the default),
+           fail if a link already exists from the data unit (the combination
+           of the UPA and dataid). if true, expire the old link and create
+           the new link unless the link is already to the requested sample
+           node, in which case the operation is a no-op. effective_time - the
+           effective time at which the query should be run - the default is
+           the current time. Providing a time allows for reproducibility of
+           previous results. as_admin - run the method as a service
+           administrator. The user must have full administration permissions.
+           as_user - create the link as a different user. Ignored if as_admin
+           is not true. Neither the administrator nor the impersonated user
+           need have permissions to the data or sample.) -> structure:
+           parameter "id" of type "sample_id" (A Sample ID. Must be globally
+           unique. Always assigned by the Sample service.), parameter
+           "version" of type "version" (The version of a sample. Always >
+           0.), parameter "previous_version" of type "version" (The version
+           of a sample. Always > 0.), parameter "ignore_types" of list of
+           type "ws_type_string" (A workspace type string. Specifies the
+           workspace data type a single string in the format
+           [module].[typename]: module - a string. The module name of the
+           typespec containing the type. typename - a string. The name of the
+           type as assigned by the typedef statement. Example:
+           KBaseSets.SampleSet), parameter "update" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.), parameter
+           "effective_time" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "as_admin" of type "boolean" (A boolean
+           value, 0 for false, 1 for true.), parameter "as_user" of type
+           "user" (A user's username.)
+        :returns: instance of type "PropagateDataLinkResults"
+           (propagate_data_links results. links - the links.) -> structure:
+           parameter "links" of list of type "DataLink" (A data link from a
+           KBase workspace object to a sample. upa - the workspace UPA of the
+           linked object. dataid - the dataid of the linked data, if any,
+           within the object. If omitted the entire object is linked to the
+           sample. id - the sample id. version - the sample version. node -
+           the sample node. createdby - the user that created the link.
+           created - the time the link was created. expiredby - the user that
+           expired the link, if any. expired - the time the link was expired,
+           if at all.) -> structure: parameter "linkid" of type "link_id" (A
+           link ID. Must be globally unique. Always assigned by the Sample
+           service. Typically only of use to service admins.), parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "createdby" of type "user" (A user's username.),
+           parameter "created" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "expiredby" of type "user" (A user's
+           username.), parameter "expired" of type "timestamp" (A timestamp
+           in epoch milliseconds.)
+        """
+        return self._client.call_method('SampleService.propagate_data_links',
+                                        [params], self._service_ver, context)
+
     def expire_data_link(self, params, context=None):
         """
         Expire a link from a KBase Workspace object.

@@ -377,6 +377,10 @@ class Application(object):
                              name='SampleService.create_data_link',
                              types=[dict])
         self.method_authentication['SampleService.create_data_link'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.propagate_data_links,
+                             name='SampleService.propagate_data_links',
+                             types=[dict])
+        self.method_authentication['SampleService.propagate_data_links'] = 'required'  # noqa
         self.rpc_service.add(impl_SampleService.expire_data_link,
                              name='SampleService.expire_data_link',
                              types=[dict])
