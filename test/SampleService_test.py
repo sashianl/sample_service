@@ -47,7 +47,7 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.1.0-2'
+VER = '0.1.0-2alpha'
 
 _AUTH_DB = 'test_auth_db'
 _WS_DB = 'test_ws_db'
@@ -2192,7 +2192,6 @@ def test_create_and_propagate_data_links(sample_port, workspace, kafka):
         {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
         {'name': 'baz', 'data': {}, 'type': 'Trivial.Object-1.0'},
         ]})
-    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
     sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url, TOKEN3, USER3)
 
@@ -2268,7 +2267,6 @@ def test_create_and_propagate_data_links_type_specific(sample_port, workspace, k
         {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
         {'name': 'baz', 'data': {}, 'type': 'Trivial.Object2-1.0'},
         ]})
-    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
 
     sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url, TOKEN3, USER3)
 
