@@ -54,9 +54,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-2"
+    VERSION = "0.1.0-2alpha"
     GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "0c8c4c6f3b5bd15028b0c08a36de4917d3c9b18e"
+    GIT_COMMIT_HASH = "65bc119dc635934e6dfd0cab2ff7614d10cf3cf6"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -66,6 +66,7 @@ Note that usage of the administration flags will be logged by the service.
     def __init__(self, config):
         #BEGIN_CONSTRUCTOR
         self._samples, self._user_lookup, self._read_exempt_roles = _build_samples(config)
+        self.workspace_url = config.get('workspace-url')
         #END_CONSTRUCTOR
         pass
 
@@ -773,9 +774,11 @@ Note that usage of the administration flags will be logged by the service.
             ignored = False
             if ignore_types:
                 wsClient = self._samples._ws._ws
-                obj_info = wsClient.get_object_info3({'objects': [{'ref': upa}]})
+                ret = wsClient.administer({'command': 'getObjectInfo',
+                                           'params': {'objects': [{'ref': str(upa)}],
+                                                      'ignoreErrors': 1}})
 
-                if obj_info['infos'][0][2].split('-')[0] in ignore_types:
+                if ret['infos'][0][2].split('-')[0] in ignore_types:
                     ignored = True
 
             if not ignored:
