@@ -52,11 +52,6 @@ services:
       #
       - auth_read_admin_roles=readadmin1,readadmin2
       - auth_full_admin_roles=fulladmin1,fulladmin2
-      #
-      # db consistency checker
-      #
-      # - consistency_checker_enabled=false
-      # - consistency_checker_interval=60
     command: [ 'develop' ]
 
   # Arangodb server in cluster mode
