@@ -1,4 +1,6 @@
 test/test.cfg
 test_local
 __pycache__
-venv
+.coverage
+test/test_temp/
+lib/SampleService/SampleServiceImpl.py.bak*

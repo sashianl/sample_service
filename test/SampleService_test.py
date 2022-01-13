@@ -12,6 +12,7 @@ import requests
 import time
 import uuid
 import yaml
+import copy
 from configparser import ConfigParser
 from pytest import fixture, raises
 from threading import Thread
@@ -49,25 +50,25 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = "0.1.0"
+VER = '0.1.0-2alpha'
 
-_AUTH_DB = "test_auth_db"
-_WS_DB = "test_ws_db"
-_WS_TYPE_DB = "test_ws_type_db"
+_AUTH_DB = 'test_auth_db'
+_WS_DB = 'test_ws_db'
+_WS_TYPE_DB = 'test_ws_type_db'
 
-TEST_DB_NAME = "test_sample_service"
-TEST_COL_SAMPLE = "samples"
-TEST_COL_VERSION = "versions"
-TEST_COL_VER_EDGE = "ver_to_sample"
-TEST_COL_NODES = "nodes"
-TEST_COL_NODE_EDGE = "node_edges"
-TEST_COL_DATA_LINK = "data_link"
-TEST_COL_WS_OBJ_VER = "ws_obj_ver_shadow"
-TEST_COL_SCHEMA = "schema"
-TEST_USER = "user1"
-TEST_PWD = "password1"
+TEST_DB_NAME = 'test_sample_service'
+TEST_COL_SAMPLE = 'samples'
+TEST_COL_VERSION = 'versions'
+TEST_COL_VER_EDGE = 'ver_to_sample'
+TEST_COL_NODES = 'nodes'
+TEST_COL_NODE_EDGE = 'node_edges'
+TEST_COL_DATA_LINK = 'data_link'
+TEST_COL_WS_OBJ_VER = 'ws_obj_ver_shadow'
+TEST_COL_SCHEMA = 'schema'
+TEST_USER = 'user1'
+TEST_PWD = 'password1'
 
-USER_WS_READ_ADMIN = "wsreadadmin"
+USER_WS_READ_ADMIN = 'wsreadadmin'
 TOKEN_WS_READ_ADMIN = None
 USER_WS_FULL_ADMIN = "wsfulladmin"
 TOKEN_WS_FULL_ADMIN = None
@@ -305,13 +306,17 @@ def workspace(auth, mongo):
                     typedef structure {
                         string dontusethisfieldorifyoudomakesureitsastring;
                     } Object;
+
+                    /* @optional dontusethisfieldorifyoudomakesureitsastring */
+                    typedef structure {
+                        string dontusethisfieldorifyoudomakesureitsastring;
+                    } Object2;
                 };
-                """,
-            "dryrun": 0,
-            "new_types": ["Object"],
-        }
-    )
-    wsc.release_module("Trivial")
+                ''',
+        'dryrun': 0,
+        'new_types': ['Object', 'Object2']
+    })
+    wsc.release_module('Trivial')
 
     yield ws
 
@@ -2640,6 +2645,225 @@ def _create_link(url, token, expected_user, params, print_resp=False):
         "expired": None,
     }
     return id_
+
+
+def _create_sample_and_links_for_propagate_links(url, token, user):
+    # create samples
+    sid = _create_sample(
+        url,
+        token,
+        {'name': 'mysample',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        1
+        )
+    # ver 2
+    _create_sample(
+        url,
+        token,
+        {'id': sid,
+         'name': 'mysample2',
+         'node_tree': [{'id': 'root', 'type': 'BioReplicate'},
+                       {'id': 'foo', 'type': 'TechReplicate', 'parent': 'root'}
+                       ]
+         },
+        2
+        )
+
+    # create links
+    lid1 = _create_link(
+        url, token, user,
+        {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
+    lid2 = _create_link(
+        url, token, user,
+        {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/2/1', 'dataid': 'column2'})
+
+    return sid, lid1, lid2
+
+
+def _check_data_links(links, expected_links):
+
+    assert len(links) == len(expected_links)
+    for link in links:
+        assert_ms_epoch_close_to_now(link['created'])
+        del link['created']
+
+    for link in expected_links:
+        assert link in links
+
+
+def _check_sample_data_links(url, sample_id, version, expected_links, token):
+
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [{'id': sample_id, 'version': version}]
+    })
+    # print(ret.text)
+    assert ret.ok is True
+
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 2
+    assert_ms_epoch_close_to_now(ret.json()['result'][0]['effective_time'])
+    links = ret.json()['result'][0]['links']
+
+    _check_data_links(links, expected_links)
+
+
+def test_create_and_propagate_data_links(sample_port, workspace, kafka):
+
+    _clear_kafka_messages(kafka)
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        {'name': 'baz', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        ]})
+
+    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url, TOKEN3, USER3)
+
+    # check initial links for both version
+    expected_links = [
+        {
+            'linkid': lid1,
+            'id': sid,
+            'version': 1,
+            'node': 'root',
+            'upa': '1/1/1',
+            'dataid': 'column1',
+            'createdby': USER3,
+            'expiredby': None,
+            'expired': None
+        },
+        {
+            'linkid': lid2,
+            'id': sid,
+            'version': 1,
+            'node': 'root',
+            'upa': '1/2/1',
+            'dataid': 'column2',
+            'createdby': USER3,
+            'expiredby': None,
+            'expired': None
+        }
+    ]
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, [], TOKEN3)
+
+    # propagate data links from sample version 1 to version 2
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.propagate_data_links',
+        'version': '1.1',
+        'id': '38',
+        'params': [{'id': sid, 'version': 2, 'previous_version': 1}]
+    })
+
+    # print(ret.text)
+    assert ret.ok is True
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 1
+    links = ret.json()['result'][0]['links']
+
+    new_link_ids = [i['linkid'] for i in links]
+    expected_new_links = copy.deepcopy(expected_links)
+
+    # propagated links should have new link id, dataid and version
+    for idx, expected_link in enumerate(expected_new_links):
+        expected_link['linkid'] = new_link_ids[idx]
+        expected_link['dataid'] = expected_link['dataid'] + '_2'
+        expected_link['version'] = 2
+
+    _check_data_links(links, expected_new_links)
+
+    # check links again for sample version 1 and 2
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, expected_new_links, TOKEN3)
+
+
+def test_create_and_propagate_data_links_type_specific(sample_port, workspace, kafka):
+
+    _clear_kafka_messages(kafka)
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN3)
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'},
+        {'name': 'baz', 'data': {}, 'type': 'Trivial.Object2-1.0'},
+        ]})
+
+    sid, lid1, lid2 = _create_sample_and_links_for_propagate_links(url, TOKEN3, USER3)
+
+    # check initial links for both version
+    expected_links = [
+        {
+            'linkid': lid1,
+            'id': sid,
+            'version': 1,
+            'node': 'root',
+            'upa': '1/1/1',
+            'dataid': 'column1',
+            'createdby': USER3,
+            'expiredby': None,
+            'expired': None
+        },
+        {
+            'linkid': lid2,
+            'id': sid,
+            'version': 1,
+            'node': 'root',
+            'upa': '1/2/1',
+            'dataid': 'column2',
+            'createdby': USER3,
+            'expiredby': None,
+            'expired': None
+        }
+    ]
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, [], TOKEN3)
+
+    # propagate data links from sample version 1 to version 2
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN3), json={
+        'method': 'SampleService.propagate_data_links',
+        'version': '1.1',
+        'id': '38',
+        'params': [{'id': sid, 'version': 2, 'previous_version': 1,
+                    'ignore_types': ['Trivial.Object2']}]
+    })
+
+    # print(ret.text)
+    assert ret.ok is True
+    assert len(ret.json()['result']) == 1
+    assert len(ret.json()['result'][0]) == 1
+    links = ret.json()['result'][0]['links']
+
+    new_link_ids = [i['linkid'] for i in links]
+    expected_new_links = copy.deepcopy(expected_links)
+    expected_new_links.pop()
+    assert len(expected_new_links) == 1
+
+    # propagated links should have new link id, dataid and version
+    for idx, expected_link in enumerate(expected_new_links):
+        expected_link['linkid'] = new_link_ids[idx]
+        expected_link['dataid'] = expected_link['dataid'] + '_2'
+        expected_link['version'] = 2
+
+    _check_data_links(links, expected_new_links)
+
+    # check links again for sample version 1 and 2
+    _check_sample_data_links(url, sid, 1, expected_links, TOKEN3)
+    _check_sample_data_links(url, sid, 2, expected_new_links, TOKEN3)
 
 
 def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, kafka):

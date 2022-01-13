@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-* Add black as development dependency; apply black to all python source in lib and test
+* Apply black to all python source in `lib` and `test`
+
+## 0.1.0-2alpha
+
+* Add propagate_data_links method - propagates data links from a previous sample to the current (latest) version
 
 ## 0.1.0
 
