@@ -830,50 +830,62 @@ class SampleService:
         """
         # ctx is the context object
         # return variables are: results
-        #BEGIN propagate_data_links
-        sid = params.get('id')
-        ver = params.get('version')
+        # BEGIN propagate_data_links
+        sid = params.get("id")
+        ver = params.get("version")
 
-        get_links_params = {'id': sid,
-                            'version': params.get('previous_version'),
-                            'effective_time': params.get('effective_time'),
-                            'as_admin': params.get('as_admin')}
-        data_links = self.get_data_links_from_sample(ctx, get_links_params)[0].get('links')
+        get_links_params = {
+            "id": sid,
+            "version": params.get("previous_version"),
+            "effective_time": params.get("effective_time"),
+            "as_admin": params.get("as_admin"),
+        }
+        data_links = self.get_data_links_from_sample(ctx, get_links_params)[0].get(
+            "links"
+        )
         links = list()
-        ignore_types = params.get('ignore_types', list())
+        ignore_types = params.get("ignore_types", list())
         for data_link in data_links:
-            upa = data_link['upa']
+            upa = data_link["upa"]
 
             ignored = False
             if ignore_types:
                 wsClient = self._samples._ws._ws
-                ret = wsClient.administer({'command': 'getObjectInfo',
-                                           'params': {'objects': [{'ref': str(upa)}],
-                                                      'ignoreErrors': 1}})
+                ret = wsClient.administer(
+                    {
+                        "command": "getObjectInfo",
+                        "params": {"objects": [{"ref": str(upa)}], "ignoreErrors": 1},
+                    }
+                )
 
-                if ret['infos'][0][2].split('-')[0] in ignore_types:
+                if ret["infos"][0][2].split("-")[0] in ignore_types:
                     ignored = True
 
             if not ignored:
-                create_link_params = {'upa': upa,
-                                      'dataid': data_link.get('dataid') + '_' + str(ver),
-                                      'node': data_link.get('node'),
-                                      'id': sid,
-                                      'version': ver,
-                                      'update': params.get('update'),
-                                      'as_admin': params.get('as_admin'),
-                                      'as_user': params.get('as_user')
-                                      }
-                new_link = self.create_data_link(ctx, create_link_params)[0].get('new_link')
+                create_link_params = {
+                    "upa": upa,
+                    "dataid": data_link.get("dataid") + "_" + str(ver),
+                    "node": data_link.get("node"),
+                    "id": sid,
+                    "version": ver,
+                    "update": params.get("update"),
+                    "as_admin": params.get("as_admin"),
+                    "as_user": params.get("as_user"),
+                }
+                new_link = self.create_data_link(ctx, create_link_params)[0].get(
+                    "new_link"
+                )
                 links.append(new_link)
 
-        results = {'links': links}
-        #END propagate_data_links
+        results = {"links": links}
+        # END propagate_data_links
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method propagate_data_links return value ' +
-                             'results is not type dict as required.')
+            raise ValueError(
+                "Method propagate_data_links return value "
+                + "results is not type dict as required."
+            )
         # return the results
         return [results]
 

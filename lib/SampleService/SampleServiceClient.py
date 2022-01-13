@@ -617,8 +617,9 @@ class SampleService(object):
            username.), parameter "expired" of type "timestamp" (A timestamp
            in epoch milliseconds.)
         """
-        return self._client.call_method('SampleService.propagate_data_links',
-                                        [params], self._service_ver, context)
+        return self._client.call_method(
+            "SampleService.propagate_data_links", [params], self._service_ver, context
+        )
 
     def expire_data_link(self, params, context=None):
         """
