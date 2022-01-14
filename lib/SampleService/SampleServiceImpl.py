@@ -2,7 +2,6 @@
 # BEGIN_HEADER
 
 import datetime as _datetime
-from collections import defaultdict
 
 from SampleService.core.config import build_samples as _build_samples
 from SampleService.core.api_translation import (
@@ -61,7 +60,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
     GIT_URL = "ssh://git@github.com/kbase/sample_service"
-    GIT_COMMIT_HASH = "eb7553ddb1519464b6e671fba917a2029edf8681"
+    GIT_COMMIT_HASH = "779521fcbcebea628417b4397d05fa7cc63e180f"
 
     # BEGIN_CLASS_HEADER
     # END_CLASS_HEADER
@@ -429,7 +428,7 @@ Note that usage of the administration flags will be logged by the service.
         # return variables are: samples
         # BEGIN get_samples
         if not params.get("samples"):
-            raise ValueError(f"")
+            raise ValueError("The 'samples' parameter is required")
         ids_ = []
         for samp_obj in params["samples"]:
             id_, ver = _get_sample_address_from_object(samp_obj)
@@ -612,8 +611,8 @@ Note that usage of the administration flags will be logged by the service.
         Get static metadata for one or more metadata keys.
             The static metadata for a metadata key is metadata *about* the key - e.g. it may
             define the key's semantics or denote that the key is linked to an ontological ID.
-            The static metadata does not change without the service being restarted. Client caching is
-            recommended to improve performance.
+            The static metadata does not change without the service being restarted. 
+            Client caching is recommended to improve performance.
         :param params: instance of type "GetMetadataKeyStaticMetadataParams"
            (get_metadata_key_static_metadata parameters. keys - the list of
            metadata keys to interrogate. prefix - 0 (the default) to
