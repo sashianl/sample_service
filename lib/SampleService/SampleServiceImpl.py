@@ -41,17 +41,17 @@ _CTX_TOKEN = "token"
 
 
 class SampleService:
-    """
-        Module Name:
-        SampleService
+    '''
+    Module Name:
+    SampleService
 
-        Module Description:
-        A KBase module: SampleService
+    Module Description:
+    A KBase module: SampleService
 
-    Handles creating, updating, retriving samples and linking data to samples.
+Handles creating, updating, retriving samples and linking data to samples.
 
-    Note that usage of the administration flags will be logged by the service.
-    """
+Note that usage of the administration flags will be logged by the service.
+    '''
 
     ######## WARNING FOR GEVENT USERS ####### noqa
     # Since asynchronous IO can lead to methods - even the same method -
@@ -60,8 +60,8 @@ class SampleService:
     # the latter method is running.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
-    GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "65bc119dc635934e6dfd0cab2ff7614d10cf3cf6"
+    GIT_URL = "ssh://git@github.com/kbase/sample_service"
+    GIT_COMMIT_HASH = "eb7553ddb1519464b6e671fba917a2029edf8681"
 
     # BEGIN_CLASS_HEADER
     # END_CLASS_HEADER
@@ -75,6 +75,7 @@ class SampleService:
         )
         # END_CONSTRUCTOR
         pass
+
 
     def create_sample(self, ctx, params):
         """
@@ -209,10 +210,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(address, dict):
-            raise ValueError(
-                "Method create_sample return value "
-                + "address is not type dict as required."
-            )
+            raise ValueError('Method create_sample ' +
+                             'return value address ' +
+                             'is not type dict as required.')
         # return the results
         return [address]
 
@@ -330,10 +330,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(sample, dict):
-            raise ValueError(
-                "Method get_sample return value "
-                + "sample is not type dict as required."
-            )
+            raise ValueError('Method get_sample ' +
+                             'return value sample ' +
+                             'is not type dict as required.')
         # return the results
         return [sample]
 
@@ -453,10 +452,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(samples, list):
-            raise ValueError(
-                "Method get_samples return value "
-                + "samples is not type list as required."
-            )
+            raise ValueError('Method get_samples ' +
+                             'return value samples ' +
+                             'is not type list as required.')
         # return the results
         return [samples]
 
@@ -506,10 +504,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(acls, dict):
-            raise ValueError(
-                "Method get_sample_acls return value "
-                + "acls is not type dict as required."
-            )
+            raise ValueError('Method get_sample_acls ' +
+                             'return value acls ' +
+                             'is not type dict as required.')
         # return the results
         return [acls]
 
@@ -655,10 +652,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError(
-                "Method get_metadata_key_static_metadata return value "
-                + "results is not type dict as required."
-            )
+            raise ValueError('Method get_metadata_key_static_metadata ' +
+                             'return value results ' +
+                             'is not type dict as required.')
         # return the results
         return [results]
 
@@ -753,10 +749,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError(
-                "Method create_data_link return value "
-                + "results is not type dict as required."
-            )
+            raise ValueError('Method create_data_link ' +
+                             'return value results ' +
+                             'is not type dict as required.')
         # return the results
         return [results]
 
@@ -882,10 +877,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError(
-                "Method propagate_data_links return value "
-                + "results is not type dict as required."
-            )
+            raise ValueError('Method propagate_data_links ' +
+                             'return value results ' +
+                             'is not type dict as required.')
         # return the results
         return [results]
 
@@ -1015,10 +1009,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError(
-                "Method get_data_links_from_sample return value "
-                + "results is not type dict as required."
-            )
+            raise ValueError('Method get_data_links_from_sample ' +
+                             'return value results ' +
+                             'is not type dict as required.')
         # return the results
         return [results]
 
@@ -1097,10 +1090,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError(
-                "Method get_data_links_from_data return value "
-                + "results is not type dict as required."
-            )
+            raise ValueError('Method get_data_links_from_data ' +
+                             'return value results ' +
+                             'is not type dict as required.')
         # return the results
         return [results]
 
@@ -1213,10 +1205,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(sample, dict):
-            raise ValueError(
-                "Method get_sample_via_data return value "
-                + "sample is not type dict as required."
-            )
+            raise ValueError('Method get_sample_via_data ' +
+                             'return value sample ' +
+                             'is not type dict as required.')
         # return the results
         return [sample]
 
@@ -1275,10 +1266,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(link, dict):
-            raise ValueError(
-                "Method get_data_link return value "
-                + "link is not type dict as required."
-            )
+            raise ValueError('Method get_data_link ' +
+                             'return value link ' +
+                             'is not type dict as required.')
         # return the results
         return [link]
 
@@ -1390,10 +1380,9 @@ class SampleService:
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError(
-                "Method validate_samples return value "
-                + "results is not type dict as required."
-            )
+            raise ValueError('Method validate_samples ' +
+                             'return value results ' +
+                             'is not type dict as required.')
         # return the results
         return [results]
 
