@@ -320,8 +320,8 @@ module SampleService {
         The static metadata for a metadata key is metadata *about* the key - e.g. it may
         define the key's semantics or denote that the key is linked to an ontological ID.
 
-        The static metadata does not change without the service being restarted. Client caching is
-        recommended to improve performance.
+        The static metadata does not change without the service being restarted. 
+        Client caching is recommended to improve performance.
 
      */
     funcdef get_metadata_key_static_metadata(GetMetadataKeyStaticMetadataParams params)
