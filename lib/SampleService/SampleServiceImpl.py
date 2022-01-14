@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# BEGIN_HEADER
+#BEGIN_HEADER
 
 import datetime as _datetime
 
@@ -36,7 +36,7 @@ from SampleService.core.user import UserID as _UserID
 
 _CTX_USER = "user_id"
 _CTX_TOKEN = "token"
-# END_HEADER
+#END_HEADER
 
 
 class SampleService:
@@ -60,19 +60,19 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
     GIT_URL = "ssh://git@github.com/kbase/sample_service"
-    GIT_COMMIT_HASH = "981568ab0f29f231ac57abfddb452a4d7720a128"
+    GIT_COMMIT_HASH = "62b7b01e69dafd5a371c0226110c461c07f8e145"
 
-    # BEGIN_CLASS_HEADER
-    # END_CLASS_HEADER
+    #BEGIN_CLASS_HEADER
+    #END_CLASS_HEADER
 
     # config contains contents of config file in a hash or None if it couldn't
     # be found
     def __init__(self, config):
-        # BEGIN_CONSTRUCTOR
+        #BEGIN_CONSTRUCTOR
         self._samples, self._user_lookup, self._read_exempt_roles = _build_samples(
             config
         )
-        # END_CONSTRUCTOR
+        #END_CONSTRUCTOR
         pass
 
 
@@ -184,7 +184,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: address
-        # BEGIN create_sample
+        #BEGIN create_sample
         sample, id_, prev_ver = _create_sample_params(params)
         as_admin, user = _get_admin_request_from_object(params, "as_admin", "as_user")
         _check_admin(
@@ -205,13 +205,12 @@ Note that usage of the administration flags will be logged by the service.
             as_admin=as_admin,
         )
         address = {"id": str(ret[0]), "version": ret[1]}
-        # END create_sample
+        #END create_sample
 
         # At some point might do deeper type checking...
         if not isinstance(address, dict):
-            raise ValueError('Method create_sample ' +
-                             'return value address ' +
-                             'is not type dict as required.')
+            raise ValueError('Method create_sample return value ' +
+                             'address is not type dict as required.')
         # return the results
         return [address]
 
@@ -310,7 +309,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: sample
-        # BEGIN get_sample
+        #BEGIN get_sample
         id_, ver = _get_sample_address_from_object(params)
         admin = _check_admin(
             self._user_lookup,
@@ -325,13 +324,12 @@ Note that usage of the administration flags will be logged by the service.
             id_, _get_user_from_object(ctx, _CTX_USER), ver, as_admin=admin
         )
         sample = _sample_to_dict(s)
-        # END get_sample
+        #END get_sample
 
         # At some point might do deeper type checking...
         if not isinstance(sample, dict):
-            raise ValueError('Method get_sample ' +
-                             'return value sample ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_sample return value ' +
+                             'sample is not type dict as required.')
         # return the results
         return [sample]
 
@@ -426,7 +424,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: samples
-        # BEGIN get_samples
+        #BEGIN get_samples
         if not params.get("samples"):
             raise ValueError("The 'samples' parameter is required")
         ids_ = []
@@ -447,13 +445,12 @@ Note that usage of the administration flags will be logged by the service.
             ids_, _get_user_from_object(ctx, _CTX_USER), as_admin=admin
         )
         samples = [_sample_to_dict(s) for s in samples]
-        # END get_samples
+        #END get_samples
 
         # At some point might do deeper type checking...
         if not isinstance(samples, list):
-            raise ValueError('Method get_samples ' +
-                             'return value samples ' +
-                             'is not type list as required.')
+            raise ValueError('Method get_samples return value ' +
+                             'samples is not type list as required.')
         # return the results
         return [samples]
 
@@ -484,7 +481,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: acls
-        # BEGIN get_sample_acls
+        #BEGIN get_sample_acls
         id_ = _get_id_from_object(params, "id", required=True)
         admin = _check_admin(
             self._user_lookup,
@@ -499,13 +496,12 @@ Note that usage of the administration flags will be logged by the service.
             id_, _get_user_from_object(ctx, _CTX_USER), as_admin=admin
         )
         acls = _acls_to_dict(acls_ret, read_exempt_roles=self._read_exempt_roles)
-        # END get_sample_acls
+        #END get_sample_acls
 
         # At some point might do deeper type checking...
         if not isinstance(acls, dict):
-            raise ValueError('Method get_sample_acls ' +
-                             'return value acls ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_sample_acls return value ' +
+                             'acls is not type dict as required.')
         # return the results
         return [acls]
 
@@ -542,7 +538,7 @@ Note that usage of the administration flags will be logged by the service.
            boolean value, 0 for false, 1 for true.)
         """
         # ctx is the context object
-        # BEGIN update_sample_acls
+        #BEGIN update_sample_acls
         id_ = _get_id_from_object(params, "id", required=True)
         acldelta = _acl_delta_from_dict(params)
         admin = _check_admin(
@@ -557,7 +553,7 @@ Note that usage of the administration flags will be logged by the service.
         self._samples.update_sample_acls(
             id_, _UserID(ctx[_CTX_USER]), acldelta, as_admin=admin
         )
-        # END update_sample_acls
+        #END update_sample_acls
         pass
 
     def replace_sample_acls(self, ctx, params):
@@ -588,7 +584,7 @@ Note that usage of the administration flags will be logged by the service.
            false, 1 for true.)
         """
         # ctx is the context object
-        # BEGIN replace_sample_acls
+        #BEGIN replace_sample_acls
         id_ = _get_id_from_object(params, "id", required=True)
         acls = _acls_from_dict(params)
         admin = _check_admin(
@@ -603,7 +599,7 @@ Note that usage of the administration flags will be logged by the service.
         self._samples.replace_sample_acls(
             id_, _UserID(ctx[_CTX_USER]), acls, as_admin=admin
         )
-        # END replace_sample_acls
+        #END replace_sample_acls
         pass
 
     def get_metadata_key_static_metadata(self, ctx, params):
@@ -640,20 +636,19 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        # BEGIN get_metadata_key_static_metadata
+        #BEGIN get_metadata_key_static_metadata
         keys, prefix = _get_static_key_metadata_params(params)
         results = {
             "static_metadata": self._samples.get_key_static_metadata(
                 keys, prefix=prefix
             )
         }
-        # END get_metadata_key_static_metadata
+        #END get_metadata_key_static_metadata
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method get_metadata_key_static_metadata ' +
-                             'return value results ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_metadata_key_static_metadata return value ' +
+                             'results is not type dict as required.')
         # return the results
         return [results]
 
@@ -723,7 +718,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        # BEGIN create_data_link
+        #BEGIN create_data_link
         duid, sna, update = _create_data_link_params(params)
         as_admin, user = _get_admin_request_from_object(params, "as_admin", "as_user")
         _check_admin(
@@ -744,13 +739,12 @@ Note that usage of the administration flags will be logged by the service.
             as_admin=as_admin,
         )
         results = {"new_link": _links_to_dicts([link])[0]}
-        # END create_data_link
+        #END create_data_link
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method create_data_link ' +
-                             'return value results ' +
-                             'is not type dict as required.')
+            raise ValueError('Method create_data_link return value ' +
+                             'results is not type dict as required.')
         # return the results
         return [results]
 
@@ -824,7 +818,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        # BEGIN propagate_data_links
+        #BEGIN propagate_data_links
         sid = params.get("id")
         ver = params.get("version")
 
@@ -872,13 +866,12 @@ Note that usage of the administration flags will be logged by the service.
                 links.append(new_link)
 
         results = {"links": links}
-        # END propagate_data_links
+        #END propagate_data_links
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method propagate_data_links ' +
-                             'return value results ' +
-                             'is not type dict as required.')
+            raise ValueError('Method propagate_data_links return value ' +
+                             'results is not type dict as required.')
         # return the results
         return [results]
 
@@ -908,7 +901,7 @@ Note that usage of the administration flags will be logged by the service.
            type "user" (A user's username.)
         """
         # ctx is the context object
-        # BEGIN expire_data_link
+        #BEGIN expire_data_link
         duid = _get_data_unit_id_from_object(params)
         as_admin, user = _get_admin_request_from_object(params, "as_admin", "as_user")
         _check_admin(
@@ -924,7 +917,7 @@ Note that usage of the administration flags will be logged by the service.
         self._samples.expire_data_link(
             user if user else _UserID(ctx[_CTX_USER]), duid, as_admin=as_admin
         )
-        # END expire_data_link
+        #END expire_data_link
         pass
 
     def get_data_links_from_sample(self, ctx, params):
@@ -982,7 +975,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        # BEGIN get_data_links_from_sample
+        #BEGIN get_data_links_from_sample
         sid, ver = _get_sample_address_from_object(params, version_required=True)
         dt = _get_datetime_from_epochmillseconds_in_object(params, "effective_time")
         admin = _check_admin(
@@ -1004,13 +997,12 @@ Note that usage of the administration flags will be logged by the service.
             "links": _links_to_dicts(links),
             "effective_time": _datetime_to_epochmilliseconds(ts),
         }
-        # END get_data_links_from_sample
+        #END get_data_links_from_sample
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method get_data_links_from_sample ' +
-                             'return value results ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_data_links_from_sample return value ' +
+                             'results is not type dict as required.')
         # return the results
         return [results]
 
@@ -1066,7 +1058,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        # BEGIN get_data_links_from_data
+        #BEGIN get_data_links_from_data
         upa = _get_upa_from_object(params)
         dt = _get_datetime_from_epochmillseconds_in_object(params, "effective_time")
         admin = _check_admin(
@@ -1085,13 +1077,12 @@ Note that usage of the administration flags will be logged by the service.
             "links": _links_to_dicts(links),
             "effective_time": _datetime_to_epochmilliseconds(ts),
         }
-        # END get_data_links_from_data
+        #END get_data_links_from_data
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method get_data_links_from_data ' +
-                             'return value results ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_data_links_from_data return value ' +
+                             'results is not type dict as required.')
         # return the results
         return [results]
 
@@ -1193,20 +1184,19 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: sample
-        # BEGIN get_sample_via_data
+        #BEGIN get_sample_via_data
         upa = _get_upa_from_object(params)
         sid, ver = _get_sample_address_from_object(params, version_required=True)
         sample = self._samples.get_sample_via_data(
             _get_user_from_object(ctx, _CTX_USER), upa, _SampleAddress(sid, ver)
         )
         sample = _sample_to_dict(sample)
-        # END get_sample_via_data
+        #END get_sample_via_data
 
         # At some point might do deeper type checking...
         if not isinstance(sample, dict):
-            raise ValueError('Method get_sample_via_data ' +
-                             'return value sample ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_sample_via_data return value ' +
+                             'sample is not type dict as required.')
         # return the results
         return [sample]
 
@@ -1249,7 +1239,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: link
-        # BEGIN get_data_link
+        #BEGIN get_data_link
         id_ = _get_id_from_object(params, "linkid", required=True)
         _check_admin(
             self._user_lookup,
@@ -1261,13 +1251,12 @@ Note that usage of the administration flags will be logged by the service.
         )
         dl = self._samples.get_data_link_admin(id_)
         link = _links_to_dicts([dl])[0]
-        # END get_data_link
+        #END get_data_link
 
         # At some point might do deeper type checking...
         if not isinstance(link, dict):
-            raise ValueError('Method get_data_link ' +
-                             'return value link ' +
-                             'is not type dict as required.')
+            raise ValueError('Method get_data_link return value ' +
+                             'link is not type dict as required.')
         # return the results
         return [link]
 
@@ -1368,25 +1357,23 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         # return variables are: results
-        # BEGIN validate_samples
+        #BEGIN validate_samples
         samples = _validate_samples_params(params)
         errors = []
         for sample in samples:
             error_detail = self._samples.validate_sample(sample)
             errors.extend(error_detail)
         results = {"errors": errors}
-        # END validate_samples
+        #END validate_samples
 
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
-            raise ValueError('Method validate_samples ' +
-                             'return value results ' +
-                             'is not type dict as required.')
+            raise ValueError('Method validate_samples return value ' +
+                             'results is not type dict as required.')
         # return the results
         return [results]
-
     def status(self, ctx):
-        # BEGIN_STATUS
+        #BEGIN_STATUS
         returnVal = {
             "state": "OK",
             "message": "",
@@ -1397,5 +1384,5 @@ Note that usage of the administration flags will be logged by the service.
                 _datetime.datetime.now(tz=_datetime.timezone.utc)
             ),
         }
-        # END_STATUS
+        #END_STATUS
         return [returnVal]
