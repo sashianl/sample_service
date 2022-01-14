@@ -4,3 +4,4 @@ __pycache__
 .coverage
 test/test_temp/
 lib/SampleService/SampleServiceImpl.py.bak*
+kb-sdk

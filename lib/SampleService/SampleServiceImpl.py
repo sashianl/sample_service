@@ -60,7 +60,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
     GIT_URL = "ssh://git@github.com/kbase/sample_service"
-    GIT_COMMIT_HASH = "62b7b01e69dafd5a371c0226110c461c07f8e145"
+    GIT_COMMIT_HASH = "84e80fa6c0917e3e33c8be03a1b50f6fa16baeab"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
