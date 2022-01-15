@@ -2,13 +2,13 @@
 
 Docker compose can be very useful as a development platform. It obviates the need to install the sample service dependencies directly on your host machine.
 
-These dependencies include:
+The Sample Service depends on the following services:
 
 - arangodb
-- 
-
-PORT=5001 MOCK_DATASET_PATH=`pwd`/dev/data/mock make host-start-dev-server
-
+- kafka
+- zookeeper
+- KBase Workspace Services
+- KBase Auth Service
 
 ## Requirements
 
@@ -22,6 +22,18 @@ Dependencies:
 - make
 - sh
 
+### Docker Resources
+
+The `docker compose` configuration has some minimal resources which need to be configured in your version of Docker. On a modern machine, a fresh Docker installation should work fine out of the box.
+
+It has been used with Docker assigned as little as 2G memory, 2 cpus, 1G swap, and 16G disk space (macOS - resource requirements may be even lower).
+
+Note that this is with ArangoDB only lightly populated, and Java services with memory requirements lowered from their defaults. Real-world usage scenarios will require more resources to either operate or be performant, and the heap memory assigned to the Java services (kafka, zookeeper) may need to be increased (they are lowered from their default 1G to 256M).
+
+A more performant and pleasant experience will be had with 4+G memory, 4+ cpus, 1G swap, and 20+G disk space.
+
+Note that the memory resources assigned are in addition to other concurrent docker work you may be conducting.
+
 ## Docker Images
 
 The required docker images are noted in the `docker-compose.yml` file in the `dev/` directory of the repo.
@@ -31,8 +43,11 @@ The service images in the docker compose file should match those that are used i
 Generally, the required services are:
 
 - ArangoDB 3.5.1+ with RocksDB as the storage engine
-- Kafa 2.5.0+
-- KBase Mock Services
+- Kafka 2.5.0+
+- Zookeeper latest (not sure why this isn't pinned)
+- KBase Mock Services, which provides:
+  - workspace
+  - auth
 
 ## Starting the containers
 
