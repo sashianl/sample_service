@@ -11,4 +11,8 @@ if [ -n "$USING_PORT" ]; then
   exit 1
 fi
 
-docker compose -f dev/docker-compose.yml up
+if [ "$DC_DETACH" == "yes" ]; then
+  docker compose -f dev/docker-compose.yml up --detach
+else
+  docker compose -f dev/docker-compose.yml up
+fi

@@ -10,9 +10,6 @@ else
   export DC_MOCK_DATASET_PATH=$MOCK_DATASET_PATH
 fi
 
-#
-# The 
-#
 DEFAULT_VALIDATION_SPEC_URL="https://raw.githubusercontent.com/kbase/sample_service_validator_config/master/metadata_validation.yml"
 if [ -z "$VALIDATION_SPEC_URL" ]; then
   echo "'VALIDATION_SPEC_URL' environment variable not set - default of '${DEFAULT_VALIDATION_SPEC_URL}' will be used"
@@ -29,4 +26,13 @@ if [ -z "$PORT" ]; then
 else
   echo "'PORT' environment variable set to '$PORT'"
   export DC_PORT=$PORT
+fi
+
+DEFAULT_DETACH="no"
+if [ -z "$DETACH" ]; then
+  echo "'DETACH' environment variable not set - default of '${DEFAULT_DETACH}' will be used"
+  export DC_DETACH=${DEFAULT_DETACH}
+else
+  echo "'DETACH' environment variable set to '$DETACH'"
+  export DC_DETACH=$DETACH
 fi

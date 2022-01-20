@@ -55,7 +55,7 @@ Generally, the required services are:
 make host-start-dev-server
 ```
 
-This uses three environment variables set to default values.
+This uses four environment variables set to default values.
 
 where:
 
@@ -75,18 +75,22 @@ where:
 
     Note this can be directed to a local file (within the container) using the `file://`  protocol. (An example of this will be in future work.)
 
+- `DETACH` determines whether the docker compose service runs "detached", in the background, or not; defaults to "no". A value of "yes" indicates that it will run detached; "no" or any other value will cause it to run in the foreground. Foreground can be handy for monitoring log entries as they are produced, which can help with debugging. In detached mode you can use Docker Desktop to easily monitor the logs of individual services.
+
 Any of these environment variables may set from the shell and will override defaults.
 
 Note that within `dev/docker-compose.yml` the environment variables are prefixed by `DC_`. The `scripts/dev-server-env.sh` script contains the default values, and sets up the `DC_` environment variables. This script is sourced within the `Makefile`.
 
 ## Starting and sending to background
 
-If you prefer to have the server run in the background, and perhaps have standard output and standard error redirected to files, have a gander at this.
+If you prefer to have the server run in the background without using the docker compose detached mode, and perhaps have standard output and standard error redirected to files, have a gander at this.
 
 ### Run in background, watch output
 
+This mode lets you monitor the startup of services, but leaves the command line free, although not really usable until it is completed.
+
 ```shell
-make host-start-dev-server
+make host-start-dev-server &
 ```
 
 ### Run in background, send output to files
