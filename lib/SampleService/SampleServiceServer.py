@@ -365,6 +365,10 @@ class Application(object):
                              name='SampleService.update_sample_acls',
                              types=[dict])
         self.method_authentication['SampleService.update_sample_acls'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.update_samples_acls,
+                             name='SampleService.update_samples_acls',
+                             types=[dict])
+        self.method_authentication['SampleService.update_samples_acls'] = 'required'  # noqa
         self.rpc_service.add(impl_SampleService.replace_sample_acls,
                              name='SampleService.replace_sample_acls',
                              types=[dict])

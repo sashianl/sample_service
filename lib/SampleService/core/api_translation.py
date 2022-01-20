@@ -612,3 +612,24 @@ def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
             'expired': ex
         })
     return ret
+
+def update_samples_acls(
+    params, samples_client, user_lookup, user, token, perms, log_info
+):
+    acldelta = acl_delta_from_dict(params)
+    admin = check_admin(
+        user_lookup,
+        token,
+        perms,
+        "update_sample_acls",
+        log_info,
+        skip_check=not params.get('as_admin')
+    )
+    ids = params.get("ids")
+    for id_ in ids:
+        samples_client.update_sample_acls(
+            id_,
+            UserID(user),
+            acldelta,
+            as_admin=admin
+        )
