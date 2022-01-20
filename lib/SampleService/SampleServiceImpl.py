@@ -25,7 +25,8 @@ from SampleService.core.api_translation import (
     datetime_to_epochmilliseconds as _datetime_to_epochmilliseconds,
     get_user_from_object as _get_user_from_object,
     acl_delta_from_dict as _acl_delta_from_dict,
-    )
+    update_samples_acls,
+)
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.user import UserID as _UserID
@@ -55,8 +56,8 @@ Note that usage of the administration flags will be logged by the service.
     # the latter method is running.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
-    GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "65bc119dc635934e6dfd0cab2ff7614d10cf3cf6"
+    GIT_URL = "git@github.com:kbase/sample_service.git"
+    GIT_COMMIT_HASH = "33909140352e79b5aa3320d4b2fe66798ef9b92f"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -512,6 +513,35 @@ Note that usage of the administration flags will be logged by the service.
         #END update_sample_acls
         pass
 
+    def update_samples_acls(self, ctx, params):
+        """
+        Update the ACLs of many samples.
+        :param params: instance of type "UpdateSamplesACLsParams" ->
+           structure: parameter "ids" of list of type "sample_id" (A Sample
+           ID. Must be globally unique. Always assigned by the Sample
+           service.), parameter "admin" of list of type "user" (A user's
+           username.), parameter "write" of list of type "user" (A user's
+           username.), parameter "read" of list of type "user" (A user's
+           username.), parameter "remove" of list of type "user" (A user's
+           username.), parameter "public_read" of Long, parameter "at_least"
+           of type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_admin" of type "boolean" (A boolean value, 0 for
+           false, 1 for true.)
+        """
+        # ctx is the context object
+        #BEGIN update_samples_acls
+        update_samples_acls(
+            params,
+            self._samples,
+            self._user_lookup,
+            ctx[_CTX_USER],
+            ctx[_CTX_TOKEN],
+            _AdminPermission.FULL,
+            ctx.log_info,
+        )
+        #END update_samples_acls
+        pass
+
     def replace_sample_acls(self, ctx, params):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
@@ -554,10 +584,10 @@ Note that usage of the administration flags will be logged by the service.
     def get_metadata_key_static_metadata(self, ctx, params):
         """
         Get static metadata for one or more metadata keys.
-            The static metadata for a metadata key is metadata *about* the key - e.g. it may
-            define the key's semantics or denote that the key is linked to an ontological ID.
-            The static metadata does not change without the service being restarted. Client caching is
-            recommended to improve performance.
+                The static metadata for a metadata key is metadata *about* the key - e.g. it may
+                define the key's semantics or denote that the key is linked to an ontological ID.
+                The static metadata does not change without the service being restarted. Client caching is
+                recommended to improve performance.
         :param params: instance of type "GetMetadataKeyStaticMetadataParams"
            (get_metadata_key_static_metadata parameters. keys - the list of
            metadata keys to interrogate. prefix - 0 (the default) to
@@ -806,8 +836,8 @@ Note that usage of the administration flags will be logged by the service.
     def expire_data_link(self, ctx, params):
         """
         Expire a link from a KBase Workspace object.
-            The user must have admin permissions for the sample and write permissions for the
-            Workspace object.
+                The user must have admin permissions for the sample and write permissions for the
+                Workspace object.
         :param params: instance of type "ExpireDataLinkParams"
            (expire_data_link parameters. upa - the workspace upa of the
            object from which the link originates. dataid - the dataid, if
