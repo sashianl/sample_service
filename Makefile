@@ -58,7 +58,3 @@ host-start-dev-server:
 
 host-stop-dev-server:
 	source scripts/dev-server-env.sh && sh scripts/stop-dev-server.sh
-
-host-remove-dev-server:
-	source scripts/dev-server-env.sh && sh scripts/remove-dev-server.sh
-

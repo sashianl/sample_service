@@ -59,13 +59,15 @@ This uses three environment variables set to default values.
 
 where:
 
-- `PORT` is the port to expose on your host machine; optional - defaults to 5000.
+- `PORT` is the port to expose on your host machine; optional - defaults to 5006.
 
-    On macOS should specify the port as other than 5000, as macOS Monterey uses it by default for AirPlay.
+    The default exposed port is 5006, even though the internal port is 5000, the standard port for KBase services.
+
+    This is so because macOS Monterey utilizes port 5000 for Airplay; generally there are many extant services, most of which would not interfere with KBase development, on port 5000, both [defacto](https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers) and [official](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?&page=88).
+
+    Generally you should be prepare to select another port if you receive an error message that something else is using the port:
 
     E.g. `PORT=5001 make host-start-dev-server`
-
-    Generally 5000 is a reserved port, but it is the KBase default for services.
 
 - `MOCK_DATASET_PATH` is a filesystem path to the parent directory for data provided for the mock services server; optional, defaults to `"${PWD}/dev/data/mock"` which contains just a little bit of mock data as an example.
 
@@ -73,22 +75,48 @@ where:
 
     Note this can be directed to a local file (within the container) using the `file://`  protocol. (An example of this will be in future work.)
 
-Any of these environment variables may set from the shell and will override defaults. 
+Any of these environment variables may set from the shell and will override defaults.
 
 Note that within `dev/docker-compose.yml` the environment variables are prefixed by `DC_`. The `scripts/dev-server-env.sh` script contains the default values, and sets up the `DC_` environment variables. This script is sourced within the `Makefile`.
 
-## Stopping the containers
+## Starting and sending to background
 
-There are two associated make tasks `host-stop-dev-server` and `host-remove-dev-server` which will stop and remove the containers, respectively.
+If you prefer to have the server run in the background, and perhaps have standard output and standard error redirected to files, have a gander at this.
+
+### Run in background, watch output
+
+```shell
+make host-start-dev-server
+```
+
+### Run in background, send output to files
+
+```shell
+make host-start-dev-server > out.txt 2> err.txt & 
+```
+
+Returns immediately, starting and running the server in the background, and sending standard output to `out.txt` and standard error to `err.txt`.
+
+### Run in background, ignore output
+
+```shell
+make host-start-dev-server > /dev/null 2> /dev/null &
+```
+
+You can always access the logs via docker, e.g. select the running container in Docker Desktop to view the logs for that container.
+
+## Stopping and removing the containers
+
+An associated make task `host-stop-dev-server` stop and remove the containers. You can run this task in the same window, if you started the server in the background, or in another window if the server is running in the foreground (or you may kill the primary server process with `[Control]C` and then run the `host-stop-dev-server` task to clean up.)
 
 ## Using the sample service in the container
 
-To use the sample service in the container, simply invoke the api at `http://localhost:$PORT` where `$PORT` is either the default port of `5000` or the port set in the `PORT` environment variable.
+To use the sample service running in the container, simply invoke the api at `http://localhost:$PORT` where `$PORT` is either the default port of `5006` or the port you set in the `PORT` environment variable.
 
 E.g.
 
 ```sh
-curl -X POST http://localhost:5001/ \
+curl -X POST http://localhost:5006/ \
     -d '{
 "version": "1.1",
 "id": "123",
@@ -100,7 +128,7 @@ curl -X POST http://localhost:5001/ \
 If you pipe that through `json_pp`:
 
 ```sh
-curl -s -X POST http://localhost:5001/ \
+curl -s -X POST http://localhost:5006/ \
     -d '{
 "version": "1.1",
 "id": "123",
@@ -127,9 +155,3 @@ it should return something like:
     "id": "123"
 }
 ```
-
-## Iterating with the container
-
-At present you must stop and start the container with code changes. When docker compose is stopped with `[Control]C` only the sample service container is stopped. The entire suite must be stopped and removed before restarting, otherwise the startup script will attempt to re-initialize the database, and fail to start.
-
-Future work will add auto-restart upon code code change.
