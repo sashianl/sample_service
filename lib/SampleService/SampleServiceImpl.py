@@ -25,11 +25,13 @@ from SampleService.core.api_translation import (
     datetime_to_epochmilliseconds as _datetime_to_epochmilliseconds,
     get_user_from_object as _get_user_from_object,
     acl_delta_from_dict as _acl_delta_from_dict,
-    update_samples_acls,
 )
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.user import UserID as _UserID
+from SampleService.impl_methods import (
+    update_samples_acls as _update_samples_acls
+)
 
 _CTX_USER = 'user_id'
 _CTX_TOKEN = 'token'
@@ -530,7 +532,7 @@ Note that usage of the administration flags will be logged by the service.
         """
         # ctx is the context object
         #BEGIN update_samples_acls
-        update_samples_acls(
+        _update_samples_acls(
             params,
             self._samples,
             self._user_lookup,
