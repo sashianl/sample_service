@@ -2063,7 +2063,7 @@ def test_update_acls_many_bulk(sample_port):
 
 def test_update_acls_many_bulk_fail(sample_port):
     url = f'http://localhost:{sample_port}'
-    sample_bad_id = 'wrong_id'
+    sample_bad_id = str(uuid.UUID('0'*32))
     resp = _update_samples_acls(
         url,
         TOKEN1,

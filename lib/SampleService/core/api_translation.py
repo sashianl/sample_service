@@ -100,14 +100,8 @@ def get_id_from_object(obj: Dict[str, Any], key, name=None, required=False) -> O
     if required and (not obj or not obj.get(key)):
         raise _MissingParameterError(name)
     if obj and obj.get(key):
-        if type(obj[key]) != str:
-            raise _IllegalParameterError(f'{name} {obj[key]} must be a UUID string')
-        try:
-            id_ = UUID(obj[key])
-        except ValueError as _:  # noqa F841
-            raise _IllegalParameterError(f'{name} {obj[key]} must be a UUID string')
+        id_ = validate_sample_id(obj[key], name)
     return id_
-
 
 def datetime_to_epochmilliseconds(d: datetime.datetime) -> int:
     '''
@@ -613,23 +607,19 @@ def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
         })
     return ret
 
-def update_samples_acls(
-    params, samples_client, user_lookup, user, token, perms, log_info
-):
-    acldelta = acl_delta_from_dict(params)
-    admin = check_admin(
-        user_lookup,
-        token,
-        perms,
-        "update_sample_acls",
-        log_info,
-        skip_check=not params.get('as_admin')
-    )
-    ids = params.get("ids")
-    for id_ in ids:
-        samples_client.update_sample_acls(
-            id_,
-            UserID(user),
-            acldelta,
-            as_admin=admin
-        )
+def validate_sample_id(id_, name=None):
+    '''
+    Given a string, validate the sample ID.
+
+    :param id_: the sample's ID.
+    :param name: the name of the ID to use in an exception, defaulting to the key.
+    :returns: the ID, if it is a valid UUID
+    :raises IllegalParameterError: if the ID is provided but is invalid.
+    '''
+    err = _IllegalParameterError(f'{name} {id_} must be a UUID string')
+    if type(id_) != str:
+        raise err
+    try:
+        return UUID(id_)
+    except ValueError as _:  # noqa F841
+        raise err

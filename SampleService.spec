@@ -273,6 +273,11 @@ module SampleService {
     /* Update a sample's ACLs.  */
      funcdef update_sample_acls(UpdateSampleACLsParams params) returns() authentication required;
 
+    /* update_samples_acls parameters.
+
+        These parameters are the same as update_sample_acls, except:
+        ids - a list of IDs of samples to modify.
+    */
     typedef structure {
         list<sample_id> ids;
         list<user> admin;
