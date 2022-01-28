@@ -398,17 +398,19 @@ class SampleService(object):
     def update_samples_acls(self, params, context=None):
         """
         Update the ACLs of many samples.
-        :param params: instance of type "UpdateSamplesACLsParams" ->
-           structure: parameter "ids" of list of type "sample_id" (A Sample
-           ID. Must be globally unique. Always assigned by the Sample
-           service.), parameter "admin" of list of type "user" (A user's
-           username.), parameter "write" of list of type "user" (A user's
-           username.), parameter "read" of list of type "user" (A user's
-           username.), parameter "remove" of list of type "user" (A user's
-           username.), parameter "public_read" of Long, parameter "at_least"
-           of type "boolean" (A boolean value, 0 for false, 1 for true.),
-           parameter "as_admin" of type "boolean" (A boolean value, 0 for
-           false, 1 for true.)
+        :param params: instance of type "UpdateSamplesACLsParams"
+           (update_samples_acls parameters. These parameters are the same as
+           update_sample_acls, except: ids - a list of IDs of samples to
+           modify.) -> structure: parameter "ids" of list of type "sample_id"
+           (A Sample ID. Must be globally unique. Always assigned by the
+           Sample service.), parameter "admin" of list of type "user" (A
+           user's username.), parameter "write" of list of type "user" (A
+           user's username.), parameter "read" of list of type "user" (A
+           user's username.), parameter "remove" of list of type "user" (A
+           user's username.), parameter "public_read" of Long, parameter
+           "at_least" of type "boolean" (A boolean value, 0 for false, 1 for
+           true.), parameter "as_admin" of type "boolean" (A boolean value, 0
+           for false, 1 for true.)
         """
         return self._client.call_method('SampleService.update_samples_acls',
                                         [params], self._service_ver, context)
