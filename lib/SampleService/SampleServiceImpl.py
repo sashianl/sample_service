@@ -57,9 +57,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-2alpha"
+    VERSION = "0.1.1"
     GIT_URL = "git@github.com:kbase/sample_service.git"
-    GIT_COMMIT_HASH = "33909140352e79b5aa3320d4b2fe66798ef9b92f"
+    GIT_COMMIT_HASH = "3f492c0c498144f40fb05f002178dbaa9fee6e0e"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -518,17 +518,19 @@ Note that usage of the administration flags will be logged by the service.
     def update_samples_acls(self, ctx, params):
         """
         Update the ACLs of many samples.
-        :param params: instance of type "UpdateSamplesACLsParams" ->
-           structure: parameter "ids" of list of type "sample_id" (A Sample
-           ID. Must be globally unique. Always assigned by the Sample
-           service.), parameter "admin" of list of type "user" (A user's
-           username.), parameter "write" of list of type "user" (A user's
-           username.), parameter "read" of list of type "user" (A user's
-           username.), parameter "remove" of list of type "user" (A user's
-           username.), parameter "public_read" of Long, parameter "at_least"
-           of type "boolean" (A boolean value, 0 for false, 1 for true.),
-           parameter "as_admin" of type "boolean" (A boolean value, 0 for
-           false, 1 for true.)
+        :param params: instance of type "UpdateSamplesACLsParams"
+           (update_samples_acls parameters. These parameters are the same as
+           update_sample_acls, except: ids - a list of IDs of samples to
+           modify.) -> structure: parameter "ids" of list of type "sample_id"
+           (A Sample ID. Must be globally unique. Always assigned by the
+           Sample service.), parameter "admin" of list of type "user" (A
+           user's username.), parameter "write" of list of type "user" (A
+           user's username.), parameter "read" of list of type "user" (A
+           user's username.), parameter "remove" of list of type "user" (A
+           user's username.), parameter "public_read" of Long, parameter
+           "at_least" of type "boolean" (A boolean value, 0 for false, 1 for
+           true.), parameter "as_admin" of type "boolean" (A boolean value, 0
+           for false, 1 for true.)
         """
         # ctx is the context object
         #BEGIN update_samples_acls
