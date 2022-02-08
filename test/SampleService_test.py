@@ -2959,6 +2959,50 @@ def test_get_links_from_sample_public_read(sample_port, workspace):
                 'expired': None
             }
 
+def test_get_links_from_sample_set(sample_port, workspace):
+
+    """
+        test timing for fetching batch of links from list of samples
+    """
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN1)
+
+    N_SAMPLES = 500
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'} for _ in range(N_SAMPLES)
+    ]})
+    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
+
+    ids_ = [_create_generic_sample(url, TOKEN1) for _ in range(N_SAMPLES)]
+    lids = [_create_link(url, TOKEN1, USER1, {
+        'id': id_,
+        'version': 1,
+        'node': 'foo',
+        'upa': f'1/1/{i+1}'}) for i, id_ in enumerate(ids_)]
+    start = time.time()
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_data_links_from_sample_set',
+        'version': '1.1',
+        'id': '42',
+        'params': [{
+            'sample_ids': [{'id': id_, 'version': 1} for id_ in ids_],
+            'as_admin': False,
+            'effective_time': _get_current_epochmillis()
+        }]
+    })
+    end = time.time()
+    elapsed = end - start
+    # getting 500 sample links should take about 5 seconds (1 second per 100 samples)
+    print(f"retrieved data links from {N_SAMPLES} samples in {elapsed} seconds.")
+    assert ret.ok
+    # assuming twice the amound of expected time elasped should raise concern
+    assert elapsed < 10
+    assert len(ret.json()['result'][0]['links']) == N_SAMPLES
 
 def test_create_link_fail(sample_port, workspace):
     url = f'http://localhost:{sample_port}'

@@ -504,6 +504,34 @@ module SampleService {
     funcdef get_data_links_from_sample(GetDataLinksFromSampleParams params)
         returns(GetDataLinksFromSampleResults results) authentication optional;
 
+    /* get_data_links_from_sample_set parameters.
+
+        At least one of the following parameters are required:
+        sample_ids - a list of sample ids and versions
+        - OR -
+        sample_set_refs - a list of full UPAs of sample set refs
+
+        effective_time - the time at which the query was run. This timestamp, if saved, can be
+        used when running the method again to enqure reproducible results. Note that changes
+        to workspace permissions may cause results to change over time.
+    */
+
+    typedef structure {
+        list<SampleIdentifier> sample_ids;
+        list<ws_upa> sample_set_refs;
+        timestamp effective_time;
+        boolean as_admin;
+    } GetDataLinksFromSampleSetParams;
+
+    /* Get all workspace object metadata linked to samples in a list of samples or sample set refs.
+        Returns metadata about links to data objects as well as the data objects
+
+        The user must have read permissions to the sample. Only Workspace objects the user
+        can read are returned.
+    */
+    funcdef get_data_links_from_sample_set(GetDataLinksFromSampleSetParams params)
+        returns(GetDataLinksFromSampleResults results) authentication optional;
+
     /* get_data_links_from_data parameters.
 
         upa - the data UPA.

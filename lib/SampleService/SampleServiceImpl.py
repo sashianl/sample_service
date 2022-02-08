@@ -55,8 +55,8 @@ Note that usage of the administration flags will be logged by the service.
     # the latter method is running.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
-    GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "65bc119dc635934e6dfd0cab2ff7614d10cf3cf6"
+    GIT_URL = "git@github.com:charleshtrenholm/sample_service.git"
+    GIT_COMMIT_HASH = "27eb4d9f10881f1775d9c3949111ecff0f733d48"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -915,6 +915,105 @@ Note that usage of the administration flags will be logged by the service.
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
             raise ValueError('Method get_data_links_from_sample return value ' +
+                             'results is not type dict as required.')
+        # return the results
+        return [results]
+
+    def get_data_links_from_sample_set(self, ctx, params):
+        """
+        Get all workspace object metadata linked to samples in a list of samples or sample set refs.
+        Returns metadata about links to data objects as well as the data objects
+        The user must have read permissions to the sample. Only Workspace objects the user
+        can read are returned.
+        :param params: instance of type "GetDataLinksFromSampleSetParams"
+           (get_data_links_from_sample_set parameters. At least one of the
+           following parameters are required: sample_ids - a list of sample
+           ids and versions - OR - sample_set_refs - a list of full UPAs of
+           sample set refs effective_time - the time at which the query was
+           run. This timestamp, if saved, can be used when running the method
+           again to enqure reproducible results. Note that changes to
+           workspace permissions may cause results to change over time.) ->
+           structure: parameter "sample_ids" of list of type
+           "SampleIdentifier" -> structure: parameter "id" of type
+           "sample_id" (A Sample ID. Must be globally unique. Always assigned
+           by the Sample service.), parameter "version" of type "version"
+           (The version of a sample. Always > 0.), parameter
+           "sample_set_refs" of list of type "ws_upa" (A KBase Workspace
+           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
+           workspace ID, 6 the object ID, and 7 the object version.),
+           parameter "effective_time" of type "timestamp" (A timestamp in
+           epoch milliseconds.), parameter "as_admin" of type "boolean" (A
+           boolean value, 0 for false, 1 for true.)
+        :returns: instance of type "GetDataLinksFromSampleResults"
+           (get_data_links_from_sample results. links - the links.
+           effective_time - the time at which the query was run. This
+           timestamp, if saved, can be used when running the method again to
+           ensure reproducible results. Note that changes to workspace
+           permissions may cause results to change over time.) -> structure:
+           parameter "links" of list of type "DataLink" (A data link from a
+           KBase workspace object to a sample. upa - the workspace UPA of the
+           linked object. dataid - the dataid of the linked data, if any,
+           within the object. If omitted the entire object is linked to the
+           sample. id - the sample id. version - the sample version. node -
+           the sample node. createdby - the user that created the link.
+           created - the time the link was created. expiredby - the user that
+           expired the link, if any. expired - the time the link was expired,
+           if at all.) -> structure: parameter "linkid" of type "link_id" (A
+           link ID. Must be globally unique. Always assigned by the Sample
+           service. Typically only of use to service admins.), parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "createdby" of type "user" (A user's username.),
+           parameter "created" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "expiredby" of type "user" (A user's
+           username.), parameter "expired" of type "timestamp" (A timestamp
+           in epoch milliseconds.), parameter "effective_time" of type
+           "timestamp" (A timestamp in epoch milliseconds.)
+        """
+        # BEGIN get_data_links_from_sample_set
+        if not 'sample_ids' in params:
+            raise ValueError(
+                'Missing "sample_ids" field - Must provide a list of valid sample ids.'
+            )
+
+        sample_ids = [_get_sample_address_from_object({
+            "id": sample_id['id'],
+            "version": sample_id['version'],
+            "effective_time": params['effective_time'],
+            "as_admin": params['as_admin']
+        }, version_required=True) for sample_id in params['sample_ids']]
+
+        dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
+
+        admin = _check_admin(
+            self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
+            'get_data_links_from_sample', ctx.log_info, skip_check=not params.get('as_admin'))
+
+        # cast tuple results to type SampleAddress
+        sample_addresses = [_SampleAddress(sid, ver) for sid, ver in sample_ids]
+
+        links, ts = self._samples.get_batch_links_from_sample_set(
+            _get_user_from_object(ctx, _CTX_USER), sample_addresses, dt, as_admin=admin)
+
+        results = {
+            'links': _links_to_dicts(links),
+            'effective_time': _datetime_to_epochmilliseconds(ts)
+            }
+
+        #END get_data_links_from_sample_set
+
+        # At some point might do deeper type checking...
+        if not isinstance(results, dict):
+            raise ValueError('Method get_data_links_from_sample_set return value ' +
                              'results is not type dict as required.')
         # return the results
         return [results]
