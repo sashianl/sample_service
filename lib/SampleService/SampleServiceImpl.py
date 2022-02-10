@@ -985,12 +985,19 @@ Note that usage of the administration flags will be logged by the service.
                 'Missing "sample_ids" field - Must provide a list of valid sample ids.'
             )
 
-        sample_ids = [_get_sample_address_from_object({
-            "id": sample_id['id'],
-            "version": sample_id['version'],
-            "effective_time": params['effective_time'],
-            "as_admin": params['as_admin']
-        }, version_required=True) for sample_id in params['sample_ids']]
+        try:
+            sample_ids = [_get_sample_address_from_object({
+                "id": sample_id['id'],
+                "version": sample_id['version'],
+                "effective_time": params['effective_time'],
+                "as_admin": params.get('as_admin')
+            }, version_required=True) for sample_id in params['sample_ids']]
+        except KeyError as e:
+            if str(e) == "'effective_time'":
+                raise ValueError('Missing "effective_time" parameter.')
+            raise ValueError(
+                "Malformed sample accessor - each sample must provide both an id and a version."
+            )
 
         dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
 
