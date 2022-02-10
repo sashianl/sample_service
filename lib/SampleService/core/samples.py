@@ -441,6 +441,43 @@ class Samples:
         # TODO DATALINK what about deleted objects? Currently not handled
         return self._storage.get_links_from_sample(sample, wsids, timestamp), timestamp
 
+    def get_batch_links_from_sample_set(
+            self,
+            user: Optional[UserID],
+            samples: List[SampleAddress],
+            timestamp: datetime.datetime = None,
+            as_admin: bool = False) -> Tuple[List[DataLink], datetime.datetime]:
+        '''
+        A batch version of get_links_from_sample. Gets a set of  data links originating
+        from multiple samples in a given sampleset at a particular time.
+
+        :param user: the user requesting the links or None if the user is anonymous.
+        :param samples: the list of sample ids from which the links originate.
+        :param timestamp: the timestamp during which the links should be active, defaulting to
+            the current time.
+        :param as_admin: allow link retrieval to proceed if user does not have
+            appropriate permissions.
+        :returns: a tuple consisting of a list of links and the timestamp used to query the links.
+        :raises UnauthorizedError: if the user does not have read permission for the sample.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises NoSuchSampleVersionError: if the sample version does not exist.
+        :raises NoSuchUserError: if the user does not exist.
+        '''
+        _not_falsy(samples, 'samples')
+        timestamp = self._resolve_timestamp(timestamp)
+
+        wsids = None if as_admin else self._ws.get_user_workspaces(user)
+        # TODO DATALINK what about deleted objects? Currently not handled
+        return_links = []
+        for sample in samples:
+            # TODO: consider adding support for sample set refs, so that we don't have to check
+            # perms for every individual sample. It does not appear to create a significant
+            # bottleneck as implemented but it could help with a lot of samples at once
+            self._check_perms(sample.sampleid, user, _SampleAccessType.READ, as_admin=as_admin)
+            return_links.extend(self._storage.get_links_from_sample(sample, wsids, timestamp))
+
+        return return_links, timestamp
+
     def _resolve_timestamp(self, timestamp: datetime.datetime = None) -> datetime.datetime:
         if timestamp:
             _check_timestamp(timestamp, 'timestamp')

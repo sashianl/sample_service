@@ -3072,6 +3072,50 @@ def test_get_links_from_sample_public_read(sample_port, workspace):
                 'expired': None
             }
 
+def test_get_links_from_sample_set(sample_port, workspace):
+
+    """
+        test timing for fetching batch of links from list of samples
+    """
+
+    url = f'http://localhost:{sample_port}'
+    wsurl = f'http://localhost:{workspace.port}'
+    wscli = Workspace(wsurl, token=TOKEN1)
+
+    N_SAMPLES = 500
+
+    # create workspace & objects
+    wscli.create_workspace({'workspace': 'foo'})
+    wscli.save_objects({'id': 1, 'objects': [
+        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'} for _ in range(N_SAMPLES)
+    ]})
+    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
+
+    ids_ = [_create_generic_sample(url, TOKEN1) for _ in range(N_SAMPLES)]
+    lids = [_create_link(url, TOKEN1, USER1, {
+        'id': id_,
+        'version': 1,
+        'node': 'foo',
+        'upa': f'1/1/{i+1}'}) for i, id_ in enumerate(ids_)]
+    start = time.time()
+    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
+        'method': 'SampleService.get_data_links_from_sample_set',
+        'version': '1.1',
+        'id': '42',
+        'params': [{
+            'sample_ids': [{'id': id_, 'version': 1} for id_ in ids_],
+            'as_admin': False,
+            'effective_time': _get_current_epochmillis()
+        }]
+    })
+    end = time.time()
+    elapsed = end - start
+    # getting 500 sample links should take about 5 seconds (1 second per 100 samples)
+    print(f"retrieved data links from {N_SAMPLES} samples in {elapsed} seconds.")
+    assert ret.ok
+    # assuming twice the amound of expected time elasped should raise concern
+    assert elapsed < 10
+    assert len(ret.json()['result'][0]['links']) == N_SAMPLES
 
 def test_create_link_fail(sample_port, workspace):
     url = f'http://localhost:{sample_port}'
@@ -3220,6 +3264,81 @@ def _get_link_from_sample_fail(sample_port, token, params, expected):
     url = f'http://localhost:{sample_port}'
     ret = requests.post(url, headers=get_authorized_headers(token), json={
         'method': 'SampleService.get_data_links_from_sample',
+        'version': '1.1',
+        'id': '42',
+        'params': [params]
+    })
+    assert ret.status_code == 500
+    assert ret.json()['error']['message'] == expected
+
+
+def test_get_links_from_sample_set_fail(sample_port):
+    url = f'http://localhost:{sample_port}'
+    id_ = _create_generic_sample(url, TOKEN3)
+
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN3, {},
+        'Missing "sample_ids" field - Must provide a list of valid sample ids.')
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN3, {
+            'sample_ids': [{'id': id_}]
+        },
+        "Malformed sample accessor - each sample must provide both an id and a version.")
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN3, {
+            'sample_ids': [{'id': id_, 'version': 1}]
+        },
+        'Missing "effective_time" parameter.')
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN3, {
+            'sample_ids': [{'id': id_, 'version': 1}],
+            'effective_time': 'foo'
+        },
+        "Sample service error code 30001 Illegal input parameter: key 'effective_time' " +
+        "value of 'foo' is not a valid epoch millisecond timestamp")
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN4, {
+            'sample_ids': [{'id': id_, 'version': 1}],
+            'effective_time': _get_current_epochmillis() - 500
+        },
+        f'Sample service error code 20000 Unauthorized: User user4 cannot read sample {id_}')
+    _get_links_from_sample_set_fail(
+        sample_port, None, {
+            'sample_ids': [{'id': id_, 'version': 1}],
+            'effective_time': _get_current_epochmillis() - 500
+        },
+        f'Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}')
+    badid = uuid.uuid4()
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN3, {
+            'sample_ids': [{'id': str(badid), 'version': 1}],
+            'effective_time': _get_current_epochmillis() - 500
+        },
+        f'Sample service error code 50010 No such sample: {badid}')
+
+    # admin tests
+    _get_links_from_sample_set_fail(
+        sample_port, TOKEN4, {
+            'sample_ids': [{'id': id_, 'version': 1}],
+            'effective_time': _get_current_epochmillis() - 500,
+            'as_admin': 1,
+        },
+        'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
+        'necessary administration privileges to run method get_data_links_from_sample')
+    _get_links_from_sample_set_fail(
+        sample_port, None, {
+            'sample_ids': [{'id': id_, 'version': 1}],
+            'effective_time': _get_current_epochmillis() - 500,
+            'as_admin': 1
+        },
+        'Sample service error code 20000 Unauthorized: Anonymous users ' +
+        'may not act as service administrators.')
+
+
+def _get_links_from_sample_set_fail(sample_port, token, params, expected):
+    url = f'http://localhost:{sample_port}'
+    ret = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.get_data_links_from_sample_set',
         'version': '1.1',
         'id': '42',
         'params': [params]
