@@ -47,7 +47,7 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.1.0-2alpha'
+VER = '0.1.1'
 
 _AUTH_DB = 'test_auth_db'
 _WS_DB = 'test_ws_db'
@@ -1765,7 +1765,6 @@ def test_update_acls(sample_port, kafka):
     _update_acls_tst(sample_port, kafka, TOKEN2, False)  # admin
     _update_acls_tst(sample_port, kafka, TOKEN5, True)  # as_admin = True
 
-
 def _update_acls_tst(sample_port, kafka, token, as_admin):
     _clear_kafka_messages(kafka)
     url = f'http://localhost:{sample_port}'
@@ -2006,6 +2005,83 @@ def _update_acls(url, token, params, print_resp=False):
     assert ret.json() == {'version': '1.1', 'id': '67', 'result': None}
 
 
+def _update_samples_acls(url, token, params, print_resp=False):
+    resp = requests.post(url, headers=get_authorized_headers(token), json={
+        'method': 'SampleService.update_samples_acls',
+        'version': '1.1',
+        'id': '1729',
+        'params': [params]
+    })
+    if print_resp:
+        print(resp.text)
+    return resp
+
+
+def test_update_acls_many(sample_port):
+    url = f'http://localhost:{sample_port}'
+    # create samples
+    n_samples = 2 # 1000
+    ids = _create_samples(url, TOKEN1, n_samples, 1)
+    for id_ in ids:
+        _update_acls(
+            url,
+            TOKEN1,
+            {
+                'id': str(id_),
+                'admin': [],
+                'write': [],
+                'read': [USER2],
+                'remove': [],
+                'public_read': 1,
+                'as_admin': 0,
+            },
+            print_resp=True,
+        )
+
+
+def test_update_acls_many_bulk(sample_port):
+    url = f'http://localhost:{sample_port}'
+    # create samples
+    n_samples = 2 # 1000
+    ids = _create_samples(url, TOKEN1, n_samples, 1)
+    resp = _update_samples_acls(
+        url,
+        TOKEN1,
+        {
+            'ids': ids,
+            'admin': [],
+            'write': [],
+            'read': [USER2],
+            'remove': [],
+            'public_read': 1,
+            'as_admin': 0,
+        },
+        print_resp=True,
+    )
+    assert resp.ok
+    assert resp.json()['result'] is None
+
+def test_update_acls_many_bulk_fail(sample_port):
+    url = f'http://localhost:{sample_port}'
+    sample_bad_id = str(uuid.UUID('0'*32))
+    resp = _update_samples_acls(
+        url,
+        TOKEN1,
+        {
+            'ids': [sample_bad_id],
+            'admin': [],
+            'write': [],
+            'read': [USER2],
+            'remove': [],
+            'public_read': 1,
+            'as_admin': 0,
+        },
+        print_resp=True,
+    )
+    assert resp.status_code == 500
+    msg = f"Sample service error code 50010 No such sample: {sample_bad_id}"
+    assert resp.json()['error']['message'] == msg
+
 def test_get_metadata_key_static_metadata(sample_port):
     _get_metadata_key_static_metadata(
         sample_port, {'keys': ['foo']}, {'foo': {'a': 'b', 'c': 'd'}})
@@ -2080,6 +2156,43 @@ def _create_sample(url, token, sample, expected_version):
     assert ret.ok is True
     assert ret.json()['result'][0]['version'] == expected_version
     return ret.json()['result'][0]['id']
+
+def _sample_factory(name):
+    return {
+        "sample": {
+            "name": name,
+            "node_tree": [{
+                    "id": "root",
+                    "type": "BioReplicate",
+                },
+                {
+                    "id": "foo",
+                    "parent": "root",
+                    "type": "TechReplicate",
+                }
+            ]
+        }
+    }
+
+
+def _create_samples(url, token, n, expected_version, sample_factory=None):
+    if sample_factory is None:
+        sample_factory = _sample_factory
+
+    ids = []
+    for i in range(n):
+        sample = sample_factory(f"sample-{i}")
+        resp = requests.post(url, headers=get_authorized_headers(token), json={
+            'method': 'SampleService.create_sample',
+            'version': '1.1',
+            'id': '67',
+            'params': [sample]
+        })
+        assert resp.ok
+        data = resp.json()["result"][0]
+        assert data["version"] == expected_version
+        ids.append(data["id"])
+    return ids
 
 
 def _create_link(url, token, expected_user, params, print_resp=False):
@@ -4880,7 +4993,7 @@ def test_validate_sample(sample_port):
     _validate_sample_as_admin(sample_port, None, TOKEN2, USER2)
 
 
-def _validate_sample_as_admin(sample_port, as_user, get_token, expected_user):    
+def _validate_sample_as_admin(sample_port, as_user, get_token, expected_user):
     url = f'http://localhost:{sample_port}'
 
     ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={

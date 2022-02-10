@@ -395,6 +395,26 @@ class SampleService(object):
         return self._client.call_method('SampleService.update_sample_acls',
                                         [params], self._service_ver, context)
 
+    def update_samples_acls(self, params, context=None):
+        """
+        Update the ACLs of many samples.
+        :param params: instance of type "UpdateSamplesACLsParams"
+           (update_samples_acls parameters. These parameters are the same as
+           update_sample_acls, except: ids - a list of IDs of samples to
+           modify.) -> structure: parameter "ids" of list of type "sample_id"
+           (A Sample ID. Must be globally unique. Always assigned by the
+           Sample service.), parameter "admin" of list of type "user" (A
+           user's username.), parameter "write" of list of type "user" (A
+           user's username.), parameter "read" of list of type "user" (A
+           user's username.), parameter "remove" of list of type "user" (A
+           user's username.), parameter "public_read" of Long, parameter
+           "at_least" of type "boolean" (A boolean value, 0 for false, 1 for
+           true.), parameter "as_admin" of type "boolean" (A boolean value, 0
+           for false, 1 for true.)
+        """
+        return self._client.call_method('SampleService.update_samples_acls',
+                                        [params], self._service_ver, context)
+
     def replace_sample_acls(self, params, context=None):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
@@ -428,10 +448,10 @@ class SampleService(object):
     def get_metadata_key_static_metadata(self, params, context=None):
         """
         Get static metadata for one or more metadata keys.
-            The static metadata for a metadata key is metadata *about* the key - e.g. it may
-            define the key's semantics or denote that the key is linked to an ontological ID.
-            The static metadata does not change without the service being restarted. Client caching is
-            recommended to improve performance.
+                The static metadata for a metadata key is metadata *about* the key - e.g. it may
+                define the key's semantics or denote that the key is linked to an ontological ID.
+                The static metadata does not change without the service being restarted. Client caching is
+                recommended to improve performance.
         :param params: instance of type "GetMetadataKeyStaticMetadataParams"
            (get_metadata_key_static_metadata parameters. keys - the list of
            metadata keys to interrogate. prefix - 0 (the default) to
@@ -601,8 +621,8 @@ class SampleService(object):
     def expire_data_link(self, params, context=None):
         """
         Expire a link from a KBase Workspace object.
-            The user must have admin permissions for the sample and write permissions for the
-            Workspace object.
+                The user must have admin permissions for the sample and write permissions for the
+                Workspace object.
         :param params: instance of type "ExpireDataLinkParams"
            (expire_data_link parameters. upa - the workspace upa of the
            object from which the link originates. dataid - the dataid, if

@@ -273,6 +273,25 @@ module SampleService {
     /* Update a sample's ACLs.  */
      funcdef update_sample_acls(UpdateSampleACLsParams params) returns() authentication required;
 
+    /* update_samples_acls parameters.
+
+        These parameters are the same as update_sample_acls, except:
+        ids - a list of IDs of samples to modify.
+    */
+    typedef structure {
+        list<sample_id> ids;
+        list<user> admin;
+        list<user> write;
+        list<user> read;
+        list<user> remove;
+        int public_read;
+        boolean at_least;
+        boolean as_admin;
+    } UpdateSamplesACLsParams;
+
+    /* Update the ACLs of many samples.  */
+     funcdef update_samples_acls(UpdateSamplesACLsParams params) returns() authentication required;
+
     /* replace_sample_acls parameters.
 
         id - the ID of the sample to modify.
@@ -316,7 +335,7 @@ module SampleService {
     } GetMetadataKeyStaticMetadataResults;
 
     /* Get static metadata for one or more metadata keys.
-    
+
         The static metadata for a metadata key is metadata *about* the key - e.g. it may
         define the key's semantics or denote that the key is linked to an ontological ID.
 
@@ -328,7 +347,7 @@ module SampleService {
         returns(GetMetadataKeyStaticMetadataResults results) authentication none;
 
     /* create_data_link parameters.
-    
+
         upa - the workspace UPA of the object to be linked.
         dataid - the dataid of the data to be linked, if any, within the object. If omitted the
             entire object is linked to the sample.
@@ -357,7 +376,7 @@ module SampleService {
     } CreateDataLinkParams;
 
     /* A data link from a KBase workspace object to a sample.
-    
+
         upa - the workspace UPA of the linked object.
         dataid - the dataid of the linked data, if any, within the object. If omitted the
             entire object is linked to the sample.
@@ -462,7 +481,7 @@ module SampleService {
     } ExpireDataLinkParams;
 
     /* Expire a link from a KBase Workspace object.
-    
+
         The user must have admin permissions for the sample and write permissions for the
         Workspace object.
     */
