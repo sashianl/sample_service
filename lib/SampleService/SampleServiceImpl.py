@@ -56,7 +56,7 @@ Note that usage of the administration flags will be logged by the service.
     ######################################### noqa
     VERSION = "0.1.0-2alpha"
     GIT_URL = "git@github.com:charleshtrenholm/sample_service.git"
-    GIT_COMMIT_HASH = "27eb4d9f10881f1775d9c3949111ecff0f733d48"
+    GIT_COMMIT_HASH = "766fceb2824db5776776e82970ec8b67d24e4804"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -921,29 +921,26 @@ Note that usage of the administration flags will be logged by the service.
 
     def get_data_links_from_sample_set(self, ctx, params):
         """
-        Get all workspace object metadata linked to samples in a list of samples or sample set refs.
-        Returns metadata about links to data objects as well as the data objects
-        The user must have read permissions to the sample. Only Workspace objects the user
-        can read are returned.
+        Get all workspace object metadata linked to samples in a list of samples or sample set
+        refs. Returns metadata about links to data objects. A batch version of
+        get_data_links_from_sample.
+        The user must have read permissions to the sample. A permissions error is thrown when a
+        sample is found that the user has no access to.
         :param params: instance of type "GetDataLinksFromSampleSetParams"
-           (get_data_links_from_sample_set parameters. At least one of the
-           following parameters are required: sample_ids - a list of sample
-           ids and versions - OR - sample_set_refs - a list of full UPAs of
-           sample set refs effective_time - the time at which the query was
-           run. This timestamp, if saved, can be used when running the method
-           again to enqure reproducible results. Note that changes to
-           workspace permissions may cause results to change over time.) ->
-           structure: parameter "sample_ids" of list of type
-           "SampleIdentifier" -> structure: parameter "id" of type
-           "sample_id" (A Sample ID. Must be globally unique. Always assigned
-           by the Sample service.), parameter "version" of type "version"
-           (The version of a sample. Always > 0.), parameter
-           "sample_set_refs" of list of type "ws_upa" (A KBase Workspace
-           service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
-           workspace ID, 6 the object ID, and 7 the object version.),
-           parameter "effective_time" of type "timestamp" (A timestamp in
-           epoch milliseconds.), parameter "as_admin" of type "boolean" (A
-           boolean value, 0 for false, 1 for true.)
+           (get_data_links_from_sample_set parameters. sample_ids - a list of
+           sample ids and versions effective_time - the time at which the
+           query was run. This timestamp, if saved, can be used when running
+           the method again to enqure reproducible results. Note that changes
+           to workspace permissions may cause results to change over time.
+           as_admin - run the method as a service administrator. The user
+           must have read administration permissions.) -> structure:
+           parameter "sample_ids" of list of type "SampleIdentifier" ->
+           structure: parameter "id" of type "sample_id" (A Sample ID. Must
+           be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "effective_time" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
         :returns: instance of type "GetDataLinksFromSampleResults"
            (get_data_links_from_sample results. links - the links.
            effective_time - the time at which the query was run. This
@@ -979,7 +976,9 @@ Note that usage of the administration flags will be logged by the service.
            in epoch milliseconds.), parameter "effective_time" of type
            "timestamp" (A timestamp in epoch milliseconds.)
         """
-        # BEGIN get_data_links_from_sample_set
+        # ctx is the context object
+        # return variables are: results
+        #BEGIN get_data_links_from_sample_set
         if not 'sample_ids' in params:
             raise ValueError(
                 'Missing "sample_ids" field - Must provide a list of valid sample ids.'
