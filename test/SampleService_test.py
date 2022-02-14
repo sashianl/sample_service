@@ -3082,7 +3082,7 @@ def test_get_links_from_sample_set(sample_port, workspace):
     wsurl = f'http://localhost:{workspace.port}'
     wscli = Workspace(wsurl, token=TOKEN1)
 
-    N_SAMPLES = 500
+    N_SAMPLES = 100
 
     # create workspace & objects
     wscli.create_workspace({'workspace': 'foo'})
