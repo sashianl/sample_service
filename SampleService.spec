@@ -273,6 +273,25 @@ module SampleService {
     /* Update a sample's ACLs.  */
      funcdef update_sample_acls(UpdateSampleACLsParams params) returns() authentication required;
 
+    /* update_samples_acls parameters.
+
+        These parameters are the same as update_sample_acls, except:
+        ids - a list of IDs of samples to modify.
+    */
+    typedef structure {
+        list<sample_id> ids;
+        list<user> admin;
+        list<user> write;
+        list<user> read;
+        list<user> remove;
+        int public_read;
+        boolean at_least;
+        boolean as_admin;
+    } UpdateSamplesACLsParams;
+
+    /* Update the ACLs of many samples.  */
+     funcdef update_samples_acls(UpdateSamplesACLsParams params) returns() authentication required;
+
     /* replace_sample_acls parameters.
 
         id - the ID of the sample to modify.
@@ -316,7 +335,7 @@ module SampleService {
     } GetMetadataKeyStaticMetadataResults;
 
     /* Get static metadata for one or more metadata keys.
-    
+
         The static metadata for a metadata key is metadata *about* the key - e.g. it may
         define the key's semantics or denote that the key is linked to an ontological ID.
 
@@ -328,7 +347,7 @@ module SampleService {
         returns(GetMetadataKeyStaticMetadataResults results) authentication none;
 
     /* create_data_link parameters.
-    
+
         upa - the workspace UPA of the object to be linked.
         dataid - the dataid of the data to be linked, if any, within the object. If omitted the
             entire object is linked to the sample.
@@ -357,7 +376,7 @@ module SampleService {
     } CreateDataLinkParams;
 
     /* A data link from a KBase workspace object to a sample.
-    
+
         upa - the workspace UPA of the linked object.
         dataid - the dataid of the linked data, if any, within the object. If omitted the
             entire object is linked to the sample.
@@ -462,7 +481,7 @@ module SampleService {
     } ExpireDataLinkParams;
 
     /* Expire a link from a KBase Workspace object.
-    
+
         The user must have admin permissions for the sample and write permissions for the
         Workspace object.
     */
@@ -502,6 +521,31 @@ module SampleService {
         can read are returned.
      */
     funcdef get_data_links_from_sample(GetDataLinksFromSampleParams params)
+        returns(GetDataLinksFromSampleResults results) authentication optional;
+
+    /* get_data_links_from_sample_set parameters.
+        sample_ids - a list of sample ids and versions
+        effective_time - the time at which the query was run. This timestamp, if saved, can be
+            used when running the method again to enqure reproducible results. Note that changes
+            to workspace permissions may cause results to change over time.
+        as_admin - run the method as a service administrator. The user must have read
+            administration permissions.
+    */
+
+    typedef structure {
+        list<SampleIdentifier> sample_ids;
+        timestamp effective_time;
+        boolean as_admin;
+    } GetDataLinksFromSampleSetParams;
+
+    /* Get all workspace object metadata linked to samples in a list of samples or sample set
+        refs. Returns metadata about links to data objects. A batch version of
+        get_data_links_from_sample.
+
+        The user must have read permissions to the sample. A permissions error is thrown when a
+        sample is found that the user has no access to.
+    */
+    funcdef get_data_links_from_sample_set(GetDataLinksFromSampleSetParams params)
         returns(GetDataLinksFromSampleResults results) authentication optional;
 
     /* get_data_links_from_data parameters.

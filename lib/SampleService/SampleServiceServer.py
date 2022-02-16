@@ -54,7 +54,6 @@ def get_config():
         retconfig[nameval[0]] = nameval[1]
     return retconfig
 
-
 config = get_config()
 
 from SampleService.SampleServiceImpl import SampleService  # noqa @IgnorePep8
@@ -370,118 +369,77 @@ class Application(object):
         self.serverlog.set_log_level(6)
         self.rpc_service = JSONRPCServiceCustom()
         self.method_authentication = dict()
-        self.rpc_service.add(
-            impl_SampleService.create_sample,
-            name="SampleService.create_sample",
-            types=[dict],
-        )
-        self.method_authentication["SampleService.create_sample"] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_sample, name="SampleService.get_sample", types=[dict]
-        )
-        self.method_authentication["SampleService.get_sample"] = "optional"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_samples,
-            name="SampleService.get_samples",
-            types=[dict],
-        )
-        self.method_authentication["SampleService.get_samples"] = "optional"  # noqa
-
-        self.rpc_service.add(
-            impl_SampleService.get_sample_acls,
-            name="SampleService.get_sample_acls",
-            types=[dict],
-        )
-        self.method_authentication["SampleService.get_sample_acls"] = "optional"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.update_sample_acls,
-            name="SampleService.update_sample_acls",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.update_sample_acls"
-        ] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.replace_sample_acls,
-            name="SampleService.replace_sample_acls",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.replace_sample_acls"
-        ] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_metadata_key_static_metadata,
-            name="SampleService.get_metadata_key_static_metadata",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.get_metadata_key_static_metadata"
-        ] = "none"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.create_data_link,
-            name="SampleService.create_data_link",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.create_data_link"
-        ] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.propagate_data_links,
-            name="SampleService.propagate_data_links",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.propagate_data_links"
-        ] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.expire_data_link,
-            name="SampleService.expire_data_link",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.expire_data_link"
-        ] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_data_links_from_sample,
-            name="SampleService.get_data_links_from_sample",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.get_data_links_from_sample"
-        ] = "optional"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_data_links_from_data,
-            name="SampleService.get_data_links_from_data",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.get_data_links_from_data"
-        ] = "optional"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_sample_via_data,
-            name="SampleService.get_sample_via_data",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.get_sample_via_data"
-        ] = "optional"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.get_data_link,
-            name="SampleService.get_data_link",
-            types=[dict],
-        )
-        self.method_authentication["SampleService.get_data_link"] = "required"  # noqa
-        self.rpc_service.add(
-            impl_SampleService.status, name="SampleService.status", types=[dict]
-        )
-        self.rpc_service.add(
-            impl_SampleService.validate_samples,
-            name="SampleService.validate_samples",
-            types=[dict],
-        )
-        self.method_authentication[
-            "SampleService.validate_samples"
-        ] = "optional"  # noqa
+        self.rpc_service.add(impl_SampleService.create_sample,
+                             name='SampleService.create_sample',
+                             types=[dict])
+        self.method_authentication['SampleService.create_sample'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.get_sample,
+                             name='SampleService.get_sample',
+                             types=[dict])
+        self.method_authentication['SampleService.get_sample'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_samples,
+                             name='SampleService.get_samples',
+                             types=[dict])
+        self.method_authentication['SampleService.get_samples'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_sample_acls,
+                             name='SampleService.get_sample_acls',
+                             types=[dict])
+        self.method_authentication['SampleService.get_sample_acls'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.update_sample_acls,
+                             name='SampleService.update_sample_acls',
+                             types=[dict])
+        self.method_authentication['SampleService.update_sample_acls'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.update_samples_acls,
+                             name='SampleService.update_samples_acls',
+                             types=[dict])
+        self.method_authentication['SampleService.update_samples_acls'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.replace_sample_acls,
+                             name='SampleService.replace_sample_acls',
+                             types=[dict])
+        self.method_authentication['SampleService.replace_sample_acls'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.get_metadata_key_static_metadata,
+                             name='SampleService.get_metadata_key_static_metadata',
+                             types=[dict])
+        self.method_authentication['SampleService.get_metadata_key_static_metadata'] = 'none'  # noqa
+        self.rpc_service.add(impl_SampleService.create_data_link,
+                             name='SampleService.create_data_link',
+                             types=[dict])
+        self.method_authentication['SampleService.create_data_link'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.propagate_data_links,
+                             name='SampleService.propagate_data_links',
+                             types=[dict])
+        self.method_authentication['SampleService.propagate_data_links'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.expire_data_link,
+                             name='SampleService.expire_data_link',
+                             types=[dict])
+        self.method_authentication['SampleService.expire_data_link'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.get_data_links_from_sample,
+                             name='SampleService.get_data_links_from_sample',
+                             types=[dict])
+        self.method_authentication['SampleService.get_data_links_from_sample'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_data_links_from_sample_set,
+                             name='SampleService.get_data_links_from_sample_set',
+                             types=[dict])
+        self.method_authentication['SampleService.get_data_links_from_sample_set'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_data_links_from_data,
+                             name='SampleService.get_data_links_from_data',
+                             types=[dict])
+        self.method_authentication['SampleService.get_data_links_from_data'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_sample_via_data,
+                             name='SampleService.get_sample_via_data',
+                             types=[dict])
+        self.method_authentication['SampleService.get_sample_via_data'] = 'optional'  # noqa
+        self.rpc_service.add(impl_SampleService.get_data_link,
+                             name='SampleService.get_data_link',
+                             types=[dict])
+        self.method_authentication['SampleService.get_data_link'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.validate_samples,
+                             name='SampleService.validate_samples',
+                             types=[dict])
+        self.method_authentication['SampleService.validate_samples'] = 'required'  # noqa
+        self.rpc_service.add(impl_SampleService.status,
+                             name='SampleService.status',
+                             types=[dict])
         authurl = config.get(AUTH) if config else None
         self.auth_client = _KBaseAuth(authurl)
 
@@ -633,7 +591,6 @@ class Application(object):
         hh, mm = divmod((delta.days * 24 * 60 * 60 + delta.seconds + 30) // 60, 60)
         return "%s%+02d:%02d" % (dtnow.isoformat(), hh, mm)
 
-
 application = Application()
 
 # This is the uwsgi application dictionary. On startup uwsgi will look
@@ -755,7 +712,6 @@ def process_async_cli(input_file_path, output_file_path, token):
     with open(output_file_path, "w") as f:
         f.write(json.dumps(resp, cls=JSONObjectEncoder))
     return exit_code
-
 
 if __name__ == "__main__":
     if len(sys.argv) >= 3 and len(sys.argv) <= 4 and os.path.isfile(sys.argv[1]):
