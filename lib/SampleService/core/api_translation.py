@@ -111,6 +111,7 @@ def get_id_from_object(
         id_ = validate_sample_id(obj[key], name)
     return id_
 
+
 def datetime_to_epochmilliseconds(d: datetime.datetime) -> int:
     """
     Convert a datetime object to epoch milliseconds.
@@ -694,16 +695,17 @@ def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
         )
     return ret
 
+
 def validate_sample_id(id_, name=None):
-    '''
+    """
     Given a string, validate the sample ID.
 
     :param id_: the sample's ID.
     :param name: the name of the ID to use in an exception, defaulting to the key.
     :returns: the ID, if it is a valid UUID
     :raises IllegalParameterError: if the ID is provided but is invalid.
-    '''
-    err = _IllegalParameterError(f'{name} {id_} must be a UUID string')
+    """
+    err = _IllegalParameterError(f"{name} {id_} must be a UUID string")
     if type(id_) != str:
         raise err
     try:

@@ -1,8 +1,8 @@
-'''
+"""
 Module containing SampleService methods.
 
 Use this module to write methods for use in SampleServiceImpl.py.
-'''
+"""
 from SampleService.core.api_translation import (
     acl_delta_from_dict as _acl_delta_from_dict,
     check_admin as _check_admin,
@@ -14,7 +14,7 @@ from SampleService.core.user import UserID as _UserID
 def update_samples_acls(
     params, samples_client, user_lookup, user, token, perms, log_info
 ):
-    '''
+    """
     Completely replace the ACLs for a list of samples.
 
     :param id_: the sample's ID.
@@ -37,19 +37,17 @@ def update_samples_acls(
         required.
     :raises UnauthorizedError: if the user does not have admin permission for
         the sample or the request attempts to alter the owner.
-    '''
+    """
     acldelta = _acl_delta_from_dict(params)
     admin = _check_admin(
         user_lookup,
         token,
         perms,
-        'update_sample_acls',
+        "update_sample_acls",
         log_info,
-        skip_check=not params.get('as_admin'),
+        skip_check=not params.get("as_admin"),
     )
-    ids = params.get('ids')
+    ids = params.get("ids")
     for id_ in ids:
-        _validate_sample_id(id_, '')
-        samples_client.update_sample_acls(
-            id_, _UserID(user), acldelta, as_admin=admin
-        )
+        _validate_sample_id(id_, "")
+        samples_client.update_sample_acls(id_, _UserID(user), acldelta, as_admin=admin)

@@ -2883,27 +2883,33 @@ def test_create_data_link_with_update(samplestorage):
         is None
     )
 
-    assert samplestorage.create_data_link(
-        DataLink(
-            uuid.UUID("1234567890abcdef1234567890abcde3"),
-            DataUnitID(UPA("5/89/32")),
-            SampleNodeAddress(SampleAddress(id1, 1), "mynode1"),  # update the node
-            dt(600),
-            UserID("userb"),
-        ),
-        update=True,
-    ) == uuid.UUID("1234567890abcdef1234567890abcde1")
+    assert (
+        samplestorage.create_data_link(
+            DataLink(
+                uuid.UUID("1234567890abcdef1234567890abcde3"),
+                DataUnitID(UPA("5/89/32")),
+                SampleNodeAddress(SampleAddress(id1, 1), "mynode1"),  # update the node
+                dt(600),
+                UserID("userb"),
+            ),
+            update=True,
+        )
+        == uuid.UUID("1234567890abcdef1234567890abcde1")
+    )
 
-    assert samplestorage.create_data_link(
-        DataLink(
-            uuid.UUID("1234567890abcdef1234567890abcde4"),
-            DataUnitID(UPA("5/89/32"), "dataunit1"),
-            SampleNodeAddress(SampleAddress(id1, 1), "mynode2"),  # update the node
-            dt(700),
-            UserID("userc"),
-        ),
-        update=True,
-    ) == uuid.UUID("1234567890abcdef1234567890abcde2")
+    assert (
+        samplestorage.create_data_link(
+            DataLink(
+                uuid.UUID("1234567890abcdef1234567890abcde4"),
+                DataUnitID(UPA("5/89/32"), "dataunit1"),
+                SampleNodeAddress(SampleAddress(id1, 1), "mynode2"),  # update the node
+                dt(700),
+                UserID("userc"),
+            ),
+            update=True,
+        )
+        == uuid.UUID("1234567890abcdef1234567890abcde2")
+    )
 
     # this is naughty
     verdoc1 = samplestorage._col_version.find({"id": str(id1), "ver": 1}).next()

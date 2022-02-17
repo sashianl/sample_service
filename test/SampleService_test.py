@@ -50,25 +50,25 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.2.1'
+VER = "0.2.1"
 
-_AUTH_DB = 'test_auth_db'
-_WS_DB = 'test_ws_db'
-_WS_TYPE_DB = 'test_ws_type_db'
+_AUTH_DB = "test_auth_db"
+_WS_DB = "test_ws_db"
+_WS_TYPE_DB = "test_ws_type_db"
 
-TEST_DB_NAME = 'test_sample_service'
-TEST_COL_SAMPLE = 'samples'
-TEST_COL_VERSION = 'versions'
-TEST_COL_VER_EDGE = 'ver_to_sample'
-TEST_COL_NODES = 'nodes'
-TEST_COL_NODE_EDGE = 'node_edges'
-TEST_COL_DATA_LINK = 'data_link'
-TEST_COL_WS_OBJ_VER = 'ws_obj_ver_shadow'
-TEST_COL_SCHEMA = 'schema'
-TEST_USER = 'user1'
-TEST_PWD = 'password1'
+TEST_DB_NAME = "test_sample_service"
+TEST_COL_SAMPLE = "samples"
+TEST_COL_VERSION = "versions"
+TEST_COL_VER_EDGE = "ver_to_sample"
+TEST_COL_NODES = "nodes"
+TEST_COL_NODE_EDGE = "node_edges"
+TEST_COL_DATA_LINK = "data_link"
+TEST_COL_WS_OBJ_VER = "ws_obj_ver_shadow"
+TEST_COL_SCHEMA = "schema"
+TEST_USER = "user1"
+TEST_PWD = "password1"
 
-USER_WS_READ_ADMIN = 'wsreadadmin'
+USER_WS_READ_ADMIN = "wsreadadmin"
 TOKEN_WS_READ_ADMIN = None
 USER_WS_FULL_ADMIN = "wsfulladmin"
 TOKEN_WS_FULL_ADMIN = None
@@ -2216,6 +2216,7 @@ def test_update_acls(sample_port, kafka):
     _update_acls_tst(sample_port, kafka, TOKEN2, False)  # admin
     _update_acls_tst(sample_port, kafka, TOKEN5, True)  # as_admin = True
 
+
 def _update_acls_tst(sample_port, kafka, token, as_admin):
     _clear_kafka_messages(kafka)
     url = f"http://localhost:{sample_port}"
@@ -2520,81 +2521,87 @@ def _update_acls(url, token, params, print_resp=False):
 
 
 def _update_samples_acls(url, token, params, print_resp=False):
-    resp = requests.post(url, headers=get_authorized_headers(token), json={
-        'method': 'SampleService.update_samples_acls',
-        'version': '1.1',
-        'id': '1729',
-        'params': [params]
-    })
+    resp = requests.post(
+        url,
+        headers=get_authorized_headers(token),
+        json={
+            "method": "SampleService.update_samples_acls",
+            "version": "1.1",
+            "id": "1729",
+            "params": [params],
+        },
+    )
     if print_resp:
         print(resp.text)
     return resp
 
 
 def test_update_acls_many(sample_port):
-    url = f'http://localhost:{sample_port}'
+    url = f"http://localhost:{sample_port}"
     # create samples
-    n_samples = 2 # 1000
+    n_samples = 2  # 1000
     ids = _create_samples(url, TOKEN1, n_samples, 1)
     for id_ in ids:
         _update_acls(
             url,
             TOKEN1,
             {
-                'id': str(id_),
-                'admin': [],
-                'write': [],
-                'read': [USER2],
-                'remove': [],
-                'public_read': 1,
-                'as_admin': 0,
+                "id": str(id_),
+                "admin": [],
+                "write": [],
+                "read": [USER2],
+                "remove": [],
+                "public_read": 1,
+                "as_admin": 0,
             },
             print_resp=True,
         )
 
 
 def test_update_acls_many_bulk(sample_port):
-    url = f'http://localhost:{sample_port}'
+    url = f"http://localhost:{sample_port}"
     # create samples
-    n_samples = 2 # 1000
+    n_samples = 2  # 1000
     ids = _create_samples(url, TOKEN1, n_samples, 1)
     resp = _update_samples_acls(
         url,
         TOKEN1,
         {
-            'ids': ids,
-            'admin': [],
-            'write': [],
-            'read': [USER2],
-            'remove': [],
-            'public_read': 1,
-            'as_admin': 0,
+            "ids": ids,
+            "admin": [],
+            "write": [],
+            "read": [USER2],
+            "remove": [],
+            "public_read": 1,
+            "as_admin": 0,
         },
         print_resp=True,
     )
     assert resp.ok
-    assert resp.json()['result'] is None
+    assert resp.json()["result"] is None
+
 
 def test_update_acls_many_bulk_fail(sample_port):
-    url = f'http://localhost:{sample_port}'
-    sample_bad_id = str(uuid.UUID('0'*32))
+    url = f"http://localhost:{sample_port}"
+    sample_bad_id = str(uuid.UUID("0" * 32))
     resp = _update_samples_acls(
         url,
         TOKEN1,
         {
-            'ids': [sample_bad_id],
-            'admin': [],
-            'write': [],
-            'read': [USER2],
-            'remove': [],
-            'public_read': 1,
-            'as_admin': 0,
+            "ids": [sample_bad_id],
+            "admin": [],
+            "write": [],
+            "read": [USER2],
+            "remove": [],
+            "public_read": 1,
+            "as_admin": 0,
         },
         print_resp=True,
     )
     assert resp.status_code == 500
     msg = f"Sample service error code 50010 No such sample: {sample_bad_id}"
-    assert resp.json()['error']['message'] == msg
+    assert resp.json()["error"]["message"] == msg
+
 
 def test_get_metadata_key_static_metadata(sample_port):
     _get_metadata_key_static_metadata(
@@ -2689,11 +2696,13 @@ def _create_sample(url, token, sample, expected_version):
     assert ret.json()["result"][0]["version"] == expected_version
     return ret.json()["result"][0]["id"]
 
+
 def _sample_factory(name):
     return {
         "sample": {
             "name": name,
-            "node_tree": [{
+            "node_tree": [
+                {
                     "id": "root",
                     "type": "BioReplicate",
                 },
@@ -2701,8 +2710,8 @@ def _sample_factory(name):
                     "id": "foo",
                     "parent": "root",
                     "type": "TechReplicate",
-                }
-            ]
+                },
+            ],
         }
     }
 
@@ -2714,12 +2723,16 @@ def _create_samples(url, token, n, expected_version, sample_factory=None):
     ids = []
     for i in range(n):
         sample = sample_factory(f"sample-{i}")
-        resp = requests.post(url, headers=get_authorized_headers(token), json={
-            'method': 'SampleService.create_sample',
-            'version': '1.1',
-            'id': '67',
-            'params': [sample]
-        })
+        resp = requests.post(
+            url,
+            headers=get_authorized_headers(token),
+            json={
+                "method": "SampleService.create_sample",
+                "version": "1.1",
+                "id": "67",
+                "params": [sample],
+            },
+        )
         assert resp.ok
         data = resp.json()["result"][0]
         assert data["version"] == expected_version
@@ -3779,42 +3792,59 @@ def test_get_links_from_sample_public_read(sample_port, workspace):
             "expired": None,
         }
 
+
 def test_get_links_from_sample_set(sample_port, workspace):
 
     """
-        test timing for fetching batch of links from list of samples
+    test timing for fetching batch of links from list of samples
     """
 
-    url = f'http://localhost:{sample_port}'
-    wsurl = f'http://localhost:{workspace.port}'
+    url = f"http://localhost:{sample_port}"
+    wsurl = f"http://localhost:{workspace.port}"
     wscli = Workspace(wsurl, token=TOKEN1)
 
     N_SAMPLES = 100
 
     # create workspace & objects
-    wscli.create_workspace({'workspace': 'foo'})
-    wscli.save_objects({'id': 1, 'objects': [
-        {'name': 'bar', 'data': {}, 'type': 'Trivial.Object-1.0'} for _ in range(N_SAMPLES)
-    ]})
-    wscli.set_global_permission({'id': 1, 'new_permission': 'r'})
+    wscli.create_workspace({"workspace": "foo"})
+    wscli.save_objects(
+        {
+            "id": 1,
+            "objects": [
+                {"name": "bar", "data": {}, "type": "Trivial.Object-1.0"}
+                for _ in range(N_SAMPLES)
+            ],
+        }
+    )
+    wscli.set_global_permission({"id": 1, "new_permission": "r"})
 
     ids_ = [_create_generic_sample(url, TOKEN1) for _ in range(N_SAMPLES)]
-    lids = [_create_link(url, TOKEN1, USER1, {
-        'id': id_,
-        'version': 1,
-        'node': 'foo',
-        'upa': f'1/1/{i+1}'}) for i, id_ in enumerate(ids_)]
+    lids = [
+        _create_link(
+            url,
+            TOKEN1,
+            USER1,
+            {"id": id_, "version": 1, "node": "foo", "upa": f"1/1/{i+1}"},
+        )
+        for i, id_ in enumerate(ids_)
+    ]
     start = time.time()
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
-        'method': 'SampleService.get_data_links_from_sample_set',
-        'version': '1.1',
-        'id': '42',
-        'params': [{
-            'sample_ids': [{'id': id_, 'version': 1} for id_ in ids_],
-            'as_admin': False,
-            'effective_time': _get_current_epochmillis()
-        }]
-    })
+    ret = requests.post(
+        url,
+        headers=get_authorized_headers(TOKEN1),
+        json={
+            "method": "SampleService.get_data_links_from_sample_set",
+            "version": "1.1",
+            "id": "42",
+            "params": [
+                {
+                    "sample_ids": [{"id": id_, "version": 1} for id_ in ids_],
+                    "as_admin": False,
+                    "effective_time": _get_current_epochmillis(),
+                }
+            ],
+        },
+    )
     end = time.time()
     elapsed = end - start
     # getting 500 sample links should take about 5 seconds (1 second per 100 samples)
@@ -3822,7 +3852,8 @@ def test_get_links_from_sample_set(sample_port, workspace):
     assert ret.ok
     # assuming twice the amound of expected time elasped should raise concern
     assert elapsed < 10
-    assert len(ret.json()['result'][0]['links']) == N_SAMPLES
+    assert len(ret.json()["result"][0]["links"]) == N_SAMPLES
+
 
 def test_create_link_fail(sample_port, workspace):
     url = f"http://localhost:{sample_port}"
@@ -4067,78 +4098,102 @@ def _get_link_from_sample_fail(sample_port, token, params, expected):
 
 
 def test_get_links_from_sample_set_fail(sample_port):
-    url = f'http://localhost:{sample_port}'
+    url = f"http://localhost:{sample_port}"
     id_ = _create_generic_sample(url, TOKEN3)
 
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN3, {},
-        'Missing "sample_ids" field - Must provide a list of valid sample ids.')
+        sample_port,
+        TOKEN3,
+        {},
+        'Missing "sample_ids" field - Must provide a list of valid sample ids.',
+    )
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN3, {
-            'sample_ids': [{'id': id_}]
-        },
-        "Malformed sample accessor - each sample must provide both an id and a version.")
+        sample_port,
+        TOKEN3,
+        {"sample_ids": [{"id": id_}]},
+        "Malformed sample accessor - each sample must provide both an id and a version.",
+    )
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN3, {
-            'sample_ids': [{'id': id_, 'version': 1}]
-        },
-        'Missing "effective_time" parameter.')
+        sample_port,
+        TOKEN3,
+        {"sample_ids": [{"id": id_, "version": 1}]},
+        'Missing "effective_time" parameter.',
+    )
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN3, {
-            'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': 'foo'
-        },
-        "Sample service error code 30001 Illegal input parameter: key 'effective_time' " +
-        "value of 'foo' is not a valid epoch millisecond timestamp")
+        sample_port,
+        TOKEN3,
+        {"sample_ids": [{"id": id_, "version": 1}], "effective_time": "foo"},
+        "Sample service error code 30001 Illegal input parameter: key 'effective_time' "
+        + "value of 'foo' is not a valid epoch millisecond timestamp",
+    )
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN4, {
-            'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500
+        sample_port,
+        TOKEN4,
+        {
+            "sample_ids": [{"id": id_, "version": 1}],
+            "effective_time": _get_current_epochmillis() - 500,
         },
-        f'Sample service error code 20000 Unauthorized: User user4 cannot read sample {id_}')
+        f"Sample service error code 20000 Unauthorized: User user4 cannot read sample {id_}",
+    )
     _get_links_from_sample_set_fail(
-        sample_port, None, {
-            'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500
+        sample_port,
+        None,
+        {
+            "sample_ids": [{"id": id_, "version": 1}],
+            "effective_time": _get_current_epochmillis() - 500,
         },
-        f'Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}')
+        f"Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}",
+    )
     badid = uuid.uuid4()
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN3, {
-            'sample_ids': [{'id': str(badid), 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500
+        sample_port,
+        TOKEN3,
+        {
+            "sample_ids": [{"id": str(badid), "version": 1}],
+            "effective_time": _get_current_epochmillis() - 500,
         },
-        f'Sample service error code 50010 No such sample: {badid}')
+        f"Sample service error code 50010 No such sample: {badid}",
+    )
 
     # admin tests
     _get_links_from_sample_set_fail(
-        sample_port, TOKEN4, {
-            'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500,
-            'as_admin': 1,
+        sample_port,
+        TOKEN4,
+        {
+            "sample_ids": [{"id": id_, "version": 1}],
+            "effective_time": _get_current_epochmillis() - 500,
+            "as_admin": 1,
         },
-        'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
-        'necessary administration privileges to run method get_data_links_from_sample')
+        "Sample service error code 20000 Unauthorized: User user4 does not have the "
+        + "necessary administration privileges to run method get_data_links_from_sample",
+    )
     _get_links_from_sample_set_fail(
-        sample_port, None, {
-            'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500,
-            'as_admin': 1
+        sample_port,
+        None,
+        {
+            "sample_ids": [{"id": id_, "version": 1}],
+            "effective_time": _get_current_epochmillis() - 500,
+            "as_admin": 1,
         },
-        'Sample service error code 20000 Unauthorized: Anonymous users ' +
-        'may not act as service administrators.')
+        "Sample service error code 20000 Unauthorized: Anonymous users "
+        + "may not act as service administrators.",
+    )
 
 
 def _get_links_from_sample_set_fail(sample_port, token, params, expected):
-    url = f'http://localhost:{sample_port}'
-    ret = requests.post(url, headers=get_authorized_headers(token), json={
-        'method': 'SampleService.get_data_links_from_sample_set',
-        'version': '1.1',
-        'id': '42',
-        'params': [params]
-    })
+    url = f"http://localhost:{sample_port}"
+    ret = requests.post(
+        url,
+        headers=get_authorized_headers(token),
+        json={
+            "method": "SampleService.get_data_links_from_sample_set",
+            "version": "1.1",
+            "id": "42",
+            "params": [params],
+        },
+    )
     assert ret.status_code == 500
-    assert ret.json()['error']['message'] == expected
+    assert ret.json()["error"]["message"] == expected
 
 
 def _get_current_epochmillis():
@@ -5824,15 +5879,18 @@ def test_user_lookup_cache(sample_port, auth):
 
 def test_user_lookup_bad_users(sample_port, auth):
     ul = KBaseUserLookup(f"http://localhost:{auth.port}/testmode/", TOKEN1)
-    assert ul.invalid_users(
-        [
-            UserID("nouserhere"),
-            UserID(USER1),
-            UserID(USER2),
-            UserID("whooptydoo"),
-            UserID(USER3),
-        ]
-    ) == [UserID("nouserhere"), UserID("whooptydoo")]
+    assert (
+        ul.invalid_users(
+            [
+                UserID("nouserhere"),
+                UserID(USER1),
+                UserID(USER2),
+                UserID("whooptydoo"),
+                UserID(USER3),
+            ]
+        )
+        == [UserID("nouserhere"), UserID("whooptydoo")]
+    )
 
 
 def test_user_lookup_fail_bad_args(sample_port, auth):
@@ -6289,24 +6347,34 @@ def test_validate_sample(sample_port):
 
 
 def _validate_sample_as_admin(sample_port, as_user, get_token, expected_user):
-    url = f'http://localhost:{sample_port}'
+    url = f"http://localhost:{sample_port}"
 
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN2), json={
-        'method': 'SampleService.validate_samples',
-        'version': '1.1',
-        'id': '67',
-        'params': [{
-            'samples': [{
-                'name': 'mysample',
-                'node_tree': [{
-                    'id': 'root',
-                    'type': 'BioReplicate',
-                    'meta_controlled': {'foo': {'bar': 'baz'}},
-                    'meta_user': {'a': {'b': 'c'}}
-                }]
-            }]
-        }]
-    })
+    ret = requests.post(
+        url,
+        headers=get_authorized_headers(TOKEN2),
+        json={
+            "method": "SampleService.validate_samples",
+            "version": "1.1",
+            "id": "67",
+            "params": [
+                {
+                    "samples": [
+                        {
+                            "name": "mysample",
+                            "node_tree": [
+                                {
+                                    "id": "root",
+                                    "type": "BioReplicate",
+                                    "meta_controlled": {"foo": {"bar": "baz"}},
+                                    "meta_user": {"a": {"b": "c"}},
+                                }
+                            ],
+                        }
+                    ]
+                }
+            ],
+        },
+    )
     # print(ret.text)
     assert ret.ok is True
     ret_json = ret.json()["result"][0]

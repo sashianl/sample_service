@@ -288,12 +288,15 @@ def _save_sample_version_per_user(user: UserID, name, prior_version):
 
     storage.save_sample_version.return_value = 3
 
-    assert s.save_sample(
-        Sample([SampleNode("foo")], name),
-        user,
-        UUID("1234567890abcdef1234567890abcdea"),
-        prior_version,
-    ) == (UUID("1234567890abcdef1234567890abcdea"), 3)
+    assert (
+        s.save_sample(
+            Sample([SampleNode("foo")], name),
+            user,
+            UUID("1234567890abcdef1234567890abcdea"),
+            prior_version,
+        )
+        == (UUID("1234567890abcdef1234567890abcdea"), 3)
+    )
 
     assert storage.get_sample_acls.call_args_list == [
         ((UUID("1234567890abcdef1234567890abcdea"),), {})
@@ -341,12 +344,15 @@ def test_save_sample_version_as_admin():
 
     storage.save_sample_version.return_value = 3
 
-    assert s.save_sample(
-        Sample([SampleNode("foo")], "some sample"),
-        UserID("usera"),
-        UUID("1234567890abcdef1234567890abcdea"),
-        as_admin=True,
-    ) == (UUID("1234567890abcdef1234567890abcdea"), 3)
+    assert (
+        s.save_sample(
+            Sample([SampleNode("foo")], "some sample"),
+            UserID("usera"),
+            UUID("1234567890abcdef1234567890abcdea"),
+            as_admin=True,
+        )
+        == (UUID("1234567890abcdef1234567890abcdea"), 3)
+    )
 
     meta.validate_metadata.assert_has_calls([call({}, False)])
 
@@ -2321,11 +2327,14 @@ def test_get_links_from_sample_as_admin():
 
     storage.get_links_from_sample.return_value = [dl1, dl2]
 
-    assert s.get_links_from_sample(
-        UserID("whateva"),
-        SampleAddress(UUID("1234567890abcdef1234567890abcdee"), 3),
-        as_admin=True,
-    ) == ([dl1, dl2], dt(6))
+    assert (
+        s.get_links_from_sample(
+            UserID("whateva"),
+            SampleAddress(UUID("1234567890abcdef1234567890abcdee"), 3),
+            as_admin=True,
+        )
+        == ([dl1, dl2], dt(6))
+    )
 
     storage.get_links_from_sample.assert_called_once_with(
         SampleAddress(UUID("1234567890abcdef1234567890abcdee"), 3), None, dt(6)
@@ -2355,11 +2364,14 @@ def test_get_links_from_sample_with_timestamp():
 
     storage.get_links_from_sample.return_value = [dl1]
 
-    assert s.get_links_from_sample(
-        UserID("someuser"),
-        SampleAddress(UUID("1234567890abcdef1234567890abcdee"), 3),
-        dt(40),
-    ) == ([dl1], dt(40))
+    assert (
+        s.get_links_from_sample(
+            UserID("someuser"),
+            SampleAddress(UUID("1234567890abcdef1234567890abcdee"), 3),
+            dt(40),
+        )
+        == ([dl1], dt(40))
+    )
 
     storage.get_sample_acls.assert_called_once_with(
         UUID("1234567890abcdef1234567890abcdee")

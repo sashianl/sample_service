@@ -671,10 +671,13 @@ def test_get_sample_address_from_object():
     assert get_sample_address_from_object(
         {"id": "f5bd78c3-823e-40b2-9f93-20e78680e41e"}
     ) == (UUID("f5bd78c3-823e-40b2-9f93-20e78680e41e"), None)
-    assert get_sample_address_from_object(
-        {"id": "f5bd78c3-823e-40b2-9f93-20e78680e41e", "version": 1},
-        version_required=True,
-    ) == (UUID("f5bd78c3-823e-40b2-9f93-20e78680e41e"), 1)
+    assert (
+        get_sample_address_from_object(
+            {"id": "f5bd78c3-823e-40b2-9f93-20e78680e41e", "version": 1},
+            version_required=True,
+        )
+        == (UUID("f5bd78c3-823e-40b2-9f93-20e78680e41e"), 1)
+    )
 
 
 def test_get_sample_address_from_object_fail_bad_args():
