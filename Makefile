@@ -53,6 +53,10 @@ clean:
 
 install-sdk: 
 	scripts/install-sdk.sh
+
+format:
+	black lib
+	black test
 	 
 # Managing development container orchestration
 
