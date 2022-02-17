@@ -1,0 +1,11 @@
+[tool.black]
+target-version = ['py37']
+extend-exclude = '''
+(
+  authclient\.py
+| baseclient\.py
+| SampleServiceImpl\.py
+| SampleServiceServer\.py
+| SampleServiceClient\.py
+)
+'''
