@@ -3,7 +3,7 @@ name: Publish Release Image
 'on':
   release:
     branches:
-    - develop
+    - master
     types:
     - published
 jobs:
