@@ -1,27 +1,24 @@
 ---
-name: Tag Prod Latest
+name: Publish Release Image
 'on':
-  pull_request:
+  release:
     branches:
-    - master
-    - main
+    - develop
     types:
-    - closed
+    - published
 jobs:
-  docker_tag:
+  docker_build:
     runs-on: ubuntu-latest
     steps:
     - name: Check out GitHub Repo
-      if: github.event_name == 'pull_request' && github.event.action == 'closed' &&
-        github.event.pull_request.merged == true
       with:
         ref: "${{ github.event.pull_request.head.sha }}"
       uses: actions/checkout@v2
     - name: Build and Push to Packages
-      if: github.event.pull_request.draft == false
       env:
         PR: "${{ github.event.pull_request.number }}"
         SHA: "${{ github.event.pull_request.head.sha }}"
+        VER: "${{ github.event.release.tag_name }}"
         DOCKER_ACTOR: "${{ secrets.GHCR_USERNAME }}"
         DOCKER_TOKEN: "${{ secrets.GHCR_TOKEN }}"
-      run: "./.github/workflows/scripts/tag_prod_latest.sh\n"
+      run: "./.github/workflows/scripts/develop_rc_release.sh\n"
