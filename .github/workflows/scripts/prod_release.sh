@@ -13,7 +13,7 @@ docker build --build-arg BUILD_DATE="$DATE" \
              --build-arg PULL_REQUEST="$PR" \
              --build-arg VERSION="$VER"  \
              --label us.kbase.vcs-pull-req="$PR" \
-             -t ghcr.io/"$MY_ORG"/"$MY_APP":"$VER""-rc" \
+             -t ghcr.io/"$MY_ORG"/"$MY_APP":"$VER" \
              -t ghcr.io/"$MY_ORG"/"$MY_APP":"latest" .
-docker push ghcr.io/"$MY_ORG"/"$MY_APP":"$VER""-rc"
+docker push ghcr.io/"$MY_ORG"/"$MY_APP":"$VER"
 docker push ghcr.io/"$MY_ORG"/"$MY_APP":"latest"
