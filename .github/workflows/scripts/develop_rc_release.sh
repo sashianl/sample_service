@@ -16,3 +16,4 @@ docker build --build-arg BUILD_DATE="$DATE" \
              -t ghcr.io/"$MY_ORG"/"$MY_APP":"$VER""-rc" \
              -t ghcr.io/"$MY_ORG"/"$MY_APP":"latest" .
 docker push ghcr.io/"$MY_ORG"/"$MY_APP":"$VER""-rc"
+docker push ghcr.io/"$MY_ORG"/"$MY_APP":"latest"
