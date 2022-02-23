@@ -21,4 +21,4 @@ jobs:
         VER: "${{ github.event.release.tag_name }}"
         DOCKER_ACTOR: "${{ secrets.GHCR_USERNAME }}"
         DOCKER_TOKEN: "${{ secrets.GHCR_TOKEN }}"
-      run: "./.github/workflows/scripts/develop_rc_release.sh\n"
+      run: "./.github/workflows/scripts/prod_release.sh\n"
