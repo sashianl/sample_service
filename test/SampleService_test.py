@@ -3314,7 +3314,8 @@ def test_get_links_from_sample_set_fail(sample_port):
             'sample_ids': [{'id': str(badid), 'version': 1}],
             'effective_time': _get_current_epochmillis() - 500
         },
-        f'Sample service error code 50010 No such sample: {badid}')
+        'Sample service error code 50010 No such sample:' +
+        f" Could not complete search for samples: ['{badid}']")
 
     # admin tests
     _get_links_from_sample_set_fail(

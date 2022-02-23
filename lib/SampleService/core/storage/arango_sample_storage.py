@@ -849,6 +849,23 @@ class ArangoSampleStorage:
             # allow None for backwards compability with DB entries missing the key
             acls.get(_FLD_PUBLIC_READ))
 
+    def get_sample_set_acls(self, ids_: List[UUID]) -> List[SampleACL]:
+        # have to cast this way for compatibility with _get_many_sample_doc
+        docs = self._get_many_sample_doc([{'id': _cast(str, id_)} for id_ in ids_])
+        sample_acls = []
+        for doc in docs:
+            acls = doc[_FLD_ACLS]
+            sample_acls.append(SampleACL(
+                UserID(acls[_FLD_OWNER]),
+                self._timestamp_to_datetime(doc[_FLD_ACL_UPDATE_TIME]),
+                [UserID(u) for u in acls[_FLD_ADMIN]],
+                [UserID(u) for u in acls[_FLD_WRITE]],
+                [UserID(u) for u in acls[_FLD_READ]],
+                acls.get(_FLD_PUBLIC_READ)
+            ))
+
+        return sample_acls
+
     def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
         Completely replace a sample's ACLs.
