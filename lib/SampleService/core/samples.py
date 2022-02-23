@@ -468,13 +468,13 @@ class Samples:
 
         wsids = None if as_admin else self._ws.get_user_workspaces(user)
         # TODO DATALINK what about deleted objects? Currently not handled
-        return_links = []
         for sample in samples:
             # TODO: consider adding support for sample set refs, so that we don't have to check
             # perms for every individual sample. It does not appear to create a significant
             # bottleneck as implemented but it could help with a lot of samples at once
             self._check_perms(sample.sampleid, user, _SampleAccessType.READ, as_admin=as_admin)
-            return_links.extend(self._storage.get_links_from_sample(sample, wsids, timestamp))
+
+        return_links = self._storage.get_batch_links_from_samples(samples, wsids, timestamp)
 
         return return_links, timestamp
 
