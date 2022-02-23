@@ -2,10 +2,116 @@ import datetime
 import uuid
 from pytest import raises
 from core.test_utils import assert_exception_correct
-from SampleService.core.sample import Sample, SavedSample, SampleNode, SubSampleType, SampleAddress
+from SampleService.core.sample import (
+    Sample,
+    SavedSample,
+    SampleNode,
+    SubSampleType,
+    SampleAddress,
+    SourceMetadata,
+)
 from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
 from SampleService.core.user import UserID
+
+
+def test_source_metadata_build():
+    sm = SourceMetadata('k' * 256, 'f' * 256, {
+        'foo': 1,
+        'a' * 256: 'whee\twhoo',
+        'k': 'b\n' + 'b' * 1022,
+        'f': 1.4,
+        'g': True})
+
+    assert sm.key == 'k' * 256
+    assert sm.sourcekey == 'f' * 256
+    assert sm.sourcevalue == {
+        'foo': 1,
+        'a' * 256: 'whee\twhoo',
+        'k': 'b\n' + 'b' * 1022,
+        'f': 1.4,
+        'g': True}
+
+    sm = SourceMetadata('k', 'f', {'x': 'y'})
+
+    assert sm.key == 'k'
+    assert sm.sourcekey == 'f'
+    assert sm.sourcevalue == {'x': 'y'}
+
+
+def test_source_metadata_build_fail():
+    _source_metadata_build_fail(None, 's', {}, IllegalParameterError(
+        'Controlled metadata keys may not be null or whitespace only'))
+    _source_metadata_build_fail('   \n  \t ', 's', {}, IllegalParameterError(
+        'Controlled metadata keys may not be null or whitespace only'))
+    _source_metadata_build_fail(
+        'z' * 255 + 'ff', 'skey', {},
+        IllegalParameterError(f"Controlled metadata has key starting with {'z' * 255 + 'f'} " +
+                              'that exceeds maximum length of 256'))
+    _source_metadata_build_fail(
+        '\twhee', 'skey', {},
+        IllegalParameterError(
+            "Controlled metadata key \twhee's character at index 0 is a control character."))
+
+    _source_metadata_build_fail('k', None, {}, IllegalParameterError(
+        'Source metadata keys may not be null or whitespace only'))
+    _source_metadata_build_fail('k', '   \n  \t ', {}, IllegalParameterError(
+        'Source metadata keys may not be null or whitespace only'))
+    _source_metadata_build_fail(
+        'k', 'b' * 255 + 'ff', {},
+        IllegalParameterError(f"Source metadata has key starting with {'b' * 255 + 'f'} " +
+                              'that exceeds maximum length of 256'))
+    _source_metadata_build_fail(
+        'k', 'thingy\n', {},
+        IllegalParameterError(
+            "Source metadata key thingy\n's character at index 6 is a control character."))
+
+    _source_metadata_build_fail('k', 'sk', None, IllegalParameterError(
+        'Source metadata value associated with metadata key k is null or empty'))
+    _source_metadata_build_fail('k', 'sk', {}, IllegalParameterError(
+        'Source metadata value associated with metadata key k is null or empty'))
+    _source_metadata_build_fail('k', 'skey', {'a' * 255 + 'ff': 'whee'}, IllegalParameterError(
+        'Source metadata has a value key associated with metadata key k starting with ' +
+        f"{'a' * 255 + 'f'} that exceeds maximum length of 256"))
+    _source_metadata_build_fail('k2', 'skey', {'\twhee': {}}, IllegalParameterError(
+        'Source metadata value key \twhee associated with metadata key k2 has a character at ' +
+        'index 0 that is a control character.'))
+    _source_metadata_build_fail(
+        'somekey', 'skey', {'whee': 'a' * 255 + 'f' * 770},
+        IllegalParameterError(
+            'Source metadata has a value associated with metadata key somekey and value key ' +
+            f"whee starting with {'a' * 255 + 'f'} that exceeds maximum length of 1024"))
+    _source_metadata_build_fail('k3', 'skey', {'whee': 'whoop\bbutt'}, IllegalParameterError(
+        'Source metadata value associated with metadata key k3 and value key whee has a ' +
+        'character at index 5 that is a control character.'))
+
+
+def _source_metadata_build_fail(key, skey, value, expected):
+    with raises(Exception) as got:
+        SourceMetadata(key, skey, value)
+    assert_exception_correct(got.value, expected)
+
+
+def test_source_metadata_eq():
+
+    assert SourceMetadata('k', 'f', {'x': 'y'}) == SourceMetadata('k', 'f', {'x': 'y'})
+    assert SourceMetadata('k', 'f', {'x': 'y'}) != SourceMetadata('k1', 'f', {'x': 'y'})
+    assert SourceMetadata('k', 'f', {'x': 'y'}) != SourceMetadata('k', 'f1', {'x': 'y'})
+    assert SourceMetadata('k', 'f', {'a': 'b'}) != SourceMetadata('k', 'f', {'a': 'c'})
+
+    assert SourceMetadata('k', 'f', {'x': 'y'}) != 'k'
+    assert {} != SourceMetadata('k', 'f', {'x': 'y'})
+
+
+def test_source_metadata_hash():
+    # hashes will change from instance to instance of the python interpreter, and therefore
+    # tests can't be written that directly test the hash value. See
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+
+    assert hash(SourceMetadata('k', 'f', {'x': 'y'})) == hash(SourceMetadata('k', 'f', {'x': 'y'}))
+    assert hash(SourceMetadata('k', 'f', {'x': 'y'})) != hash(SourceMetadata('k1', 'f', {'x': 'y'}))
+    assert hash(SourceMetadata('k', 'f', {'x': 'y'})) != hash(SourceMetadata('k', 'f1', {'x': 'y'}))
+    assert hash(SourceMetadata('k', 'f', {'a': 'b'})) != hash(SourceMetadata('k', 'f', {'a': 'c'}))
 
 
 def test_sample_node_build():
@@ -15,6 +121,7 @@ def test_sample_node_build():
     assert sn.parent is None
     assert sn.controlled_metadata == {}
     assert sn.user_metadata == {}
+    assert sn.source_metadata == ()
 
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256)
     assert sn.name == 'a' * 256
@@ -22,27 +129,41 @@ def test_sample_node_build():
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {}
     assert sn.user_metadata == {}
+    assert sn.source_metadata == ()
 
     sn = SampleNode('a' * 256, SubSampleType.TECHNICAL_REPLICATE, 'b' * 256,
-                    {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'}, 'wugga': {'a': 'b' * 1024}},
-                    {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}})
+                    {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
+                     'wugga': {'a': 'b' * 1024},
+                     # tests that having a controlled key doesn't force a source key
+                     'z': {'u': 'v'}},
+                    {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}},
+                    [SourceMetadata('a' * 256, 'sk', {'a': 'b'}),
+                     SourceMetadata('wugga', 'sk', {'a': 'b'})])
     assert sn.name == 'a' * 256
     assert sn.type == SubSampleType.TECHNICAL_REPLICATE
     assert sn.parent == 'b' * 256
     assert sn.controlled_metadata == {'a' * 256: {'bar': 'baz', 'bat': 'wh\tee'},
-                                      'wugga': {'a': 'b' * 1024}}
+                                      'wugga': {'a': 'b' * 1024},
+                                      'z': {'u': 'v'}}
     assert sn.user_metadata == {'a': {'b' * 256: 'fo\no', 'c': 1, 'd': 1.5, 'e': False}}
+    assert sn.source_metadata == (SourceMetadata('a' * 256, 'sk', {'a': 'b'}),
+                                  SourceMetadata('wugga', 'sk', {'a': 'b'}))
 
     # 100KB when serialized to json
     meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
     meta['a'] = {'b': 'c' * 30}
 
-    sn = SampleNode('a', SubSampleType.SUB_SAMPLE, 'b', meta, meta)
+    # Also 100KB when the size calculation routine is run
+    smeta = [SourceMetadata(str(i), 'sksksk', {'x': '𐎦' * 25}) for i in range(848)]
+    smeta.append(SourceMetadata('a', 'b' * 35, {'u': 'v'}))
+
+    sn = SampleNode('a', SubSampleType.SUB_SAMPLE, 'b', meta, meta, smeta)
     assert sn.name == 'a'
     assert sn.type == SubSampleType.SUB_SAMPLE
     assert sn.parent == 'b'
     assert sn.controlled_metadata == meta
     assert sn.user_metadata == meta
+    assert sn.source_metadata == tuple(smeta)
 
 
 def test_sample_node_build_fail():
@@ -75,33 +196,48 @@ def _sample_node_build_fail(name, type_, parent, expected):
 
 def test_sample_node_build_fail_metadata():
     _sample_node_build_fail_metadata(
+        {None: {}},
+        '{} metadata keys may not be null or whitespace only')
+
+    _sample_node_build_fail_metadata(
+        {'  \t  \n  ': {}},
+        '{} metadata keys may not be null or whitespace only')
+
+    _sample_node_build_fail_metadata(
+        {'foo': None},
+        '{} metadata value associated with metadata key foo is null or empty')
+    _sample_node_build_fail_metadata(
+        {'foo': {}},
+        '{} metadata value associated with metadata key foo is null or empty')
+
+    _sample_node_build_fail_metadata(
         {'a' * 255 + 'ff': {}},
         f"{{}} metadata has key starting with {'a' * 255 + 'f'} " +
         "that exceeds maximum length of 256")
 
     _sample_node_build_fail_metadata(
         {'wh\tee': {}},
-        f"{{}} metadata key wh\tee's character at index 2 is a control character.")
+        "{} metadata key wh\tee's character at index 2 is a control character.")
 
     _sample_node_build_fail_metadata(
         {'bat': {'a' * 255 + 'ff': 'whee'}},
-        f"{{}} metadata has value key under root key bat starting with {'a' * 255 + 'f'} " +
-        "that exceeds maximum length of 256")
+        '{} metadata has a value key associated with metadata key bat starting with ' +
+        f"{'a' * 255 + 'f'} that exceeds maximum length of 256")
 
     _sample_node_build_fail_metadata(
         {'wugga': {'wh\tee': {}}},
-        f"{{}} metadata value key wh\tee under key wugga's character at index 2 is a " +
-        "control character.")
+        '{} metadata value key wh\tee associated with metadata key wugga has a character at ' +
+        'index 2 that is a control character.')
 
     _sample_node_build_fail_metadata(
         {'bat': {'whee': 'a' * 255 + 'f' * 770}},
-        f"{{}} metadata has value under root key bat and value key whee starting with " +
-        f"{'a' * 255 + 'f'} that exceeds maximum length of 1024")
+        '{} metadata has a value associated with metadata key bat and value key whee starting ' +
+        f"with {'a' * 255 + 'f'} that exceeds maximum length of 1024")
 
     _sample_node_build_fail_metadata(
-        {'bat': {'whee': 'whoop\bbutt'}},
-        "{} metadata value under root key bat and value key whee's character at index 5 " +
-        'is a control character.')
+        {'bat': {'whee': '\bwhoopbutt'}},
+        '{} metadata value associated with metadata key bat and value key whee has a ' +
+        'character at index 0 that is a control character.')
 
     # 100001B when serialized to json
     meta = {str(i): {'b': '𐎦' * 25} for i in range(848)}
@@ -116,6 +252,38 @@ def _sample_node_build_fail_metadata(meta, expected):
     with raises(Exception) as got:
         SampleNode('n', SubSampleType.BIOLOGICAL_REPLICATE, user_metadata=meta)
     assert_exception_correct(got.value, IllegalParameterError(expected.format('User')))
+
+
+def test_sample_node_build_fail_source_metadata():
+    _sample_node_build_fail_source_metadata(
+        [SourceMetadata('k', 'k1', {'a': 'b'}), None], ValueError(
+            'Index 1 of iterable source_metadata cannot be a value that evaluates to false'))
+    _sample_node_build_fail_source_metadata(
+        [SourceMetadata('f', 'k1', {'a': 'b'}), SourceMetadata('k', 'k1', {'c': 'd'})],
+        IllegalParameterError(
+            'Source metadata key k does not appear in the controlled metadata'),
+        cmeta={'f': {'x': 'y'}})
+    _sample_node_build_fail_source_metadata(
+        [SourceMetadata('k', 'k1', {'a': 'b'}), SourceMetadata('k', 'k2', {'a': 2})],
+        IllegalParameterError('Duplicate source metadata key: k'))
+
+    # 100001KB when the size calculation routine is run
+    smeta = [SourceMetadata(str(i), 'sksksk', {'x': '𐎦' * 25}) for i in range(848)]
+    smeta.append(SourceMetadata('a', 'b' * 36, {'x': 'y'}))
+    _sample_node_build_fail_source_metadata(smeta, IllegalParameterError(
+        'Source metadata is larger than maximum of 100000B'))
+
+
+def _sample_node_build_fail_source_metadata(meta, expected, cmeta=None):
+    if cmeta is None:
+        cmeta = {sm.key: {'x': 'y'} for sm in meta if sm is not None}
+    with raises(Exception) as got:
+        SampleNode(
+            'n',
+            SubSampleType.BIOLOGICAL_REPLICATE,
+            controlled_metadata=cmeta,
+            source_metadata=meta)
+    assert_exception_correct(got.value, expected)
 
 
 def test_sample_node_eq():
@@ -150,6 +318,29 @@ def test_sample_node_eq():
         'foo', s, 'bar', user_metadata={'foo': {'z': 'b'}})
     assert SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}}) != SampleNode(
         'foo', s, 'bar', user_metadata={'fo': {'a': 'b'}})
+
+    assert SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})]) == SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})])
+    assert SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})]) != SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'v', {'c': 'd'})])
 
     assert SampleNode('foo') != 'foo'
     assert 'foo' != SampleNode('foo')
@@ -191,6 +382,29 @@ def test_sample_node_hash():
         SampleNode('foo', s, 'bar', user_metadata={'foo': {'z': 'b'}}))
     assert hash(SampleNode('foo', s, 'bar', user_metadata={'foo': {'a': 'b'}})) != hash(
         SampleNode('foo', s, 'bar', user_metadata={'fo': {'a': 'b'}}))
+
+    assert hash(SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})])) == hash(SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})]))
+    assert hash(SampleNode(
+        'foo',
+        s,
+        'bar',
+        controlled_metadata={'k': {'a': 'b'}},
+        source_metadata=[SourceMetadata('k', 'k', {'c': 'd'})])) != hash(SampleNode(
+            'foo',
+            s,
+            'bar',
+            controlled_metadata={'k': {'a': 'b'}},
+            source_metadata=[SourceMetadata('k', 'v', {'c': 'd'})]))
 
 
 def dt(timestamp):

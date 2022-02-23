@@ -25,7 +25,10 @@ interactive version is
 
 The Sample Service requires ArangoDB 3.5.1+ with RocksDB as the storage engine.
 
-To run tests, MongoDB 3.6+ and the KBase Jars file repo are also required.
+If Kafka notifications are enabled, the Sample Service requires Kafka 2.5.0+.
+
+To run tests, MongoDB 3.6+ and the KBase Jars file repo are also required. Kafka is always
+required to run tests.
 
 See `.travis.yml` for an example of how to set up tests, including creating a `test.cfg` file
 from the `test/test.cfg.example` file.
@@ -53,7 +56,45 @@ You may find the answers to your questions in our [FAQ](https://kbase.github.io/
 
 The server has several startup parameters beyond the standard SDK-provided parameters
 that must be configured in the Catalog Service by a Catalog Service administrator in order
-for the service to run. These are documented in the `deploy.cfg` file. 
+for the service to run. These are documented in the `deploy.cfg` file.
+
+## Kafka Notification
+
+The server may be configured to send notifications on events to Kafka - see the `deploy.cfg` file
+for information. The events and their respective JSON message formats are:
+
+### New sample or sample version
+
+```
+{'event_type': 'NEW_SAMPLE',
+ 'sample_id': <sample ID>,
+ 'sample_ver': <sample version>
+ }
+```
+
+### Sample ACL change
+
+```
+{'event_type': 'ACL_CHANGE',
+ 'sample_id': <sample ID>
+ }
+```
+
+### New data link
+
+```
+{'event_type': 'NEW_LINK',
+ 'link_id': <link ID>
+ }
+```
+
+### Expired data link
+
+```
+{'event_type': 'EXPIRED_LINK',
+ 'link_id': <link ID>
+ }
+```
 
 # API Error codes
 
@@ -216,6 +257,20 @@ def chemical_species_builder(params: Dict[str, str]
 
     return validate_cs
 ```
+
+### Source metadata
+
+In some cases, metadata at the data source may be transformed prior to ingest into the
+Sample Service - for instance, two samples from different sources may be associated with
+metadata items that are semantically equivalent but have different names and are represented in
+different units. Prior to storage in the Sample Service, those items may be transformed to use
+the same metadata key and representation for the value.
+
+The Sample Service allows storing these source keys and values along with the controlled
+metadata such that the original metadata may be reconstructed. The data is not validated other
+than basic size checks and is stored on an informational basis only.
+
+See the API specification for more details.
 
 ## Static key metadata
 
@@ -448,3 +503,22 @@ Ensures all values are integers or floats.
 * `gt`, `gte`, `lt`, and `lte` are respectively greater than, greater than or equal,
   less than, and less than or equal, and specify a range in which the number or numbers must exist.
   If `gt` or `lt` are specified, `gte` or `lte` cannot be specified, respectively, and vice versa.
+
+### ontology_has_ancestor
+
+Example configuration:
+```
+validators:
+    metadatakey:
+        validators:
+            - module: SampleService.core.validator.builtin
+              callable-builder: ontology_has_ancestor
+              parameters:
+                  ontology: 'envo_ontology'
+                  ancestor_term: 'ENVO:00010483'
+                  srv_wiz_url: 'https://kbase.us/services/service_wizard'
+```
+
+* `ontology` is the ontology that the meta value will be checked against.
+* `ancestor_term` is the ancestor ontology term that will be used to check whether meta value has such ancestor or not.   
+* `srv_wiz_url` is the kbase service wizard url for getting OntologyAPI service.

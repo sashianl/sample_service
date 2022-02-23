@@ -1,0 +1,82 @@
+[SampleService]
+kbase-endpoint = {{ default .Env.kbase_endpoint "https://ci.kbase.us/services/" }}
+workspace-url = {{ default .Env.workspace_url "https://ci.kbase.us/services/ws" }}
+srv-wiz-url = {{ default .Env.srv_wiz_url "https://ci.kbase.us/services/service_wizard" }}
+auth-service-url = {{ default .Env.auth_service_url "https://ci.kbase.us/services/auth/api/legacy/KBase/Sessions/Login" }}
+auth-service-url-allow-insecure = {{ default .Env.auth_service_url_allow_insecure "false" }}
+scratch = /kb/module/work/tmp
+
+# Location and credentials for the KBase Authentication service.
+# auth-root-url is the KBase auth service root url, e.g. https://kbase.us/services/auth
+# auth-token is any valid auth token for the sample service to use for user lookups. A service
+# token is recommended.
+# auth-full-admin-roles is a comma separated list of authentication service custom roles that
+# denote a user is a full admin of the sample service.
+# auth-full-admin-roles is a comma separated list of authentication service custom roles that
+# denote a user has admin read privileges for the sample service.
+
+auth-root-url = {{ default .Env.auth_root_url "https://ci.kbase.us/services/auth" }}
+auth-token = {{ default .Env.auth_token "" }}
+
+auth-full-admin-roles = {{ default .Env.auth_full_admin_roles "SAMPLE_SERVICE_FULL_ADMIN" }}
+auth-read-admin-roles = {{ default .Env.auth_read_admin_roles "SAMPLE_SERVICE_READ_ADMIN" }}
+
+# auth-read-exempt-roles is a comma separated list of roles that the read privileges for the sample service are REMOVED from get_sample_acls
+auth-read-exempt-roles = {{ default .Env.auth_read_exempt_roles "SAMPLE_SERVICE_EXEMPT_READ_USER" }}
+
+# Credentials for the KBase workspace service. The token must have read
+# administration permissions.
+
+workspace-read-admin-token={{ default .Env.workspace_read_admin_token "" }}
+
+# Location and credentials for the ArangoDB instance in which to store data.
+# The DB is expected to be shared with the KBase relation engine.
+
+arango-url = {{ default .Env.arango_url "" }}
+arango-db = {{ default .Env.arango_db "" }}
+arango-user = {{ default .Env.arango_user ""}}
+arango-pwd = {{ default .Env.arango_pwd ""}}
+
+# Collection names for the sample service to use. These are configurable because:
+# 1) The collection names might collide with Relation Engine collection names if hard coded into
+#    the service as per normal practice
+# 2) The service should not create collections on start up to allow for admins to do so instead,
+#    so the admins can set up sharding correctly, which cannot be changed after collection
+#    creation.
+
+# The workspace object shadow collection should be the collection the KBase Relation Engine
+# uses for its workspace object version documents. The Sample Server does not write to this
+# collection.
+
+#    ---- Collection descriptions ----
+# sample-collection = "sample id and acls"
+# version-collection = "name, version, version uuid (transaction key), and some other stuff"
+# version-edge-collection = "links samples with version"
+# node-collection = "all the nodes we talked about. metadata fields stored here"
+# node-edge-collection = "edges between versions and nodes"
+# data-link-collection = "link between nodes and workspace objects."
+# workspace-object-version-shadow-collection = "RE workspace shadow collection"
+# schema-collection = "1 object that says "this is the database schema version". for service start up"
+
+sample-collection = {{ default .Env.sample_collection "samples_sample" }}
+version-collection = {{ default .Env.version_collection "samples_version" }}
+version-edge-collection = {{ default .Env.version_edge_collection "samples_ver_edge" }}
+node-collection = {{ default .Env.node_collection "samples_nodes" }}
+node-edge-collection = {{ default .Env.node_edge_collection "samples_nodes_edge" }}
+data-link-collection = {{ default .Env.data_link_collection "samples_data_link" }}
+workspace-object-version-shadow-collection = {{ default .Env.workspace_object_version_shadow_collection "ws_object_version" }}
+schema-collection = {{ default .Env.schema_collection "samples_schema" }}
+
+# A URL pointing to a configuration file for any metadata validators to be installed on startup.
+# See the readme file for a description of the file contents.
+metadata-validator-config-url = {{ default .Env.metadata_validator_config_url "https://raw.githubusercontent.com/kbase/sample_service_validator_config/master/metadata_validation.yml" }}
+
+# Parameters for Kafka notifications.
+#
+# kafka-bootstrap-servers is equivalent to the Kafka bootstrap.servers parameter. Leave blank to
+# disable the Kafka notifier.
+#
+# kafka-topic is the topic to which the Kafka notifier should write. Required if
+# kafka-bootstrap-servers is provided. Legal characters are alphanumerics and the hyphen.
+kafka-bootstrap-servers = {{ default .Env.kafka_bootstrap_servers "" }}
+kafka-topic = {{ default .Env.kafka_topic "" }}

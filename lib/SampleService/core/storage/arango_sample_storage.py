@@ -71,30 +71,38 @@ import hashlib as _hashlib
 import uuid as _uuid  # lgtm [py/import-and-import-from]
 from uuid import UUID
 from collections import defaultdict
-from typing import List, Tuple, Callable, cast as _cast, Optional
+from typing import List, Tuple, Callable, cast as _cast, Optional, Sequence as _Sequence
 from typing import Dict as _Dict, Any as _Any
 
 from apscheduler.schedulers.background import BackgroundScheduler as _BackgroundScheduler
 from arango.database import StandardDatabase
 
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.core_types import PrimitiveType as _PrimitiveType
 from SampleService.core.data_link import DataLink
-from SampleService.core.sample import SavedSample
-from SampleService.core.sample import SampleNode as _SampleNode, SubSampleType as _SubSampleType
-from SampleService.core.sample import SampleNodeAddress as _SampleNodeAddress
-from SampleService.core.sample import SampleAddress
-from SampleService.core.arg_checkers import not_falsy as _not_falsy
-from SampleService.core.arg_checkers import not_falsy_in_iterable as _not_falsy_in_iterable
-from SampleService.core.arg_checkers import check_string as _check_string
-from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
-from SampleService.core.errors import ConcurrencyError as _ConcurrencyError
-from SampleService.core.errors import DataLinkExistsError as _DataLinkExistsError
-from SampleService.core.errors import NoSuchLinkError as _NoSuchLinkError
-from SampleService.core.errors import NoSuchSampleError as _NoSuchSampleError
-from SampleService.core.errors import NoSuchSampleVersionError as _NoSuchSampleVersionError
-from SampleService.core.errors import NoSuchSampleNodeError as _NoSuchSampleNodeError
-from SampleService.core.errors import TooManyDataLinksError as _TooManyDataLinksError
+from SampleService.core.sample import (
+    SavedSample,
+    SampleAddress,
+    SourceMetadata as _SourceMetadata,
+    SampleNode as _SampleNode,
+    SubSampleType as _SubSampleType,
+    SampleNodeAddress as _SampleNodeAddress,
+)
+from SampleService.core.arg_checkers import (
+    not_falsy as _not_falsy,
+    not_falsy_in_iterable as _not_falsy_in_iterable,
+    check_string as _check_string,
+    check_timestamp as _check_timestamp,
+)
+from SampleService.core.errors import (
+    ConcurrencyError as _ConcurrencyError,
+    DataLinkExistsError as _DataLinkExistsError,
+    NoSuchLinkError as _NoSuchLinkError,
+    NoSuchSampleError as _NoSuchSampleError,
+    NoSuchSampleVersionError as _NoSuchSampleVersionError,
+    NoSuchSampleNodeError as _NoSuchSampleNodeError,
+    TooManyDataLinksError as _TooManyDataLinksError,
+)
 from SampleService.core.storage.errors import SampleStorageError as _SampleStorageError
 from SampleService.core.storage.errors import StorageInitError as _StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError as _OwnerChangedError
@@ -111,6 +119,7 @@ _VAL_NO_VER = -1
 _FLD_NAME = 'name'
 _FLD_USER = 'user'
 _FLD_SAVE_TIME = 'saved'
+_FLD_ACL_UPDATE_TIME = 'aclupdate'
 
 _FLD_NODE_NAME = 'name'
 _FLD_NODE_TYPE = 'type'
@@ -121,8 +130,10 @@ _FLD_NODE_UUID_VER = 'uuidver'
 _FLD_NODE_INDEX = 'index'
 _FLD_NODE_CONTROLLED_METADATA = 'cmeta'
 _FLD_NODE_UNCONTROLLED_METADATA = 'ucmeta'
+_FLD_NODE_SOURCE_METADATA = 'smeta'
 _FLD_NODE_META_OUTER_KEY = 'ok'
 _FLD_NODE_META_KEY = 'k'
+_FLD_NODE_META_SOURCE_KEY = 'sk'
 _FLD_NODE_META_VALUE = 'v'
 
 
@@ -131,6 +142,7 @@ _FLD_OWNER = 'owner'
 _FLD_READ = 'read'
 _FLD_WRITE = 'write'
 _FLD_ADMIN = 'admin'
+_FLD_PUBLIC_READ = 'pubread'
 
 _FLD_VERSIONS = 'vers'
 
@@ -304,7 +316,7 @@ class ArangoSampleStorage:
             for doc in cur:
                 id_ = UUID(doc[_FLD_ID])
                 uver = UUID(doc[_FLD_UUID_VER])
-                ts = self._timestamp_to_datetime(doc[_FLD_SAVE_TIME])
+                ts = self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(doc[_FLD_SAVE_TIME]))
                 sampledoc = self._get_sample_doc(id_, exception=False)
                 if not sampledoc:
                     # the sample document was never saved for this version doc
@@ -393,10 +405,12 @@ class ArangoSampleStorage:
                   # yes, this is redundant. It'll match the ver & node collectons though
                   _FLD_ID: str(sample.id),  # TODO test this is saved
                   _FLD_VERSIONS: [str(versionid)],
+                  _FLD_ACL_UPDATE_TIME: sample.savetime.timestamp(),
                   _FLD_ACLS: {_FLD_OWNER: sample.user.id,
                               _FLD_ADMIN: [],
                               _FLD_WRITE: [],
-                              _FLD_READ: []
+                              _FLD_READ: [],
+                              _FLD_PUBLIC_READ: False
                               }
                   }
         try:
@@ -443,13 +457,14 @@ class ArangoSampleStorage:
                     _FLD_NODE_SAMPLE_ID: str(sample.id),
                     _FLD_NODE_UUID_VER: str(versionid),
                     _FLD_NODE_VER: _VAL_NO_VER,
-                    _FLD_SAVE_TIME: sample.savetime.timestamp(),
+                    _FLD_SAVE_TIME: self._timestamp_seconds_to_milliseconds(sample.savetime.timestamp()),
                     _FLD_NODE_NAME: n.name,
                     _FLD_NODE_TYPE: n.type.name,
                     _FLD_NODE_PARENT: n.parent,
                     _FLD_NODE_INDEX: index,
                     _FLD_NODE_CONTROLLED_METADATA: self._meta_to_list(n.controlled_metadata),
                     _FLD_NODE_UNCONTROLLED_METADATA: self._meta_to_list(n.user_metadata),
+                    _FLD_NODE_SOURCE_METADATA: self._source_meta_to_list(n.source_metadata),
                     }
             if n.type == _SubSampleType.BIOLOGICAL_REPLICATE:
                 to = f'{self._col_version.name}/{verdocid}'
@@ -474,7 +489,7 @@ class ArangoSampleStorage:
                   _FLD_USER: sample.user.id,
                   _FLD_VER: _VAL_NO_VER,
                   _FLD_UUID_VER: str(versionid),
-                  _FLD_SAVE_TIME: sample.savetime.timestamp(),
+                  _FLD_SAVE_TIME: self._timestamp_seconds_to_milliseconds(sample.savetime.timestamp()),
                   _FLD_NAME: sample.name
                   # TODO description
                   }
@@ -505,11 +520,28 @@ class ArangoSampleStorage:
                        )
         return ret
 
-    def _list_to_meta(self, l: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
+    def _list_to_meta(
+            self, list_: List[_Dict[str, _Any]]) -> _Dict[str, _Dict[str, _PrimitiveType]]:
         ret: _Dict[str, _Dict[str, _PrimitiveType]] = defaultdict(dict)
-        for m in l:
+        for m in list_:
             ret[m[_FLD_NODE_META_OUTER_KEY]][m[_FLD_NODE_META_KEY]] = m[_FLD_NODE_META_VALUE]
         return dict(ret)  # some libs don't play nice with default dict, in particular maps
+
+    # source metadata is informational only and is not expected to be queryable
+    def _source_meta_to_list(self, sm: _Sequence[_SourceMetadata]) -> List[_Dict[str, _Any]]:
+        return [{_FLD_NODE_META_KEY: m.key,
+                 _FLD_NODE_META_SOURCE_KEY: m.sourcekey,
+                 _FLD_NODE_META_VALUE: dict(m.sourcevalue)} for m in sm]
+
+    def _list_to_source_meta(self, list_: List[_Dict[str, _Any]]) -> List[_SourceMetadata]:
+        # allow for compatibility with old samples without a source meta field
+        if not list_:
+            return []
+        return [_SourceMetadata(
+            sm[_FLD_NODE_META_KEY],
+            sm[_FLD_NODE_META_SOURCE_KEY],
+            sm[_FLD_NODE_META_VALUE]
+        ) for sm in list_]
 
     def _insert(self, col, doc, upsert=False):
         try:
@@ -624,10 +656,32 @@ class ArangoSampleStorage:
         doc, verdoc, version = self._get_sample_and_version_doc(id_, version)
 
         nodes = self._get_nodes(id_, UUID(verdoc[_FLD_NODE_UUID_VER]), version)
-        dt = self._timestamp_to_datetime(verdoc[_FLD_SAVE_TIME])
+        dt = self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME]))
 
         return SavedSample(
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
+
+    def get_samples(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
+        '''
+        ids_: list of dictionaries containing "id" and "version" field.
+        '''
+        docs, verdocs, versions = self._get_many_sample_and_version_doc(ids_)
+        samples = []
+        for id_tup in ids_:
+            id_ = str(id_tup['id'])
+            verdoc = verdocs[id_]
+            nodes = self._get_nodes(UUID(id_), UUID(verdoc[_FLD_NODE_UUID_VER]), versions[id_])
+            doc = docs[id_]
+            version = versions[id_]
+            dt = self._timestamp_to_datetime(
+                self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
+            )
+            samples.append(SavedSample(
+                UUID(doc[_FLD_ID]),
+                UserID(verdoc[_FLD_USER]),
+                nodes, dt, verdoc[_FLD_NAME], version
+            ))
+        return samples
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, dict, int]:
@@ -649,8 +703,39 @@ class ArangoSampleStorage:
             raise _NoSuchSampleVersionError(f'{id_} ver {version}')
         return doc, UUID(doc[_FLD_VERSIONS][version - 1]), version
 
+    def _get_many_sample_and_version_doc(self, ids_: List[_Dict[str, _Any]]) -> Tuple[_Dict[str, dict], _Dict[str, dict], _Dict[str, int]]:
+        docs, versions = self._get_many_sample_doc_and_versions(ids_)
+        verdocs = self._get_many_version_docs([(id_, UUID(doc[_FLD_VERSIONS][versions[id_] - 1])) for id_, doc in docs.items()])  # sends id and version id
+        return (docs, verdocs, versions)
+
+    def _get_many_sample_doc_and_versions(self, ids_: List[_Dict[str, _Any]]) -> Tuple[_Dict[str, dict], _Dict[str, int]]:
+        docs = [_cast(dict, doc) for doc in self._get_many_sample_doc(ids_)]
+        ret_docs = {}
+        ret_versions = {}
+        for id_ver in ids_:
+            id_ = id_ver['id']
+            version = id_ver['version']
+            # match to document
+
+        for doc in docs:
+            # get doc id
+            id_ = doc['id']
+            maxver = len(doc[_FLD_VERSIONS])
+            version = version if version else maxver
+            if version > maxver:
+                raise _NoSuchSampleError(f"{id_} ver {version}")
+            ret_versions[id_] = version
+            ret_docs[id_] = doc
+        return ret_docs, ret_versions
+
     def _timestamp_to_datetime(self, ts: float) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
+
+    def _timestamp_seconds_to_milliseconds(self, ts: float) -> int:
+        return round(ts * 1000)
+
+    def _timestamp_milliseconds_to_seconds(self, ts: int) -> float:
+        return ts / 1000
 
     def _get_version_id(self, id_: UUID, ver: UUID):
         return f'{id_}_{ver}'
@@ -674,6 +759,15 @@ class ArangoSampleStorage:
             raise _SampleStorageError(f'Corrupt DB: Missing version {ver} for sample {id_}')
         return doc
 
+    def _get_many_version_docs(self, ids_, exception: bool=True) -> _Dict[str, dict]:
+        version_ids = [self._get_version_id(id_, ver) for id_, ver in ids_]
+        ver_docs = self._get_many_docs(self._col_version, version_ids)
+        if not ver_docs:
+            if exception:
+                raise _NoSuchSampleError(f"Could not complete search for samples: {[str(id_['id']) for id_ in ids_]}")
+            # return None
+        return {ver_doc['id']: ver_doc for ver_doc in ver_docs}
+
     # assumes ver came from the sample doc in the db.
     def _get_nodes(self, id_: UUID, ver: UUID, version: int) -> List[_SampleNode]:
         # this class controls the version ID, and since it's a UUID we can assume it's unique
@@ -696,6 +790,8 @@ class ArangoSampleStorage:
                     n[_FLD_NODE_PARENT],
                     self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
                     self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
+                    # allow for compatatibility with old samples without a source meta field
+                    self._list_to_source_meta(n.get(_FLD_NODE_SOURCE_METADATA)),
                     )
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -713,9 +809,23 @@ class ArangoSampleStorage:
             return None
         return doc
 
+    def _get_many_sample_doc(self, ids_: List[_Dict[str, _Any]], exception: bool=True) -> List[dict]:
+        docs = self._get_many_docs(self._col_sample, [str(_not_falsy(id_['id'], 'id_')) for id_ in ids_])
+        if not docs:
+            if exception:
+                raise _NoSuchSampleError(f"Could not complete search for samples: {[str(id_['id']) for id_ in ids_]}")
+            # return [{}]
+        return docs
+
     def _get_doc(self, col, id_: str) -> Optional[dict]:
         try:
             return col.get(id_)
+        except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def _get_many_docs(self, col, ids_:List[str]) -> List[dict]:
+        try:
+            return col.get_many(ids_)
         except _arango.exceptions.DocumentGetError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
@@ -732,9 +842,12 @@ class ArangoSampleStorage:
         acls = doc[_FLD_ACLS]
         return SampleACL(
             UserID(acls[_FLD_OWNER]),
+            self._timestamp_to_datetime(doc[_FLD_ACL_UPDATE_TIME]),
             [UserID(u) for u in acls[_FLD_ADMIN]],
             [UserID(u) for u in acls[_FLD_WRITE]],
-            [UserID(u) for u in acls[_FLD_READ]])
+            [UserID(u) for u in acls[_FLD_READ]],
+            # allow None for backwards compability with DB entries missing the key
+            acls.get(_FLD_PUBLIC_READ))
 
     def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
@@ -754,21 +867,27 @@ class ArangoSampleStorage:
         '''
         _not_falsy(id_, 'id_')
         _not_falsy(acls, 'acls')
-
-        # could return a subset of s to save bandwith
+        # Could return a subset of s to save bandwith
+        # This will update the timestamp even for a noop. Maybe that's ok?
+        # Detecting a noop would make the query a lot more complicated. Don't worry about it for
+        # now.
         aql = f'''
             FOR s in @@col
                 FILTER s.{_FLD_ARANGO_KEY} == @id
                 FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
-                UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls)}} IN @@col
+                UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls),
+                                {_FLD_ACL_UPDATE_TIME}: @ts
+                                }} IN @@col
                 RETURN s
             '''
         bind_vars = {'@col': self._col_sample.name,
                      'id': str(id_),
                      'owner': acls.owner.id,
+                     'ts': acls.lastupdate.timestamp(),
                      'acls': {_FLD_ADMIN: [u.id for u in acls.admin],
                               _FLD_WRITE: [u.id for u in acls.write],
-                              _FLD_READ: [u.id for u in acls.read]
+                              _FLD_READ: [u.id for u in acls.read],
+                              _FLD_PUBLIC_READ: acls.public_read
                               }
                      }
         try:
@@ -780,9 +899,127 @@ class ArangoSampleStorage:
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a real pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
-    # TODO change acls with more granularity
+    def update_sample_acls(
+            self, id_: UUID, update: SampleACLDelta, update_time: datetime.datetime) -> None:
+        '''
+        Update a sample's ACLs via a delta specification.
 
-    def create_data_link(self, link: DataLink, update: bool = False):
+        :param id_: the sample ID.
+        :param update: the update to apply to the ACLs.
+        :param update_time: the update time to save in the database.
+        :raises NoSuchSampleError: if the sample does not exist.
+        :raises SampleStorageError: if the sample could not be retrieved.
+        :raises UnauthorizedError: if the update attempts to alter the sample owner.
+        '''
+        # Needs to ensure owner is not added to another ACL
+        # could make an option to just ignore the update to the owner? YAGNI for now.
+        _not_falsy(update, 'update')
+        _check_timestamp(update_time, 'update_time')
+        s = self.get_sample_acls(id_)
+        if not s.is_update(update):
+            # noop. Theoretically the values in the DB may have changed since we pulled the ACLs,
+            # but now we're talking about millisecond ordering differences, so don't worry
+            # about it.
+            return
+        self._update_sample_acls_pt2(id_, update, s.owner, update_time)
+
+    _UPDATE_ACLS_AQL = f'''
+        FOR s in @@col
+            FILTER s.{_FLD_ARANGO_KEY} == @id
+            FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
+            UPDATE s WITH {{
+                {_FLD_ACL_UPDATE_TIME}: @ts,
+                {_FLD_ACLS}: {{
+                    {_FLD_ADMIN}: REMOVE_VALUES(
+                        UNION_DISTINCT(s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin),
+                        @admin_remove),
+                    {_FLD_WRITE}: REMOVE_VALUES(
+                        UNION_DISTINCT(s.{_FLD_ACLS}.{_FLD_WRITE}, @write),
+                        @write_remove),
+                    {_FLD_READ}: REMOVE_VALUES(
+                        UNION_DISTINCT(s.{_FLD_ACLS}.{_FLD_READ}, @read),
+                        @read_remove)
+        '''
+
+    _UPDATE_ACLS_AT_LEAST_AQL = f'''
+        FOR s in @@col
+            FILTER s.{_FLD_ARANGO_KEY} == @id
+            FILTER s.{_FLD_ACLS}.{_FLD_OWNER} == @owner
+            UPDATE s WITH {{
+                {_FLD_ACL_UPDATE_TIME}: @ts,
+                {_FLD_ACLS}: {{
+                    {_FLD_ADMIN}: UNION_DISTINCT(
+                        REMOVE_VALUES(s.{_FLD_ACLS}.{_FLD_ADMIN}, @admin_remove),
+                        @admin),
+                    {_FLD_WRITE}: UNION_DISTINCT(
+                        REMOVE_VALUES(s.{_FLD_ACLS}.{_FLD_WRITE}, @write_remove),
+                        REMOVE_VALUES(@write, s.{_FLD_ACLS}.{_FLD_ADMIN})),
+                    {_FLD_READ}: UNION_DISTINCT(
+                        REMOVE_VALUES(s.{_FLD_ACLS}.{_FLD_READ}, @read_remove),
+                        REMOVE_VALUES(@read, UNION_DISTINCT(
+                            s.{_FLD_ACLS}.{_FLD_ADMIN}, s.{_FLD_ACLS}.{_FLD_WRITE})))
+        '''
+
+    def _update_sample_acls_pt2(self, id_, update, owner, update_time):
+        # this method is split solely to allow testing the owner change case.
+
+        # At this point we're committed to a DB update and therefore an ACL update time bump
+        # (unless we make the query very complicated, which probably isn't worth the
+        # complexity). Even with the noop checking code above, it's still possible for the DB
+        # update to be a noop and yet bump the update time. What that means, though, is that
+        # some other thread of operation changed the ACLs to the exact state that application of
+        # our delta update would result in. The only issue here is that the update time stamp will
+        # be a few milliseconds later than it should be, so don't worry about it.
+
+        # we remove the owner from the update list for the case where update.at_least is
+        # true so that we don't add the owner to another ACL. If at_least is false, the
+        # update class would've thrown an error.
+        a = [u.id for u in update.admin if u != owner]
+        w = [u.id for u in update.write if u != owner]
+        r = [u.id for u in update.read if u != owner]
+        rem = [u.id for u in update.remove]
+
+        bind_vars = {'@col': self._col_sample.name,
+                     'id': str(id_),
+                     'owner': owner.id,
+                     'ts': update_time.timestamp(),
+                     'admin': a,
+                     'write': w,
+                     'read': r,
+                     'read_remove': a + w + rem,
+                     }
+        if update.at_least:
+            bind_vars['admin_remove'] = rem
+            bind_vars['write_remove'] = a + rem
+        else:
+            bind_vars['admin_remove'] = w + r + rem
+            bind_vars['write_remove'] = a + r + rem
+        # Could return a subset of s to save bandwith (see query text)
+        # ensures the owner hasn't changed since we pulled the acls above (see query text).
+        aql = self._UPDATE_ACLS_AT_LEAST_AQL if update.at_least else self._UPDATE_ACLS_AQL
+        if update.public_read is not None:
+            aql += f''',
+                        {_FLD_PUBLIC_READ}: @pubread'''
+            bind_vars['pubread'] = update.public_read
+        aql += '''
+                        }
+                    } IN @@col
+                RETURN s
+            '''
+
+        try:
+            cur = self._db.aql.execute(aql, bind_vars=bind_vars, count=True)
+            if not cur.count():
+                # Assume cur.count() is never > 1 as we're filtering on _key.
+                # We already know the sample exists, and samples at this point can't be
+                # deleted, so just raise.
+                raise _OwnerChangedError(  # if this happens a lot make a retry loop.
+                    'The sample owner unexpectedly changed during the operation. Please retry. ' +
+                    'If this error occurs frequently, code changes may be necessary.')
+        except _arango.exceptions.AQLQueryExecuteError as e:  # this is a real pain to test
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+
+    def create_data_link(self, link: DataLink, update: bool = False) -> Optional[UUID]:
         '''
         Link data in the workspace to a sample.
         Each data unit can be linked to only one sample at a time. Expired links may exist to
@@ -802,6 +1039,7 @@ class ArangoSampleStorage:
         :param link: the link to save, which cannot be expired.
         :param update: if the link from the object already exists and is linked to a different
             sample, update the link. If it is linked to the same sample take no action.
+        :returns: The ID of the link that is expired as part of the update process, if any.
 
         :raises NoSuchSampleError: if the sample does not exist.
         :raises NoSuchSampleVersionError: if the sample version does not exist.
@@ -852,12 +1090,12 @@ class ArangoSampleStorage:
             tdlc = tdb.collection(self._col_data_link.name)
             oldlinkdoc = self._get_doc(tdlc, self._create_link_key(link))
             if oldlinkdoc:
-                if not update:
+                if not update:  # maybe want to move this after the noop check? or add noop option
                     raise _DataLinkExistsError(str(link.duid))
                 oldlink = self._doc_to_link(oldlinkdoc)
                 if link.is_equivalent(oldlink):
                     self._abort_transaction(tdb)
-                    return  # I don't like having a return in the middle of the method, but
+                    return None  # I don't like having a return in the middle of the method, but
                     # the alternative seems to be worse
 
                 # See the notes in the expire method, many are relevant here.
@@ -868,7 +1106,7 @@ class ArangoSampleStorage:
                 # I'm not a fan of this, but a millisecond gap seems safe and most systems
                 # should have millisecond resolution.
                 # Consider rounding to millisecond resolution for consistency? Make a class?
-                oldlinkdoc[_FLD_LINK_EXPIRED] = link.created.timestamp() - 0.001
+                oldlinkdoc[_FLD_LINK_EXPIRED] = self._timestamp_seconds_to_milliseconds(link.created.timestamp() - 0.001)
                 oldlinkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(oldlinkdoc)
 
                 # since we're replacing a link we don't need to worry about counting links from
@@ -896,12 +1134,13 @@ class ArangoSampleStorage:
             self._commit_transaction(tdb)
         finally:
             self._abort_transaction(tdb)
+        return UUID(oldlinkdoc[_FLD_LINK_ID]) if oldlinkdoc else None
 
     def _commit_transaction(self, transaction_db):
         try:
             transaction_db.commit_transaction()
         except _arango.exceptions.TransactionCommitError as e:  # dunno how to test this
-            # TODO DATALINK if the transaction fails we may want to retry.
+            # TODO DATALINK if the transaction fails we may want to retry. pretty complicated
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _abort_transaction(self, transaction_db):
@@ -961,13 +1200,13 @@ class ArangoSampleStorage:
 
     def _count_links(self, db, filters: str, bind_vars, created, expired):
         bind_vars['@col'] = self._col_data_link.name
-        bind_vars['created'] = created.timestamp()
-        bind_vars['expired'] = expired.timestamp() if expired else _ARANGO_MAX_INTEGER
+        bind_vars['created'] = self._timestamp_seconds_to_milliseconds(created.timestamp())
+        bind_vars['expired'] = self._timestamp_seconds_to_milliseconds(expired.timestamp()) if expired else _ARANGO_MAX_INTEGER
         # might need to include created / expired in compound indexes if we get a ton of expired
         # links. Might not work in a NOT though. Alternate formulation is
         # (d.creatd >= @created AND d.created <= @expired) OR
         # (d.expired >= @created AND d.expired <= @expired)
-        q = (f'''
+        q = ('''
                 FOR d in @@col
              ''' +
              filters +
@@ -997,7 +1236,8 @@ class ArangoSampleStorage:
     def _create_link_key_from_link_doc(self, link: dict):
         # arango sometimes removes trailing decimals and zeros from the number so we reformat
         # with datetime to ensure consistency
-        cr = (f'_{self._timestamp_to_datetime(link[_FLD_LINK_CREATED]).timestamp()}'
+        created=self._timestamp_milliseconds_to_seconds(link[_FLD_LINK_CREATED])
+        cr = (f'_{self._timestamp_to_datetime(created).timestamp()}'
               if link[_FLD_LINK_EXPIRED] != _ARANGO_MAX_INTEGER else '')
         dataid = (f'_{self._md5(link[_FLD_LINK_OBJECT_DATA_UNIT])}'
                   if link[_FLD_LINK_OBJECT_DATA_UNIT] else '')
@@ -1016,9 +1256,9 @@ class ArangoSampleStorage:
             _FLD_ARANGO_KEY: self._create_link_key(link),
             _FLD_ARANGO_FROM: from_,
             _FLD_ARANGO_TO: f'{self._col_nodes.name}/{nodeid}',
-            _FLD_LINK_CREATED: link.created.timestamp(),
+            _FLD_LINK_CREATED: self._timestamp_seconds_to_milliseconds(link.created.timestamp()),
             _FLD_LINK_CREATED_BY: link.created_by.id,
-            _FLD_LINK_EXPIRED: link.expired.timestamp() if link.expired else _ARANGO_MAX_INTEGER,
+            _FLD_LINK_EXPIRED: self._timestamp_seconds_to_milliseconds(link.expired.timestamp()) if link.expired else _ARANGO_MAX_INTEGER,
             _FLD_LINK_EXPIRED_BY: link.expired_by.id if link.expired_by else None,
             _FLD_LINK_ID: str(link.id),
             _FLD_LINK_WORKSPACE_ID: upa.wsid,
@@ -1086,7 +1326,7 @@ class ArangoSampleStorage:
             linkdoc = self._get_link_doc_from_duid(duid)
             txtid = str(duid)
 
-        if expired.timestamp() < linkdoc[_FLD_LINK_CREATED]:
+        if self._timestamp_seconds_to_milliseconds(expired.timestamp()) < linkdoc[_FLD_LINK_CREATED]:
             raise ValueError(f'expired is < link created time: {linkdoc[_FLD_LINK_CREATED]}')
 
         return self._expire_data_link_pt2(linkdoc, expired, expired_by, txtid)
@@ -1097,7 +1337,7 @@ class ArangoSampleStorage:
 
         oldkey = self._create_link_key_from_link_doc(linkdoc)
 
-        linkdoc[_FLD_LINK_EXPIRED] = expired.timestamp()
+        linkdoc[_FLD_LINK_EXPIRED] = self._timestamp_seconds_to_milliseconds(expired.timestamp())
         linkdoc[_FLD_LINK_EXPIRED_BY] = expired_by.id
         linkdoc[_FLD_ARANGO_KEY] = self._create_link_key_from_link_doc(linkdoc)
 
@@ -1136,8 +1376,7 @@ class ArangoSampleStorage:
                 # created a new link and the transaction collided. We should probably *NOT*
                 # expire the brand new link - that was not the user's intent. Both of these
                 # cases take millisecond timing and will be extremely rare, so just throw an
-                # error and
-                # TODO DATALINK document potential failure modes for expire transaction
+                # error and document potential failure modes for expire transaction
 
                 # this is really hard to test - maybe impossible?
                 raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
@@ -1173,9 +1412,9 @@ class ArangoSampleStorage:
                     UUID(doc[_FLD_LINK_SAMPLE_ID]),
                     doc[_FLD_LINK_SAMPLE_INT_VERSION]),
                 doc[_FLD_LINK_SAMPLE_NODE]),
-            self._timestamp_to_datetime(doc[_FLD_LINK_CREATED]),
+            self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(doc[_FLD_LINK_CREATED])),
             UserID(doc[_FLD_LINK_CREATED_BY]),
-            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(ex),
+            None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(ex)),
             UserID(doc[_FLD_LINK_EXPIRED_BY]) if doc[_FLD_LINK_EXPIRED_BY] else None
         )
 
@@ -1215,7 +1454,7 @@ class ArangoSampleStorage:
         _, versiondoc, _ = self._get_sample_and_version_doc(sample.sampleid, sample.version)
         bind_vars = {'@col': self._col_data_link.name,
                      'samplever': versiondoc[_FLD_UUID_VER],
-                     'ts': timestamp.timestamp()}
+                     'ts': self._timestamp_seconds_to_milliseconds(timestamp.timestamp())}
         wsidfilter = ''
         if readable_wsids:
             bind_vars['wsids'] = readable_wsids
@@ -1237,8 +1476,8 @@ class ArangoSampleStorage:
     def _find_links_via_aql(self, query, bind_vars):
         duids = []
         try:
-            for l in self._db.aql.execute(query, bind_vars=bind_vars):
-                duids.append(self._doc_to_link(l))
+            for link in self._db.aql.execute(query, bind_vars=bind_vars):
+                duids.append(self._doc_to_link(link))
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         return duids  # a maxium of 10k can be returned based on the link creation function
@@ -1267,7 +1506,7 @@ class ArangoSampleStorage:
                      'wsid': upa.wsid,
                      'objid': upa.objid,
                      'ver': upa.version,
-                     'ts': timestamp.timestamp()}
+                     'ts': self._timestamp_seconds_to_milliseconds(timestamp.timestamp())}
         # may need an index on upa + created and expired? Assume for now links aren't
         # expired very often.
         return self._find_links_via_aql(q, bind_vars)

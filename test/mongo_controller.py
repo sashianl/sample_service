@@ -76,9 +76,9 @@ class MongoController:
 
         # get some info about the db
         self.db_version = self.client.server_info()['version']
-        self.index_version = 2 if (semver.compare(self.db_version, '3.4.0') >= 0) else 1
-        self.includes_system_indexes = (semver.compare(self.db_version, '3.2.0') < 0
-                                        and not use_wired_tiger)
+        s = semver.VersionInfo.parse
+        self.index_version = 2 if (s(self.db_version) >= s('3.4.0')) else 1
+        self.includes_system_indexes = (s(self.db_version) < s('3.2.0') and not use_wired_tiger)
 
     def destroy(self, delete_temp_files: bool) -> None:
         """

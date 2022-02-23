@@ -11,7 +11,10 @@ from uuid import UUID
 from typing import Optional, List, Dict, TypeVar as _TypeVar
 from typing import Set as _Set, cast as _cast
 from SampleService.core.core_types import PrimitiveType
-from SampleService.core.arg_checkers import not_falsy as _not_falsy
+from SampleService.core.arg_checkers import (
+    not_falsy as _not_falsy,
+    not_falsy_in_iterable as _not_falsy_in_iterable,
+)
 from SampleService.core.arg_checkers import check_string as _check_string
 from SampleService.core.arg_checkers import check_timestamp as _check_timestamp
 from SampleService.core.errors import IllegalParameterError, MissingParameterError
@@ -53,6 +56,44 @@ def _fz(d: Dict[_T, _V]) -> Dict[_T, _V]:
     return _maps.FrozenMap.recurse(d)
 
 
+class SourceMetadata:
+    '''
+    Sample metadata as it existed at the source.
+
+    :ivar key: the controlled metadata key.
+    :ivar sourcekey: the metadata key as it existed at the source.
+    :ivar sourcevalue: the metadata value as it existed at the source.
+    '''
+
+    def __init__(self, key: str, sourcekey: str, sourcevalue: Dict[str, PrimitiveType]):
+        '''
+        Create the source metadata entry.
+
+        :param key: the controlled metadata key.
+        :param sourcekey: the metadata key as it existed at the source.
+        :param sourcevalue: the metadata value as it existed at the source.
+        :raises IllegalParameterError: if any of the various keys or values are missing, too
+            long, or contain control characters.
+        '''
+        self.key = _check_metadata_key(key, 'Controlled')
+        self.sourcekey = _check_metadata_key(sourcekey, 'Source')
+        self.sourcevalue = _fz(_check_metadata_value(key, sourcevalue, 'Source'))
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (other.key == self.key
+                    and other.sourcekey == self.sourcekey
+                    and other.sourcevalue == self.sourcevalue
+                    )
+        return NotImplemented
+
+    def __hash__(self):
+        return hash((self.key, self.sourcekey, self.sourcevalue))
+
+    # def __repr__(self):
+    #     return f'{self.key}, {self.sourcekey}, {self.sourcevalue}'
+
+
 class SampleNode:
     '''
     A node in the sample tree.
@@ -62,6 +103,8 @@ class SampleNode:
     :ivar controlled_metadata: Sample metadata that has been checked against a controlled
         vocabulary.
     :ivar user_metadata: Unrestricted sample metadata.
+    :ivar source_metadata: Information about the controlled metadata as it existed at the data
+        source, prior to any possible transformations for ingest.
     '''
 
     def __init__(
@@ -70,7 +113,8 @@ class SampleNode:
             type_: SubSampleType = SubSampleType.BIOLOGICAL_REPLICATE,
             parent: Optional[str] = None,
             controlled_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None,
-            user_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None
+            user_metadata: Optional[Dict[str, Dict[str, PrimitiveType]]] = None,
+            source_metadata: Optional[List[SourceMetadata]] = None
             ):
         '''
         Create a sample node.
@@ -80,7 +124,9 @@ class SampleNode:
             BIOLOGICAL_REPLICATEs, cannot have parents.
         :param controlled_metadata: Sample metadata that has been checked against a controlled
             vocabulary.
-        :param controlled_metadata: Unrestricted sample metadata.
+        :param user_metadata: Unrestricted sample metadata.
+        :param source_metadata: Information about the controlled metadata as it existed at the data
+            source, prior to any possible transformations for ingest.
         :raises MissingParameterError: if the name is None or whitespace only.
         :raises IllegalParameterError: if the name or parent is too long or contains illegal
             characters, the parent is missing and the node type is not BIOLOGICAL_REPLICATE,
@@ -96,6 +142,9 @@ class SampleNode:
         um = user_metadata if user_metadata else {}
         _check_meta(um, False)
         self.user_metadata = _fz(um)
+        sm = source_metadata if source_metadata else []
+        _check_source_meta(sm, self.controlled_metadata)
+        self.source_metadata = tuple(sm)
         isbiorep = type_ == SubSampleType.BIOLOGICAL_REPLICATE
         if not _xor(bool(parent), isbiorep):
             raise IllegalParameterError(
@@ -111,56 +160,73 @@ class SampleNode:
                     and other.parent == self.parent
                     and other.controlled_metadata == self.controlled_metadata
                     and other.user_metadata == self.user_metadata
+                    and other.source_metadata == self.source_metadata
                     )
         return NotImplemented
 
     def __hash__(self):
         return hash((self.name, self.type, self.parent, self.controlled_metadata,
-                     self.user_metadata))
+                     self.user_metadata, self.source_metadata))
 
     # def __repr__(self):
     #     return (f'{self.name}, {self.type}, {self.parent}, {self.controlled_metadata}, ' +
-    #             f'{self.uncontrolled_metadata}')
+    #             f'{self.user_metadata}, {self.source_metadata}')
 
 
 def _check_meta(m: Dict[str, Dict[str, PrimitiveType]], controlled: bool):
     c = 'Controlled' if controlled else 'User'
     for k in m:
-        if len(k) > _META_MAX_KEY_SIZE:
-            raise IllegalParameterError(
-                f'{c} metadata has key starting with {k[:_META_MAX_KEY_SIZE]} that ' +
-                f'exceeds maximum length of {_META_MAX_KEY_SIZE}')
-        cc = _control_char_first_pos(k)
-        if cc:
-            raise IllegalParameterError(
-                f"{c} metadata key {k}'s character at index {cc} is a control character.")
-        for vk in m[k]:
-            if len(vk) > _META_MAX_KEY_SIZE:
-                raise IllegalParameterError(
-                    f'{c} metadata has value key under root key {k} starting with ' +
-                    f'{vk[:_META_MAX_KEY_SIZE]} that exceeds maximum length of ' +
-                    f'{_META_MAX_KEY_SIZE}')
-            cc = _control_char_first_pos(vk)
-            if cc:
-                raise IllegalParameterError(
-                    f"{c} metadata value key {vk} under key {k}'s character at index {cc} " +
-                    'is a control character.')
-            val = m[k][vk]
-            if type(val) == str:
-                if len(_cast(str, val)) > _META_MAX_VALUE_SIZE:
-                    raise IllegalParameterError(
-                        f'{c} metadata has value under root key {k} and value key {vk} ' +
-                        f'starting with {_cast(str, val)[:_META_MAX_KEY_SIZE]} that ' +
-                        f'exceeds maximum length of {_META_MAX_VALUE_SIZE}')
-                cc = _control_char_first_pos(_cast(str, val), allow_tabs_and_lf=True)
-                if cc:
-                    raise IllegalParameterError(
-                        f"{c} metadata value under root key {k} and value key {vk}'s " +
-                        f'character at index {cc} is a control character.')
+        _check_metadata_key(k, c)
+        _check_metadata_value(k, m[k], c)
     if len(_json.dumps(m, ensure_ascii=False).encode('utf-8')) > _META_MAX_SIZE_B:
         # would be nice if that could be streamed so we don't make a new byte array
         raise IllegalParameterError(
             f'{c} metadata is larger than maximum of {_META_MAX_SIZE_B}B')
+
+
+def _check_metadata_key(key: str, name: str) -> str:
+    if not key or not key.strip():
+        raise IllegalParameterError(f'{name} metadata keys may not be null or whitespace only')
+    if len(key) > _META_MAX_KEY_SIZE:
+        raise IllegalParameterError(
+            f'{name} metadata has key starting with {key[:_META_MAX_KEY_SIZE]} that ' +
+            f'exceeds maximum length of {_META_MAX_KEY_SIZE}')
+    cc = _control_char_first_pos(key)
+    if cc >= 0:
+        raise IllegalParameterError(
+            f"{name} metadata key {key}'s character at index {cc} is a control character.")
+    return key
+
+
+def _check_metadata_value(
+        key: str, value: Dict[str, PrimitiveType], name: str) -> Dict[str, PrimitiveType]:
+    if not value:
+        raise IllegalParameterError(
+            f'{name} metadata value associated with metadata key {key} is null or empty')
+    for vk in value:
+        cc = _control_char_first_pos(vk)
+        if cc >= 0:
+            raise IllegalParameterError(
+                f"{name} metadata value key {vk} associated with metadata key {key} has a " +
+                f'character at index {cc} that is a control character.')
+        if len(vk) > _META_MAX_KEY_SIZE:
+            raise IllegalParameterError(
+                f'{name} metadata has a value key associated with metadata key {key} starting ' +
+                f'with {vk[:_META_MAX_KEY_SIZE]} that exceeds maximum length of ' +
+                f'{_META_MAX_KEY_SIZE}')
+        val = value[vk]
+        if type(val) == str:
+            cc = _control_char_first_pos(_cast(str, val), allow_tabs_and_lf=True)
+            if cc >= 0:
+                raise IllegalParameterError(
+                    f"{name} metadata value associated with metadata key {key} and " +
+                    f'value key {vk} has a character at index {cc} that is a control character.')
+            if len(_cast(str, val)) > _META_MAX_VALUE_SIZE:
+                raise IllegalParameterError(
+                    f'{name} metadata has a value associated with metadata key {key} ' +
+                    f'and value key {vk} starting with {_cast(str, val)[:_META_MAX_KEY_SIZE]} ' +
+                    f'that exceeds maximum length of {_META_MAX_VALUE_SIZE}')
+    return value
 
 
 def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):
@@ -168,7 +234,33 @@ def _control_char_first_pos(string: str, allow_tabs_and_lf: bool = False):
         if _unicodedata.category(c)[0] == "C":
             if not allow_tabs_and_lf or (c != '\n' and c != '\t'):
                 return i
-    return 0
+    return -1
+
+
+def _check_source_meta(m: List[SourceMetadata], controlled_metadata):
+    _not_falsy_in_iterable(m, 'source_metadata')
+    # it doesn't make sense to turn the whole thing into json as a rough measure of size as the
+    # user is not responsible for the field names.
+    total_bytes = 0
+    seen = set()
+    for sm in m:
+        if sm.key in seen:
+            raise IllegalParameterError(f'Duplicate source metadata key: {sm.key}')
+        seen.add(sm.key)
+        # could check for duplicate sm.sourcekeys too, but possibly the source data is split into
+        # two metadata keys?
+        if sm.key not in controlled_metadata:
+            raise IllegalParameterError(
+                f'Source metadata key {sm.key} does not appear in the controlled metadata')
+        total_bytes += len(sm.key.encode('utf-8')) + len(sm.sourcekey.encode('utf-8'))
+        total_bytes += len(_json.dumps(dict(sm.sourcevalue), ensure_ascii=False).encode('utf-8'))
+        # Would be nice if that could be streamed so we don't make a new byte array
+        # This calculation is more convoluted than I would like and hard to reproduce for users
+        # but it's really unlikely the limit is ever going to be hit so YAGNI re improvements,
+        # at least for now.
+    if total_bytes > _META_MAX_SIZE_B:
+        raise IllegalParameterError(
+            f'Source metadata is larger than maximum of {_META_MAX_SIZE_B}B')
 
 
 class Sample:
@@ -229,6 +321,9 @@ class Sample:
 
     def __hash__(self):
         return hash((self.name, self.nodes))
+
+    # def __repr__(self):
+    #     return (f'{self.name}, {self.nodes}')
 
 
 class SavedSample(Sample):

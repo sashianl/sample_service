@@ -18,7 +18,8 @@ from SampleService.core.api_translation import (
     get_upa_from_object,
     get_data_unit_id_from_object,
     get_user_from_object,
-    get_admin_request_from_object
+    get_admin_request_from_object,
+    acl_delta_from_dict
 )
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
@@ -27,9 +28,10 @@ from SampleService.core.sample import (
     SampleAddress,
     SampleNodeAddress,
     SubSampleType,
-    SavedSample
+    SavedSample,
+    SourceMetadata,
 )
-from SampleService.core.acls import SampleACL, SampleACLOwnerless
+from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.errors import (
     IllegalParameterError,
     MissingParameterError,
@@ -98,31 +100,41 @@ def _get_admin_request_from_object_fail(params, akey, ukey, expected):
 
 
 def test_get_id_from_object():
-    assert get_id_from_object(None, False) is None
-    assert get_id_from_object({}, False) is None
-    assert get_id_from_object({'id': None}, False) is None
-    assert get_id_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}, False) == UUID(
+    assert get_id_from_object(None, 'id', False) is None
+    assert get_id_from_object({}, 'id', False) is None
+    assert get_id_from_object({'id': None}, 'id', 'foo', False) is None
+    assert get_id_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}, 'id', False) == UUID(
         'f5bd78c3-823e-40b2-9f93-20e78680e41e')
-    assert get_id_from_object({'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'}, True) == UUID(
-        'f5bd78c3-823e-40b2-9f93-20e78680e41e')
+    assert get_id_from_object(
+        {'lid': 'f5bd78c3-823e-40b2-9f93-20e78680e41e'},
+        'lid',
+        'foo',
+        True) == UUID('f5bd78c3-823e-40b2-9f93-20e78680e41e')
 
 
 def test_get_id_from_object_fail_bad_args():
-    _get_id_from_object_fail({'id': 6}, True, IllegalParameterError(
-        'Sample ID 6 must be a UUID string'))
-    _get_id_from_object_fail({
-        'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'},
-        False,
-        IllegalParameterError(
-            'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
-    _get_id_from_object_fail(None, True, MissingParameterError('Sample ID'))
-    _get_id_from_object_fail({}, True, MissingParameterError('Sample ID'))
-    _get_id_from_object_fail({'id': None}, True, MissingParameterError('Sample ID'))
+    _get_id_from_object_fail(None, 'id', None, True, MissingParameterError('id'))
+    _get_id_from_object_fail(None, 'id', 'thing', True, MissingParameterError('thing'))
+    _get_id_from_object_fail({}, 'id', None, True, MissingParameterError('id'))
+    _get_id_from_object_fail({'id': None}, 'id', None, True, MissingParameterError('id'))
+    _get_id_from_object_fail({'id': None}, 'id', 'foo', True, MissingParameterError('foo'))
+    _get_id_from_object_fail({'wid': 6}, 'wid', None, True, IllegalParameterError(
+        'wid 6 must be a UUID string'))
+    _get_id_from_object_fail({'id': 6}, 'id', 'whew', True, IllegalParameterError(
+        'whew 6 must be a UUID string'))
+    _get_id_from_object_fail(
+        {'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'}, 'id', None, False, IllegalParameterError(
+            'id f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
+    _get_id_from_object_fail({'id': 'bar'}, 'id', 'whee', False, IllegalParameterError(
+            'whee bar must be a UUID string'))
+
+    goodid = 'f5bd78c3-823e-40b2-9f93-20e78680e41e'
+    _get_id_from_object_fail({'id': goodid}, None, None, True, MissingParameterError('key'))
 
 
-def _get_id_from_object_fail(d, required, expected):
+def _get_id_from_object_fail(d, key, name, required, expected):
     with raises(Exception) as got:
-        get_id_from_object(d, required)
+        get_id_from_object(d, key, name, required)
     assert_exception_correct(got.value, expected)
 
 
@@ -169,9 +181,25 @@ def test_create_sample_params_maximal():
                                                  'value': 78.91,
                                                  'protocol_id': 782,
                                                  'some_boolean_or_other': True
+                                                 },
+                                             'a': {'b': 'c'}
+                                             },
+                                        'meta_user': {'location_name': {'name': 'my_buttocks'}},
+                                        'source_meta': [
+                                            {'key': 'concentration/NO2',
+                                             'skey': 'conc_nitrous_oxide',
+                                             'svalue': {
+                                                 'spec': 'nit ox',
+                                                 'ppb': 0.07891,
+                                                 'prot+2': 784,
+                                                 'is this totally made up': False
                                                  }
                                              },
-                                        'meta_user': {'location_name': {'name': 'my_buttocks'}}
+                                            {'key': 'a',
+                                             'skey': 'vscode',
+                                             'svalue': {'really': 'stinks'}
+                                             }
+                                            ]
                                         }
                                        ]
                          },
@@ -190,9 +218,22 @@ def test_create_sample_params_maximal():
                      'value': 78.91,
                      'protocol_id': 782,
                      'some_boolean_or_other': True
-                     }
+                     },
+                 'a': {'b': 'c'}
                  },
-                {'location_name': {'name': 'my_buttocks'}}
+                {'location_name': {'name': 'my_buttocks'}},
+                [SourceMetadata(
+                    'concentration/NO2',
+                    'conc_nitrous_oxide',
+                    {
+                     'spec': 'nit ox',
+                     'ppb': 0.07891,
+                     'prot+2': 784,
+                     'is this totally made up': False
+                     }
+                    ),
+                 SourceMetadata('a', 'vscode', {'really': 'stinks'})
+                 ]
                 )
             ],
             'myname'
@@ -264,8 +305,9 @@ def test_create_sample_params_fail_bad_input():
     create_sample_params_fail(
         {'sample': {'node_tree': [
             {'id': 'foo', 'type': 'BioReplicate', 'meta_controlled': m}]}},
-        IllegalParameterError("Error for node at index 0: Controlled metadata value key b\nar " +
-                              "under key foo's character at index 1 is a control character."))
+        IllegalParameterError('Error for node at index 0: Controlled metadata value key b\nar ' +
+                              'associated with metadata key foo has a character at index 1 that ' +
+                              'is a control character.'))
 
     create_sample_params_fail(
         {'sample': {'node_tree': [{'id': 'foo', 'type': 'BioReplicate'},
@@ -278,7 +320,7 @@ def test_create_sample_params_fail_bad_input():
                                   {'id': 'bar', 'type': 'TechReplicate', 'parent': 'bar'}],
                     'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'}},
         IllegalParameterError(
-            'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
+            'sample.id f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
 
     create_sample_params_fail(
         {'sample': {'node_tree': [{'id': 'foo', 'type': 'BioReplicate'},
@@ -297,6 +339,83 @@ def create_sample_params_meta_fail(m, expected):
             {'id': 'bar', 'type': 'BioReplicate'},
             {'id': 'foo', 'type': 'SubSample', 'parent': 'bar', 'meta_user': m}]}},
         IllegalParameterError(expected.format(1, 'user metadata')))
+
+
+def test_create_sample_params_source_metadata_fail():
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}}, {'a': {'b': 'c'}},
+        IllegalParameterError("Node at index 1's source metadata must be a list")
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}}, [{'key': 'a', 'skey': 'b', 'svalue': {'b': 'c'}}, 'foo'],
+        IllegalParameterError(
+            "Node at index 1's source metadata has an entry at index 1 that is not a dict")
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'b', 'svalue': {'b': 'c'}},
+         {'key': 8, 'skey': 'b', 'svalue': {'b': 'c'}}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 1 " +
+                              'where the required key field is not a string')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': [], 'svalue': {'b': 'c'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 0 " +
+                              'where the required skey field is not a string')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'svalue': {'b': 'c'}},
+         {'key': 'b', 'skey': 'b', 'svalue': ['f']}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 1 " +
+                              'where the required svalue field is not a mapping')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'svalue': {8: 'c'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
+        IllegalParameterError("Node at index 1's source metadata has an entry at index 0 " +
+                              'with a value mapping key that is not a string')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'svalue': {'c': [43]}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
+        IllegalParameterError(
+            "Node at index 1's source metadata has an entry at index 0 with a value in the " +
+            'value mapping under key c that is not a primitive type')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'svalue': {'c': 'x'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b\n': 'c'}}],
+        IllegalParameterError(
+            "Node at index 1's source metadata has an error at index 1: Source metadata value " +
+            'key b\n associated with metadata key b has a character at index 1 that is a control ' +
+            'character.')
+    )
+    _create_sample_params_source_metadata_fail(
+        {'a': {'b': 'c'}},
+        [{'key': 'a', 'skey': 'a', 'svalue': {'c': 'x'}},
+         {'key': 'b', 'skey': 'b', 'svalue': {'b': 'c'}}],
+        IllegalParameterError(
+            'Error for node at index 1: Source metadata key b does not appear in the ' +
+            'controlled metadata')
+    )
+
+
+def _create_sample_params_source_metadata_fail(m, s, expected):
+    create_sample_params_fail(
+        {'sample': {'node_tree': [
+            {'id': 'bar', 'type': 'BioReplicate'},
+            {'id': 'foo',
+             'type': 'SubSample',
+             'parent': 'bar',
+             'meta_controlled': m,
+             'source_meta': s}]}},
+        expected)
 
 
 def create_sample_params_fail(params, expected):
@@ -341,15 +460,15 @@ def test_get_sample_address_from_object():
 
 
 def test_get_sample_address_from_object_fail_bad_args():
-    get_sample_address_from_object_fail(None, False, MissingParameterError('Sample ID'))
-    get_sample_address_from_object_fail({}, False, MissingParameterError('Sample ID'))
-    get_sample_address_from_object_fail({'id': None}, False, MissingParameterError('Sample ID'))
+    get_sample_address_from_object_fail(None, False, MissingParameterError('id'))
+    get_sample_address_from_object_fail({}, False, MissingParameterError('id'))
+    get_sample_address_from_object_fail({'id': None}, False, MissingParameterError('id'))
     get_sample_address_from_object_fail({'id': 6}, False, IllegalParameterError(
-        'Sample ID 6 must be a UUID string'))
+        'id 6 must be a UUID string'))
     get_sample_address_from_object_fail(
         {'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41'}, False,
         IllegalParameterError(
-            'Sample ID f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
+            'id f5bd78c3-823e-40b2-9f93-20e78680e41 must be a UUID string'))
     id_ = 'f5bd78c3-823e-40b2-9f93-20e78680e41e'
     get_sample_address_from_object_fail(
         {'id': id_}, True, MissingParameterError('version'))
@@ -378,6 +497,7 @@ def test_sample_to_dict_minimal():
                                'type': 'BioReplicate',
                                'meta_controlled': {},
                                'meta_user': {},
+                               'source_meta': [],
                                'parent': None
                                }],
                 'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
@@ -402,12 +522,17 @@ def test_sample_to_dict_maximal():
                                'type': 'BioReplicate',
                                'meta_controlled': {},
                                'meta_user': {},
+                               'source_meta': [],
                                'parent': None
                                },
                               {'id': 'bar',
                                'type': 'TechReplicate',
-                               'meta_controlled': {'a': {'b': 'c', 'm': 6.7}},
+                               'meta_controlled': {'a': {'b': 'c', 'm': 6.7}, 'b': {'c': 'd'}},
                                'meta_user': {'d': {'e': True}, 'g': {'h': 1}},
+                               'source_meta': [
+                                   {'key': 'a', 'skey': 'x', 'svalue': {'v': 2}},
+                                   {'key': 'b', 'skey': 'y', 'svalue': {'z': 3}}
+                                   ],
                                'parent': 'foo'
                                }],
                 'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
@@ -428,8 +553,9 @@ def test_sample_to_dict_maximal():
                  'bar',
                  SubSampleType.TECHNICAL_REPLICATE,
                  'foo',
-                 {'a': {'b': 'c', 'm': 6.7}},
-                 {'d': {'e': True}, 'g': {'h': 1}})
+                 {'a': {'b': 'c', 'm': 6.7}, 'b': {'c': 'd'}},
+                 {'d': {'e': True}, 'g': {'h': 1}},
+                 [SourceMetadata('a', 'x', {'v': 2}), SourceMetadata('b', 'y', {'z': 3})]),
              ],
             dt(87.8971),
             'myname',
@@ -449,11 +575,12 @@ def test_sample_to_dict_fail():
 
 
 def test_acls_to_dict_minimal():
-    assert acls_to_dict(SampleACL(UserID('user'))) == {
+    assert acls_to_dict(SampleACL(UserID('user'), dt(1))) == {
         'owner': 'user',
         'admin': (),
         'write': (),
-        'read': ()
+        'read': (),
+        'public_read': 0
     }
 
 
@@ -461,13 +588,33 @@ def test_acls_to_dict_maximal():
     assert acls_to_dict(
         SampleACL(
             UserID('user'),
+            dt(1),
             [UserID('foo'), UserID('bar')],
             [UserID('baz')],
-            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')])) == {
+            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')],
+            True)) == {
         'owner': 'user',
-        'admin': ('foo', 'bar'),
+        'admin': ('bar', 'foo'),
         'write': ('baz',),
-        'read': ('hello', "I'm", 'a', 'robot')
+        'read': ("I'm", 'a', 'hello', 'robot'),
+        'public_read': 1
+    }
+
+
+def test_acls_to_dict_remove_service_token():
+    assert acls_to_dict(
+        SampleACL(
+            UserID('user'),
+            dt(1),
+            [UserID('foo'), UserID('bar')],
+            [UserID('baz')],
+            [UserID('hello'), UserID("I'm"), UserID('a'), UserID('robot')],
+            True), read_exempt_roles=["I'm", 'a']) == {
+        'owner': 'user',
+        'admin': ('bar', 'foo'),
+        'write': ('baz',),
+        'read': ('hello', 'robot'),
+        'public_read': 1
     }
 
 
@@ -480,14 +627,17 @@ def test_acls_to_dict_fail():
 
 def test_acls_from_dict():
     assert acls_from_dict({'acls': {}}) == SampleACLOwnerless()
+    assert acls_from_dict({'acls': {'public_read': 0}}) == SampleACLOwnerless()
     assert acls_from_dict({'acls': {
         'read': [],
-        'admin': ['whee', 'whoo']}}) == SampleACLOwnerless([UserID('whee'), UserID('whoo')])
+        'admin': ['whee', 'whoo'],
+        'public_read': None}}) == SampleACLOwnerless([UserID('whee'), UserID('whoo')])
     assert acls_from_dict({'acls': {
         'read': ['a', 'b'],
         'write': ['x'],
-        'admin': ['whee', 'whoo']}}) == SampleACLOwnerless(
-            [UserID('whee'), UserID('whoo')], [UserID('x')], [UserID('a'), UserID('b')])
+        'admin': ['whee', 'whoo'],
+        'public_read': 1}}) == SampleACLOwnerless(
+            [UserID('whee'), UserID('whoo')], [UserID('x')], [UserID('a'), UserID('b')], True)
 
 
 def test_acls_from_dict_fail_bad_args():
@@ -515,18 +665,69 @@ def _acls_from_dict_fail(d, expected):
     assert_exception_correct(got.value, expected)
 
 
+def test_acl_delta_from_dict():
+    assert acl_delta_from_dict({}) == SampleACLDelta()
+    assert acl_delta_from_dict({'public_read': 0, 'at_least': 0}) == SampleACLDelta()
+    assert acl_delta_from_dict({'public_read': 1, 'at_least': None}) == SampleACLDelta(
+        public_read=True)
+    assert acl_delta_from_dict({'public_read': -1, 'at_least': 1}) == SampleACLDelta(
+        public_read=False, at_least=True)
+    assert acl_delta_from_dict({'public_read': -50, 'at_least': -50}) == SampleACLDelta(
+        public_read=False, at_least=True)
+    assert acl_delta_from_dict({
+        'read': [],
+        'admin': ['whee', 'whoo'],
+        'public_read': None,
+        'at_least': 100}) == SampleACLDelta([UserID('whee'), UserID('whoo')], at_least=True)
+    assert acl_delta_from_dict({
+        'read': ['a', 'b'],
+        'write': ['c'],
+        'admin': ['whee', 'whoo'],
+        'remove': ['e', 'f'],
+        'public_read': 100}) == SampleACLDelta(
+            [UserID('whee'), UserID('whoo')], [UserID('c')], [UserID('a'), UserID('b')],
+            [UserID('e'), UserID('f')], True)
+
+
+def test_acl_delta_from_dict_fail_bad_args():
+    _acl_delta_from_dict_fail({'public_read': '0'}, IllegalParameterError(
+        'public_read must be an integer if present'))
+    _acl_delta_from_dict_fail({'admin': {}}, IllegalParameterError(
+        'admin ACL must be a list'))
+    _acl_delta_from_dict_fail({'admin': ['foo', 1, '32']}, IllegalParameterError(
+        'Index 1 of admin ACL does not contain a string'))
+    _acl_delta_from_dict_fail({'write': 'foo'}, IllegalParameterError(
+        'write ACL must be a list'))
+    _acl_delta_from_dict_fail({'write': [[], 1, '32']}, IllegalParameterError(
+        'Index 0 of write ACL does not contain a string'))
+    _acl_delta_from_dict_fail({'read': 64.2}, IllegalParameterError(
+        'read ACL must be a list'))
+    _acl_delta_from_dict_fail({'read': ['f', 'z', {}]}, IllegalParameterError(
+        'Index 2 of read ACL does not contain a string'))
+    _acl_delta_from_dict_fail({'remove': (1,)}, IllegalParameterError(
+        'remove ACL must be a list'))
+    _acl_delta_from_dict_fail({'remove': ['f', id, {}]}, IllegalParameterError(
+        'Index 1 of remove ACL does not contain a string'))
+
+
+def _acl_delta_from_dict_fail(d, expected):
+    with raises(Exception) as got:
+        acl_delta_from_dict(d)
+    assert_exception_correct(got.value, expected)
+
+
 def test_check_admin():
     f = AdminPermission.FULL
     r = AdminPermission.READ
     _check_admin(f, f, 'user1', 'somemethod', None,
-                 f'User user1 is running method somemethod with administration permission FULL')
+                 'User user1 is running method somemethod with administration permission FULL')
     _check_admin(f, f, 'user1', 'somemethod', UserID('otheruser'),
-                 f'User user1 is running method somemethod with administration permission FULL ' +
+                 'User user1 is running method somemethod with administration permission FULL ' +
                  'as user otheruser')
     _check_admin(f, r, 'someuser', 'a_method', None,
-                 f'User someuser is running method a_method with administration permission FULL')
+                 'User someuser is running method a_method with administration permission FULL')
     _check_admin(r, r, 'user2', 'm', None,
-                 f'User user2 is running method m with administration permission READ')
+                 'User user2 is running method m with administration permission READ')
 
 
 def _check_admin(perm, permreq, user, method, as_user, expected_log):
@@ -564,8 +765,8 @@ def test_check_admin_fail_bad_args():
 
     _check_admin_fail(None, 't', p, 'm', lambda _: None, None, ValueError(
         'user_lookup cannot be a value that evaluates to false'))
-    _check_admin_fail(ul, '', p, 'm', lambda _: None, None, ValueError(
-        'token cannot be a value that evaluates to false'))
+    _check_admin_fail(ul, '', p, 'm', lambda _: None, None, UnauthorizedError(
+        'Anonymous users may not act as service administrators.'))
     _check_admin_fail(ul, 't', None, 'm', lambda _: None, None, ValueError(
         'perm cannot be a value that evaluates to false'))
     _check_admin_fail(ul, 't', p, None, lambda _: None, None, ValueError(
@@ -710,11 +911,11 @@ def _create_data_link_params_with_update(update, expected):
 def test_create_data_link_params_fail_bad_args():
     id_ = '706fe9e1-70ef-4feb-bbd9-32295104a119'
     _create_data_link_params_fail(None, ValueError('params cannot be None'))
-    _create_data_link_params_fail({}, MissingParameterError('Sample ID'))
+    _create_data_link_params_fail({}, MissingParameterError('id'))
     _create_data_link_params_fail({'id': 6}, IllegalParameterError(
-        'Sample ID 6 must be a UUID string'))
+        'id 6 must be a UUID string'))
     _create_data_link_params_fail({'id': id_[:-1]}, IllegalParameterError(
-        'Sample ID 706fe9e1-70ef-4feb-bbd9-32295104a11 must be a UUID string'))
+        'id 706fe9e1-70ef-4feb-bbd9-32295104a11 must be a UUID string'))
     _create_data_link_params_fail({'id': id_}, MissingParameterError('version'))
     _create_data_link_params_fail(
         {'id': id_, 'version': 'ver'},
@@ -850,6 +1051,7 @@ def test_links_to_dicts():
     ]
     assert links_to_dicts(links) == [
         {
+            'linkid': 'f5bd78c3-823e-40b2-9f93-20e78680e41e',
             'upa': '1/2/3',
             'dataid': 'foo',
             'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41f',
@@ -861,6 +1063,7 @@ def test_links_to_dicts():
             'expiredby': 'userb'
             },
         {
+            'linkid': 'f5bd78c3-823e-40b2-9f93-20e78680e41a',
             'upa': '4/9/10',
             'dataid': None,
             'id': 'f5bd78c3-823e-40b2-9f93-20e78680e41b',

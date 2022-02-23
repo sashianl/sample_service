@@ -109,7 +109,7 @@ def test_string_validate_fail_bad_metadata_values():
 
 
 def _string_validate_fail(cfg, meta, expected):
-    assert builtin.string(cfg)('key', meta) == expected
+    assert builtin.string(cfg)('key', meta)['message'] == expected
 
 
 def test_enum():
@@ -170,14 +170,16 @@ def _enum_build_fail(cfg, expected):
 
 
 def _enum_validate_fail(cfg, meta, expected):
-    assert builtin.enum(cfg)('key', meta) == expected
+    assert builtin.enum(cfg)('key', meta)['message'] == expected
 
 
 def test_units():
     _units_good({'key': 'u', 'units': 'N'}, {'u': 'lb * ft/ s^2'})
     _units_good({'key': 'y', 'units': 'degF'}, {'y': 'K', 'u': 'not a unit'})
     _units_good({'key': 'u', 'units': '(lb * ft^2) / (s^3 * A^2)'}, {'u': 'ohm'})
-
+    _units_good({'key': 'y', 'units': 'cells'}, {'y': "cell"})
+    _units_good({'key': 'u', 'units': 'cells / gram'}, {'u': "cells / g"})
+    _units_good({'key': 'y', 'units': 'percent'}, {'y': "percent"})
 
 def _units_good(cfg, meta):
     assert builtin.units(cfg)('key', meta) is None
@@ -227,7 +229,7 @@ def _units_build_fail(cfg, expected):
 
 
 def _units_validate_fail(cfg, meta, expected):
-    assert builtin.units(cfg)('key', meta) == expected
+    assert builtin.units(cfg)('key', meta)['message'] == expected
 
 
 def test_number():
@@ -376,4 +378,50 @@ def _number_build_fail(cfg, expected):
 
 
 def _number_validate_fail(cfg, meta, expected):
-    assert builtin.number(cfg)('key', meta) == expected
+    assert builtin.number(cfg)('key', meta)['message'] == expected
+
+def test_ontology_has_ancestor():
+  _ontology_has_ancestor_success(
+      {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483' },
+      {'Material': 'ENVO:00002041', 'ENVO:Material': 'ENVO:00002006'})
+
+def _ontology_has_ancestor_success(cfg, meta):
+    assert builtin.ontology_has_ancestor(cfg)('key', meta) is None
+
+def test_ontology_has_ancestor_build_fail():
+    _ontology_has_ancestor_build_fail(None, ValueError('d must be a dict'))
+    _ontology_has_ancestor_build_fail({'whee': 'whoo'}, 
+        ValueError('Unexpected configuration parameter: whee'))
+    _ontology_has_ancestor_build_fail({'ontology': None}, 
+        ValueError('ontology is a required parameter'))
+    _ontology_has_ancestor_build_fail({'ontology': ['foo']}, 
+        ValueError('ontology must be a string'))
+    _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': None}, 
+        ValueError('ancestor_term is a required parameter'))
+    _ontology_has_ancestor_build_fail({'ontology': 'foo', 'ancestor_term': ['foo']}, 
+        ValueError('ancestor_term must be a string'))
+    _ontology_has_ancestor_build_fail(
+        {'ontology': 'foo', 'ancestor_term':'ENVO:00010483'},
+        ValueError('ontology foo doesn\'t exist'))
+    _ontology_has_ancestor_build_fail(
+        {'ontology': 'envo_ontology', 'ancestor_term':'baz' },
+        ValueError('ancestor_term baz is not found in envo_ontology'))
+
+def _ontology_has_ancestor_build_fail(cfg, expected):
+    with raises(Exception) as got:
+        builtin.ontology_has_ancestor(cfg)
+    assert_exception_correct(got.value, expected)
+
+def test_ontology_has_ancestor_validate_fail():
+    _ontology_has_ancestor_validate_fail(
+        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483' }, 
+        {'a': None}, 'Metadata value at key a is None')
+    _ontology_has_ancestor_validate_fail(
+        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00010483' }, 
+        {'a': 'foo'}, 'Metadata value at key a does not have envo_ontology ancestor term ENVO:00010483')
+    _ontology_has_ancestor_validate_fail(
+        {'ontology': 'envo_ontology', 'ancestor_term':'ENVO:00002010' }, 
+        {'a': 'ENVO:00002041'}, 'Metadata value at key a does not have envo_ontology ancestor term ENVO:00002010')
+
+def _ontology_has_ancestor_validate_fail(cfg, meta, expected):
+    assert builtin.ontology_has_ancestor(cfg)('key', meta)['message'] == expected

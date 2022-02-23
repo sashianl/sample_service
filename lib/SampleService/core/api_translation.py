@@ -4,7 +4,7 @@ Contains helper functions for translating between the SDK API and the core Sampl
 
 
 from uuid import UUID
-from typing import Dict, Any, Optional, Tuple, List, Callable, cast as _cast
+from typing import Dict, Any, Optional, Tuple, List, Callable, Union, cast as _cast
 import datetime
 
 from SampleService.core.core_types import PrimitiveType
@@ -14,9 +14,10 @@ from SampleService.core.sample import (
     SavedSample,
     SampleAddress as _SampleAddress,
     SampleNodeAddress,
-    SubSampleType as _SubSampleType
+    SubSampleType as _SubSampleType,
+    SourceMetadata as _SourceMetadata,
 )
-from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission
+from SampleService.core.acls import SampleACLOwnerless, SampleACL, AdminPermission, SampleACLDelta
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.arg_checkers import (
     not_falsy as _not_falsy,
@@ -79,30 +80,28 @@ def get_admin_request_from_object(
     return (as_ad, user)
 
 
-def get_id_from_object(obj: Dict[str, Any], required=False) -> Optional[UUID]:
+def get_id_from_object(obj: Dict[str, Any], key, name=None, required=False) -> Optional[UUID]:
     '''
-    Given a dict, get a sample ID from the dict if it exists, using the key 'id'.
+    Given a dict, get a sample ID from the dict if it exists.
 
     If None or an empty dict is passed to the method, None is returned.
 
-    :param obj: The dict wherein the ID can be found.
-    :param required: If no ID is present, throw an exception.
-    :returns: The ID, if it exists, or None.
-    :raises MissingParameterError: If the ID is required but not present.
-    :raises IllegalParameterError: If the ID is provided but is invalid.
+    :param obj: the dict wherein the ID can be found.
+    :param key: the key in the dict for the ID value.
+    :param name: the name of the ID to use in an exception, defaulting to the key.
+    :param required: if no ID is present, throw an exception.
+    :returns: the ID, if it exists, or None.
+    :raises MissingParameterError: if the ID is required but not present.
+    :raises IllegalParameterError: if the ID is provided but is invalid.
     '''
     id_ = None
-    if required and (not obj or not obj.get(ID)):
-        raise _MissingParameterError('Sample ID')
-    if obj and obj.get(ID):
-        if type(obj[ID]) != str:
-            raise _IllegalParameterError(f'Sample ID {obj[ID]} must be a UUID string')
-        try:
-            id_ = UUID(obj[ID])
-        except ValueError as _:  # noqa F841
-            raise _IllegalParameterError(f'Sample ID {obj[ID]} must be a UUID string')
+    _check_string(key, 'key')
+    name = name if name else key
+    if required and (not obj or not obj.get(key)):
+        raise _MissingParameterError(name)
+    if obj and obj.get(key):
+        id_ = validate_sample_id(obj[key], name)
     return id_
-
 
 def datetime_to_epochmilliseconds(d: datetime.datetime) -> int:
     '''
@@ -152,6 +151,43 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
         raise _IllegalParameterError('sample node tree must be present and a list')
     if s.get('name') is not None and type(s.get('name')) != str:
         raise _IllegalParameterError('sample name must be omitted or a string')
+    nodes = _check_nodes(s)
+    id_ = get_id_from_object(s, ID, name='sample.id')
+
+    pv = params.get('prior_version')
+    if pv is not None and type(pv) != int:
+        raise _IllegalParameterError('prior_version must be an integer if supplied')
+    s = Sample(nodes, s.get('name'))
+    return (s, id_, pv)
+
+
+def validate_samples_params(params: Dict[str, Any]) -> List[Sample]:
+    '''
+    Process the input from the validate_samples API call and translate it into standard types.
+
+    :param params: The unmarshalled JSON recieved from the API as part of the create_sample
+        call.
+    :returns: A tuple of the sample to save, the UUID of the sample for which a new version should
+        be created or None if an entirely new sample should be created, and the previous version
+        of the sample expected when saving a new version.
+    :raises IllegalParameterError: if any of the arguments are illegal.
+    '''
+    _check_params(params)
+    if type(params.get('samples')) != list or len(params.get('samples', [])) == 0:
+        raise _IllegalParameterError('params must contain list of `samples`')
+    samples = []
+    for s in params['samples']:
+        if type(s.get('node_tree')) != list:
+            raise _IllegalParameterError('sample node tree must be present and a list')
+        if type(s.get('name')) != str or len(s.get('name')) <= 0:
+            raise _IllegalParameterError('sample name must be included as non-empty string')
+        nodes = _check_nodes(s)
+        s = Sample(nodes, s.get('name'))
+        samples.append(s)
+
+    return samples
+
+def _check_nodes(s):
     nodes = []
     for i, n in enumerate(s['node_tree']):
         if type(n) != dict:
@@ -169,20 +205,14 @@ def create_sample_params(params: Dict[str, Any]) -> Tuple[Sample, Optional[UUID]
                 f'Node at index {i} has a parent entry that is not a string')
         mc = _check_meta(n.get('meta_controlled'), i, 'controlled metadata')
         mu = _check_meta(n.get('meta_user'), i, 'user metadata')
+        sm = _check_source_meta(n.get('source_meta'), i)
         try:
-            nodes.append(_SampleNode(n.get('id'), type_, n.get('parent'), mc, mu))
+            nodes.append(_SampleNode(n.get('id'), type_, n.get('parent'), mc, mu, sm))
             # already checked for the missing param error above, for id
         except _IllegalParameterError as e:
             raise _IllegalParameterError(
                 f'Error for node at index {i}: ' + _cast(str, e.message)) from e
-
-    id_ = get_id_from_object(s)
-
-    pv = params.get('prior_version')
-    if pv is not None and type(pv) != int:
-        raise _IllegalParameterError('prior_version must be an integer if supplied')
-    s = Sample(nodes, s.get('name'))
-    return (s, id_, pv)
+    return nodes
 
 
 def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]:
@@ -190,7 +220,6 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
         return None
     if type(m) != dict:
         raise _IllegalParameterError(f"Node at index {index}'s {name} entry must be a mapping")
-    # since this is coming from JSON we assume keys are strings
     for k1 in m:
         if type(k1) != str:
             raise _IllegalParameterError(
@@ -208,6 +237,45 @@ def _check_meta(m, index, name) -> Optional[Dict[str, Dict[str, PrimitiveType]]]
                     f"Node at index {index}'s {name} entry does " +
                     f"not have a primitive type as the value at {k1}/{k2}")
     return m
+
+
+def _check_source_meta(m, index) -> List[_SourceMetadata]:
+    if not m:
+        return []
+    if type(m) != list:
+        raise _IllegalParameterError(f"Node at index {index}'s source metadata must be a list")
+    ret = []
+    for i, sm in enumerate(m):
+        errprefix = f"Node at index {index}'s source metadata has an entry at index {i}"
+        if type(sm) != dict:
+            raise _IllegalParameterError(f'{errprefix} that is not a dict')
+        if type(sm.get('key')) != str:
+            raise _IllegalParameterError(
+                f'{errprefix} where the required key field is not a string')
+        # there's some duplicate code here, but I find getting the error messages right
+        # is too difficult when DRYing up code like this. They're kind of sucky as is
+        if type(sm.get('skey')) != str:
+            raise _IllegalParameterError(
+                f'{errprefix} where the required skey field is not a string')
+        if type(sm.get('svalue')) != dict:
+            raise _IllegalParameterError(
+                f'{errprefix} where the required svalue field is not a mapping')
+        for vk in sm['svalue']:
+            if type(vk) != str:
+                raise _IllegalParameterError(
+                    f'{errprefix} with a value mapping key that is not a string')
+            v = sm['svalue'][vk]
+            if type(v) != str and type(v) != int and type(v) != float and type(v) != bool:
+                raise _IllegalParameterError(
+                    f'{errprefix} with a value in the value mapping under key {vk} ' +
+                    'that is not a primitive type')
+        try:
+            ret.append(_SourceMetadata(sm['key'], sm['skey'], sm['svalue']))
+        except _IllegalParameterError as e:
+            raise _IllegalParameterError(
+                f"Node at index {index}'s source metadata has an error at index {i}: " +
+                f'{e.message}') from e
+    return ret
 
 
 def _check_params(params):
@@ -248,7 +316,7 @@ def get_sample_address_from_object(
     :raises IllegalParameterError: if the ID is malformed or if the version is not an
         integer or < 1.
     '''
-    return (_cast(UUID, get_id_from_object(params, required=True)),
+    return (_cast(UUID, get_id_from_object(params, ID, required=True)),
             get_version_from_object(params, version_required))
 
 
@@ -259,11 +327,12 @@ def sample_to_dict(sample: SavedSample) -> Dict[str, Any]:
     :param sample: The sample to convert.
     :return: The sample as a dict.
     '''
-    nodes = [{'id': n.name,
+    nodes = [{ID: n.name,
               'type': n.type.value,
               'parent': n.parent,
               'meta_controlled': _unfreeze_meta(n.controlled_metadata),
-              'meta_user': _unfreeze_meta(n.user_metadata)
+              'meta_user': _unfreeze_meta(n.user_metadata),
+              'source_meta': _source_meta_to_list(n.source_metadata)
               }
              for n in _not_falsy(sample, 'sample').nodes]
     return {ID: str(sample.id),
@@ -282,17 +351,23 @@ def _unfreeze_meta(m):
     return ret
 
 
-def acls_to_dict(acls: SampleACL) -> Dict[str, Any]:
+def _source_meta_to_list(m):
+    return [{'key': sm.key, 'skey': sm.sourcekey, 'svalue': dict(sm.sourcevalue)} for sm in m]
+
+
+def acls_to_dict(acls: SampleACL, read_exempt_roles: List[str] = []) -> Dict[str, Any]:
     '''
     Convert sample ACLs to a JSONable structure to return to the SDK API.
 
     :param acls: The ACLs to convert.
     :return: the ACLs as a dict.
     '''
+    # don't expose mod time for now, could do later
     return {'owner': _not_falsy(acls, 'acls').owner.id,
             'admin': tuple(u.id for u in acls.admin),
             'write': tuple(u.id for u in acls.write),
-            'read': tuple(u.id for u in acls.read),
+            'read': tuple(u.id for u in acls.read if u.id not in read_exempt_roles),
+            'public_read': 1 if acls.public_read else 0,
             }
 
 
@@ -300,7 +375,7 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     '''
     Given a dict, create a SampleACLOwnerless object from the contents of the acls key.
 
-    :param params: The dict containing the ACLS.
+    :param params: The dict containing the ACLs.
     :returns: the ACLs.
     :raises IllegalParameterError: if any of the arguments are illegal.
     '''
@@ -312,17 +387,44 @@ def acls_from_dict(d: Dict[str, Any]) -> SampleACLOwnerless:
     return SampleACLOwnerless(
         _get_acl(acls, 'admin'),
         _get_acl(acls, 'write'),
-        _get_acl(acls, 'read'))
+        _get_acl(acls, 'read'),
+        bool(acls.get('public_read')))
+
+
+def acl_delta_from_dict(d: Dict[str, Any]) -> SampleACLDelta:
+    '''
+    Given a dict, create a SampleACLDelta object from the contents of the dict.
+
+    :param params: The dict containing the ACL delta.
+    :returns: the ACL delta.
+    :raises IllegalParameterError: if any of the arguments are illegal.
+    '''
+    # since we're translating from SDK server data structures, we assume this is a dict
+    incpub = d.get('public_read')
+    if incpub is None or incpub == 0:
+        pub = None
+    elif type(incpub) != int:
+        raise _IllegalParameterError('public_read must be an integer if present')
+    else:
+        pub = incpub > 0
+
+    return SampleACLDelta(
+        _get_acl(d, 'admin'),
+        _get_acl(d, 'write'),
+        _get_acl(d, 'read'),
+        _get_acl(d, 'remove'),
+        pub,
+        bool(d.get('at_least')))
 
 
 def _get_acl(acls, type_):
     ret = []
     if acls.get(type_) is not None:
         acl = acls[type_]
-        if not type(acl) == list:
+        if type(acl) != list:
             raise _IllegalParameterError(f'{type_} ACL must be a list')
         for i, item, in enumerate(acl):
-            if not type(item) == str:
+            if type(item) != str:
                 raise _IllegalParameterError(f'Index {i} of {type_} ACL does not contain a string')
             ret.append(UserID(item))
     return ret
@@ -330,7 +432,7 @@ def _get_acl(acls, type_):
 
 def check_admin(
         user_lookup: KBaseUserLookup,
-        token: str,
+        token: Optional[str],
         perm: AdminPermission,
         method: str,
         log_fn: Callable[[str], None],
@@ -341,7 +443,8 @@ def check_admin(
     The request is logged.
 
     :param user_lookup: the service to use to look up user information.
-    :param token: the user's token.
+    :param token: the user's token, or None if the user is anonymous. In this case, if skip_check
+        is false, an UnauthorizedError will be thrown.
     :param perm: the required administration permission.
     :param method: the method the user is trying to run. This is used in logging and error
       messages.
@@ -356,6 +459,8 @@ def check_admin(
     '''
     if skip_check:
         return False
+    if not token:
+        raise _UnauthorizedError('Anonymous users may not act as service administrators.')
     _not_falsy(method, 'method')
     _not_falsy(log_fn, 'log_fn')
     if _not_falsy(perm, 'perm') == AdminPermission.NONE:
@@ -363,7 +468,7 @@ def check_admin(
                          'requirement? That totally makes no sense. Get a brain moran')
     if as_user and perm != AdminPermission.FULL:
         raise ValueError('as_user is supplied, but permission is not FULL')
-    p, user = _not_falsy(user_lookup, 'user_lookup').is_admin(_not_falsy(token, 'token'))
+    p, user = _not_falsy(user_lookup, 'user_lookup').is_admin(token)
     if p < perm:
         err = (f'User {user} does not have the necessary administration ' +
                f'privileges to run method {method}')
@@ -431,7 +536,7 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
     _check_params(params)
     sna = SampleNodeAddress(
         _SampleAddress(
-            _cast(UUID, get_id_from_object(params, required=True)),
+            _cast(UUID, get_id_from_object(params, ID, required=True)),
             _cast(int, get_version_from_object(params, required=True))),
         _cast(str, _check_string_int(params, 'node', True))
     )
@@ -486,18 +591,35 @@ def links_to_dicts(links: List[DataLink]) -> List[Dict[str, Any]]:
     :returns: the list of dicts.
     '''
     ret = []
-    for l in _cast(List[DataLink], _not_falsy_in_iterable(links, 'links')):
-        ex = datetime_to_epochmilliseconds(l.expired) if l.expired else None
+    for link in _cast(List[DataLink], _not_falsy_in_iterable(links, 'links')):
+        ex = datetime_to_epochmilliseconds(link.expired) if link.expired else None
         ret.append({
-            # don't provide link ID for now
-            'upa': str(l.duid.upa),
-            'dataid': l.duid.dataid,
-            'id': str(l.sample_node_address.sampleid),
-            'version': l.sample_node_address.version,
-            'node': l.sample_node_address.node,
-            'createdby': str(l.created_by),
-            'created': datetime_to_epochmilliseconds(l.created),
-            'expiredby': str(l.expired_by) if l.expired_by else None,
+            'linkid': str(link.id),
+            'upa': str(link.duid.upa),
+            'dataid': link.duid.dataid,
+            'id': str(link.sample_node_address.sampleid),
+            'version': link.sample_node_address.version,
+            'node': link.sample_node_address.node,
+            'createdby': str(link.created_by),
+            'created': datetime_to_epochmilliseconds(link.created),
+            'expiredby': str(link.expired_by) if link.expired_by else None,
             'expired': ex
         })
     return ret
+
+def validate_sample_id(id_, name=None):
+    '''
+    Given a string, validate the sample ID.
+
+    :param id_: the sample's ID.
+    :param name: the name of the ID to use in an exception, defaulting to the key.
+    :returns: the ID, if it is a valid UUID
+    :raises IllegalParameterError: if the ID is provided but is invalid.
+    '''
+    err = _IllegalParameterError(f'{name} {id_} must be a UUID string')
+    if type(id_) != str:
+        raise err
+    try:
+        return UUID(id_)
+    except ValueError as _:  # noqa F841
+        raise err

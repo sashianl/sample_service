@@ -6,13 +6,21 @@ from pytest import raises, fixture
 from core import test_utils
 from core.test_utils import assert_exception_correct
 from arango_controller import ArangoController
-from SampleService.core.acls import SampleACL
+from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.data_link import DataLink
-from SampleService.core.sample import SavedSample, SampleNode, SubSampleType, SampleNodeAddress
-from SampleService.core.sample import SampleAddress
-from SampleService.core.errors import MissingParameterError, NoSuchSampleError, ConcurrencyError
-from SampleService.core.errors import NoSuchSampleVersionError, DataLinkExistsError
-from SampleService.core.errors import TooManyDataLinksError, NoSuchLinkError, NoSuchSampleNodeError
+from SampleService.core.sample import (
+    SavedSample,
+    SampleNode,
+    SubSampleType,
+    SampleNodeAddress,
+    SampleAddress,
+    SourceMetadata,
+)
+from SampleService.core.errors import (
+    MissingParameterError, NoSuchSampleError, ConcurrencyError, UnauthorizedError,
+    NoSuchSampleVersionError, DataLinkExistsError, TooManyDataLinksError, NoSuchLinkError,
+    NoSuchSampleNodeError
+)
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError
@@ -675,7 +683,8 @@ def test_save_and_get_sample(samplestorage):
     n2 = SampleNode(
         'kid1', SubSampleType.TECHNICAL_REPLICATE, 'root',
         {'a': {'b': 'c', 'd': 'e'}, 'f': {'g': 'h'}},
-        {'m': {'n': 'o'}})
+        {'m': {'n': 'o'}},
+        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {'c': 'd'})])
     n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
     n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
                     user_metadata={'f': {'g': 'h'}})
@@ -688,8 +697,41 @@ def test_save_and_get_sample(samplestorage):
     assert samplestorage.get_sample(id_) == SavedSample(
         id_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1)
 
-    assert samplestorage.get_sample_acls(id_) == SampleACL(UserID('auser'))
+    assert samplestorage.get_sample_acls(id_) == SampleACL(
+        UserID('auser'), dt(8), public_read=False)
 
+def test_save_and_get_samples(samplestorage):
+    n1 = SampleNode('root')
+    n2 = SampleNode(
+        'kid1', SubSampleType.TECHNICAL_REPLICATE, 'root',
+        {'a': {'b': 'c', 'd': 'e'}, 'f': {'g': 'h'}},
+        {'m': {'n': 'o'}},
+        [SourceMetadata('a', 'sk', {'a': 'b'}), SourceMetadata('f', 'sk', {'c': 'd'})])
+    n3 = SampleNode('kid2', SubSampleType.SUB_SAMPLE, 'kid1', {'a': {'b': 'c'}})
+    n4 = SampleNode('kid3', SubSampleType.TECHNICAL_REPLICATE, 'root',
+                    user_metadata={'f': {'g': 'h'}})
+
+    id1_ = uuid.UUID('1234567890abcdef1234567890fbcdef')
+    id2_ = uuid.UUID('1234567890abcdef1234567890fbcdea')
+    id3_ = uuid.UUID('1234567890abcdef1234567890fbcdeb')
+
+    # save three separate samples
+    assert samplestorage.save_sample(
+        SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo')) is True
+    assert samplestorage.save_sample(
+        SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar')) is True
+    assert samplestorage.save_sample(
+        SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz')) is True
+
+    assert samplestorage.get_samples([
+        {"id": id1_, "version": 1},
+        {"id": id2_, "version": 1},
+        {"id": id3_, "version": 1}
+    ]) == [
+        SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1),
+        SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar', 1),
+        SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz', 1)
+    ]
 
 def test_save_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
@@ -770,6 +812,67 @@ def test_get_sample_with_non_updated_node_doc(samplestorage):
 
     for v in samplestorage._col_nodes.all():
         assert v['ver'] == 1
+
+
+def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
+    """
+    Backwards compatibility test. Checks that a missing smeta key in the sample node returns an
+    empty source metadata list.
+    """
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(SavedSample(
+        id1,
+        UserID('user'),
+        [SampleNode('mynode',
+                    controlled_metadata={'a': {'c': 'd'}},
+                    source_metadata=[SourceMetadata('a', 'b', {'x': 'y'})]
+                    )
+         ],
+        dt(7),
+        'foo')) is True
+
+    arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR n in @@col
+            FILTER n.name == @name
+            UPDATE n WITH {smeta: null} IN @@col
+            OPTIONS {keepNull: false}
+        """,
+        bind_vars={'@col': TEST_COL_NODES, 'name': 'mynode'}
+    )
+
+    cur = arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR n in @@col
+            FILTER n.name == @name
+            RETURN n
+        """,
+        bind_vars={'@col': TEST_COL_NODES, 'name': 'mynode'}
+    )
+    doc = cur.next()
+    del doc['_rev']
+    del doc['_id']
+    del doc['_key']
+    del doc['uuidver']
+    assert doc == {
+        'id': str(id1),
+        'ver': 1,
+        'saved': 7000,
+        'name': 'mynode',
+        'type': 'BIOLOGICAL_REPLICATE',
+        'parent': None,
+        'index': 0,
+        'cmeta': [{'k': 'c', 'ok': 'a', 'v': 'd'}],
+        'ucmeta': [],
+    }
+
+    assert samplestorage.get_sample(id1) == SavedSample(
+        id1,
+        UserID('user'),
+        [SampleNode('mynode', controlled_metadata={'a': {'c': 'd'}})],
+        dt(7),
+        'foo',
+        1)
 
 
 def test_get_sample_fail_bad_input(samplestorage):
@@ -1006,6 +1109,46 @@ def test_sample_version_update(samplestorage):
     assert nodes == {('baz', 1), ('bat', 2)}
 
 
+def test_get_sample_acls_with_missing_public_read_key(samplestorage, arango):
+    """
+    Backwards compatibility test. Checks that a missing pubread key in the ACLs is registered as
+    false, and that then changing pubread to True works normally.
+    """
+    id1 = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
+
+    arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR s in @@col
+            FILTER s.id == @id
+            UPDATE s WITH {acls: {pubread: null}} IN @@col
+            OPTIONS {keepNull: false}
+        """,
+        bind_vars={'@col': TEST_COL_SAMPLE, 'id': str(id1)}
+    )
+
+    cur = arango.client.db(TEST_DB_NAME).aql.execute(
+        """
+        FOR s in @@col
+            FILTER s.id == @id
+            RETURN s
+        """,
+        bind_vars={'@col': TEST_COL_SAMPLE, 'id': str(id1)}
+    )
+    assert cur.next()['acls'] == {'owner': 'user',
+                                  'admin': [],
+                                  'write': [],
+                                  'read': []
+                                  }
+
+    assert samplestorage.get_sample_acls(id1) == SampleACL(UserID('user'), dt(1))
+
+    samplestorage.replace_sample_acls(id1, SampleACL(UserID('user'), dt(3), public_read=True))
+
+    assert samplestorage.get_sample_acls(id1) == SampleACL(UserID('user'), dt(3), public_read=True)
+
+
 def test_get_sample_acls_fail_bad_input(samplestorage):
     with raises(Exception) as got:
         samplestorage.get_sample_acls(None)
@@ -1031,24 +1174,29 @@ def test_replace_sample_acls(samplestorage):
 
     samplestorage.replace_sample_acls(id_, SampleACL(
         UserID('user'),
+        dt(56),
         [UserID('foo'), UserID('bar')],
         [UserID('baz'), UserID('bat')],
-        [UserID('whoo')]))
+        [UserID('whoo')],
+        True))
 
     assert samplestorage.get_sample_acls(id_) == SampleACL(
         UserID('user'),
+        dt(56),
         [UserID('foo'), UserID('bar')],
         [UserID('baz'), UserID('bat')],
-        [UserID('whoo')])
+        [UserID('whoo')],
+        True)
 
-    samplestorage.replace_sample_acls(id_, SampleACL(UserID('user'), write=[UserID('baz')]))
+    samplestorage.replace_sample_acls(id_, SampleACL(UserID('user'), dt(83), write=[UserID('baz')]))
 
-    assert samplestorage.get_sample_acls(id_) == SampleACL(UserID('user'), write=[UserID('baz')])
+    assert samplestorage.get_sample_acls(id_) == SampleACL(
+        UserID('user'), dt(83), write=[UserID('baz')])
 
 
 def test_replace_sample_acls_fail_bad_args(samplestorage):
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(None, SampleACL(UserID('user')))
+        samplestorage.replace_sample_acls(None, SampleACL(UserID('user'), dt(1)))
     assert_exception_correct(got.value, ValueError(
         'id_ cannot be a value that evaluates to false'))
 
@@ -1067,7 +1215,7 @@ def test_replace_sample_acls_fail_no_sample(samplestorage):
     id2 = uuid.UUID('1234567890abcdef1234567890abcdea')
 
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(id2, SampleACL(UserID('user')))
+        samplestorage.replace_sample_acls(id2, SampleACL(UserID('user'), dt(1)))
     assert_exception_correct(got.value, NoSuchSampleError(str(id2)))
 
 
@@ -1086,8 +1234,426 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
         bind_vars={'@col': 'samples', 'acls': {'owner': 'user2'}})
 
     with raises(Exception) as got:
-        samplestorage.replace_sample_acls(id_, SampleACL(UserID('user'), write=[UserID('foo')]))
+        samplestorage.replace_sample_acls(
+            id_, SampleACL(UserID('user'), dt(1), write=[UserID('foo')]))
     assert_exception_correct(got.value, OwnerChangedError())
+
+
+def test_update_sample_acls_with_at_least_False(samplestorage):
+    # at_least shouldn't change the results of the test, as none of the users are already in ACLs.
+    _update_sample_acls(samplestorage, False)
+
+
+def test_update_sample_acls_with_at_least_True(samplestorage):
+    # at_least shouldn't change the results of the test, as none of the users are already in ACLs.
+    _update_sample_acls(samplestorage, True)
+
+
+def _update_sample_acls(samplestorage, at_least):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+        public_read=True,
+        at_least=at_least),
+        dt(101))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(101),
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+        True)
+
+
+def test_update_sample_acls_with_at_least_True_and_owner_in_admin_acl(samplestorage):
+    # owner should be included in any changes with at_least = True.
+    _update_sample_acls_with_owner_in_acl(
+        samplestorage,
+        [UserID('foo'), UserID('bar1'), UserID('user')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+    )
+
+
+def test_update_sample_acls_with_at_least_True_and_owner_in_write_acl(samplestorage):
+    # owner should be included in any changes with at_least = True.
+    _update_sample_acls_with_owner_in_acl(
+        samplestorage,
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat'), UserID('user')],
+        [UserID('whoo1')],
+    )
+
+
+def test_update_sample_acls_with_at_least_True_and_owner_in_read_acl(samplestorage):
+    # owner should be included in any changes with at_least = True.
+    _update_sample_acls_with_owner_in_acl(
+        samplestorage,
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1'), UserID('user')],
+    )
+
+
+def _update_sample_acls_with_owner_in_acl(samplestorage, admin, write, read):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.update_sample_acls(
+        id_, SampleACLDelta(admin, write, read, public_read=True, at_least=True), dt(101))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(101),
+        [UserID('foo'), UserID('bar1')],
+        [UserID('baz1'), UserID('bat')],
+        [UserID('whoo1')],
+        True)
+
+
+def test_update_sample_acls_noop_with_at_least_False(samplestorage):
+    _update_sample_acls_noop(samplestorage, False)
+
+
+def test_update_sample_acls_noop_with_at_least_True(samplestorage):
+    _update_sample_acls_noop(samplestorage, True)
+
+
+def _update_sample_acls_noop(samplestorage, at_least):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True))
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        [UserID('foo')],
+        [UserID('bat')],
+        [UserID('whoo')],
+        [UserID('nouser'), UserID('nouser2')],
+        public_read=True,
+        at_least=at_least),
+        dt(103))
+
+    res = samplestorage.get_sample_acls(id_)
+    print(res)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True)
+
+
+def test_update_sample_acls_with_remove_and_null_public_and_at_least_False(samplestorage):
+    _update_sample_acls_with_remove_and_null_public(samplestorage, False)
+
+
+def test_update_sample_acls_with_remove_and_null_public_and_at_least_True(samplestorage):
+    _update_sample_acls_with_remove_and_null_public(samplestorage, True)
+
+
+def _update_sample_acls_with_remove_and_null_public(samplestorage, at_least):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True))
+
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        [UserID('admin')],
+        [UserID('write'), UserID('write2')],
+        [UserID('read')],
+        [UserID('foo'), UserID('bat'), UserID('whoo'), UserID('notauser')],
+        at_least=at_least),
+        dt(102))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(102),
+        [UserID('bar'), UserID('admin')],
+        [UserID('baz'), UserID('write'), UserID('write2')],
+        [UserID('read')],
+        True)
+
+
+def test_update_sample_acls_with_False_public_and_at_least_False(samplestorage):
+    _update_sample_acls_with_false_public(samplestorage, False)
+
+
+def test_update_sample_acls_with_False_public_and_at_least_True(samplestorage):
+    _update_sample_acls_with_false_public(samplestorage, True)
+
+
+def _update_sample_acls_with_false_public(samplestorage, at_least):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        [UserID('foo'), UserID('bar')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        True))
+
+    samplestorage.update_sample_acls(
+        id_, SampleACLDelta(public_read=False, at_least=at_least), dt(89))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(89),
+        [UserID('bar'), UserID('foo')],
+        [UserID('baz'), UserID('bat')],
+        [UserID('whoo')],
+        False)
+
+
+def test_update_sample_acls_with_existing_users(samplestorage):
+    '''
+    Tests that when a user is added to an acl it's removed from any other acls.
+    '''
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        admin=[UserID('a1'), UserID('a2'), UserID('arem')],
+        write=[UserID('w1'), UserID('w2'), UserID('wrem')],
+        read=[UserID('r1'), UserID('r2'), UserID('rrem')]))
+
+    # move user from write -> admin, remove admin
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        admin=[UserID('w1')], remove=[UserID('arem')]), dt(89))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(89),
+        [UserID('a1'), UserID('a2'), UserID('w1')],
+        [UserID('w2'), UserID('wrem')],
+        [UserID('r1'), UserID('r2'), UserID('rrem')],
+        False)
+
+    # move user from read -> admin
+    samplestorage.update_sample_acls(id_, SampleACLDelta(admin=[UserID('r1')]), dt(90))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(90),
+        [UserID('a1'), UserID('a2'), UserID('w1'), UserID('r1')],
+        [UserID('w2'), UserID('wrem')],
+        [UserID('r2'), UserID('rrem')],
+        False)
+
+    # move user from write -> read, remove write
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        read=[UserID('w1')], remove=[UserID('wrem')]), dt(91))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(91),
+        [UserID('a1'), UserID('a2'), UserID('r1')],
+        [UserID('w2')],
+        [UserID('r2'), UserID('w1'), UserID('rrem')],
+        False)
+
+    # move user from admin -> read
+    samplestorage.update_sample_acls(id_, SampleACLDelta(read=[UserID('a1')]), dt(92))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(92),
+        [UserID('a2'), UserID('r1')],
+        [UserID('w2')],
+        [UserID('r2'), UserID('w1'), UserID('a1'), UserID('rrem')],
+        False)
+
+    # move user from admin -> write, remove read
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        write=[UserID('a2')], remove=[UserID('rrem')]), dt(93))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(93),
+        [UserID('r1')],
+        [UserID('w2'), UserID('a2')],
+        [UserID('r2'), UserID('w1'), UserID('a1')],
+        False)
+
+    # move user from read -> write, move user from write -> read, noop on read user
+    samplestorage.update_sample_acls(id_, SampleACLDelta(
+        write=[UserID('r2')], read=[UserID('a2'), UserID('a1')]), dt(94))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(94),
+        [UserID('r1')],
+        [UserID('w2'), UserID('r2')],
+        [UserID('w1'), UserID('a2'), UserID('a1')],
+        False)
+
+
+def test_update_sample_acls_with_existing_users_and_at_least_True(samplestorage):
+    '''
+    Tests that when a user is added to an acl it's state is unchanged if it's already in a
+    'better' acl.
+    '''
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    samplestorage.replace_sample_acls(id_, SampleACL(
+        UserID('user'),
+        dt(56),
+        admin=[UserID('a1'), UserID('a2'), UserID('arem')],
+        write=[UserID('w1'), UserID('w2'), UserID('wrem')],
+        read=[UserID('r1'), UserID('r2'), UserID('rrem')]))
+
+    samplestorage.update_sample_acls(
+        id_,
+        SampleACLDelta(
+            admin=[UserID('a1')],                # noop admin->admin
+            write=[UserID('a2'), UserID('r1')],  # noop admin->write, read->write
+            read=[UserID('r2')],                 # noop read->read
+            remove=[UserID('arem')],             # remove admin
+            at_least=True),
+        dt(89))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(89),
+        [UserID('a1'), UserID('a2')],
+        [UserID('w1'), UserID('w2'), UserID('wrem'), UserID('r1')],
+        [UserID('r2'), UserID('rrem')],
+        False)
+
+    samplestorage.update_sample_acls(
+        id_,
+        SampleACLDelta(
+            admin=[UserID('r1'), UserID('r2')],       # write->admin, read->admin
+            write=[UserID('w2')],                     # noop write->write
+            read=[UserID('a1'), UserID('w1')],        # noop admin->read, noop write->read
+            remove=[UserID('rrem'), UserID('wrem')],  # remove read and write
+            at_least=True,
+            public_read=True),
+        dt(90))
+
+    res = samplestorage.get_sample_acls(id_)
+    assert res == SampleACL(
+        UserID('user'),
+        dt(90),
+        [UserID('a1'), UserID('a2'), UserID('r1'), UserID('r2')],
+        [UserID('w1'), UserID('w2')],
+        [],
+        True)
+
+
+def test_update_sample_acls_fail_bad_args(samplestorage):
+    id_ = uuid.uuid4()
+    s = SampleACLDelta()
+    t = dt(1)
+
+    _update_sample_acls_fail(
+        samplestorage, None, s, t, ValueError('id_ cannot be a value that evaluates to false'))
+    _update_sample_acls_fail(
+        samplestorage, id_, None, t, ValueError('update cannot be a value that evaluates to false'))
+    _update_sample_acls_fail(samplestorage, id_, s, None, ValueError(
+        'update_time cannot be a value that evaluates to false'))
+    _update_sample_acls_fail(samplestorage, id_, s, datetime.datetime.fromtimestamp(1), ValueError(
+        'update_time cannot be a naive datetime'))
+
+
+def test_update_sample_acls_fail_no_sample(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    _update_sample_acls_fail(
+        samplestorage, uuid.UUID('1234567890abcdef1234567890abcde1'), SampleACLDelta(), dt(1),
+        NoSuchSampleError('12345678-90ab-cdef-1234-567890abcde1'))
+
+    _update_sample_acls_fail(
+        samplestorage,
+        uuid.UUID('1234567890abcdef1234567890abcde1'),
+        SampleACLDelta(at_least=True),
+        dt(1),
+        NoSuchSampleError('12345678-90ab-cdef-1234-567890abcde1'))
+
+
+def test_update_sample_acls_fail_alters_owner(samplestorage):
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('us'), [TEST_NODE], dt(1), 'foo')) is True
+
+    err = UnauthorizedError('ACLs for the sample owner us may not be modified by a delta update.')
+    t = dt(1)
+
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta([UserID('us')]), t, err)
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(write=[UserID('us')]), t, err)
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(read=[UserID('us')]), t, err)
+    _update_sample_acls_fail(samplestorage, id_, SampleACLDelta(remove=[UserID('us')]), t, err)
+    _update_sample_acls_fail(
+        samplestorage, id_, SampleACLDelta(remove=[UserID('us')], at_least=True), t, err)
+
+
+def test_update_sample_acls_fail_owner_changed(samplestorage):
+    '''
+    This tests a race condition that could occur when the owner of a sample changes after
+    the sample ACLs are pulled from Arango to check against the sample delta to ensure the owner
+    is not altered by the delta.
+    '''
+    id_ = uuid.UUID('1234567890abcdef1234567890abcdef')
+    assert samplestorage.save_sample(
+        SavedSample(id_, UserID('user'), [TEST_NODE], dt(1), 'foo')) is True
+
+    for al in [True, False]:
+        with raises(Exception) as got:
+            samplestorage._update_sample_acls_pt2(
+                id_, SampleACLDelta([UserID('a')], at_least=al), UserID('user2'), dt(1))
+        assert_exception_correct(got.value, OwnerChangedError(
+            # we don't really ever expect this to happen, but just in case...
+            'The sample owner unexpectedly changed during the operation. Please retry. ' +
+            'If this error occurs frequently, code changes may be necessary.'))
+
+
+def _update_sample_acls_fail(samplestorage, id_, update, update_time, expected):
+    with raises(Exception) as got:
+        samplestorage.update_sample_acls(id_, update, update_time)
+    assert_exception_correct(got.value, expected)
 
 
 def test_create_and_get_data_link(samplestorage):
@@ -1100,40 +1666,40 @@ def test_create_and_get_data_link(samplestorage):
     assert samplestorage.save_sample(
         SavedSample(id2, UserID('user'), [SampleNode('mynode2')], dt(3), 'foo')) is True
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde1'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 2), 'mynode1'),
         dt(500),
         UserID('usera'))
-    )
+    ) is None
 
     # test different workspace object and different sample version
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde2'),
         DataUnitID(UPA('42/42/42'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(600),
         UserID('userb'))
-    )
+    ) is None
 
     # test data unit vs just UPA, different sample, and expiration date
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde3'),
         DataUnitID(UPA('5/89/32'), 'dataunit2'),
         SampleNodeAddress(SampleAddress(id2, 1), 'mynode2'),
         dt(700),
         UserID('u'))
-    )
+    ) is None
 
     # test data units don't collide if they have different names
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde4'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(800),
         UserID('userd'))
-    )
+    ) is None
 
     # this is naughty
     verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
@@ -1162,7 +1728,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc2['uuidver'],
         'samintver': 2,
         'node': 'mynode1',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1184,7 +1750,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 600,
+        'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
         'expireby': None
@@ -1206,7 +1772,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc3['uuidver'],
         'samintver': 1,
         'node': 'mynode2',
-        'created': 700,
+        'created': 700000,
         'createby': 'u',
         'expired': 9007199254740991,
         'expireby': None
@@ -1228,7 +1794,7 @@ def test_create_and_get_data_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 800,
+        'created': 800000,
         'createby': 'userd',
         'expired': 9007199254740991,
         'expireby': None
@@ -1288,23 +1854,23 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
     assert samplestorage.save_sample(SavedSample(
         id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1')], dt(1), 'foo')) is True
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde1'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
         UserID('usera')),
         update=True
-    )
+    ) is None
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde2'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
         dt(550),
         UserID('user')),
         update=True
-    )
+    ) is None
 
     # this is naughty
     verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
@@ -1330,7 +1896,7 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1352,7 +1918,7 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
         'expireby': None
@@ -1390,41 +1956,41 @@ def test_create_data_link_with_update_noop(samplestorage):
     assert samplestorage.save_sample(SavedSample(
         id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1')], dt(1), 'foo')) is True
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde1'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
         UserID('usera'))
-    )
+    ) is None
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde2'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
         dt(550),
         UserID('user'))
-    )
+    ) is None
 
     # expect noop
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde3'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(600),
         UserID('userb')),
         update=True
-    )
+    ) is None
 
     # expect noop
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde4'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
         dt(700),
         UserID('userc')),
         update=True
-    )
+    ) is None
 
     # this is naughty
     verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
@@ -1450,7 +2016,7 @@ def test_create_data_link_with_update_noop(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
         'expireby': None
@@ -1472,7 +2038,7 @@ def test_create_data_link_with_update_noop(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
         'expireby': None
@@ -1508,39 +2074,39 @@ def test_create_data_link_with_update(samplestorage):
         id1, UserID('user'), [SampleNode('mynode'), SampleNode('mynode1'), SampleNode('mynode2')],
         dt(1), 'foo')) is True
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde1'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode'),
         dt(500),
         UserID('usera'))
-    )
+    ) is None
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde2'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),
         dt(550),
         UserID('user'))
-    )
+    ) is None
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde3'),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode1'),  # update the node
         dt(600),
         UserID('userb')),
         update=True
-    )
+    ) == uuid.UUID('1234567890abcdef1234567890abcde1')
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.UUID('1234567890abcdef1234567890abcde4'),
         DataUnitID(UPA('5/89/32'), 'dataunit1'),
         SampleNodeAddress(SampleAddress(id1, 1), 'mynode2'),  # update the node
         dt(700),
         UserID('userc')),
         update=True
-    )
+    ) == uuid.UUID('1234567890abcdef1234567890abcde2')
 
     # this is naughty
     verdoc1 = samplestorage._col_version.find({'id': str(id1), 'ver': 1}).next()
@@ -1567,9 +2133,9 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 500,
+        'created': 500000,
         'createby': 'usera',
-        'expired': 599.999,
+        'expired': 599999,
         'expireby': 'userb'
     }
 
@@ -1589,9 +2155,9 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 550,
+        'created': 550000,
         'createby': 'user',
-        'expired': 699.999,
+        'expired': 699999,
         'expireby': 'userc'
     }
 
@@ -1611,7 +2177,7 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode1',
-        'created': 600,
+        'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
         'expireby': None
@@ -1633,7 +2199,7 @@ def test_create_data_link_with_update(samplestorage):
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode2',
-        'created': 700,
+        'created': 700000,
         'createby': 'userc',
         'expired': 9007199254740991,
         'expireby': None
@@ -1708,13 +2274,13 @@ def test_create_data_link_correct_missing_versions(samplestorage):
     samplestorage._col_version.update_match({}, {'ver': -1})
     samplestorage._col_nodes.update_match({'name': 'kid2'}, {'ver': -1})
 
-    samplestorage.create_data_link(DataLink(
+    assert samplestorage.create_data_link(DataLink(
         uuid.uuid4(),
         DataUnitID(UPA('5/89/32')),
         SampleNodeAddress(SampleAddress(id_, 1), 'kid1'),
         dt(500),
         UserID('user'))
-    )
+    ) is None
 
     assert samplestorage._col_version.count() == 1
     assert samplestorage._col_ver_edge.count() == 1
@@ -2383,9 +2949,9 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': -100,
+        'created': -100000,
         'createby': 'userb',
-        'expired': expired,
+        'expired': expired * 1000,
         'expireby': 'yay'
     }
 
@@ -2405,7 +2971,7 @@ def test_expire_and_get_data_link_via_id(samplestorage):
 
 
 def test_expire_and_get_data_link_via_id_with_dataid(samplestorage):
-    _expire_and_get_data_link_via_id(samplestorage, 1, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
+    _expire_and_get_data_link_via_id(samplestorage, 10, 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8_')
 
 
 def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5):
@@ -2418,7 +2984,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(.00056211),
+        dt(5),
         UserID('usera'))
     )
 
@@ -2430,7 +2996,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(0.00056211),
+        dt(5),
         UserID('usera'),
         dt(expired),
         UserID('user')
@@ -2438,10 +3004,10 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
 
     assert samplestorage._col_data_link.count() == 1
 
-    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}0.000562')
+    link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}5.0')
     assert link == {
-        '_key': f'1_1_1_{expectedmd5}0.000562',
-        '_id': f'data_link/1_1_1_{expectedmd5}0.000562',
+        '_key': f'1_1_1_{expectedmd5}5.0',
+        '_id': f'data_link/1_1_1_{expectedmd5}5.0',
         '_from': 'ws_obj_ver/1:1:1',
         '_to': nodedoc1['_id'],
         '_rev': link['_rev'],  # no need to test this
@@ -2454,9 +3020,9 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         'samuuidver': verdoc1['uuidver'],
         'samintver': 1,
         'node': 'mynode',
-        'created': 0.000562,
+        'created': 5000,
         'createby': 'usera',
-        'expired': expired,
+        'expired': expired * 1000,
         'expireby': 'user'
     }
 
@@ -2465,7 +3031,7 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         lid,
         DataUnitID(UPA('1/1/1'), dataid),
         SampleNodeAddress(SampleAddress(sid, 1), 'mynode'),
-        dt(0.000562),
+        dt(5),
         UserID('usera'),
         dt(expired),
         UserID('user')
@@ -2606,7 +3172,7 @@ def test_expire_data_link_fail_expire_before_create_by_id(samplestorage):
     )
 
     _expire_data_link_fail(samplestorage, dt(99), UserID('u'), lid1, None, ValueError(
-        'expired is < link created time: 100'))
+        'expired is < link created time: 100000'))
 
 
 def test_expire_data_link_fail_race_condition(samplestorage):
@@ -2630,7 +3196,7 @@ def test_expire_data_link_fail_race_condition(samplestorage):
 
     # ok, we have the link doc from the db. This is what part 1 of the code does, and then
     # passes to part 2.
-    linkdoc = samplestorage._col_data_link.get(f'1_1_1')
+    linkdoc = samplestorage._col_data_link.get('1_1_1')
 
     # Now we simulate a race condition by expiring that link and calling part 2 of the expire
     # method. Part 2 should fail without modifying the links collection.

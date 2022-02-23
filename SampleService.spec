@@ -31,6 +31,11 @@ module SampleService {
     /* A Sample ID. Must be globally unique. Always assigned by the Sample service. */
     typedef string sample_id;
 
+    /* A link ID. Must be globally unique. Always assigned by the Sample service.
+        Typically only of use to service admins.
+     */
+    typedef string link_id;
+
     /* A sample name. Must be less than 255 characters. */
     typedef string sample_name;
 
@@ -41,15 +46,50 @@ module SampleService {
     typedef string metadata_key;
 
     /* A key for a value associated with a piece of metadata. Less than 1000 unicode characters.
-        Examples: units, value, species   
+        Examples: units, value, species
      */
     typedef string metadata_value_key;
 
-    /* Metadata attached to a sample.
-        The UnspecifiedObject map values MUST be a primitive type - either int, float, string,
-        or equivalent typedefs.
+    /* A workspace type string.
+        Specifies the workspace data type a single string in the format
+        [module].[typename]:
+
+        module - a string. The module name of the typespec containing the type.
+        typename - a string. The name of the type as assigned by the typedef
+            statement.
+
+        Example: KBaseSets.SampleSet
+    */
+    typedef string ws_type_string;
+
+    /* A metadata value, represented by a mapping of value keys to primitive values. An example for
+        a location metadata key might be:
+        {
+         "name": "Castle Geyser",
+         "lat": 44.463816,
+         "long": -110.836471
+         }
+        "primitive values" means an int, float, string, or equivalent typedefs. Including any
+        collection types is an error.
      */
-    typedef mapping<metadata_key, mapping<metadata_value_key, UnspecifiedObject>> metadata;
+    typedef mapping<metadata_value_key, UnspecifiedObject> metadata_value;
+
+    /* Metadata attached to a sample. */
+    typedef mapping<metadata_key, metadata_value> metadata;
+
+    /* Information about a metadata key as it appeared at the data source.
+        The source key and value represents the original state of the metadata before it was
+        tranformed for ingestion by the sample service.
+
+        key - the metadata key.
+        skey - the key as it appeared at the data source.
+        svalue - the value as it appeared at the data source.
+     */
+    typedef structure {
+        metadata_key key;
+        metadata_key skey;
+        metadata_value svalue;
+    } SourceMetadata;
 
     /* A KBase Workspace service Unique Permanent Address (UPA). E.g. 5/6/7 where 5 is the
         workspace ID, 6 the object ID, and 7 the object version. */
@@ -66,6 +106,13 @@ module SampleService {
             BioReplicate nodes, do not have a parent.
         type - the type of the node.
         meta_controlled - metadata restricted by the sample controlled vocabulary and validators.
+        source_meta - the pre-transformation keys and values of the controlled metadata at the
+            data source for controlled metadata keys. In some cases the source metadata
+            may be transformed prior to ingestion by the Sample Service; the contents of this
+            data structure allows for reconstructing the original representation. The metadata
+            here is not validated other than basic size checks and is provided on an
+            informational basis only. The metadata keys in the SourceMetadata data structure
+            must be a subset of the meta_controlled mapping keys.
         meta_user - unrestricted metadata.
      */
     typedef structure {
@@ -73,6 +120,7 @@ module SampleService {
         node_id parent;
         samplenode_type type;
         metadata meta_controlled;
+        list<SourceMetadata> source_meta;
         metadata meta_user;
     } SampleNode;
 
@@ -102,12 +150,14 @@ module SampleService {
         admin - users that can administrate (e.g. alter ACLs) the sample.
         write - users that can write (e.g. create a new version) to the sample.
         read - users that can view the sample.
+        public_read - whether any user can read the sample, regardless of permissions.
      */
     typedef structure {
         user owner;
         list<user> admin;
         list<user> write;
         list<user> read;
+        boolean public_read;
     } SampleACLs;
 
     /* A Sample ID and version.
@@ -160,7 +210,19 @@ module SampleService {
     } GetSampleParams;
 
     /* Get a sample. If the version is omitted the most recent sample is returned. */
-    funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication required;
+    funcdef get_sample(GetSampleParams params) returns (Sample sample) authentication optional;
+
+    typedef structure {
+        sample_id id;
+        version version;
+    } SampleIdentifier;
+
+    typedef structure {
+        list<SampleIdentifier> samples;
+        boolean as_admin;
+    } GetSamplesParams;
+
+    funcdef get_samples(GetSamplesParams params) returns (list<Sample> samples) authentication optional;
 
     /* get_sample_acls parameters.
         id - the ID of the sample to retrieve.
@@ -174,14 +236,68 @@ module SampleService {
 
     /* Get a sample's ACLs. */
     funcdef get_sample_acls(GetSampleACLsParams params) returns (SampleACLs acls)
-        authentication required;
+        authentication optional;
+
+    /* update_sample_acls parameters.
+
+        id - the ID of the sample to modify.
+        admin - a list of users that will receive admin privileges. Default none.
+        write - a list of users that will receive write privileges. Default none.
+        read - a list of users that will receive read privileges. Default none.
+        remove - a list of users that will have all privileges removed. Default none.
+        public_read - an integer that determines whether the sample will be set to publicly
+            readable:
+            > 0: public read.
+            0: No change (the default).
+            < 0: private.
+        at_least - false, the default, indicates that the users should get the exact permissions
+            as specified in the user lists, which may mean a reduction in permissions. If true,
+            users that already exist in the sample ACLs will not have their permissions reduced
+            as part of the ACL update unless they are in the remove list. E.g. if a user has
+            write permissions and read permissions are specified in the update, no changes will
+            be made to the user's permission.
+        as_admin - update the sample acls regardless of sample ACL contents as long as the user has
+            full service administration permissions.
+     */
+    typedef structure {
+        sample_id id;
+        list<user> admin;
+        list<user> write;
+        list<user> read;
+        list<user> remove;
+        int public_read;
+        boolean at_least;
+        boolean as_admin;
+    } UpdateSampleACLsParams;
+
+    /* Update a sample's ACLs.  */
+     funcdef update_sample_acls(UpdateSampleACLsParams params) returns() authentication required;
+
+    /* update_samples_acls parameters.
+
+        These parameters are the same as update_sample_acls, except:
+        ids - a list of IDs of samples to modify.
+    */
+    typedef structure {
+        list<sample_id> ids;
+        list<user> admin;
+        list<user> write;
+        list<user> read;
+        list<user> remove;
+        int public_read;
+        boolean at_least;
+        boolean as_admin;
+    } UpdateSamplesACLsParams;
+
+    /* Update the ACLs of many samples.  */
+     funcdef update_samples_acls(UpdateSamplesACLsParams params) returns() authentication required;
 
     /* replace_sample_acls parameters.
 
         id - the ID of the sample to modify.
         acls - the ACLs to set on the sample.
-        as_admin - replace the sample acls regardless of ACL contents as long as the user has
-            full administration permissions.
+        as_admin - replace the sample acls regardless of sample ACL contents as long as the user
+            has full service administration permissions.
      */
     typedef structure {
         sample_id id;
@@ -219,7 +335,7 @@ module SampleService {
     } GetMetadataKeyStaticMetadataResults;
 
     /* Get static metadata for one or more metadata keys.
-    
+
         The static metadata for a metadata key is metadata *about* the key - e.g. it may
         define the key's semantics or denote that the key is linked to an ontological ID.
 
@@ -231,7 +347,7 @@ module SampleService {
         returns(GetMetadataKeyStaticMetadataResults results) authentication none;
 
     /* create_data_link parameters.
-    
+
         upa - the workspace UPA of the object to be linked.
         dataid - the dataid of the data to be linked, if any, within the object. If omitted the
             entire object is linked to the sample.
@@ -259,12 +375,92 @@ module SampleService {
         user as_user;
     } CreateDataLinkParams;
 
+    /* A data link from a KBase workspace object to a sample.
+
+        upa - the workspace UPA of the linked object.
+        dataid - the dataid of the linked data, if any, within the object. If omitted the
+            entire object is linked to the sample.
+        id - the sample id.
+        version - the sample version.
+        node - the sample node.
+        createdby - the user that created the link.
+        created - the time the link was created.
+        expiredby - the user that expired the link, if any.
+        expired - the time the link was expired, if at all.
+     */
+    typedef structure {
+        link_id linkid;
+        ws_upa upa;
+        data_id dataid;
+        sample_id id;
+        version version;
+        node_id node;
+        user createdby;
+        timestamp created;
+        user expiredby;
+        timestamp expired;
+    } DataLink;
+
+    /* create_data_link results.
+
+        new_link - the new link.
+     */
+    typedef structure {
+        DataLink new_link;
+    } CreateDataLinkResults;
+
     /* Create a link from a KBase Workspace object to a sample.
 
         The user must have admin permissions for the sample and write permissions for the
         Workspace object.
      */
-    funcdef create_data_link(CreateDataLinkParams params) returns() authentication required;
+    funcdef create_data_link(CreateDataLinkParams params) returns(CreateDataLinkResults results)
+        authentication required;
+
+    /* propagate_data_links parameters.
+
+        id - the sample id.
+        version - the sample version. (data links are propagated to)
+        previous_version - the previouse sample version. (data links are propagated from)
+        ignore_types - the workspace data type ignored from propagating. default empty.
+        update - if false (the default), fail if a link already exists from the data unit (the
+            combination of the UPA and dataid). if true, expire the old link and create the new
+            link unless the link is already to the requested sample node, in which case the
+            operation is a no-op.
+        effective_time - the effective time at which the query should be run - the default is
+            the current time. Providing a time allows for reproducibility of previous results.
+        as_admin - run the method as a service administrator. The user must have full
+            administration permissions.
+        as_user - create the link as a different user. Ignored if as_admin is not true. Neither
+            the administrator nor the impersonated user need have permissions to the data or
+            sample.
+        */
+    typedef structure {
+        sample_id id;
+        version version;
+        version previous_version;
+        list<ws_type_string> ignore_types;
+        boolean update;
+        timestamp effective_time;
+        boolean as_admin;
+        user as_user;
+    } PropagateDataLinkParams;
+
+    /* propagate_data_links results.
+
+        links - the links.
+     */
+    typedef structure {
+        list<DataLink> links;
+    } PropagateDataLinkResults;
+
+    /* Propagates data links from a previous sample to the current (latest) version
+
+        The user must have admin permissions for the sample and write permissions for the
+        Workspace object.
+     */
+    funcdef propagate_data_links(PropagateDataLinkParams params) returns(PropagateDataLinkResults results)
+        authentication required;
 
     /* expire_data_link parameters.
 
@@ -285,7 +481,7 @@ module SampleService {
     } ExpireDataLinkParams;
 
     /* Expire a link from a KBase Workspace object.
-    
+
         The user must have admin permissions for the sample and write permissions for the
         Workspace object.
     */
@@ -307,31 +503,6 @@ module SampleService {
         boolean as_admin;
     } GetDataLinksFromSampleParams;
 
-    /* A data link from a KBase workspace object to a sample.
-    
-        upa - the workspace UPA of the linked object.
-        dataid - the dataid of the linked data, if any, within the object. If omitted the
-            entire object is linked to the sample.
-        id - the sample id.
-        version - the sample version.
-        node - the sample node.
-        createdby - the user that created the link.
-        created - the time the link was created.
-        expiredby - the user that expired the link, if any.
-        expired - the time the link was expired, if at all.
-     */
-    typedef structure {
-        ws_upa upa;
-        data_id dataid;
-        sample_id id;
-        version version;
-        node_id node;
-        user createdby;
-        timestamp created;
-        user expiredby;
-        timestamp expired;
-    } DataLink;
-
     /* get_data_links_from_sample results.
 
         links - the links.
@@ -350,7 +521,32 @@ module SampleService {
         can read are returned.
      */
     funcdef get_data_links_from_sample(GetDataLinksFromSampleParams params)
-        returns(GetDataLinksFromSampleResults results) authentication required;
+        returns(GetDataLinksFromSampleResults results) authentication optional;
+
+    /* get_data_links_from_sample_set parameters.
+        sample_ids - a list of sample ids and versions
+        effective_time - the time at which the query was run. This timestamp, if saved, can be
+            used when running the method again to enqure reproducible results. Note that changes
+            to workspace permissions may cause results to change over time.
+        as_admin - run the method as a service administrator. The user must have read
+            administration permissions.
+    */
+
+    typedef structure {
+        list<SampleIdentifier> sample_ids;
+        timestamp effective_time;
+        boolean as_admin;
+    } GetDataLinksFromSampleSetParams;
+
+    /* Get all workspace object metadata linked to samples in a list of samples or sample set
+        refs. Returns metadata about links to data objects. A batch version of
+        get_data_links_from_sample.
+
+        The user must have read permissions to the sample. A permissions error is thrown when a
+        sample is found that the user has no access to.
+    */
+    funcdef get_data_links_from_sample_set(GetDataLinksFromSampleSetParams params)
+        returns(GetDataLinksFromSampleResults results) authentication optional;
 
     /* get_data_links_from_data parameters.
 
@@ -382,7 +578,7 @@ module SampleService {
         The user must have read permissions to the workspace data.
      */
     funcdef get_data_links_from_data(GetDataLinksFromDataParams params)
-        returns(GetDataLinksFromDataResults results) authentication required;
+        returns(GetDataLinksFromDataResults results) authentication optional;
 
     /* get_sample_via_data parameters.
 
@@ -402,6 +598,40 @@ module SampleService {
         read access to the sample.
     */
     funcdef get_sample_via_data(GetSampleViaDataParams params) returns(Sample sample)
-        authentication required;
+        authentication optional;
 
+    /* get_data_link parameters.
+
+        linkid - the link ID.
+     */
+    typedef structure {
+        link_id linkid;
+    } GetDataLinkParams;
+
+    /* Get a link, expired or not, by its ID. This method requires read administration privileges
+       for the service.
+     */
+    funcdef get_data_link(GetDataLinkParams params) returns(DataLink link) authentication required;
+
+    /* Provide sample and run through the validation steps, but without saving them. Allows all the samples to be evaluated for validity first so potential errors can be addressed.
+    */
+
+    typedef structure {
+        list<Sample> samples;
+    } ValidateSamplesParams;
+
+    typedef structure {
+        string message;
+        string dev_message;
+        sample_name sample_name;
+        node_id node;
+        metadata_key key;
+        string subkey;
+    } ValidateSamplesError;
+
+    typedef structure {
+        list<ValidateSamplesError> errors;
+    } ValidateSamplesResults;
+
+    funcdef validate_samples(ValidateSamplesParams params) returns (ValidateSamplesResults results) authentication required;
 };
