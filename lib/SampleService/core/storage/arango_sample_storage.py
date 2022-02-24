@@ -850,8 +850,14 @@ class ArangoSampleStorage:
             acls.get(_FLD_PUBLIC_READ))
 
     def get_sample_set_acls(self, ids_: List[UUID]) -> List[SampleACL]:
+        # function to ensure docs are sorted correctly
+        str_ids = [str(id_) for id_ in ids_]
+        def _keyfunc(doc):
+            return str_ids.index(doc[_FLD_ARANGO_KEY])
         # have to cast this way for compatibility with _get_many_sample_doc
-        docs = self._get_many_sample_doc([{'id': _cast(str, id_)} for id_ in ids_])
+        docs = self._get_many_sample_doc([{'id': str_id} for str_id in str_ids])
+        # sort docs (ensure that the right id is raised for errors)
+        sorted_docs = sorted(docs, key=_keyfunc)
         sample_acls = []
         for doc in docs:
             acls = doc[_FLD_ACLS]

@@ -169,7 +169,6 @@ class Samples:
             for i, level in enumerate(levels):
                 if level < access:
                     uerr = f'User {user}' if user else 'Anonymous users'
-                    # TODO: will ids_[i] actually match up with the right sample that's missing?
                     errmsg = f'{uerr} {self._unauth_errmap[access]} sample {ids_[i]}'
                     raise _UnauthorizedError(errmsg)
 
