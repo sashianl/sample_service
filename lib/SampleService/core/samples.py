@@ -154,6 +154,24 @@ class Samples:
                       _SampleAccessType.WRITE: 'cannot write to',
                       _SampleAccessType.READ: 'cannot read'}
 
+    def _check_batch_perms(
+        self,
+        ids_: List[UUID],
+        user: Optional[UserID],
+        access: _SampleAccessType,
+        acls: List[SampleACL] = None,
+        as_admin: bool = False):
+            if as_admin:
+                return
+            if not acls:
+                acls = self._storage.get_sample_set_acls(ids_)
+            levels = [self._get_access_level(acl, user) for acl in acls]
+            for i, level in enumerate(levels):
+                if level < access:
+                    uerr = f'User {user}' if user else 'Anonymous users'
+                    errmsg = f'{uerr} {self._unauth_errmap[access]} sample {ids_[i]}'
+                    raise _UnauthorizedError(errmsg)
+
     def _get_access_level(self, acls: SampleACL, user: Optional[UserID]):
         if user == acls.owner:
             return _SampleAccessType.OWNER
@@ -465,17 +483,11 @@ class Samples:
         '''
         _not_falsy(samples, 'samples')
         timestamp = self._resolve_timestamp(timestamp)
-
         wsids = None if as_admin else self._ws.get_user_workspaces(user)
-        # TODO DATALINK what about deleted objects? Currently not handled
-        return_links = []
-        for sample in samples:
-            # TODO: consider adding support for sample set refs, so that we don't have to check
-            # perms for every individual sample. It does not appear to create a significant
-            # bottleneck as implemented but it could help with a lot of samples at once
-            self._check_perms(sample.sampleid, user, _SampleAccessType.READ, as_admin=as_admin)
-            return_links.extend(self._storage.get_links_from_sample(sample, wsids, timestamp))
-
+        # checks for all sample acls in one query
+        sampleids = [s.sampleid for s in samples]
+        self._check_batch_perms(sampleids, user, _SampleAccessType.READ, as_admin=as_admin)
+        return_links = self._storage.get_batch_links_from_samples(samples, wsids, timestamp)
         return return_links, timestamp
 
     def _resolve_timestamp(self, timestamp: datetime.datetime = None) -> datetime.datetime:

@@ -849,6 +849,29 @@ class ArangoSampleStorage:
             # allow None for backwards compability with DB entries missing the key
             acls.get(_FLD_PUBLIC_READ))
 
+    def get_sample_set_acls(self, ids_: List[UUID]) -> List[SampleACL]:
+        # function to ensure docs are sorted correctly
+        str_ids = [str(id_) for id_ in ids_]
+        def _keyfunc(doc):
+            return str_ids.index(doc[_FLD_ARANGO_KEY])
+        # have to cast this way for compatibility with _get_many_sample_doc
+        docs = self._get_many_sample_doc([{'id': str_id} for str_id in str_ids])
+        # sort docs (ensure that the right id is raised for errors)
+        sorted_docs = sorted(docs, key=_keyfunc)
+        sample_acls = []
+        for doc in docs:
+            acls = doc[_FLD_ACLS]
+            sample_acls.append(SampleACL(
+                UserID(acls[_FLD_OWNER]),
+                self._timestamp_to_datetime(doc[_FLD_ACL_UPDATE_TIME]),
+                [UserID(u) for u in acls[_FLD_ADMIN]],
+                [UserID(u) for u in acls[_FLD_WRITE]],
+                [UserID(u) for u in acls[_FLD_READ]],
+                acls.get(_FLD_PUBLIC_READ)
+            ))
+
+        return sample_acls
+
     def replace_sample_acls(self, id_: UUID, acls: SampleACL):
         '''
         Completely replace a sample's ACLs.
@@ -1481,6 +1504,68 @@ class ArangoSampleStorage:
         except _arango.exceptions.AQLQueryExecuteError as e:  # this is a pain to test
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
         return duids  # a maxium of 10k can be returned based on the link creation function
+
+    def get_batch_links_from_samples(self,
+                                     samples: List[SampleAddress],
+                                     readable_wsids: Optional[List[int]],
+                                     timestamp: datetime.datetime) -> List[DataLink]:
+        '''
+        Get the links from a bulk list of samples at a particular time.
+
+        :param samples: the samples of interest.
+        :param readable_wsids: IDs of workspaces for which the user has read permissions.
+            Pass None to return links to objects in all workspaces.
+        :param timestamp: the time to use to determine which links are active.
+        :returns: a list of links.
+        :raises SampleStorageError: if a conection to the database fails.
+        '''
+
+        _not_falsy(samples, 'samples')
+        _check_timestamp(timestamp, 'timestamp')
+
+        aql_bind = {
+            '@sample_col': self._col_sample.name,
+            '@link_col': self._col_data_link.name,
+            # cast SampleAddress to dict
+            'sample_ids': [{'id': str(s.sampleid), 'version': s.version} for s in samples],
+            'ts': self._timestamp_seconds_to_milliseconds(timestamp.timestamp())
+        }
+
+        wsidfilter = ''
+        if readable_wsids:
+            aql_bind['wsids'] = readable_wsids
+            wsidfilter = f'FILTER d.{_FLD_LINK_WORKSPACE_ID} IN @wsids'
+
+        q = f'''
+            LET version_ids = (FOR sample_id IN @sample_ids
+                LET doc = DOCUMENT(@@sample_col, sample_id.id)
+                RETURN {{
+                    'id': doc.id,
+                    'version_id': doc.vers[sample_id.version - 1],
+                    'version': sample_id.version
+                }}
+            )
+
+            LET data_links = (FOR version_id IN version_ids
+                FOR d in @@link_col
+                    FILTER d.{_FLD_LINK_SAMPLE_UUID_VERSION} == version_id.version_id
+                    {wsidfilter}
+                    FILTER d.{_FLD_LINK_CREATED} <= @ts
+                    FILTER d.{_FLD_LINK_EXPIRED} >= @ts
+                    RETURN d
+            )
+            RETURN data_links
+        '''
+
+        duids = []
+        try:
+            # have to unwrap query result twice because its a nested array
+            for link_set in self._db.aql.execute(q, bind_vars=aql_bind):
+                for link in link_set:
+                    duids.append(self._doc_to_link(link))
+        except _arango.exceptions.AQLQueryExecuteError as e:
+            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+        return duids
 
     def get_links_from_data(self, upa: UPA, timestamp: datetime.datetime) -> List[DataLink]:
         '''
