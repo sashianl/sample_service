@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+
+## 0.2.1
+
+* Add `get_data_links_from_sample_set` method - allows for getting many links from a list of samples
+from a single call.
+
+## 0.1.1
+
+* Add `update_samples_acls` method - allows for updating many samples ACLs with
+  a single call.
+
 ## 0.1.0-2alpha
 
 * Add propagate_data_links method - propagates data links from a previous sample to the current (latest) version

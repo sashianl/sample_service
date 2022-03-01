@@ -25,10 +25,13 @@ from SampleService.core.api_translation import (
     datetime_to_epochmilliseconds as _datetime_to_epochmilliseconds,
     get_user_from_object as _get_user_from_object,
     acl_delta_from_dict as _acl_delta_from_dict,
-    )
+)
 from SampleService.core.acls import AdminPermission as _AdminPermission
 from SampleService.core.sample import SampleAddress as _SampleAddress
 from SampleService.core.user import UserID as _UserID
+from SampleService.impl_methods import (
+    update_samples_acls as _update_samples_acls
+)
 
 _CTX_USER = 'user_id'
 _CTX_TOKEN = 'token'
@@ -54,9 +57,9 @@ Note that usage of the administration flags will be logged by the service.
     # state. A method could easily clobber the state set by another while
     # the latter method is running.
     ######################################### noqa
-    VERSION = "0.1.0-2alpha"
-    GIT_URL = "git@github.com:Tianhao-Gu/sample_service.git"
-    GIT_COMMIT_HASH = "65bc119dc635934e6dfd0cab2ff7614d10cf3cf6"
+    VERSION = "0.2.1"
+    GIT_URL = "git@github.com:charleshtrenholm/sample_service.git"
+    GIT_COMMIT_HASH = "aa0303c4d5d4aa1e3cf0c9ecb36366fb1127f93e"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -512,6 +515,37 @@ Note that usage of the administration flags will be logged by the service.
         #END update_sample_acls
         pass
 
+    def update_samples_acls(self, ctx, params):
+        """
+        Update the ACLs of many samples.
+        :param params: instance of type "UpdateSamplesACLsParams"
+           (update_samples_acls parameters. These parameters are the same as
+           update_sample_acls, except: ids - a list of IDs of samples to
+           modify.) -> structure: parameter "ids" of list of type "sample_id"
+           (A Sample ID. Must be globally unique. Always assigned by the
+           Sample service.), parameter "admin" of list of type "user" (A
+           user's username.), parameter "write" of list of type "user" (A
+           user's username.), parameter "read" of list of type "user" (A
+           user's username.), parameter "remove" of list of type "user" (A
+           user's username.), parameter "public_read" of Long, parameter
+           "at_least" of type "boolean" (A boolean value, 0 for false, 1 for
+           true.), parameter "as_admin" of type "boolean" (A boolean value, 0
+           for false, 1 for true.)
+        """
+        # ctx is the context object
+        #BEGIN update_samples_acls
+        _update_samples_acls(
+            params,
+            self._samples,
+            self._user_lookup,
+            ctx[_CTX_USER],
+            ctx[_CTX_TOKEN],
+            _AdminPermission.FULL,
+            ctx.log_info,
+        )
+        #END update_samples_acls
+        pass
+
     def replace_sample_acls(self, ctx, params):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
@@ -554,10 +588,10 @@ Note that usage of the administration flags will be logged by the service.
     def get_metadata_key_static_metadata(self, ctx, params):
         """
         Get static metadata for one or more metadata keys.
-            The static metadata for a metadata key is metadata *about* the key - e.g. it may
-            define the key's semantics or denote that the key is linked to an ontological ID.
-            The static metadata does not change without the service being restarted. Client caching is
-            recommended to improve performance.
+                The static metadata for a metadata key is metadata *about* the key - e.g. it may
+                define the key's semantics or denote that the key is linked to an ontological ID.
+                The static metadata does not change without the service being restarted. Client caching is
+                recommended to improve performance.
         :param params: instance of type "GetMetadataKeyStaticMetadataParams"
            (get_metadata_key_static_metadata parameters. keys - the list of
            metadata keys to interrogate. prefix - 0 (the default) to
@@ -806,8 +840,8 @@ Note that usage of the administration flags will be logged by the service.
     def expire_data_link(self, ctx, params):
         """
         Expire a link from a KBase Workspace object.
-            The user must have admin permissions for the sample and write permissions for the
-            Workspace object.
+                The user must have admin permissions for the sample and write permissions for the
+                Workspace object.
         :param params: instance of type "ExpireDataLinkParams"
            (expire_data_link parameters. upa - the workspace upa of the
            object from which the link originates. dataid - the dataid, if
@@ -915,6 +949,111 @@ Note that usage of the administration flags will be logged by the service.
         # At some point might do deeper type checking...
         if not isinstance(results, dict):
             raise ValueError('Method get_data_links_from_sample return value ' +
+                             'results is not type dict as required.')
+        # return the results
+        return [results]
+
+    def get_data_links_from_sample_set(self, ctx, params):
+        """
+        Get all workspace object metadata linked to samples in a list of samples or sample set
+        refs. Returns metadata about links to data objects. A batch version of
+        get_data_links_from_sample.
+        The user must have read permissions to the sample. A permissions error is thrown when a
+        sample is found that the user has no access to.
+        :param params: instance of type "GetDataLinksFromSampleSetParams"
+           (get_data_links_from_sample_set parameters. sample_ids - a list of
+           sample ids and versions effective_time - the time at which the
+           query was run. This timestamp, if saved, can be used when running
+           the method again to enqure reproducible results. Note that changes
+           to workspace permissions may cause results to change over time.
+           as_admin - run the method as a service administrator. The user
+           must have read administration permissions.) -> structure:
+           parameter "sample_ids" of list of type "SampleIdentifier" ->
+           structure: parameter "id" of type "sample_id" (A Sample ID. Must
+           be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "effective_time" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
+        :returns: instance of type "GetDataLinksFromSampleResults"
+           (get_data_links_from_sample results. links - the links.
+           effective_time - the time at which the query was run. This
+           timestamp, if saved, can be used when running the method again to
+           ensure reproducible results. Note that changes to workspace
+           permissions may cause results to change over time.) -> structure:
+           parameter "links" of list of type "DataLink" (A data link from a
+           KBase workspace object to a sample. upa - the workspace UPA of the
+           linked object. dataid - the dataid of the linked data, if any,
+           within the object. If omitted the entire object is linked to the
+           sample. id - the sample id. version - the sample version. node -
+           the sample node. createdby - the user that created the link.
+           created - the time the link was created. expiredby - the user that
+           expired the link, if any. expired - the time the link was expired,
+           if at all.) -> structure: parameter "linkid" of type "link_id" (A
+           link ID. Must be globally unique. Always assigned by the Sample
+           service. Typically only of use to service admins.), parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "createdby" of type "user" (A user's username.),
+           parameter "created" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "expiredby" of type "user" (A user's
+           username.), parameter "expired" of type "timestamp" (A timestamp
+           in epoch milliseconds.), parameter "effective_time" of type
+           "timestamp" (A timestamp in epoch milliseconds.)
+        """
+        # ctx is the context object
+        # return variables are: results
+        #BEGIN get_data_links_from_sample_set
+        if not 'sample_ids' in params:
+            raise ValueError(
+                'Missing "sample_ids" field - Must provide a list of valid sample ids.'
+            )
+
+        try:
+            sample_ids = [_get_sample_address_from_object({
+                "id": sample_id['id'],
+                "version": sample_id['version'],
+                "effective_time": params['effective_time'],
+                "as_admin": params.get('as_admin')
+            }, version_required=True) for sample_id in params['sample_ids']]
+        except KeyError as e:
+            if str(e) == "'effective_time'":
+                raise ValueError('Missing "effective_time" parameter.')
+            raise ValueError(
+                "Malformed sample accessor - each sample must provide both an id and a version."
+            )
+
+        dt = _get_datetime_from_epochmillseconds_in_object(params, 'effective_time')
+
+        admin = _check_admin(
+            self._user_lookup, ctx.get(_CTX_TOKEN), _AdminPermission.READ,
+            'get_data_links_from_sample', ctx.log_info, skip_check=not params.get('as_admin'))
+
+        # cast tuple results to type SampleAddress
+        sample_addresses = [_SampleAddress(sid, ver) for sid, ver in sample_ids]
+
+        links, ts = self._samples.get_batch_links_from_sample_set(
+            _get_user_from_object(ctx, _CTX_USER), sample_addresses, dt, as_admin=admin)
+
+        results = {
+            'links': _links_to_dicts(links),
+            'effective_time': _datetime_to_epochmilliseconds(ts)
+            }
+
+        #END get_data_links_from_sample_set
+
+        # At some point might do deeper type checking...
+        if not isinstance(results, dict):
+            raise ValueError('Method get_data_links_from_sample_set return value ' +
                              'results is not type dict as required.')
         # return the results
         return [results]

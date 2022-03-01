@@ -395,6 +395,26 @@ class SampleService(object):
         return self._client.call_method('SampleService.update_sample_acls',
                                         [params], self._service_ver, context)
 
+    def update_samples_acls(self, params, context=None):
+        """
+        Update the ACLs of many samples.
+        :param params: instance of type "UpdateSamplesACLsParams"
+           (update_samples_acls parameters. These parameters are the same as
+           update_sample_acls, except: ids - a list of IDs of samples to
+           modify.) -> structure: parameter "ids" of list of type "sample_id"
+           (A Sample ID. Must be globally unique. Always assigned by the
+           Sample service.), parameter "admin" of list of type "user" (A
+           user's username.), parameter "write" of list of type "user" (A
+           user's username.), parameter "read" of list of type "user" (A
+           user's username.), parameter "remove" of list of type "user" (A
+           user's username.), parameter "public_read" of Long, parameter
+           "at_least" of type "boolean" (A boolean value, 0 for false, 1 for
+           true.), parameter "as_admin" of type "boolean" (A boolean value, 0
+           for false, 1 for true.)
+        """
+        return self._client.call_method('SampleService.update_samples_acls',
+                                        [params], self._service_ver, context)
+
     def replace_sample_acls(self, params, context=None):
         """
         Completely overwrite a sample's ACLs. Any current ACLs are replaced by the provided
@@ -428,10 +448,10 @@ class SampleService(object):
     def get_metadata_key_static_metadata(self, params, context=None):
         """
         Get static metadata for one or more metadata keys.
-            The static metadata for a metadata key is metadata *about* the key - e.g. it may
-            define the key's semantics or denote that the key is linked to an ontological ID.
-            The static metadata does not change without the service being restarted. Client caching is
-            recommended to improve performance.
+                The static metadata for a metadata key is metadata *about* the key - e.g. it may
+                define the key's semantics or denote that the key is linked to an ontological ID.
+                The static metadata does not change without the service being restarted. Client caching is
+                recommended to improve performance.
         :param params: instance of type "GetMetadataKeyStaticMetadataParams"
            (get_metadata_key_static_metadata parameters. keys - the list of
            metadata keys to interrogate. prefix - 0 (the default) to
@@ -601,8 +621,8 @@ class SampleService(object):
     def expire_data_link(self, params, context=None):
         """
         Expire a link from a KBase Workspace object.
-            The user must have admin permissions for the sample and write permissions for the
-            Workspace object.
+                The user must have admin permissions for the sample and write permissions for the
+                Workspace object.
         :param params: instance of type "ExpireDataLinkParams"
            (expire_data_link parameters. upa - the workspace upa of the
            object from which the link originates. dataid - the dataid, if
@@ -680,6 +700,66 @@ class SampleService(object):
            "timestamp" (A timestamp in epoch milliseconds.)
         """
         return self._client.call_method('SampleService.get_data_links_from_sample',
+                                        [params], self._service_ver, context)
+
+    def get_data_links_from_sample_set(self, params, context=None):
+        """
+        Get all workspace object metadata linked to samples in a list of samples or sample set
+        refs. Returns metadata about links to data objects. A batch version of
+        get_data_links_from_sample.
+        The user must have read permissions to the sample. A permissions error is thrown when a
+        sample is found that the user has no access to.
+        :param params: instance of type "GetDataLinksFromSampleSetParams"
+           (get_data_links_from_sample_set parameters. sample_ids - a list of
+           sample ids and versions effective_time - the time at which the
+           query was run. This timestamp, if saved, can be used when running
+           the method again to enqure reproducible results. Note that changes
+           to workspace permissions may cause results to change over time.
+           as_admin - run the method as a service administrator. The user
+           must have read administration permissions.) -> structure:
+           parameter "sample_ids" of list of type "SampleIdentifier" ->
+           structure: parameter "id" of type "sample_id" (A Sample ID. Must
+           be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "effective_time" of type "timestamp" (A
+           timestamp in epoch milliseconds.), parameter "as_admin" of type
+           "boolean" (A boolean value, 0 for false, 1 for true.)
+        :returns: instance of type "GetDataLinksFromSampleResults"
+           (get_data_links_from_sample results. links - the links.
+           effective_time - the time at which the query was run. This
+           timestamp, if saved, can be used when running the method again to
+           ensure reproducible results. Note that changes to workspace
+           permissions may cause results to change over time.) -> structure:
+           parameter "links" of list of type "DataLink" (A data link from a
+           KBase workspace object to a sample. upa - the workspace UPA of the
+           linked object. dataid - the dataid of the linked data, if any,
+           within the object. If omitted the entire object is linked to the
+           sample. id - the sample id. version - the sample version. node -
+           the sample node. createdby - the user that created the link.
+           created - the time the link was created. expiredby - the user that
+           expired the link, if any. expired - the time the link was expired,
+           if at all.) -> structure: parameter "linkid" of type "link_id" (A
+           link ID. Must be globally unique. Always assigned by the Sample
+           service. Typically only of use to service admins.), parameter
+           "upa" of type "ws_upa" (A KBase Workspace service Unique Permanent
+           Address (UPA). E.g. 5/6/7 where 5 is the workspace ID, 6 the
+           object ID, and 7 the object version.), parameter "dataid" of type
+           "data_id" (An id for a unit of data within a KBase Workspace
+           object. A single object may contain many data units. A dataid is
+           expected to be unique within a single object. Must be less than
+           255 characters.), parameter "id" of type "sample_id" (A Sample ID.
+           Must be globally unique. Always assigned by the Sample service.),
+           parameter "version" of type "version" (The version of a sample.
+           Always > 0.), parameter "node" of type "node_id" (A SampleNode ID.
+           Must be unique within a Sample and be less than 255 characters.),
+           parameter "createdby" of type "user" (A user's username.),
+           parameter "created" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "expiredby" of type "user" (A user's
+           username.), parameter "expired" of type "timestamp" (A timestamp
+           in epoch milliseconds.), parameter "effective_time" of type
+           "timestamp" (A timestamp in epoch milliseconds.)
+        """
+        return self._client.call_method('SampleService.get_data_links_from_sample_set',
                                         [params], self._service_ver, context)
 
     def get_data_links_from_data(self, params, context=None):
