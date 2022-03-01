@@ -13,13 +13,13 @@ jobs:
     steps:
     - name: Check Tag
       id: check-tag
-      run: |
-        if [[ ${{ github.event.ref }} =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-           echo ::set-output name=match::true
-          fi
-     - name: Report SemVer Check
-      if: steps.check-tag.outputs.match == 'false'
-        run: exit 1 // Release version must follow semantic naming (e.g. 1.0.2)
+      run: |-
+        if [[ ${{ github.ref_name }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo ::set-output name=match::true
+        fi
+    - name: Report SemVer Check
+      if: steps.check-tag.outputs.match != 'true'
+      run: echo "Release version must follow semantic naming (e.g. 1.0.2)"; exit 1
     - name: Check out GitHub Repo
       with:
         ref: "${{ github.event.pull_request.head.sha }}"
