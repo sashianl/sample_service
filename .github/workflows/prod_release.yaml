@@ -11,9 +11,9 @@ jobs:
   docker_build:
     runs-on: ubuntu-latest
     steps:
-#    - name: Verify merge is develop > main
-#      if: github.head_ref != 'develop'
-#      run: exit 1 // Must merge from develop > main/master
+    - name: Verify semantic version
+      if: github.ref_name != '[0-9]+.[0-9]+.[0-9]+'
+      run: exit 1 // Releases must use semantic versioning (e.g. 1.0.3)
     - name: Check out GitHub Repo
       with:
         ref: "${{ github.event.pull_request.head.sha }}"
