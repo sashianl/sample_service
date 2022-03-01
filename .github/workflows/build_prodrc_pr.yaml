@@ -15,7 +15,7 @@ jobs:
     steps:
     - name: Verify merge is develop -> main
       if: github.head_ref != 'develop'
-      run: exit 1 // Must merge from develop -> main/master
+      run: exit 1 // Must merge from develop > main/master
     - name: Check out GitHub Repo
       if: github.event.pull_request.draft == false && github.head_ref == 'develop'
       with:
