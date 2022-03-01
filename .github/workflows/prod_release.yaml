@@ -19,7 +19,7 @@ jobs:
         fi
     - name: Report SemVer Check
       if: steps.check-tag.outputs.match != 'true'
-      run: exit 1 // Release version must use semantic version naming
+      run: echo "Release version must follow semantic naming e.g. 1.0.2"; exit 1
     - name: Check out GitHub Repo
       with:
         ref: "${{ github.event.pull_request.head.sha }}"
