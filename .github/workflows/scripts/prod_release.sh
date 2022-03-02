@@ -6,6 +6,7 @@ export DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 export BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 export COMMIT=$(echo "$SHA" | cut -c -7)
 
+echo "ISH is:" $ISH
 echo "GITHUB_REF is:" $GITHUB_REF
 echo "HEAD_REF is:" $GITHUB_HEAD_REF
 echo "BASE_REF is:" $GITHUB_BASE_REF
