@@ -6,7 +6,10 @@ export DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 export BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 export COMMIT=$(echo "$SHA" | cut -c -7)
 
-echo "Ref name is:" $GITHUB_REF_NAME
+echo "GITHUB_REF is:" $GITHUB_REF
+echo "HEAD_REF is:" $GITHUB_HEAD_REF
+echo "BASE_REF is:" $GITHUB_BASE_REF
+echo "Release is:" $GITHUB_REF_NAME
 echo $DOCKER_TOKEN | docker login ghcr.io -u $DOCKER_ACTOR --password-stdin
 docker build --build-arg BUILD_DATE="$DATE" \
              --build-arg COMMIT="$COMMIT" \
