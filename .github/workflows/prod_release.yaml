@@ -21,7 +21,7 @@ jobs:
       if: steps.check-tag.outputs.match != 'true'
       run: echo "Release version must follow semantic naming (e.g. 1.0.2)"; exit 1
     - name: Check Source Branch
-      if: github.event.release.target_commitish != 'master'
+      if: github.event.release.target_commitish != 'master' && github.event.release.target_commitish != 'main'
       run: echo "Releases must be built from master/main branch"; exit 1
     - name: Check out GitHub Repo
       with:
