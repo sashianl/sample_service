@@ -1,4 +1,4 @@
-# SampleService
+# SampleService  
 
 Build status (master):
 [![Build Status](https://travis-ci.org/kbase/sample_service.svg?branch=master)](https://travis-ci.org/kbase/sample_service)
