@@ -1731,7 +1731,8 @@ def test_create_and_get_data_link(samplestorage):
         'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     link2 = samplestorage._col_data_link.get('42_42_42_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1753,7 +1754,8 @@ def test_create_and_get_data_link(samplestorage):
         'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
@@ -1775,7 +1777,8 @@ def test_create_and_get_data_link(samplestorage):
         'created': 700000,
         'createby': 'u',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1797,7 +1800,8 @@ def test_create_and_get_data_link(samplestorage):
         'created': 800000,
         'createby': 'userd',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     # test get method
@@ -1899,7 +1903,8 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -1921,7 +1926,8 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
         'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     # test get method
@@ -2019,7 +2025,8 @@ def test_create_data_link_with_update_noop(samplestorage):
         'created': 500000,
         'createby': 'usera',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -2041,7 +2048,8 @@ def test_create_data_link_with_update_noop(samplestorage):
         'created': 550000,
         'createby': 'user',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     # test get method
@@ -2136,7 +2144,8 @@ def test_create_data_link_with_update(samplestorage):
         'created': 500000,
         'createby': 'usera',
         'expired': 599999,
-        'expireby': 'userb'
+        'expireby': 'userb',
+        'clabels': []
     }
 
     link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0')
@@ -2158,7 +2167,8 @@ def test_create_data_link_with_update(samplestorage):
         'created': 550000,
         'createby': 'user',
         'expired': 699999,
-        'expireby': 'userc'
+        'expireby': 'userc',
+        'clabels': []
     }
 
     link3 = samplestorage._col_data_link.get('5_89_32')
@@ -2180,7 +2190,8 @@ def test_create_data_link_with_update(samplestorage):
         'created': 600000,
         'createby': 'userb',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
@@ -2202,7 +2213,8 @@ def test_create_data_link_with_update(samplestorage):
         'created': 700000,
         'createby': 'userc',
         'expired': 9007199254740991,
-        'expireby': None
+        'expireby': None,
+        'clabels': []
     }
 
     # test get method. Expired, so DUID won't work here
@@ -2952,7 +2964,8 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
         'created': -100000,
         'createby': 'userb',
         'expired': expired * 1000,
-        'expireby': 'yay'
+        'expireby': 'yay',
+        'clabels': []
     }
 
     assert samplestorage.get_data_link(lid) == DataLink(
@@ -3023,7 +3036,8 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
         'created': 5000,
         'createby': 'usera',
         'expired': expired * 1000,
-        'expireby': 'user'
+        'expireby': 'user',
+        'clabels': []
     }
 
     link = samplestorage.get_data_link(lid)

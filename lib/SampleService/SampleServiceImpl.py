@@ -32,6 +32,7 @@ from SampleService.core.user import UserID as _UserID
 from SampleService.impl_methods import (
     update_samples_acls as _update_samples_acls
 )
+from SampleService.core.workspace import DataUnitID
 
 _CTX_USER = 'user_id'
 _CTX_TOKEN = 'token'
@@ -58,8 +59,8 @@ Note that usage of the administration flags will be logged by the service.
     # the latter method is running.
     ######################################### noqa
     VERSION = "0.2.1"
-    GIT_URL = "git@github.com:charleshtrenholm/sample_service.git"
-    GIT_COMMIT_HASH = "aa0303c4d5d4aa1e3cf0c9ecb36366fb1127f93e"
+    GIT_URL = "git@github.com:kbase/sample_service.git"
+    GIT_COMMIT_HASH = "46f2e78b60ccdb4f1bdcabafc2eb213b6525783a"
 
     #BEGIN_CLASS_HEADER
     #END_CLASS_HEADER
@@ -875,6 +876,69 @@ Note that usage of the administration flags will be logged by the service.
             duid,
             as_admin=as_admin)
         #END expire_data_link
+        pass
+
+    def label_data_links(self, ctx, params):
+        """
+        Label data links.
+                The user must have write permissions for the Workspace object.
+        :param params: instance of type "LabelDataLinksParams"
+           (label_data_links parameters. links - the the links to be labeled.
+           add_labels - the labels to be added to the links. remove_labels -
+           the labels to be removed from the links. as_admin - run the method
+           as a service administrator. The user must have full administration
+           permissions. as_user - label the links as a different user.
+           Ignored if as_admin is not true. Neither the administrator nor the
+           impersonated user need have permissions to the link if a new
+           version is saved.) -> structure: parameter "links" of list of type
+           "DataLink" (A data link from a KBase workspace object to a sample.
+           upa - the workspace UPA of the linked object. dataid - the dataid
+           of the linked data, if any, within the object. If omitted the
+           entire object is linked to the sample. id - the sample id. version
+           - the sample version. node - the sample node. createdby - the user
+           that created the link. created - the time the link was created.
+           expiredby - the user that expired the link, if any. expired - the
+           time the link was expired, if at all.) -> structure: parameter
+           "linkid" of type "link_id" (A link ID. Must be globally unique.
+           Always assigned by the Sample service. Typically only of use to
+           service admins.), parameter "upa" of type "ws_upa" (A KBase
+           Workspace service Unique Permanent Address (UPA). E.g. 5/6/7 where
+           5 is the workspace ID, 6 the object ID, and 7 the object
+           version.), parameter "dataid" of type "data_id" (An id for a unit
+           of data within a KBase Workspace object. A single object may
+           contain many data units. A dataid is expected to be unique within
+           a single object. Must be less than 255 characters.), parameter
+           "id" of type "sample_id" (A Sample ID. Must be globally unique.
+           Always assigned by the Sample service.), parameter "version" of
+           type "version" (The version of a sample. Always > 0.), parameter
+           "node" of type "node_id" (A SampleNode ID. Must be unique within a
+           Sample and be less than 255 characters.), parameter "createdby" of
+           type "user" (A user's username.), parameter "created" of type
+           "timestamp" (A timestamp in epoch milliseconds.), parameter
+           "expiredby" of type "user" (A user's username.), parameter
+           "expired" of type "timestamp" (A timestamp in epoch
+           milliseconds.), parameter "add_labels" of list of String,
+           parameter "remove_labels" of list of String, parameter "as_admin"
+           of type "boolean" (A boolean value, 0 for false, 1 for true.),
+           parameter "as_user" of type "user" (A user's username.)
+        """
+        # ctx is the context object
+        #BEGIN label_data_links
+        as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
+        _check_admin(
+            self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,
+            # pretty annoying to test ctx.log_info is working, do it manually
+            'label_data_links', ctx.log_info, as_user=user, skip_check=not as_admin)
+
+        duids = [DataUnitID(dl.get('ws_upa'), dl.get('data_id')) for dl in params.get('links')]
+
+        self._samples.label_data_links(
+            user if user else _UserID(ctx[_CTX_USER]),
+            duids,
+            params.get('add_labels',[]),
+            params.get('remove_labels',[]),
+        )
+        #END label_data_links
         pass
 
     def get_data_links_from_sample(self, ctx, params):

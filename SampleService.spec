@@ -487,6 +487,31 @@ module SampleService {
     */
     funcdef expire_data_link(ExpireDataLinkParams params) returns() authentication required;
 
+    /* label_data_links parameters.
+
+        links - the the links to be labeled.
+        add_labels - the labels to be added to the links.
+        remove_labels - the labels to be removed from the links.
+        as_admin - run the method as a service administrator. The user must have full
+            administration permissions.
+        as_user - label the links as a different user. Ignored if as_admin is not true. Neither
+            the administrator nor the impersonated user need have permissions to the link if a
+            new version is saved.
+    */
+    typedef structure {
+        list<DataLink> links;
+        list<string> add_labels;
+        list<string> remove_labels;
+        boolean as_admin;
+        user as_user;
+    } LabelDataLinksParams;
+
+    /* Label data links.
+
+        The user must have write permissions for the Workspace object.
+    */
+    funcdef label_data_links(LabelDataLinksParams params) returns() authentication required;
+
     /* get_data_links_from_sample parameters.
 
         id - the sample ID.

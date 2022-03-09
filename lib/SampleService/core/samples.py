@@ -396,6 +396,29 @@ class Samples:
                 self._kafka.notify_expired_link(expired_id)
         return dl
 
+    def label_data_links(self, user: UserID, duids: List[DataUnitID], add_labels: List[str], remove_labels: List[str], as_admin: bool = False) -> None:
+        '''
+        Label a list of data links. The user must have admin access to the sample,
+        since labeling data grants permissions: once labeled, if a user
+        has access to the data unit, the user also has access to the sample.
+
+        :param user: the user labeling the links.
+        :param links: the links to label.
+        :param as_admin: allow label creation to proceed if user does not
+        '''
+        _not_falsy(user, 'user')
+        _not_falsy(duids, 'duids')
+        wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.WRITE
+
+        # check permissions on the links' data objects
+        # as a set so we dont check permissions on the same workspace twice
+        required_workspaces = set(duid.upa.wsid for duid in duids)
+        for ws_id in required_workspaces:
+            self._ws.has_permission(user, wsperm, workspace_id=ws_id)
+
+        self._storage.label_data_links(duids, add_labels, remove_labels)
+
+
     def expire_data_link(self, user: UserID, duid: DataUnitID, as_admin: bool = False) -> None:
         '''
         Expire a data link, ensuring that it will not show up in link queries without an effective

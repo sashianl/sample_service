@@ -159,6 +159,7 @@ _FLD_LINK_CREATED = 'created'
 _FLD_LINK_CREATED_BY = 'createby'
 _FLD_LINK_EXPIRED = 'expired'
 _FLD_LINK_EXPIRED_BY = 'expireby'
+_FLD_LINK_CONTROLLED_LABELS = 'clabels'
 
 # see https://www.arangodb.com/2018/07/time-traveling-with-graph-databases/
 _ARANGO_MAX_INTEGER = 2**53 - 1
@@ -1293,7 +1294,8 @@ class ArangoSampleStorage:
             # recording the integer version saves looking it up in the version doc and it's
             # immutable so denormalization is ok here
             _FLD_LINK_SAMPLE_INT_VERSION: sna.version,
-            _FLD_LINK_SAMPLE_NODE: sna.node
+            _FLD_LINK_SAMPLE_NODE: sna.node,
+            _FLD_LINK_CONTROLLED_LABELS: link.controlled_labels,
         }
 
     def _get_link_doc_from_link_id(self, id_):
@@ -1316,6 +1318,44 @@ class ArangoSampleStorage:
         if not linkdoc:
             raise _NoSuchLinkError(str(duid))
         return linkdoc
+
+    def label_data_links(
+        self,
+        duids: List[DataUnitID],
+        add_labels: List[str],
+        remove_labels: List[str]) -> List[DataLink]:
+        '''Set or remove labels from a data link.'''
+        # validate labels to be added
+        for label in add_labels:
+            if False: # todo: check controlled_labels
+                raise ValueError(f'Cannot add invalid controlled label "{add}"')
+        # create transaction
+        tdb = self._db.begin_transaction(
+            read=self._col_data_link.name,
+            write=self._col_data_link.name)
+        try:
+            tdlc = tdb.collection(self._col_data_link.name)
+            linkdocs = []
+            for duid in duids:
+                linkdoc = self._get_link_doc_from_duid(duid)
+                labels = linkdoc[_FLD_LINK_CONTROLLED_LABELS]
+                # add and remove labels from doc
+                for rem in remove_labels:
+                    if rem in labels:
+                        labels.remove(rem)
+                for add in add_labels:
+                    if add not in labels:
+                        labels.append(add)
+                # update the link doc (in transaction)
+                tdlc.update(linkdoc)
+                linkdocs.append(linkdoc)
+            # nothing thrown, so commit the transaction
+            self._commit_transaction(tdb)
+            return linkdocs
+        finally:
+            # rollback if an exception was thrown
+            self._abort_transaction(tdb)
+
 
     def expire_data_link(
             self,
@@ -1438,7 +1478,8 @@ class ArangoSampleStorage:
             self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(doc[_FLD_LINK_CREATED])),
             UserID(doc[_FLD_LINK_CREATED_BY]),
             None if ex == _ARANGO_MAX_INTEGER else self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(ex)),
-            UserID(doc[_FLD_LINK_EXPIRED_BY]) if doc[_FLD_LINK_EXPIRED_BY] else None
+            UserID(doc[_FLD_LINK_EXPIRED_BY]) if doc[_FLD_LINK_EXPIRED_BY] else None,
+            doc.get(_FLD_LINK_CONTROLLED_LABELS, [])
         )
 
     def _doc_to_dataunit_id(self, doc) -> DataUnitID:

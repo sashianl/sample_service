@@ -4,6 +4,7 @@ service) to samples.
 '''
 
 from __future__ import annotations
+from typing import Optional, List
 
 import datetime
 import uuid
@@ -25,6 +26,7 @@ class DataLink:
     :ivar created_by: the user that created the link.
     :ivar expired: the expiration time or None if the link is not expired.
     :ivar expired_by: the user that expired the link or None if the link is not expired.
+    :ivar controlled_labels: Controlled vocabulary labels for this link.
     '''
 
     def __init__(
@@ -35,7 +37,8 @@ class DataLink:
             created: datetime.datetime,
             created_by: UserID,
             expired: datetime.datetime = None,
-            expired_by: UserID = None):
+            expired_by: UserID = None,
+            controlled_labels: Optional[List[str]] = None):
         '''
         Create the link. If expired is provided expired_by must also be provided. If expired
         is falsy expired_by is ignored.
@@ -47,6 +50,7 @@ class DataLink:
         :param created_by: the user that created the link.
         :param expired: the expiration time for the link or None if the link is not expired.
         :param expired_by: the user that expired the link or None if the link is not expired.
+        :param controlled_labels: Controlled vocabulary labels for this link.
         '''
         # may need to make this non ws specific. YAGNI for now.
         self.id = _not_falsy(id_, 'id_')
@@ -56,6 +60,7 @@ class DataLink:
         self.created_by = _not_falsy(created_by, 'created_by')
         self.expired = None
         self.expired_by = None
+        self.controlled_labels = controlled_labels if controlled_labels else [] # todo: check controlled_labels
         if expired:
             self.expired = _check_timestamp(expired, 'expired')
             if expired < created:
