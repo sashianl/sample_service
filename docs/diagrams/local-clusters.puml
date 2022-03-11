@@ -1,0 +1,104 @@
+@startuml local-clusters
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title "Sample Service - With ArangoDB Cluster"
+
+System_Boundary(host, "Host", "Developer host machine") {
+    Container(browser, "Browser", "web browser")
+}
+
+System_Boundary(docker, "Docker", "") {
+    Container(sample_service, "SampleService")
+    Container(arangodb_load_balancer, "ArangoDB Load Balancer")
+    Container(agency1, "Agency 1", "configuration")
+    Container(agency2, "Agency 2", "configuration")
+    Container(agency3, "Agency 3", "configuration")
+    Container(coordinator1, "Coordinator 1", "serves requests, executes queries")
+    Container(coordinator2, "Coordinator 2", "serves requests, executes queries")
+    Container(coordinator3, "Coordinator 3", "serves requests, executes queries")
+    Container(db1, "Database 1", "stores, fetches data")
+    Container(db2, "Database 2", "stores, fetches data")
+    Container(db3, "Database 3", "stores, fetches data")
+
+    Container(kafka, "Kafka", "Messages between systems")
+    Container(zookeeper, "Zookeeper", "Configuration")
+    Container(service_mocker, "Service Mocker", "KBase service simulator")
+    Container(mock_auth, "Auth (mock)", "implements auth methods (REST)")
+    Container(mock_workspace, "Workspace (mock)", "implements workspace methods (JSON-RPC/1.1")
+    Container(mock_data, "Data")
+}
+
+
+Rel(browser, sample_service, "request")
+
+Rel(sample_service, arangodb_load_balancer, "calls")
+Rel(sample_service, kafka, "calls")
+Rel(sample_service, service_mocker, "calls (workspace)")
+Rel(sample_service, service_mocker, "calls (auth)")
+
+Rel(arangodb_load_balancer, coordinator1, "proxies")
+Rel(arangodb_load_balancer, coordinator2, "proxies")
+Rel(arangodb_load_balancer, coordinator3, "proxies")
+
+
+Rel(agency1, agency2, "uses")
+Rel(agency1, agency3, "uses")
+Rel(agency1, agency2, "uses")
+Rel(agency1, agency3, "uses")
+Rel(agency1, agency3, "uses")
+Rel(agency1, agency3, "uses")
+
+Rel(agency2, agency1, "uses")
+Rel(agency2, agency1, "uses")
+Rel(agency2, agency1, "uses")
+
+Rel(agency2, agency3, "uses")
+Rel(agency2, agency3, "uses")
+Rel(agency2, agency3, "uses")
+
+Rel(agency3, agency1, "uses")
+Rel(agency3, agency1, "uses")
+Rel(agency3, agency1, "uses")
+
+Rel(agency3, agency2, "uses")
+Rel(agency3, agency2, "uses")
+Rel(agency3, agency2, "uses")
+
+
+Rel(coordinator1, agency1, "uses")
+Rel(coordinator2, agency1, "uses")
+Rel(coordinator3, agency1, "uses")
+Rel(coordinator1, agency2, "uses")
+Rel(coordinator2, agency2, "uses")
+Rel(coordinator3, agency2, "uses")
+Rel(coordinator1, agency3, "uses")
+Rel(coordinator2, agency3, "uses")
+Rel(coordinator3, agency3, "uses")
+
+Rel(db1, agency1, "uses")
+Rel(db2, agency1, "uses")
+Rel(db3, agency1, "uses")
+Rel(db1, agency2, "uses")
+Rel(db2, agency2, "uses")
+Rel(db3, agency2, "uses")
+Rel(db1, agency3, "uses")
+Rel(db2, agency3, "uses")
+Rel(db3, agency3, "uses")
+
+Rel(coordinator1, db1, "uses")
+Rel(coordinator1, db2, "uses")
+Rel(coordinator1, db3, "uses")
+Rel(coordinator2, db1, "uses")
+Rel(coordinator3, db2, "uses")
+Rel(coordinator3, db3, "uses")
+Rel(coordinator3, db1, "uses")
+Rel(coordinator3, db2, "uses")
+Rel(coordinator3, db3, "uses")
+
+Rel(service_mocker, mock_auth, "implements")
+Rel(service_mocker, mock_workspace, "implements")
+Rel(mock_auth, mock_data, "uses")
+Rel(mock_workspace, mock_data, "uses")
+
+Rel(kafka, zookeeper, "uses")
+

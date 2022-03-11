@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* Add developer support for arango cluster [SCT-3172].
 
 ## 0.2.1
 

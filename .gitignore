@@ -1,10 +1,27 @@
-.DS_Store
-.idea
+# IDEs and dev tools
+.vscode
+.cspell
+kb-sdk
+lib/SampleService/SampleServiceImpl.py.bak*
+
+# Dev data which should not persist
+dev/data/arangodb
+
+# Python local usage
+__pycache__
+
+# Testing
 test/test.cfg
 test_local
-__pycache__
-.vscode
-deploy.cfg
 .coverage
 test/test_temp/
-lib/SampleService/SampleServiceImpl.py.bak*
+deploy.cfg
+htmlcov
+cov_profile.lcov
+.coverage*
+
+# A handy place to stash files before deletion 
+_temp
+
+# macOS
+.DS_Store
