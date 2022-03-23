@@ -1027,7 +1027,7 @@ class ArangoSampleStorage:
         aql += '''
                         }
                     } IN @@col
-                RETURN s
+                RETURN NEW
             '''
 
         try:
