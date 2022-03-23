@@ -901,7 +901,7 @@ class ArangoSampleStorage:
                 UPDATE s WITH {{{_FLD_ACLS}: MERGE(s.{_FLD_ACLS}, @acls),
                                 {_FLD_ACL_UPDATE_TIME}: @ts
                                 }} IN @@col
-                RETURN s
+                RETURN NEW
             '''
         bind_vars = {'@col': self._col_sample.name,
                      'id': str(id_),
