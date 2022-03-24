@@ -250,7 +250,8 @@ class ArangoSampleStorage:
             db, schema_collection, 'schema collection', 'schema_collection')
         self._ensure_indexes()
         self._check_schema()
-        self._reaper_updatable_delay = datetime.timedelta(hours=1)  # make configurable?
+        self._reaper_deletion_delay = datetime.timedelta(hours=1)  # make configurable?
+        self._reaper_update_delay = datetime.timedelta(minutes=1)  # make configurable?
         self._check_db_updated()
         self._scheduler = self._build_scheduler()
 
@@ -318,15 +319,14 @@ class ArangoSampleStorage:
                 uver = UUID(doc[_FLD_UUID_VER])
                 ts = self._timestamp_to_datetime(self._timestamp_milliseconds_to_seconds(doc[_FLD_SAVE_TIME]))
                 sampledoc = self._get_sample_doc(id_, exception=False)
-                # Do not update this document if it was last updated less than _reaper_updatable_delay ago
-                # this is to avoid writing to a document in the process of being creeated
-                if self._now() - ts < self._reaper_updatable_delay:
-                    continue
-                    
                 if not sampledoc:
                     # the sample document was never saved for this version doc
                     self._delete_version_and_node_docs(uver, ts)
                 else:
+                    # Do not update this document if it was last updated less than _reaper_update_delay ago
+                    # this is to avoid writing to a document in the process of being creeated
+                    if self._now() - ts < self._reaper_update_delay:
+                        continue
                     version = self._get_int_version_from_sample_doc(sampledoc, str(uver))
                     if version:
                         self._update_version_and_node_docs_with_find(id_, uver, version)
@@ -343,16 +343,17 @@ class ArangoSampleStorage:
         return None
 
     def _delete_version_and_node_docs(self, uuidver, savedate):
-        print('deleting docs', self._now(), savedate, self._reaper_updatable_delay)
-        try:
-            # TODO logging
-            # delete edge docs first to ensure we don't orphan them
-            self._col_ver_edge.delete_match({_FLD_UUID_VER: str(uuidver)})
-            self._col_version.delete_match({_FLD_UUID_VER: str(uuidver)})
-            self._col_node_edge.delete_match({_FLD_UUID_VER: str(uuidver)})
-            self._col_nodes.delete_match({_FLD_UUID_VER: str(uuidver)})
-        except _arango.exceptions.DocumentDeleteError as e:
-            # this is a real pain to test.
+        if self._now() - savedate > self._reaper_deletion_delay:
+            print('deleting docs', self._now(), savedate, self._reaper_deletion_delay)
+            try:
+                # TODO logging
+                # delete edge docs first to ensure we don't orphan them
+                self._col_ver_edge.delete_match({_FLD_UUID_VER: str(uuidver)})
+                self._col_version.delete_match({_FLD_UUID_VER: str(uuidver)})
+                self._col_node_edge.delete_match({_FLD_UUID_VER: str(uuidver)})
+                self._col_nodes.delete_match({_FLD_UUID_VER: str(uuidver)})
+            except _arango.exceptions.DocumentDeleteError as e:
+                # this is a real pain to test.
             raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _build_scheduler(self):
