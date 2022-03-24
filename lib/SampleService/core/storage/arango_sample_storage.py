@@ -354,7 +354,7 @@ class ArangoSampleStorage:
                 self._col_nodes.delete_match({_FLD_UUID_VER: str(uuidver)})
             except _arango.exceptions.DocumentDeleteError as e:
                 # this is a real pain to test.
-            raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
+                raise _SampleStorageError('Connection to database failed: ' + str(e)) from e
 
     def _build_scheduler(self):
         schd = _BackgroundScheduler()
