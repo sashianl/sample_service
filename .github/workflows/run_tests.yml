@@ -1,11 +1,7 @@
-name: non-sdk tests
+name: Run Tests
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-  workflow_dispatch:
+on:  [push, pull_request, workflow_dispatch]
+
 
 jobs:
   non_sdk_tests:
