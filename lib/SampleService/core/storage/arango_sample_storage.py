@@ -324,7 +324,7 @@ class ArangoSampleStorage:
                     self._delete_version_and_node_docs(uver, ts)
                 else:
                     # Do not update this document if it was last updated less than _reaper_update_delay ago
-                    # this is to avoid writing to a document in the process of being creeated
+                    # this is to avoid writing to a document in the process of being created
                     if self._now() - ts < self._reaper_update_delay:
                         continue
                     version = self._get_int_version_from_sample_doc(sampledoc, str(uver))
