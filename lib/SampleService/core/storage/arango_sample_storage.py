@@ -251,7 +251,7 @@ class ArangoSampleStorage:
         self._ensure_indexes()
         self._check_schema()
         self._reaper_deletion_delay = datetime.timedelta(hours=1)  # make configurable?
-        self._reaper_update_delay = datetime.timedelta(minutes=1)  # make configurable?
+        self._reaper_update_delay = datetime.timedelta(minutes=5)  # make configurable?
         self._check_db_updated()
         self._scheduler = self._build_scheduler()
 
