@@ -666,7 +666,7 @@ class ArangoSampleStorage:
         return SavedSample(
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
-    def get_samples(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
+    def get_samples_original(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
         '''
         ids_: list of dictionaries containing "id" and "version" field.
         '''
@@ -687,6 +687,88 @@ class ArangoSampleStorage:
                 nodes, dt, verdoc[_FLD_NAME], version
             ))
         return samples
+
+    def get_samples(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
+        '''
+        ids_: list of dictionaries containing "id" and "version" field.
+        '''
+
+        # TODO: original behavior or get_samples was to return
+        # the max version if no version was provided. This does not
+        # currently explicitly handle that case. I think you can just
+        # specify max version after the fact because AQL has lazy
+        # semantics and will evaluate doc.vers[null - 1] somehow
+        # magically as the most recent version
+
+        aql = f'''
+            FOR id in @ids
+                LET doc = DOCUMENT(@@samples, id.id)
+                LET version_id = doc.vers[id.version - 1]
+                LET version_record = (FOR v in @@version
+                    FILTER v.uuidver == version_id
+                    RETURN v
+                )
+                LET nodes = (FOR node IN @@nodes
+                    FILTER node.uuidver == version_id
+                    RETURN node
+                )
+                RETURN {{
+                    'nodes': nodes,
+                    'verdoc': version_id,
+                    'id': id.id,
+                    'version': id.version,
+                    'version_record': version_record[0]
+                }}
+        '''
+
+        # convert UUID to strings for DB
+        for id_ in ids_:
+            id_['id'] = str(id_['id'])
+
+        aql_bind = {
+            'ids': ids_,
+            '@samples': self._col_sample.name,
+            '@nodes': self._col_nodes.name,
+            '@version': self._col_version.name
+        }
+
+        samples = []
+        # convert doc structure back into SavedSample
+
+        # TODO: double check that i should actually be returning a list
+        # of sample nodes rather than just one
+        for doc in self._db.aql.execute(aql, bind_vars=aql_bind):
+            nodes = self._docs_to_nodes(doc['nodes'])
+            verdoc = doc['version_record']
+            dt = self._timestamp_to_datetime(
+                self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
+            )
+            samples.append(SavedSample(
+                UUID(doc[_FLD_ID]), # double check this, pretty sure thats what it is
+                UserID(verdoc[_FLD_USER]),
+                nodes, dt, verdoc[_FLD_NAME], doc['version']
+            ))
+        return samples
+
+    def _docs_to_nodes(self, nodedocs: List[_Dict[str, _Any]]) -> List[_SampleNode]:
+        index_to_node = {}
+        for n in nodedocs:
+            if n[_FLD_VER] == _VAL_NO_VER:
+                # since it's assumed the version id came from the sample doc, the implication
+                # is that the db or server lost connection before the version could be updated
+                # and the reaper hasn't caught it yet, so we go ahead and fix it.
+                # self._update_version_and_node_docs_with_find(id_, ver, version)
+                pass
+            index_to_node[n[_FLD_NODE_INDEX]] = _SampleNode(
+                n[_FLD_NODE_NAME],
+                _SubSampleType[n[_FLD_NODE_TYPE]],
+                n[_FLD_NODE_PARENT],
+                self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
+                self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
+                # allow for compatatibility with old samples without a source meta field
+                self._list_to_source_meta(n.get(_FLD_NODE_SOURCE_METADATA, [])),
+                )
+        return [index_to_node[i] for i in range(len(index_to_node))]
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, dict, int]:
