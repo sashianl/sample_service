@@ -45,7 +45,7 @@ This section describes how to get `pipenv` up and running on macOS. These instru
   If you look for `pipenv` from the command line, you'll find it is not found:
 
   ```sh
-  erikpearson@Eriks-MBP ~ % which pipenv
+  % which pipenv
   pipenv not found
   ```
 
@@ -88,7 +88,7 @@ This section describes how to get `pipenv` up and running on macOS. These instru
 `pipenv` will automatically create a virtual environment for you, stored in a location like:
 
 ```sh
-/Users/erikpearson/.local/share/virtualenvs/temp-Y3u9pGcy
+/Users/YOURACCOUNT/.local/share/virtualenvs/temp-Y3u9pGcy
 ```
 
 `pipenv` creates this virtual env based on your current directory, and knows how to locate it when you issue `pipenv` commands in that directory.
@@ -103,7 +103,17 @@ pipenv --rm
 
 within the directory in which you ran `pipenv` previously.
 
+## Using `pipenv` on Linux
+
+> TODO: Please contribute to this section if you develop on Linux
+
+## Using `pipenv` on Windows
+
+> TODO: Please contribute this section if you develop on  Windows
+
 ## IDEs
+
+Development IDEs may provide direct pipenv support, which is critical for code analysis tools which, for example, highlight unknown imports or typing issues. With pipenv support, the IDE can index all dependencies, and even provide the ability to manage dependencies via their interfaces. 
 
 ### Visual Studio Code
 
@@ -112,9 +122,9 @@ within the directory in which you ran `pipenv` previously.
     E.g. 
 
     ```sh
-    ((sample_service) ) erikpearson@Eriks-MBP sample_service % which python
-    /Users/erikpearson/.local/share/virtualenvs/sample_service-reumRtLV/bin/python
-    ((sample_service) ) erikpearson@Eriks-MBP sample_service % 
+    ((sample_service) ) YOURACCOUNT@HOSTNAME sample_service % which python
+    /Users/YOURACCOUNT/.local/share/virtualenvs/sample_service-reumRtLV/bin/python
+    ((sample_service) ) YOURACCOUNT@HOSTNAME sample_service % 
     ```
 
 - Copy the resulting file path.
@@ -122,7 +132,7 @@ within the directory in which you ran `pipenv` previously.
     E.g.
 
     ```sh
-    /Users/erikpearson/.local/share/virtualenvs/sample_service-reumRtLV/bin/python
+    /Users/YOURACCOUNT/.local/share/virtualenvs/sample_service-reumRtLV/bin/python
     ```
 
 - Then we set this as the interpreter:
@@ -136,4 +146,8 @@ within the directory in which you ran `pipenv` previously.
 
   - Paste in the copied path and hit Return
 
-- You should have have a fully functioning Python development setup for VSC!
+- You should have a fully functioning Python development setup for VSC!
+
+### Your Favorite IDE
+
+> TODO: Please contribute a section for your favorite IDE!

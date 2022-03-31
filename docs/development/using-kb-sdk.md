@@ -12,7 +12,7 @@ This document describes, in a nutshell, current practice.
 
 ### Compilation
 
-This is a Python project, so there is no real code compilation. However, the "compile" command, as configured in the project's `Makefile` and implemented in `kb-sdk`, does more than compile a project which requires compilation. It also generates code.
+This is a Python project, so there is no real code compilation. However, the "compile" command, as configured in the project's `Makefile` and implemented in `kb-sdk`, does more than compile a project which requires compilation. It also validates the api spec and generates code.
 
 Typically, a `kb_sdk` service is maintained by updating the "spec file" (`SampleService.spec`) and then running `make compile`. This would:
 
@@ -37,7 +37,7 @@ Rather, tests are run via `make test-sdkless`.
 
 The `kb-sdk` command is made available through a docker container, which uses an image based on the latest release of `kb_sdk`.
 
-You can consult the [KBase SDK Docs](https://kbase.github.io/kb_sdk_docs/tutorial/2_install.html) for the official installation procedure, or follow these somewhat simpler and less intrusive instructions:
+You may consult the [KBase SDK Docs](https://kbase.github.io/kb_sdk_docs/tutorial/2_install.html) for the official installation procedure, or follow these somewhat simpler and less intrusive instructions:
 
 - install `kb-sdk`:
   - `make install-sdk`
@@ -54,4 +54,4 @@ The following command:
 make compile
 ```
 
-will run the compilation.
+will run the compilation, emitting errors if there are problems with the spec file, or generating new or updated method stubs for any newly added or updated function definitions.
