@@ -15,7 +15,12 @@ The Sample Service is a KBase "core service" which supports storage and retrieva
 - [Background](#background)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Documentation](#documentation)
 - [API](#api)
+- [Maintainers](#maintainers)
+- [Thanks](#thanks)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Security
 
@@ -34,7 +39,7 @@ The Sample Service is a KBase "core service" which supports storage and retrieva
 
 > TODO
 
-## Documentation for development, testing, design
+## Documentation
 
 Please see the [Documentation](./docs/index.md) for detailed information on development, testing and design.
 
