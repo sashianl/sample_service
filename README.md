@@ -29,11 +29,24 @@ The Sample Service is a KBase "core service" which supports storage and retrieva
 
 ## Background
 
-> TODO
+The Sample Service provides a means of getting "samples" into the KBase environment. It is therefore tightly bound to the KBase infrastructure; it is not an independently running system.
+
+Sample raw data is "uploaded" to KBase, is "imported" via a Narrative app into the Sample Service, may be "linked" to existing data objects, may contribute specific data to data objects.
+
+A sample is a set of key-value pairs, or fields. If the key matches a pre-defined sample "metadata field", called "controlled" fields, validation constraints will be applied and the value may be transformed. Fields which do not match a controlled field are "user fields", have no constraints, and are not transformed.
+
+The sample service does not capture relations between samples. There is mention in the documentation of sample "trees", but that feature of the sample service has never been fully developed or utilized. Rather sets of samples are maintained in the KBase Workspace in the form of the SampleSet object.
+
+ Samples are stored in ArangoDB, a database shared with the KBase "Relation Engine". The sample service interacts with other KBase and KBase-managed services such as Kafka, Workspace, Auth, and User Profile.
+  
 
 ## Installation
 
-> TODO
+The sample service may be run either locally for development or in a supported runtime environment, e.g. in a KBase environment.
+
+In a development context, the Sample Service may be [run locally](./docs/development/local-docker.md) as a service target or within tests for running integration tests.
+
+Within a KBase environment
 
 ## Usage
 
