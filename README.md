@@ -18,14 +18,12 @@ The Sample Service is a KBase "core service" which supports storage and retrieva
 - [Documentation](#documentation)
 - [API](#api)
 - [Maintainers](#maintainers)
-- [Thanks](#thanks)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Security
 
 > TODO
-
 
 ## Background
 
