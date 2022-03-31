@@ -661,7 +661,7 @@ class ArangoSampleStorage:
         return SavedSample(
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
-    def get_samples_original(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
+    def get_samples(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
         '''
         ids_: list of dictionaries containing "id" and "version" field.
         '''
@@ -683,7 +683,7 @@ class ArangoSampleStorage:
             ))
         return samples
 
-    def get_samples(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
+    def get_samples_(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
         '''
         ids_: list of dictionaries containing "id" and "version" field.
         '''
@@ -732,7 +732,10 @@ class ArangoSampleStorage:
 
         # TODO: double check that i should actually be returning a list
         # of sample nodes rather than just one
-        for doc in self._db.aql.execute(aql, bind_vars=aql_bind):
+        docs = self._db.aql.execute(aql, bind_vars=aql_bind, profile=True, batch_size=4500)
+        print('WHAT IS GOING ON ', docs.profile())
+        print('BATCH SIZE', len(docs.batch()))
+        for doc in docs:
             nodes = self._docs_to_nodes(doc['nodes'])
             verdoc = doc['version_record']
             dt = self._timestamp_to_datetime(
