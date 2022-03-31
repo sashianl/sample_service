@@ -1,0 +1,53 @@
+@startuml system-context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+
+
+System_Boundary(hostComputer, "User's Computer") {
+    Container(samples, "Raw Samples")
+    Container(browser, "Web Browser")
+}
+
+System_Boundary(kbase_environment, "KBase Environment") {
+    Container(sampleService, "Sample Service", "The Sample Service")
+    ContainerDb(arangoDb, "Arango DB", "database")
+    ContainerQueue(kafka, "Kafka", "event streaming")
+    Container(zookeeper, "Zookeeper", "configuration ")
+    Container(workspace, "Workspace", "Narratives, SampleSets")
+    Container(auth, "Auth Service", "authentication")
+    Container(importApp, "Import App", "import samples")
+    Container(stagingService, "Staging Service", "contains raw samples")
+    Container(relationEngine, "Relation Engine", "shadow objects")
+}
+
+System_Boundary(github, "GitHub") {
+    Container(sampleSpecs, "Sample Specs")
+}
+
+
+Rel(browser, samples ,  "accesses")
+Rel(browser, stagingService, "uploads samples")
+Rel(importApp, stagingService, "accesses files")
+
+' Relations for browser apps
+Rel(browser, importApp, "calls")
+Rel(browser, sampleService, "calls")
+Rel(browser, workspace, "calls")
+
+
+' Relations for calls
+Rel(sampleService, arangoDb, "calls", "net")
+Rel(sampleService, kafka, "calls", "net")
+Rel(kafka, zookeeper, "calls", "net")
+Rel(sampleService, workspace, "calls", "net, JSON-RPC 1.1")
+Rel(sampleService, auth, "calls", "net, REST")
+Rel(importApp, sampleService, "calls")
+Rel(relationEngine, arangoDb, "calls", "net")
+
+' Relations for GitHub Access
+Rel(sampleService, sampleSpecs, "accesses")
+Rel(importApp, sampleSpecs, "accesses")
+
+
+
+@enduml

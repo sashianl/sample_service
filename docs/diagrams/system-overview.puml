@@ -1,0 +1,59 @@
+@startuml system-overview
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+System_Boundary(userland, "Userland") {
+    Person(user, "KBase User")
+}
+
+System_Boundary(browser, "Web Browser") {
+    Container(narrative, "Narrative")
+    Container(kbaseui, "KBase UI")
+}
+
+System_Boundary(hostComputer, "User's Computer") {
+    Container(samples, "Raw Samples")
+}
+
+System_Boundary(kbase_environment, "KBase Environment") {
+    Container(sampleService, "Sample Service", "The Sample Service")
+    ContainerDb(arangoDb, "Arango DB", "database")
+    ContainerQueue(kafka, "Kafka", "event streaming")
+    Container(zookeeper, "Zookeeper", "configuration ")
+    Container(workspace, "Workspace", "Narratives, SampleSets")
+    Container(auth, "Auth Service", "authentication")
+    Container(importApp, "Import App", "import samples")
+    Container(stagingService, "Staging Service", "contains raw samples")
+}
+
+' Relations for user
+Rel(user, narrative, "uses")
+Rel(user, kbaseui, "uses")
+
+' Samples and importing
+Rel(user, samples, "creates, edits")
+Rel(narrative, samples ,  "uploads")
+Rel(narrative, stagingService,  "uploadeds")
+
+' Relations for browser apps
+Rel(narrative, sampleService, "calls")
+Rel(narrative, workspace, "calls")
+Rel(narrative, importApp, "calls")
+
+Rel(kbaseui, sampleService, "calls")
+Rel(kbaseui, workspace, "calls")
+
+
+' Relations for calls
+Rel(sampleService, arangoDb, "calls", "net")
+Rel(sampleService, kafka, "calls", "net")
+Rel(kafka, zookeeper, "calls", "net")
+Rel(sampleService, workspace, "calls", "net, JSON-RPC 1.1")
+Rel(sampleService, auth, "calls", "net, REST")
+Rel(importApp, sampleService, "calls")
+
+
+
+
+
+@enduml

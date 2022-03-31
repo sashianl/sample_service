@@ -1,4 +1,4 @@
-# Using Docker Compose for Local Development
+lo# Using Docker Compose for Local Development
 
 Docker compose can be very useful as a development platform. It obviates the need to install the sample service dependencies directly on your host machine.
 

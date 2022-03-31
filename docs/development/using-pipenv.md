@@ -38,6 +38,8 @@ This section describes how to get `pipenv` up and running on macOS. These instru
 
   `pipenv` will be installed by `pip` into `~/Library/Python/3.7/lib/python/site-packages` (module) and `~/Library/Python/3.7/bin` (executable).
 
+  It will be available to your host user account only.
+
 - ensure `pipenv` is runnable:
 
   If you look for `pipenv` from the command line, you'll find it is not found:
@@ -134,4 +136,4 @@ within the directory in which you ran `pipenv` previously.
 
   - Paste in the copied path and hit Return
 
-
+- You should have have a fully functioning Python development setup for VSC!
