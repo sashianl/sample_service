@@ -50,7 +50,87 @@ Within a KBase environment
 
 ## Usage
 
-> TODO
+The Sample Service is used as an API endpoint for various other services, such as the Sample Importer, Narrative, Sample and Sample Set landing pages, and other apps.
+
+It is roughly "kb-sdk compatible", and as such uses the KBase "JSON-RPC-1.1-like" interface over https. 
+
+For API usage consult the generated [api document](http://htmlpreview.github.io/?https://github.com/kbase/sample_service/blob/master/SampleService.html).
+
+For example, here is a call to get a single sample:
+
+```json
+{
+	"version": "1.1",
+	"id": "123",
+	"method": "SampleService.get_sample",
+	"params": [{
+		"id": "4c72858c-5d61-45fb-b47e-974005c1b074",
+		"version": 1
+	}]
+}
+```
+
+> Note that an `Authentication: KBASETOKEN` header (where `KBASETOKEN` is a KBase login or other auth token), is required for private samples, and a `Content-Type: application/json` is recommended.
+
+Which results in (elided to shorten):
+
+```json
+{
+	"version": "1.1",
+	"result": [{
+		"id": "4c72858c-5d61-45fb-b47e-974005c1b074",
+		"user": "eapearson",
+		"name": "0408-FW021.46.11.27.12.02",
+		"node_tree": [{
+			"id": "0408-FW021.46.11.27.12.02",
+			"type": "BioReplicate",
+			"parent": null,
+			"meta_controlled": {
+				"enigma:experiment_name": {
+					"value": "100 Well"
+				},
+				"enigma:area_name": {
+					"value": "Area 1"
+				},
+				"latitude": {
+					"value": 35.97774706,
+					"units": "degrees"
+				}
+			},
+			"meta_user": {
+				"redox_potential_?": {
+					"value": 431.5
+				}
+			},
+			"source_meta": [{
+					"key": "enigma:experiment_name",
+					"skey": "Experiment Name",
+					"svalue": {
+						"value": "100 Well"
+					}
+				},
+				{
+					"key": "enigma:area_name",
+					"skey": "Area Name",
+					"svalue": {
+						"value": "Area 1"
+					}
+				},
+				{
+					"key": "latitude",
+					"skey": "Latitude",
+					"svalue": {
+						"value": 35.97774706
+					}
+				}
+			]
+		}],
+		"save_date": 1642712508378,
+		"version": 1
+	}],
+	"id": "123"
+}
+```
 
 ## Documentation
 
@@ -58,19 +138,26 @@ Please see the [Documentation](./docs/index.md) for detailed information on deve
 
 ## API
 
-> TODO
+The API is documented in the generated [api document](http://htmlpreview.github.io/?https://github.com/kbase/sample_service/blob/master/SampleService.html).
+
+> TODO: In the future a more helpful API description and usage document may be provided.
 
 ## Maintainers
 
-> TODO
-
-## Thanks
-
-> TODO 
+This project is maintained by KBase staff.
 
 ## Contributing
 
-> TODO 
+Contributions to this repo roughly follow gitflow:
+
+- create a feature branch from the develop branch
+  - feature branches should be created to satisfy a JIRA ticket; include the JIRA ticket id in the branch name
+- develop in that feature branch locally
+- create a Pull Request against develop from this feature branch
+- the PR then enters a review/change cycle until the review is complete
+- when complete, the PR is merged into the develop branch 
+- when a release is called for, the develop branch is merged into master, a release is created off of master.
+
 
 ## License
 
