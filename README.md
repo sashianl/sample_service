@@ -8,7 +8,6 @@ Build status (master):
 
 The Sample Service is a KBase "core service" which supports storage and retrieval of experimental sample data. It supports validation, access control, versioning, and linking to KBase data objects. 
 
-
 ## Table of Contents
 
 - [Security](#security)
@@ -37,7 +36,6 @@ The sample service does not capture relations between samples. There is mention 
 
  Samples are stored in ArangoDB, a database shared with the KBase "Relation Engine". The sample service interacts with other KBase and KBase-managed services such as Kafka, Workspace, Auth, and User Profile.
   
-
 ## Installation
 
 The sample service may be run either locally for development or in a supported runtime environment, e.g. in a KBase environment.
@@ -138,8 +136,6 @@ Please see the [Documentation](./docs/index.md) for detailed information on deve
 
 The API is documented in the generated [api document](http://htmlpreview.github.io/?https://github.com/kbase/sample_service/blob/master/SampleService.html).
 
-> TODO: In the future a more helpful API description and usage document may be provided.
-
 ## Maintainers
 
 This project is maintained by KBase staff.
@@ -156,8 +152,6 @@ Contributions to this repo roughly follow gitflow:
 - when complete, the PR is merged into the develop branch 
 - when a release is called for, the develop branch is merged into master, a release is created off of master.
 
-
 ## License
 
 SEE LICENSE IN [LICENSE](./LICENSE)
-
