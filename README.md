@@ -154,4 +154,4 @@ Contributions to this repo roughly follow gitflow:
 
 ## License
 
-SEE LICENSE IN [LICENSE](./LICENSE)
+SEE LICENSE IN [LICENSE](https://raw.githubusercontent.com/kbase/sample_service/master/LICENSE)
