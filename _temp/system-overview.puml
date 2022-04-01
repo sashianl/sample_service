@@ -1,0 +1,30 @@
+@startuml sample-system-overview
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title
+Sample Service
+with service dependencies
+end title
+
+AddRelTag("uploads", $lineColor="orange")
+AddRelTag("calls", $lineColor="green")
+
+System_Boundary(kbase_environment, "KBase Environment") {
+    Container(sampleService, "Sample Service", "JSON-RPC/1.1")
+    ContainerDb(arangoDb, "Arango DB", "REST")
+    ContainerQueue(kafka, "Kafka", "REST", "event streaming")
+    Container(zookeeper, "Zookeeper", "?", "configuration ")
+    Container(workspace, "Workspace", "JSON-RPC/1.1")
+    Container(auth, "Auth Service", "REST", "authentication")
+}
+
+
+' Relations for calls
+Rel(sampleService, arangoDb, "calls", $tags="calls")
+Rel(sampleService, kafka, "calls", $tags="calls")
+Rel(kafka, zookeeper, "calls", $tags="calls")
+Rel(sampleService, workspace, "calls",$tags="calls")
+Rel(sampleService, auth, "calls", $tags="calls")
+
+@enduml
