@@ -1,4 +1,4 @@
-# Architecture Decision Records (ADRs)
+# Architectural Decision Records (ADRs)
 
 ## Contents
 
