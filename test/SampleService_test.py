@@ -730,27 +730,6 @@ def test_create_and_get_samples(sample_port, kafka):
             {'event_type': 'NEW_SAMPLE', 'sample_id': id2_, 'sample_ver': 1}
         ])
 
-def test_get_bulk_samples(sample_port):
-    url = f"http://localhost:{sample_port}"
-    n_samples = 3500
-    ids = _create_samples(url, TOKEN1, n_samples, 1)
-    samples = [{'id': id_, 'version': 1} for id_ in ids]
-    start = time.time()
-    ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
-        'method': 'SampleService.get_samples',
-        'version': '1.1',
-        'id': '42',
-        'params': [{'samples': samples}]
-    })
-    end = time.time()
-    elapsed = end - start
-
-    print('TIME ELAPSED', elapsed)
-    assert elapsed < 60
-    assert False
-
-    time.sleep(20)
-
 
 def test_create_sample_as_admin(sample_port):
     _create_sample_as_admin(sample_port, None, TOKEN2, USER2)

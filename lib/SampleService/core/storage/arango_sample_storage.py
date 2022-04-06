@@ -666,77 +666,57 @@ class ArangoSampleStorage:
         return SavedSample(
             UUID(doc[_FLD_ID]), UserID(verdoc[_FLD_USER]), nodes, dt, verdoc[_FLD_NAME], version)
 
-    def get_samples_original(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
-        '''
-        ids_: list of dictionaries containing "id" and "version" field.
-        '''
-        docs, verdocs, versions = self._get_many_sample_and_version_doc(ids_)
-        samples = []
-        for id_tup in ids_:
-            id_ = str(id_tup['id'])
-            verdoc = verdocs[id_]
-            nodes = self._get_nodes(UUID(id_), UUID(verdoc[_FLD_NODE_UUID_VER]), versions[id_])
-            doc = docs[id_]
-            version = versions[id_]
-            dt = self._timestamp_to_datetime(
-                self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
-            )
-            samples.append(SavedSample(
-                UUID(doc[_FLD_ID]),
-                UserID(verdoc[_FLD_USER]),
-                nodes, dt, verdoc[_FLD_NAME], version
-            ))
-        return samples
-
     def get_samples(self, ids_: List[_Dict[str, _Any]]) -> List[SavedSample]:
         '''
         ids_: list of dictionaries containing "id" and "version" field.
         '''
-
-        # TODO: original behavior or get_samples was to return
-        # the max version if no version was provided. This does not
-        # currently explicitly handle that case. I think you can just
-        # specify max version after the fact because AQL has lazy
-        # semantics and will evaluate doc.vers[null - 1] somehow
-        # magically as the most recent version
-
-        aql = f'''
-            FOR id in @ids
-                LET doc = DOCUMENT(@@samples, id.id)
-                LET version_id = doc.vers[id.version - 1]
-                LET version_record = (FOR v in @@version
-                    FILTER v.uuidver == version_id
-                    RETURN v
-                )
-                LET nodes = (FOR node IN @@nodes
-                    FILTER node.uuidver == version_id
-                    RETURN node
-                )
-                RETURN {{
-                    'nodes': nodes,
-                    'verdoc': version_id,
-                    'id': id.id,
-                    'version': id.version,
-                    'version_record': version_record[0]
-                }}
+        aql = '''
+            // Extract the ids from the input.
+            LET ids = (
+                FOR idver IN @ids
+                RETURN idver.id
+            )
+            // Create a lookup table by id to select desired versions.
+            LET verlookup = MERGE(
+                FOR idver in @ids
+                RETURN {[idver.id]: idver.version}
+            )
+            // Filter first to optimize aggregation.
+            LET svs = (
+                FOR sv IN samples_version
+                    FILTER sv.id IN ids
+                    RETURN sv
+            )
+            // Aggregate and select the latest version available.
+            LET partials = (
+                FOR sv IN svs
+                    FILTER sv.ver == verlookup[sv.id]
+                    RETURN {
+                        id: sv.id,
+                        ver: sv.ver,
+                        verdoc: sv.uuidver,
+                        version_record: sv
+                    }
+            )
+            // Collect nodes linked to the latest version and include
+            // them for the output.
+            FOR partial in partials
+                FOR node in samples_nodes
+                    FILTER node.uuidver == partial.verdoc
+                    RETURN MERGE(partial, { "nodes": [node] })
         '''
-
         # convert UUID to strings for DB
         for id_ in ids_:
             id_['id'] = str(id_['id'])
 
         aql_bind = {
             'ids': ids_,
-            '@samples': self._col_sample.name,
             '@nodes': self._col_nodes.name,
             '@version': self._col_version.name
         }
 
         samples = []
         # convert doc structure back into SavedSample
-
-        # TODO: double check that i should actually be returning a list
-        # of sample nodes rather than just one
         for doc in self._db.aql.execute(aql, bind_vars=aql_bind):
             nodes = self._docs_to_nodes(doc['nodes'])
             verdoc = doc['version_record']
@@ -744,7 +724,7 @@ class ArangoSampleStorage:
                 self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
             )
             samples.append(SavedSample(
-                UUID(doc[_FLD_ID]), # double check this, pretty sure thats what it is
+                UUID(doc[_FLD_ID]),
                 UserID(verdoc[_FLD_USER]),
                 nodes, dt, verdoc[_FLD_NAME], doc['version']
             ))
