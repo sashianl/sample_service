@@ -683,7 +683,7 @@ class ArangoSampleStorage:
             )
             // Filter first to optimize aggregation.
             LET svs = (
-                FOR sv IN samples_version
+                FOR sv IN @@version
                     FILTER sv.id IN ids
                     RETURN sv
             )
@@ -693,7 +693,7 @@ class ArangoSampleStorage:
                     FILTER sv.ver == verlookup[sv.id]
                     RETURN {
                         id: sv.id,
-                        ver: sv.ver,
+                        version: sv.ver,
                         verdoc: sv.uuidver,
                         version_record: sv
                     }
@@ -701,7 +701,7 @@ class ArangoSampleStorage:
             // Collect nodes linked to the latest version and include
             // them for the output.
             FOR partial in partials
-                FOR node in samples_nodes
+                FOR node in @@nodes
                     FILTER node.uuidver == partial.verdoc
                     RETURN MERGE(partial, { "nodes": [node] })
         '''
@@ -714,7 +714,6 @@ class ArangoSampleStorage:
             '@nodes': self._col_nodes.name,
             '@version': self._col_version.name
         }
-
         samples = []
         # convert doc structure back into SavedSample
         for doc in self._db.aql.execute(aql, bind_vars=aql_bind):
