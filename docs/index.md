@@ -12,8 +12,7 @@
   - [Using Pipenv](./development/using-pipenv.md)
 - Documentation
   - [Overview](./documentation/index.md)
-  - [Diagramming with PlantUML](./documentation/diagrams.md)
-  - [the README](./documentation/readme.md)
+    - [the README](./documentation/readme.md)
   - [the RELEASE NOTES](./documentation/release-notes.md)
 - Design and Operation
   - [API Errors](./design/errors.md)
