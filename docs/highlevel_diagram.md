@@ -17,7 +17,7 @@ flowchart LR
     sample_search_api -- queries --> re_arango_db
     notifier  -- sends JSON messages --> Kafka
     validator  -- configured by --> sample_service_validator_config
-    re_arango_db -- sync -->  Kafka
+    re_arango_db -- subscribes -->  Kafka
     
     click sample_uploader href "https://github.com/kbaseapps/sample_uploader" "sample_uploader"
     click sample_search_api href "https://github.com/kbase/sample_search_api" "sample_search_api"
