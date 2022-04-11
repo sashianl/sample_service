@@ -880,6 +880,21 @@ def _create_sample_version_as_admin(sample_port, as_user, expected_user):
     }
 
 
+def test_get_samples_fail_no_samples(sample_port):
+    _test_get_samples_fail(sample_port, None,
+        'Missing or incorrect "samples" field - must provide a list of samples to retrieve.')
+
+    _test_get_samples_fail(sample_port, "im a random sample id string!",
+        'Missing or incorrect "samples" field - must provide a list of samples to retrieve.')
+
+    _test_get_samples_fail(sample_port, [],
+        'Cannot provide empty list of samples - must provide at least one sample to retrieve.')
+
+
+def _test_get_samples_fail(sample_port, samples, message):
+    params = {'samples': samples}
+    _request_fail(sample_port, 'get_samples', TOKEN1, params, message)
+
 def test_get_sample_public_read(sample_port):
     url = f'http://localhost:{sample_port}'
     id_ = _create_generic_sample(url, TOKEN1)
