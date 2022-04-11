@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.4
+* Changes github actions: creates images from releases off master, adds test running on develop branch
+* Bugfix for write-write error
+* Bugfix for incorrectly thrown `owner unexpectedly changed` errors
+* Improved error handling/messages for get_samples method
 
 ## 0.2.1
 
