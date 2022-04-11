@@ -404,8 +404,18 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: samples
         #BEGIN get_samples
-        if not params.get('samples'):
-          raise ValueError(f"")
+        # if not params.get('samples'):
+        #   raise ValueError(f"")
+        if type(params.get('samples')) is not list:
+            raise ValueError(
+                'Missing or incorrect "samples" field - ' +
+                'must provide a list of samples to retrieve.'
+            )
+        if len(params.get('samples')) == 0:
+            raise ValueError(
+                'Cannot provide empty list of samples - ' +
+                'must provide at least one sample to retrieve.'
+            )
         ids_ = []
         for samp_obj in params['samples']:
           id_, ver = _get_sample_address_from_object(samp_obj)

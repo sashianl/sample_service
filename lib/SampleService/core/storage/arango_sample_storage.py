@@ -250,7 +250,8 @@ class ArangoSampleStorage:
             db, schema_collection, 'schema collection', 'schema_collection')
         self._ensure_indexes()
         self._check_schema()
-        self._deletion_delay = datetime.timedelta(hours=1)  # make configurable?
+        self._reaper_deletion_delay = datetime.timedelta(hours=1)  # make configurable?
+        self._reaper_update_delay = datetime.timedelta(minutes=5)  # make configurable?
         self._check_db_updated()
         self._scheduler = self._build_scheduler()
 
@@ -322,6 +323,10 @@ class ArangoSampleStorage:
                     # the sample document was never saved for this version doc
                     self._delete_version_and_node_docs(uver, ts)
                 else:
+                    # Do not update this document if it was last updated less than _reaper_update_delay ago
+                    # this is to avoid writing to a document in the process of being created
+                    if self._now() - ts < self._reaper_update_delay:
+                        continue
                     version = self._get_int_version_from_sample_doc(sampledoc, str(uver))
                     if version:
                         self._update_version_and_node_docs_with_find(id_, uver, version)
@@ -338,8 +343,8 @@ class ArangoSampleStorage:
         return None
 
     def _delete_version_and_node_docs(self, uuidver, savedate):
-        if self._now() - savedate > self._deletion_delay:
-            print('deleting docs', self._now(), savedate, self._deletion_delay)
+        if self._now() - savedate > self._reaper_deletion_delay:
+            print('deleting docs', self._now(), savedate, self._reaper_deletion_delay)
             try:
                 # TODO logging
                 # delete edge docs first to ensure we don't orphan them
