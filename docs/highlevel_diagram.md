@@ -3,21 +3,20 @@ flowchart LR
 
     subgraph sample_service
       API
-      notifier
       validator
-      ss_arango_db[(Arango)]
+      notifier
     end
     
-    subgraph relation_engine
-      re_arango_db[(Arango)]
-    end
-    
+
+    sample_service --- ss_arango_db[(SS_Arango)]
+
     sample_uploader -- uses --> API
     sample_search_api -- uses --> API
-    sample_search_api -- queries --> re_arango_db
+    sample_search_api -- queries --> re_arango_db[(RE_Arango)]
     notifier  -- sends JSON messages --> Kafka
     validator  -- configured by --> sample_service_validator_config
-    re_arango_db -- subscribes -->  Kafka
+    relation_engine -- subscribes -->  Kafka
+    relation_engine -- updates --> re_arango_db[(RE_Arango)]
     
     click sample_uploader href "https://github.com/kbaseapps/sample_uploader" "sample_uploader"
     click sample_search_api href "https://github.com/kbase/sample_search_api" "sample_search_api"
