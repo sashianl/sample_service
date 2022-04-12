@@ -8,7 +8,7 @@ flowchart LR
     end
     
 
-    sample_service --- ss_arango_db[(SS_Arango)]
+    sample_service -- updates --> ss_arango_db[(SS_Arango)]
 
     sample_uploader -- uses --> API
     sample_search_api -- uses --> API
