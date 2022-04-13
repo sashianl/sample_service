@@ -15,7 +15,7 @@ flowchart LR
     sample_search_api -- queries --> re_arango_db[(RE_Arango)]
     notifier  -- sends JSON messages --> Kafka
     validator  -- configured by --> sample_service_validator_config
-    relation_engine -- subscribes -->  Kafka
+    relation_engine -- provides subscriptions -->  Kafka
     relation_engine -- updates --> re_arango_db[(RE_Arango)]
     
     click sample_uploader href "https://github.com/kbaseapps/sample_uploader" "sample_uploader"
