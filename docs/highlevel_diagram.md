@@ -4,6 +4,7 @@ flowchart LR
     subgraph sample_service
       API
       validator
+      permission_handler
       notifier
     end
     
@@ -13,8 +14,9 @@ flowchart LR
     sample_uploader -- uses --> API
     sample_search_api -- uses --> API
     sample_search_api -- queries --> re_arango_db[(RE_Arango)]
-    notifier  -- sends JSON messages --> Kafka
     validator  -- configured by --> sample_service_validator_config
+    notifier  -- sends JSON messages --> Kafka
+    permission_handler -- checks --> Workspace
     relation_engine -- provides subscriptions -->  Kafka
     relation_engine -- updates --> re_arango_db[(RE_Arango)]
     
