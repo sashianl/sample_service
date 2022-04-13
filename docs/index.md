@@ -23,6 +23,6 @@
   - [Sample Service / Relation Engine data linking](./design/link_ws_data_to_sample_in_RE.md)
   - [Linking workspace data to samples](./design/link_ws_data_to_sample.md)
 - [Deployment](./deployment/index.md)
-- [GitHub Action Workflow](./github-action-workflow.md)
+- [GitHub Action Workflow](./gha/index.md)
 - [Architecture Decision Records](./adrs/index.md)
 - [TODO](./TODO.md)
