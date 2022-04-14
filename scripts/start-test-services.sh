@@ -1,0 +1,1 @@
+docker compose -f test/docker-compose-services.yml up

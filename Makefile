@@ -58,3 +58,11 @@ host-start-dev-server:
 
 host-stop-dev-server:
 	source scripts/dev-server-env.sh && sh scripts/stop-dev-server.sh
+
+# Test containers
+
+host-start-test-services:
+	sh scripts/start-test-services.sh
+
+host-stop-test-services:
+	sh scripts/stop-test-services.sh
