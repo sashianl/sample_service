@@ -4,6 +4,12 @@
 
 * organize documentation under a single `docs` directory; add some additional documentation and placeholders  [SAM-209]
 
+## 0.2.4
+* Changes GitHub actions: creates images from releases off master, adds test running on develop branch
+* Bugfix for write-write error
+* Bugfix for incorrectly thrown `owner unexpectedly changed` errors
+* Improved error handling/messages for get_samples method
+
 ## 0.2.1
 
 * Add `get_data_links_from_sample_set` method - allows for getting many links from a list of samples
