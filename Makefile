@@ -51,7 +51,7 @@ test-sdkless:
 clean:
 	rm -rfv $(LBIN_DIR)
 
-# Managing development container orchestration
+# Managing development containers
 
 host-start-dev-server:
 	source scripts/dev-server-env.sh && sh scripts/start-dev-server.sh
@@ -59,7 +59,7 @@ host-start-dev-server:
 host-stop-dev-server:
 	source scripts/dev-server-env.sh && sh scripts/stop-dev-server.sh
 
-# Test containers
+# Managing test containers
 
 host-start-test-services:
 	sh scripts/start-test-services.sh
