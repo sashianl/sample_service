@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* organize documentation under a single `docs` directory; add some additional documentation and placeholders  [SAM-209]
 
 ## 0.2.1
 
