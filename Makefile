@@ -42,10 +42,16 @@ test:
 	echo Use test-sdkless
 
 test-sdkless:
-# TODO flake8 and bandit
-# TODO check tests run with kb-sdk test - will need to install mongo and update config
-	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
-	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_SPEC)
+	# TODO flake8 and bandit
+	# TODO check tests run with kb-sdk test - will need to install mongo and update config
+	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy \
+		--namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core \
+		$(TEST_DIR)
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest \
+		--verbose \
+		--cov $(LIB_DIR)/$(SERVICE_CAPS) \
+		--cov-config=$(TEST_DIR)/coveragerc \
+		$(TEST_SPEC)
 # to print test output immediately: --capture=tee-sys
 
 clean:
@@ -66,3 +72,6 @@ host-start-test-services:
 
 host-stop-test-services:
 	sh scripts/stop-test-services.sh
+
+setup-test-dependencies:
+	sh scripts/install-test-dependencies.sh

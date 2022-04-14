@@ -8,3 +8,6 @@ deploy.cfg
 .coverage
 test/test_temp/
 lib/SampleService/SampleServiceImpl.py.bak*
+test/bin
+test/temp
+test/test.cfg.bak
