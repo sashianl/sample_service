@@ -65,7 +65,7 @@ This section describes how to get `pipenv` up and running on macOS. These instru
 
   Another option is to install `pipenv` via macports. This would be friendlier to macports, but will install yet another version of Python (3.9 at time of writing) and is not compatible with the way `pipenv` is installed for the GHA workflow.
 
-  Typically Python binaries are installed in a virtual environment, which sets up paths itself.
+  Typically, Python binaries are installed in a virtual environment, which sets up paths itself.
 
 - Install runtime and dev dependencies
 
