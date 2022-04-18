@@ -524,6 +524,7 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
     upa - workspace object UPA
     dataid - ID of the data within the workspace object
     update - whether the link should be updated
+    labels - list of labels to add to the link
 
     :param params: the parameters.
     :returns: a tuple consisting of:
@@ -541,6 +542,7 @@ def create_data_link_params(params: Dict[str, Any]) -> Tuple[DataUnitID, SampleN
         _cast(str, _check_string_int(params, 'node', True))
     )
     duid = get_data_unit_id_from_object(params)
+    labels = params.get('labels', [])
     return (duid, sna, bool(params.get('update')))
 
 

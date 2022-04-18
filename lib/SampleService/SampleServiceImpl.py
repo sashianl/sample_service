@@ -699,7 +699,7 @@ Note that usage of the administration flags will be logged by the service.
         # ctx is the context object
         # return variables are: results
         #BEGIN create_data_link
-        duid, sna, update = _create_data_link_params(params)
+        duid, sna, update, labels = _create_data_link_params(params)
         as_admin, user = _get_admin_request_from_object(params, 'as_admin', 'as_user')
         _check_admin(
             self._user_lookup, ctx[_CTX_TOKEN], _AdminPermission.FULL,

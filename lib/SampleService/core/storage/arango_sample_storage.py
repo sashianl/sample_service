@@ -1326,9 +1326,7 @@ class ArangoSampleStorage:
         remove_labels: List[str]) -> List[DataLink]:
         '''Set or remove labels from a data link.'''
         # validate labels to be added
-        for label in add_labels:
-            if False: # todo: check controlled_labels
-                raise ValueError(f'Cannot add invalid controlled label "{add}"')
+        normalized_add_labels = DataLink.validate_controlled_labels(add_labels)
         # create transaction
         tdb = self._db.begin_transaction(
             read=self._col_data_link.name,
@@ -1343,7 +1341,7 @@ class ArangoSampleStorage:
                 for rem in remove_labels:
                     if rem in labels:
                         labels.remove(rem)
-                for add in add_labels:
+                for add in normalized_add_labels:
                     if add not in labels:
                         labels.append(add)
                 # update the link doc (in transaction)

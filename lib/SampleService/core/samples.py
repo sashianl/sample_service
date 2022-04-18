@@ -352,6 +352,7 @@ class Samples:
             user: UserID,
             duid: DataUnitID,
             sna: SampleNodeAddress,
+            labels: List[str],
             update: bool = False,
             as_admin: bool = False) -> DataLink:
         '''
@@ -367,6 +368,7 @@ class Samples:
         :param user: the user creating the link.
         :param duid: the data unit to link the the sample.
         :param sna: the sample node to link to the data unit.
+        :param labels: the labels to apply to the link.
         :param update: True to expire any extant link if it does not link to the provided sample.
             If False and a link from the data unit already exists, link creation will fail.
         :param as_admin: allow link creation to proceed if user does not have
@@ -388,7 +390,7 @@ class Samples:
             _not_falsy(sna, 'sna').sampleid, user, _SampleAccessType.ADMIN, as_admin=as_admin)
         wsperm = _WorkspaceAccessType.NONE if as_admin else _WorkspaceAccessType.WRITE
         self._ws.has_permission(user, wsperm, upa=duid.upa)
-        dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user)
+        dl = DataLink(self._uuid_gen(), duid, sna, self._now(), user, controlled_labels=labels)
         expired_id = self._storage.create_data_link(dl, update=update)
         if self._kafka:
             self._kafka.notify_new_link(dl.id)

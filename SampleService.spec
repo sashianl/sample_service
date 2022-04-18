@@ -372,6 +372,7 @@ module SampleService {
         node_id node;
         boolean update;
         boolean as_admin;
+        list<string> labels;
         user as_user;
     } CreateDataLinkParams;
 

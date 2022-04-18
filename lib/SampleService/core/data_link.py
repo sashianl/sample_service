@@ -15,6 +15,7 @@ from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID
 
+_VALID_CONTROLLED_LABELS = ['canonical']
 
 class DataLink:
     '''
@@ -60,7 +61,7 @@ class DataLink:
         self.created_by = _not_falsy(created_by, 'created_by')
         self.expired = None
         self.expired_by = None
-        self.controlled_labels = controlled_labels if controlled_labels else [] # todo: check controlled_labels
+        self.controlled_labels = DataLink.validate_controlled_labels(controlled_labels)
         if expired:
             self.expired = _check_timestamp(expired, 'expired')
             if expired < created:
@@ -98,3 +99,20 @@ class DataLink:
     def __hash__(self):
         return hash((self.id, self.duid, self.sample_node_address,
                      self.created, self.created_by, self.expired, self.expired_by))
+
+    @staticmethod
+    def validate_controlled_labels(labels: List[str] | None):
+        '''
+        Validate the controlled vocabulary labels.
+
+        :param labels: the labels to validate.
+        :returns: the validated labels.
+        '''
+        if not labels:
+            return []
+        normalized = [label.strip().lower() for label in labels]
+        bad_labels = [label for label in normalized if label not in _VALID_CONTROLLED_LABELS]
+        if bad_labels:
+            raise ValueError(f'invalid controlled vocabulary labels: {bad_labels}.'+
+            f'Valid labels are: {_VALID_CONTROLLED_LABELS}')
+        return labels
