@@ -2,8 +2,10 @@
 
 ## Unreleased
 
+* organize documentation under a single `docs` directory; add some additional documentation and placeholders  [SAM-209]
+
 ## 0.2.4
-* Changes github actions: creates images from releases off master, adds test running on develop branch
+* Changes GitHub actions: creates images from releases off master, adds test running on develop branch
 * Bugfix for write-write error
 * Bugfix for incorrectly thrown `owner unexpectedly changed` errors
 * Improved error handling/messages for get_samples method
