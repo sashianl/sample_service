@@ -34,7 +34,6 @@ greenlet = "==0.4.16"
 typing-extensions = "*"
 types-pyyaml = "*"
 types-requests = "*"
-pipenv = "*"
 shell = "*"
 
 [requires]
