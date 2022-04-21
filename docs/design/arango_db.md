@@ -50,8 +50,10 @@ flowchart LR
       uuidver_ver_edge[uuidver]
     end
    
-    ws_object_version -- _from --> _id_data_link -- _to --> _id_node
-    _id_node -- _from ---> _id_nodes_edge -- _to ---> _id_version
-    _id_version -- _from --> _id_ver_edge -- _to --> _id_sample
+    ws_object_version -- _from o--o _id_data_link -- _to o--o _id_node
+    _id_node -- _from o---o _id_nodes_edge -- _to o---o _id_version
+    _id_version -- _from o--o _id_ver_edge -- _to o--o _id_sample
+    
+
     
 ```
