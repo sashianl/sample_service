@@ -1,7 +1,7 @@
 from pytest import raises
-from test_support.test_utils import assert_exception_correct
 
 from SampleService.core.validator import builtin
+from test_support.test_assertions import assert_exception_correct
 
 
 def test_noop():

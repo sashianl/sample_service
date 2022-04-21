@@ -1,11 +1,11 @@
 import datetime
 import uuid
+from unittest.mock import (create_autospec, call)
+from uuid import UUID
 
 from pytest import raises
-from uuid import UUID
-from unittest.mock import (create_autospec, call)
 
-from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
+from SampleService.core import user_lookup
 from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.data_link import DataLink
 from SampleService.core.errors import (
@@ -19,13 +19,13 @@ from SampleService.core.notification import KafkaNotifier
 from SampleService.core.sample import Sample, SampleNode, SavedSample, SampleAddress
 from SampleService.core.sample import SampleNodeAddress
 from SampleService.core.samples import Samples
+from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
 from SampleService.core.storage.errors import OwnerChangedError
 from SampleService.core.user import UserID
 from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
-from SampleService.core import user_lookup
 from SampleService.core.workspace import WS, UPA, DataUnitID, WorkspaceAccessType
-from test_support.test_utils import assert_exception_correct
+from test_support.test_assertions import assert_exception_correct
 
 
 def u(user):

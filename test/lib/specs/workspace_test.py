@@ -1,15 +1,17 @@
-from pytest import raises
 from unittest.mock import create_autospec
 
+from pytest import raises
+
+from SampleService.core.errors import IllegalParameterError
+from SampleService.core.errors import NoSuchUserError
+from SampleService.core.errors import NoSuchWorkspaceDataError
+from SampleService.core.errors import UnauthorizedError
+from SampleService.core.user import UserID
+from SampleService.core.workspace import WS, WorkspaceAccessType, UPA, DataUnitID
 from installed_clients.WorkspaceClient import Workspace
 from installed_clients.baseclient import ServerError
-from SampleService.core.workspace import WS, WorkspaceAccessType, UPA, DataUnitID
-from test_support.test_utils import assert_exception_correct
-from SampleService.core.errors import UnauthorizedError
-from SampleService.core.errors import IllegalParameterError
-from SampleService.core.errors import NoSuchWorkspaceDataError
-from SampleService.core.errors import NoSuchUserError
-from SampleService.core.user import UserID
+from test_support.test_assertions import assert_exception_correct
+
 
 # these tests mock the workspace client, so integration tests are important to check for
 # incompatible changes in the workspace api

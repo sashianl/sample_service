@@ -1,7 +1,9 @@
 import datetime
 import uuid
+
 from pytest import raises
-from test_support.test_utils import assert_exception_correct
+
+from SampleService.core.errors import IllegalParameterError, MissingParameterError
 from SampleService.core.sample import (
     Sample,
     SavedSample,
@@ -11,8 +13,8 @@ from SampleService.core.sample import (
     SourceMetadata,
 )
 from SampleService.core.sample import SampleNodeAddress
-from SampleService.core.errors import IllegalParameterError, MissingParameterError
 from SampleService.core.user import UserID
+from test_support.test_assertions import assert_exception_correct
 
 
 def test_source_metadata_build():

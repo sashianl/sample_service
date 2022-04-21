@@ -37,9 +37,15 @@ from test_support.constants import TEST_COL_SCHEMA, TEST_COL_WS_OBJ_VER, TEST_CO
     TEST_COL_NODES, TEST_COL_VER_EDGE, TEST_COL_VERSION, TEST_COL_SAMPLE, TEST_PWD, TEST_USER
 from test_support.constants import TEST_DB_NAME
 from test_support.mongo_controller import MongoController
-from test_support.test_utils import (
+from test_support.test_assertions import (
     assert_ms_epoch_close_to_now,
     assert_exception_correct,
+    create_auth_user,
+    create_auth_role,
+    create_auth_login_token,
+    set_custom_roles
+)
+from test_support.test_utils import (
     find_free_port, get_current_epochmillis
 )
 from test_support.workspace_controller import WorkspaceController
@@ -194,46 +200,46 @@ def auth(mongo):
           f'in dir {auth.temp_dir} in {auth.startup_count}s')
     url = f'http://localhost:{auth.port}'
 
-    test_utils.create_auth_role(url, 'fulladmin1', 'fa1')
-    test_utils.create_auth_role(url, 'fulladmin2', 'fa2')
-    test_utils.create_auth_role(url, 'readadmin1', 'ra1')
-    test_utils.create_auth_role(url, 'readadmin2', 'ra2')
-    test_utils.create_auth_role(url, WS_READ_ADMIN, 'wsr')
-    test_utils.create_auth_role(url, WS_FULL_ADMIN, 'wsf')
+    create_auth_role(url, 'fulladmin1', 'fa1')
+    create_auth_role(url, 'fulladmin2', 'fa2')
+    create_auth_role(url, 'readadmin1', 'ra1')
+    create_auth_role(url, 'readadmin2', 'ra2')
+    create_auth_role(url, WS_READ_ADMIN, 'wsr')
+    create_auth_role(url, WS_FULL_ADMIN, 'wsf')
 
-    test_utils.create_auth_user(url, USER_SERVICE, 'serv')
-    TOKEN_SERVICE = test_utils.create_auth_login_token(url, USER_SERVICE)
+    create_auth_user(url, USER_SERVICE, 'serv')
+    TOKEN_SERVICE = create_auth_login_token(url, USER_SERVICE)
 
-    test_utils.create_auth_user(url, USER_WS_READ_ADMIN, 'wsra')
-    TOKEN_WS_READ_ADMIN = test_utils.create_auth_login_token(url, USER_WS_READ_ADMIN)
-    test_utils.set_custom_roles(url, USER_WS_READ_ADMIN, [WS_READ_ADMIN])
+    create_auth_user(url, USER_WS_READ_ADMIN, 'wsra')
+    TOKEN_WS_READ_ADMIN = create_auth_login_token(url, USER_WS_READ_ADMIN)
+    set_custom_roles(url, USER_WS_READ_ADMIN, [WS_READ_ADMIN])
 
-    test_utils.create_auth_user(url, USER_WS_FULL_ADMIN, 'wsrf')
-    TOKEN_WS_FULL_ADMIN = test_utils.create_auth_login_token(url, USER_WS_FULL_ADMIN)
-    test_utils.set_custom_roles(url, USER_WS_FULL_ADMIN, [WS_FULL_ADMIN])
+    create_auth_user(url, USER_WS_FULL_ADMIN, 'wsrf')
+    TOKEN_WS_FULL_ADMIN = create_auth_login_token(url, USER_WS_FULL_ADMIN)
+    set_custom_roles(url, USER_WS_FULL_ADMIN, [WS_FULL_ADMIN])
 
-    test_utils.create_auth_user(url, USER1, 'display1')
-    TOKEN1 = test_utils.create_auth_login_token(url, USER1)
-    test_utils.set_custom_roles(url, USER1, ['fulladmin1'])
+    create_auth_user(url, USER1, 'display1')
+    TOKEN1 = create_auth_login_token(url, USER1)
+    set_custom_roles(url, USER1, ['fulladmin1'])
 
-    test_utils.create_auth_user(url, USER2, 'display2')
-    TOKEN2 = test_utils.create_auth_login_token(url, USER2)
-    test_utils.set_custom_roles(url, USER2, ['fulladmin1', 'fulladmin2', 'readadmin2'])
+    create_auth_user(url, USER2, 'display2')
+    TOKEN2 = create_auth_login_token(url, USER2)
+    set_custom_roles(url, USER2, ['fulladmin1', 'fulladmin2', 'readadmin2'])
 
-    test_utils.create_auth_user(url, USER3, 'display3')
-    TOKEN3 = test_utils.create_auth_login_token(url, USER3)
-    test_utils.set_custom_roles(url, USER3, ['readadmin1'])
+    create_auth_user(url, USER3, 'display3')
+    TOKEN3 = create_auth_login_token(url, USER3)
+    set_custom_roles(url, USER3, ['readadmin1'])
 
-    test_utils.create_auth_user(url, USER4, 'display4')
-    TOKEN4 = test_utils.create_auth_login_token(url, USER4)
+    create_auth_user(url, USER4, 'display4')
+    TOKEN4 = create_auth_login_token(url, USER4)
 
-    test_utils.create_auth_user(url, USER5, 'display5')
-    TOKEN5 = test_utils.create_auth_login_token(url, USER5)
-    test_utils.set_custom_roles(url, USER5, ['fulladmin2'])
+    create_auth_user(url, USER5, 'display5')
+    TOKEN5 = create_auth_login_token(url, USER5)
+    set_custom_roles(url, USER5, ['fulladmin2'])
 
-    test_utils.create_auth_user(url, USER_NO_TOKEN1, 'displaynt1')
-    test_utils.create_auth_user(url, USER_NO_TOKEN2, 'displaynt2')
-    test_utils.create_auth_user(url, USER_NO_TOKEN3, 'displaynt3')
+    create_auth_user(url, USER_NO_TOKEN1, 'displaynt1')
+    create_auth_user(url, USER_NO_TOKEN2, 'displaynt2')
+    create_auth_user(url, USER_NO_TOKEN3, 'displaynt3')
 
     yield auth
 
@@ -288,7 +294,6 @@ def workspace(auth, mongo):
 
 @fixture(scope='module')
 def service(auth, testing_db, arango_port, workspace, kafka_port):
-    # clear_db_and_recreate(arango)
     # this is completely stupid. The state is calculated on import so there's no way to
     # test the state creation normally.
     cfgpath = create_deploy_cfg(auth.port, arango_port, workspace.port, kafka_port)

@@ -3,9 +3,9 @@ import datetime
 from pytest import raises
 
 from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
-from test_support.test_utils import assert_exception_correct
-from test_support.common import u, dt
 from SampleService.core.errors import IllegalParameterError, UnauthorizedError
+from test_support.test_assertions import assert_exception_correct
+from test_support.test_utils import u, dt
 
 
 def test_build_ownerless():

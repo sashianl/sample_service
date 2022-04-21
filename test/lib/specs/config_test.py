@@ -3,13 +3,14 @@
 
 import os
 import tempfile
-import yaml
-from pytest import raises, fixture
-from jsonschema.exceptions import ValidationError
 
-from test_support.test_utils import assert_exception_correct
+import yaml
+from jsonschema.exceptions import ValidationError
+from pytest import raises
+
 from SampleService.core.config import get_validators, split_value
 from SampleService.core.errors import IllegalParameterError
+from test_support.test_assertions import assert_exception_correct
 
 
 def _write_validator_config(cfg, temp_dir):

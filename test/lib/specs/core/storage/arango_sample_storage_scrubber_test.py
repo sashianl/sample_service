@@ -1,102 +1,17 @@
-import datetime
 import uuid
-import time
 
-from pytest import raises, fixture
-from test_support import test_utils
-from test_support.common import dt
-from test_support.test_utils import assert_exception_correct
-# from arango_controller import ArangoController
-from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
     SavedSample,
     SampleNode,
-    SubSampleType,
     SampleNodeAddress,
     SampleAddress,
-    SourceMetadata,
 )
-from SampleService.core.errors import (
-    MissingParameterError, NoSuchSampleError, ConcurrencyError, UnauthorizedError,
-    NoSuchSampleVersionError, DataLinkExistsError, TooManyDataLinksError, NoSuchLinkError,
-    NoSuchSampleNodeError
-)
-from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
-from SampleService.core.storage.errors import SampleStorageError, StorageInitError
-from SampleService.core.storage.errors import OwnerChangedError
 from SampleService.core.user import UserID
 from SampleService.core.workspace import UPA, DataUnitID
+from test_support.test_utils import dt
 
 TEST_NODE = SampleNode('foo')
-
-# TEST_DB_NAME = 'test_sample_service'
-# TEST_COL_SAMPLE = 'samples'
-# TEST_COL_VERSION = 'samples_version'
-# TEST_COL_VER_EDGE = 'ver_to_sample'
-# TEST_COL_NODES = 'samples_nodes'
-# TEST_COL_NODE_EDGE = 'node_edges'
-# TEST_COL_WS_OBJ_VER = 'ws_obj_ver'
-# TEST_COL_DATA_LINK = 'samples_data_link'
-# TEST_COL_SCHEMA = 'schema'
-# TEST_USER = 'user1'
-# TEST_PWD = 'password1'
-
-
-# @fixture(scope='module')
-# def arango():
-#     arangoexe = test_utils.get_arango_exe()
-#     arangojs = test_utils.get_arango_js()
-#     tempdir = test_utils.get_temp_dir()
-#     # arango = ArangoController(arangoexe, arangojs, tempdir)
-#     create_test_db(arango)
-#     print('running arango on port {} in dir {}'.format(arango.port, arango.temp_dir))
-#     yield arango
-#     del_temp = test_utils.get_delete_temp_files()
-#     print('shutting down arango, delete_temp_files={}'.format(del_temp))
-#     arango.destroy(del_temp)
-
-
-# def create_test_db(arango):
-#     systemdb = arango.client.db(verify=True)  # default access to _system db
-#     systemdb.create_database(TEST_DB_NAME, [{'username': TEST_USER, 'password': TEST_PWD}])
-#     return arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
-
-
-# @fixture
-# def samplestorage(arango):
-#     return samplestorage_method(arango)
-
-
-# def clear_db_and_recreate(arango):
-#     arango.clear_database(TEST_DB_NAME, drop_indexes=True)
-#     db = create_test_db(arango)
-#     db.create_collection(TEST_COL_SAMPLE)
-#     db.create_collection(TEST_COL_VERSION)
-#     db.create_collection(TEST_COL_VER_EDGE, edge=True)
-#     db.create_collection(TEST_COL_NODES)
-#     db.create_collection(TEST_COL_NODE_EDGE, edge=True)
-#     db.create_collection(TEST_COL_WS_OBJ_VER)
-#     db.create_collection(TEST_COL_DATA_LINK, edge=True)
-#     db.create_collection(TEST_COL_SCHEMA)
-#     return db
-
-
-# def samplestorage_method(arango):
-#     clear_db_and_recreate(arango)
-#     return ArangoSampleStorage(
-#         arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD),
-#         TEST_COL_SAMPLE,
-#         TEST_COL_VERSION,
-#         TEST_COL_VER_EDGE,
-#         TEST_COL_NODES,
-#         TEST_COL_NODE_EDGE,
-#         TEST_COL_WS_OBJ_VER,
-#         TEST_COL_DATA_LINK,
-#         TEST_COL_SCHEMA)
-
-# def dt(timestamp):
-#     return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
 def _create_and_expire_data_link(samplestorage, link, expired, user):
     samplestorage.create_data_link(link)

@@ -1,14 +1,13 @@
 import datetime
-
-from pytest import raises
-from uuid import UUID
 import json
 from unittest.mock import create_autospec
+from uuid import UUID
 
-from SampleService.core.api_translation import datetime_to_epochmilliseconds, get_id_from_object
-from SampleService.core.api_translation import get_version_from_object, sample_to_dict
+from pytest import raises
+
+from SampleService.core.acls import AdminPermission
+from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
 from SampleService.core.api_translation import acls_to_dict, acls_from_dict
-from SampleService.core.api_translation import create_sample_params, get_sample_address_from_object
 from SampleService.core.api_translation import (
     check_admin,
     get_static_key_metadata_params,
@@ -21,7 +20,16 @@ from SampleService.core.api_translation import (
     get_admin_request_from_object,
     acl_delta_from_dict
 )
+from SampleService.core.api_translation import create_sample_params, get_sample_address_from_object
+from SampleService.core.api_translation import datetime_to_epochmilliseconds, get_id_from_object
+from SampleService.core.api_translation import get_version_from_object, sample_to_dict
 from SampleService.core.data_link import DataLink
+from SampleService.core.errors import (
+    IllegalParameterError,
+    MissingParameterError,
+    UnauthorizedError,
+    NoSuchUserError
+)
 from SampleService.core.sample import (
     Sample,
     SampleNode,
@@ -31,19 +39,10 @@ from SampleService.core.sample import (
     SavedSample,
     SourceMetadata,
 )
-from SampleService.core.acls import SampleACL, SampleACLOwnerless, SampleACLDelta
-from SampleService.core.errors import (
-    IllegalParameterError,
-    MissingParameterError,
-    UnauthorizedError,
-    NoSuchUserError
-)
-from SampleService.core.acls import AdminPermission
-from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.user import UserID
+from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.workspace import DataUnitID, UPA
-
-from test_support.test_utils import assert_exception_correct
+from test_support.test_assertions import assert_exception_correct
 
 
 def test_get_user_from_object():

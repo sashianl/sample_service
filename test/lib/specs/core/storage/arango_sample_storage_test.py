@@ -1,16 +1,16 @@
 import datetime
-import uuid
 import time
+import uuid
 
-from pytest import raises, fixture
-from test_support import test_utils
-from test_support.common import dt
-from test_support.constants import TEST_COL_SAMPLE, TEST_DB_NAME, TEST_COL_NODES, TEST_COL_SCHEMA, TEST_COL_DATA_LINK, \
-    TEST_COL_WS_OBJ_VER, TEST_COL_NODE_EDGE, TEST_COL_VER_EDGE, TEST_COL_VERSION, TEST_PWD, TEST_USER, TEST_COL_EDGE
-from test_support.test_utils import assert_exception_correct
-# from arango_controller import ArangoController
+from pytest import raises
+
 from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.data_link import DataLink
+from SampleService.core.errors import (
+    MissingParameterError, NoSuchSampleError, ConcurrencyError, UnauthorizedError,
+    NoSuchSampleVersionError, DataLinkExistsError, TooManyDataLinksError, NoSuchLinkError,
+    NoSuchSampleNodeError
+)
 from SampleService.core.sample import (
     SavedSample,
     SampleNode,
@@ -19,16 +19,15 @@ from SampleService.core.sample import (
     SampleAddress,
     SourceMetadata,
 )
-from SampleService.core.errors import (
-    MissingParameterError, NoSuchSampleError, ConcurrencyError, UnauthorizedError,
-    NoSuchSampleVersionError, DataLinkExistsError, TooManyDataLinksError, NoSuchLinkError,
-    NoSuchSampleNodeError
-)
 from SampleService.core.storage.arango_sample_storage import ArangoSampleStorage
-from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.storage.errors import OwnerChangedError
+from SampleService.core.storage.errors import SampleStorageError, StorageInitError
 from SampleService.core.user import UserID
 from SampleService.core.workspace import UPA, DataUnitID
+from test_support.constants import TEST_COL_SAMPLE, TEST_DB_NAME, TEST_COL_NODES, TEST_COL_SCHEMA, TEST_COL_DATA_LINK, \
+    TEST_COL_WS_OBJ_VER, TEST_COL_NODE_EDGE, TEST_COL_VER_EDGE, TEST_COL_VERSION, TEST_PWD, TEST_USER, TEST_COL_EDGE
+from test_support.test_assertions import assert_exception_correct
+from test_support.test_utils import dt
 
 TEST_NODE = SampleNode('foo')
 

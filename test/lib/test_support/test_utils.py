@@ -2,14 +2,14 @@ import configparser
 import datetime
 import os
 import socket
-import time
+import uuid
 from contextlib import closing
 from logging import Formatter
 from logging import LogRecord
 from pathlib import Path
 from typing import List
 
-import requests
+from SampleService.core.user import UserID
 
 MONGO_EXE = 'test.mongo.exe'
 MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
@@ -76,19 +76,8 @@ def find_free_port() -> int:
         return s.getsockname()[1]
 
 
-def assert_exception_correct(got: Exception, expected: Exception):
-    assert got.args == expected.args
-    assert type(got) == type(expected)
-
-
 def get_current_epochmillis():
     return round(datetime.datetime.now(tz=datetime.timezone.utc).timestamp() * 1000)
-
-
-def assert_ms_epoch_close_to_now(time_):
-    now_ms = time.time() * 1000
-    assert now_ms + 1000 > time_
-    assert now_ms - 1000 < time_
 
 
 class TerstFermerttr(Formatter):
@@ -107,38 +96,16 @@ class TestException(Exception):
     __test__ = False
 
 
-def create_auth_user(auth_url, username, displayname):
-    ret = requests.post(
-        auth_url + '/testmode/api/V2/testmodeonly/user',
-        headers={'accept': 'application/json'},
-        json={'user': username, 'display': displayname})
-    if not ret.ok:
-        ret.raise_for_status()
+def u(user):
+    return UserID(user)
+
+def dt(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
 
-def create_auth_login_token(auth_url, username):
-    ret = requests.post(
-        auth_url + '/testmode/api/V2/testmodeonly/token',
-        headers={'accept': 'application/json'},
-        json={'user': username, 'type': 'Login'})
-    if not ret.ok:
-        ret.raise_for_status()
-    return ret.json()['token']
+def make_uuid():
+    return uuid.uuid4()
 
 
-def create_auth_role(auth_url, role, description):
-    ret = requests.post(
-        auth_url + '/testmode/api/V2/testmodeonly/customroles',
-        headers={'accept': 'application/json'},
-        json={'id': role, 'desc': description})
-    if not ret.ok:
-        ret.raise_for_status()
-
-
-def set_custom_roles(auth_url, user, roles):
-    ret = requests.put(
-        auth_url + '/testmode/api/V2/testmodeonly/userroles',
-        headers={'accept': 'application/json'},
-        json={'user': user, 'customroles': roles})
-    if not ret.ok:
-        ret.raise_for_status()
+def nw():
+    return datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)

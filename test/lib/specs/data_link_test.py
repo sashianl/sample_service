@@ -3,11 +3,11 @@ import uuid
 
 from pytest import raises
 
-from test_support.test_utils import assert_exception_correct
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SampleNodeAddress, SampleAddress
 from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA
+from test_support.test_assertions import assert_exception_correct
 
 
 def dt(timestamp):

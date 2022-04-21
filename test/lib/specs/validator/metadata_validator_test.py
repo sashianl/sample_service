@@ -1,9 +1,9 @@
 import maps
 from pytest import raises
 
-from test_support.test_utils import assert_exception_correct
-from SampleService.core.validator.metadata_validator import MetadataValidatorSet, MetadataValidator
 from SampleService.core.errors import MetadataValidationError, IllegalParameterError
+from SampleService.core.validator.metadata_validator import MetadataValidatorSet, MetadataValidator
+from test_support.test_assertions import assert_exception_correct
 
 
 def _noop(_, __):
