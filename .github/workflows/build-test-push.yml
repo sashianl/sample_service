@@ -63,11 +63,11 @@ jobs:
           echo "BUILD_DATE=${{ env.BUILD_DATE }}"
 
       - name: Install test dependencies and config
-        run: make setup-test-dependencies
+        run: PWD=`pwd` make setup-test-dependencies
 
       # Run tests
       - name: Run all tests
-        run: make test
+        run: PWD=`pwd` make test
 
 #      - name: Send to Codecov
 #        uses: codecov/codecov-action@v2
