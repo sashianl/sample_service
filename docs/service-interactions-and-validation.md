@@ -16,11 +16,11 @@ All validation via this schema for outside apps can be accessed through the expo
 
 Currently, sample_uploader is the only repo that calls the `validate_samples` method directly. It is called when importing samples, as well as when it imports samples from IGSN or NCBI. Sample_uploader's prevalidation scheme is optional and can be turned off with the `prevalidate` flag. For more information, refer to the (sample_uploader docs)[https://github.com/kbaseapps/sample_uploader/blob/master/README.md].
 
-## Where to Update SampleService Validator Config
+# Where to Update SampleService Validator Config
 
 To add new validation templates, go to the Validator Config's [Github](https://github.com/kbase/sample_service_validator_config). To fully add a new validation type, you will need to update in 2 places: in the templates folder and in the vocabularies folder. The templates are what the sample_uploader will use to generate a template with which the user can download and fill out their information. The vocabularies are where the actual new terms are being defined and added to the main collection of terms with which the SampleService validates.
 
-# Adding a Vocabulary Set
+## Adding a Vocabulary Set
 
 All vocabularies are expected to reside within the `vocabularies` folder. Each validator requires a `Terms` key, which is a list of all the terms to be added to the new validation. The schema for a list of terms would look like this:
 
@@ -49,7 +49,7 @@ The `namespace` field is for differentiating your own type from the core validat
 
 It is important to run `make update` once you have added your validators or the validator will fail during a build. This command will merge the new validators with the already existing ones at the top level `metadata_validators.yaml`.
 
-# Adding a Template
+## Adding a Template
 
 Templates are what the user will download to populate their information when using the sample_uploader app. The user will see a template generated to the specification of this file, and should map to actual values that are defined within your validator YAML file. If you are familiar with KBase app development, this file is somewhat analogous to a `display.yaml` while the validator file itself play is the business logic role of the `spec.json`
 
@@ -89,6 +89,6 @@ All items within a template fit above schema. To map values to their respective 
 
 It is important to remember to generate this template if you would like to expose it to users, as running any of the build commands will not check for a template file corresponding to a validator.
 
-# Steps for adding new validators outside of the config repo
+## Steps for adding new validators outside of the config repo
 
 The only other place required to add a new validator would be within `sample_uploader`. Sample uploader's `import_samples` method requires a user to pick a specific template format with which to use. You will need to add your new template information there for it to appear within the UI.
