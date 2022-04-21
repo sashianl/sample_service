@@ -72,10 +72,10 @@ install_test_config()
   cp test.cfg.example test.cfg
   # TODO: This is a rather limited manner of processing the config template; a more generic
   # method which can utilize environment variables directly, e.g. dockerize, would be better
-  sed -i ".bak" "s#^test.jars.dir=.*#test.jars.dir=$JARS_PATH#" test.cfg
-  sed -i ".bak" "s#^test.temp.dir=.*#test.temp.dir=$PWD/temp_test_dir#" test.cfg
-  sed -i ".bak" "s#^test.mongo.exe.*#test.mongo.exe=$MONGO_PATH#" test.cfg
-  sed -i ".bak" "s#^test.mongo.wired_tiger.*#test.mongo.wired_tiger=true#" test.cfg
+  sed -i "s#^test.jars.dir=.*#test.jars.dir=$JARS_PATH#" test.cfg
+  sed -i "s#^test.temp.dir=.*#test.temp.dir=$PWD/temp_test_dir#" test.cfg
+  sed -i "s#^test.mongo.exe.*#test.mongo.exe=$MONGO_PATH#" test.cfg
+  sed -i "s#^test.mongo.wired_tiger.*#test.mongo.wired_tiger=true#" test.cfg
   cd ..
   logn "done."
 }
