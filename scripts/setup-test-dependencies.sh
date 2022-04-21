@@ -61,7 +61,7 @@ install_jars()
   mv jars_repo/lib/jars .
   rm -rf jars_repo
   cd ../..
-  RETVAL="$(PWD)/test/bin/jars"
+  RETVAL="${PWD}/test/bin/jars"
   logn "done."
 }
 
