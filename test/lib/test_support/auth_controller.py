@@ -15,11 +15,11 @@ import time
 import zipfile
 
 from pathlib import Path
-from core.test_utils import TestException
-from core import test_utils
+from test_support.test_utils import TestException
+from test_support import test_utils
 
 _AUTH_CLASS = 'us.kbase.test.auth2.StandaloneAuthServer'
-_JARS_FILE = Path(__file__).resolve().parent.joinpath('authjars')
+_JARS_FILE = Path(__file__).resolve().parent.parent.parent.joinpath('bin/authjars')
 
 
 class AuthController:

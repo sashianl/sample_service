@@ -1,6 +1,6 @@
 import datetime
 from pytest import raises
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 from SampleService.core.arg_checkers import check_string, not_falsy, not_falsy_in_iterable
 from SampleService.core.arg_checkers import check_timestamp
 from SampleService.core.errors import MissingParameterError, IllegalParameterError

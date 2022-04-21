@@ -3,7 +3,7 @@ from pytest import raises
 from SampleService.core.errors import MissingParameterError, IllegalParameterError
 from SampleService.core.user import UserID
 
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 
 
 def test_init():

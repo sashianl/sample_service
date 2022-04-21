@@ -17,12 +17,12 @@ from configparser import ConfigParser as _ConfigParser
 from installed_clients.WorkspaceClient import Workspace as _Workspace
 from installed_clients.baseclient import ServerError as _ServerError
 
-from core import test_utils as _test_utils
-from core.test_utils import TestException as _TestException
-from mongo_controller import MongoController as _MongoController
+from test_support import test_utils as _test_utils
+from test_support.test_utils import TestException as _TestException
+from test_support.mongo_controller import MongoController as _MongoController
 
 _WS_CLASS = 'us.kbase.workspace.WorkspaceServer'
-_JARS_FILE = _Path(__file__).resolve().parent.joinpath('wsjars')
+_JARS_FILE = _Path(__file__).resolve().parent.parent.parent.joinpath('bin/wsjars')
 
 
 class WorkspaceController:
@@ -165,6 +165,7 @@ class WorkspaceController:
         '''
         Remove all data, but not indexes, from the database. Do not remove any installed types.
         '''
+        print('workspace controller: clear_db')
         self._mongo.clear_database(self._db)
 
     def destroy(self, delete_temp_files: bool = True, dump_logs_to_stdout: bool = True):

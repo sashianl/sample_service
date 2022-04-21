@@ -100,4 +100,3 @@ jobs:
           export KB_DEPLOYMENT_CONFIG=`pwd`/service.cfg
           pipenv install --dev
           pipenv run make test-sdkless
-

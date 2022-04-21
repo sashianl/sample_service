@@ -4,45 +4,45 @@
 
 # Tests of the auth user lookup and workspace wrapper code are at the bottom of the file.
 
+import copy
 import datetime
 import json
 import os
 import tempfile
-import requests
 import time
 import uuid
-import yaml
-import copy
 from configparser import ConfigParser
-from pytest import fixture, raises
 from threading import Thread
 
+import requests
+import yaml
 from kafka import KafkaConsumer
 from kafka.errors import NoBrokersAvailable
+from pytest import fixture, raises
 
 from SampleService.SampleServiceImpl import SampleService
 from SampleService.core.errors import (
     MissingParameterError, NoSuchWorkspaceDataError, IllegalParameterError)
-from SampleService.core.notification import KafkaNotifier
-from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
-from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
-from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
 from SampleService.core.errors import UnauthorizedError, NoSuchUserError
+from SampleService.core.notification import KafkaNotifier
 from SampleService.core.user import UserID
-
+from SampleService.core.user_lookup import InvalidTokenError, InvalidUserError
+from SampleService.core.user_lookup import KBaseUserLookup, AdminPermission
+from SampleService.core.workspace import WS, WorkspaceAccessType, UPA
 from installed_clients.WorkspaceClient import Workspace as Workspace
-
-from core import test_utils
-from core.test_utils import (
+from specs.conftest import reset_collections
+from test_support import test_utils
+from test_support.auth_controller import AuthController
+from test_support.constants import TEST_COL_SCHEMA, TEST_COL_WS_OBJ_VER, TEST_COL_DATA_LINK, TEST_COL_NODE_EDGE, \
+    TEST_COL_NODES, TEST_COL_VER_EDGE, TEST_COL_VERSION, TEST_COL_SAMPLE, TEST_PWD, TEST_USER
+from test_support.constants import TEST_DB_NAME
+from test_support.mongo_controller import MongoController
+from test_support.test_utils import (
     assert_ms_epoch_close_to_now,
     assert_exception_correct,
-    find_free_port
+    find_free_port, get_current_epochmillis
 )
-from arango_controller import ArangoController
-from mongo_controller import MongoController
-from workspace_controller import WorkspaceController
-from auth_controller import AuthController
-from kafka_controller import KafkaController
+from test_support.workspace_controller import WorkspaceController
 
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
@@ -52,18 +52,6 @@ VER = '0.2.1'
 _AUTH_DB = 'test_auth_db'
 _WS_DB = 'test_ws_db'
 _WS_TYPE_DB = 'test_ws_type_db'
-
-TEST_DB_NAME = 'test_sample_service'
-TEST_COL_SAMPLE = 'samples'
-TEST_COL_VERSION = 'versions'
-TEST_COL_VER_EDGE = 'ver_to_sample'
-TEST_COL_NODES = 'nodes'
-TEST_COL_NODE_EDGE = 'node_edges'
-TEST_COL_DATA_LINK = 'data_link'
-TEST_COL_WS_OBJ_VER = 'ws_obj_ver_shadow'
-TEST_COL_SCHEMA = 'schema'
-TEST_USER = 'user1'
-TEST_PWD = 'password1'
 
 USER_WS_READ_ADMIN = 'wsreadadmin'
 TOKEN_WS_READ_ADMIN = None
@@ -146,7 +134,7 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port, kafka_port):
                               }
         },
         'prefix_validators': {
-            'pre': {'validators': [{'module': 'core.config_test_vals',
+            'pre': {'validators': [{'module': 'test_support.config_test_vals',
                                     'callable_builder': 'prefix_validator_test_builder',
                                     'parameters': {'fail_on_arg': 'fail_plz'}
                                     }],
@@ -167,6 +155,8 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port, kafka_port):
 
     with open(deploy[1], 'w') as handle:
         cfg.write(handle)
+
+    print('CONFIG IS', cfg)
 
     return deploy[1]
 
@@ -297,80 +287,31 @@ def workspace(auth, mongo):
 
 
 @fixture(scope='module')
-def arango():
-    arangoexe = test_utils.get_arango_exe()
-    arangojs = test_utils.get_arango_js()
-    tempdir = test_utils.get_temp_dir()
-    arango = ArangoController(arangoexe, arangojs, tempdir)
-    create_test_db(arango)
-    print('running arango on port {} in dir {}'.format(arango.port, arango.temp_dir))
-    yield arango
-
-    del_temp = test_utils.get_delete_temp_files()
-    print('shutting down arango, delete_temp_files={}'.format(del_temp))
-    arango.destroy(del_temp)
-
-
-def create_test_db(arango):
-    systemdb = arango.client.db(verify=True)  # default access to _system db
-    systemdb.create_database(TEST_DB_NAME, [{'username': TEST_USER, 'password': TEST_PWD}])
-    return arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
-
-
-def clear_db_and_recreate(arango):
-    arango.clear_database(TEST_DB_NAME, drop_indexes=True)
-    db = create_test_db(arango)
-    db.create_collection(TEST_COL_SAMPLE)
-    db.create_collection(TEST_COL_VERSION)
-    db.create_collection(TEST_COL_VER_EDGE, edge=True)
-    db.create_collection(TEST_COL_NODES)
-    db.create_collection(TEST_COL_NODE_EDGE, edge=True)
-    db.create_collection(TEST_COL_DATA_LINK, edge=True)
-    db.create_collection(TEST_COL_WS_OBJ_VER)
-    db.create_collection(TEST_COL_SCHEMA)
-    return db
-
-
-@fixture(scope='module')
-def kafka():
-    kafka_bin_dir = test_utils.get_kafka_bin_dir()
-    tempdir = test_utils.get_temp_dir()
-    kc = KafkaController(kafka_bin_dir, tempdir)
-    print('running kafka on port {} in dir {}'.format(kc.port, kc.temp_dir))
-    yield kc
-
-    del_temp = test_utils.get_delete_temp_files()
-    print('shutting down kafka, delete_temp_files={}'.format(del_temp))
-    kc.destroy(del_temp, dump_logs_to_stdout=False)
-
-
-@fixture(scope='module')
-def service(auth, arango, workspace, kafka):
-    portint = test_utils.find_free_port()
-    clear_db_and_recreate(arango)
+def service(auth, testing_db, arango_port, workspace, kafka_port):
+    # clear_db_and_recreate(arango)
     # this is completely stupid. The state is calculated on import so there's no way to
     # test the state creation normally.
-    cfgpath = create_deploy_cfg(auth.port, arango.port, workspace.port, kafka.port)
+    cfgpath = create_deploy_cfg(auth.port, arango_port, workspace.port, kafka_port)
     os.environ['KB_DEPLOYMENT_CONFIG'] = cfgpath
+    portint = test_utils.find_free_port()
+
     from SampleService import SampleServiceServer
     Thread(target=SampleServiceServer.start_server, kwargs={'port': portint}, daemon=True).start()
     time.sleep(0.05)
     port = str(portint)
     print('running sample service at localhost:' + port)
-    yield port
+    yield {'port': port, 'db': testing_db}
 
     # shutdown the server
     # SampleServiceServer.stop_server()  <-- this causes an error. the start & stop methods are
     # bugged. _proc is only set if newprocess=True
 
 
-@fixture
-def sample_port(service, arango, workspace, kafka):
-    clear_db_and_recreate(arango)
+@fixture(scope="function")
+def sample_port(service, workspace):
+    reset_collections(service['db'])
     workspace.clear_db()
-    # _clear_kafka_messages(kafka)  # too expensive to run after every test
-    # kafka.clear_all_topics()  # too expensive to run after every test
-    yield service
+    yield service['port']
 
 
 def test_init_fail():
@@ -452,10 +393,10 @@ def get_authorized_headers(token):
     return headers
 
 
-def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC, print_res=False):
+def _check_kafka_messages(kafka_port, expected_msgs, topic=KAFKA_TOPIC, print_res=False):
     kc = KafkaConsumer(
         topic,
-        bootstrap_servers=f'localhost:{kafka.port}',
+        bootstrap_servers=f'localhost:{kafka_port}',
         auto_offset_reset='earliest',
         group_id='foo')  # quiets warnings
 
@@ -474,10 +415,10 @@ def _check_kafka_messages(kafka, expected_msgs, topic=KAFKA_TOPIC, print_res=Fal
         kc.close()
 
 
-def _clear_kafka_messages(kafka, topic=KAFKA_TOPIC):
+def _clear_kafka_messages(kafka_port, topic=KAFKA_TOPIC):
     kc = KafkaConsumer(
         topic,
-        bootstrap_servers=f'localhost:{kafka.port}',
+        bootstrap_servers=f'localhost:{kafka_port}',
         auto_offset_reset='earliest',
         group_id='foo')  # quiets warnings
 
@@ -488,9 +429,11 @@ def _clear_kafka_messages(kafka, topic=KAFKA_TOPIC):
         kc.close()
 
 
-def test_create_and_get_sample_with_version(sample_port, kafka):
-    _clear_kafka_messages(kafka)
+def test_create_and_get_sample_with_version(sample_port, kafka_port):
+    _clear_kafka_messages(kafka_port)
+    print("KAFKA PORT", kafka_port)
     url = f'http://localhost:{sample_port}'
+    # raise Exception('foobar')
 
     # version 1
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
@@ -518,10 +461,11 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
                        }
         }]
     })
-    # print(ret.text)
+    print('RET', url, ret.text)
     assert ret.ok is True
     assert ret.json()['result'][0]['version'] == 1
     id_ = ret.json()['result'][0]['id']
+
 
     # version 2
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
@@ -607,15 +551,15 @@ def test_create_and_get_sample_with_version(sample_port, kafka):
     }
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 2}
         ])
 
 
-def test_create_and_get_samples(sample_port, kafka):
-    _clear_kafka_messages(kafka)
+def test_create_and_get_samples(sample_port, kafka_port):
+    _clear_kafka_messages(kafka_port)
     url = f'http://localhost:{sample_port}'
 
     # first sample
@@ -724,13 +668,13 @@ def test_create_and_get_samples(sample_port, kafka):
         }]
     }]
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id1_, 'sample_ver': 1},
             {'event_type': 'NEW_SAMPLE', 'sample_id': id2_, 'sample_ver': 1}
         ])
-
-
+#
+#
 def test_create_sample_as_admin(sample_port):
     _create_sample_as_admin(sample_port, None, TOKEN2, USER2)
 
@@ -943,7 +887,7 @@ def _get_sample(url, token, id_):
 def test_get_sample_as_admin(sample_port):
     url = f'http://localhost:{sample_port}'
 
-    # verison 1
+    # version 1
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
         'method': 'SampleService.create_sample',
         'version': '1.1',
@@ -993,6 +937,7 @@ def test_get_sample_as_admin(sample_port):
     }
 
 
+
 def test_create_sample_fail_no_nodes(sample_port):
     url = f'http://localhost:{sample_port}'
 
@@ -1012,7 +957,7 @@ def test_create_sample_fail_no_nodes(sample_port):
         'Sample service error code 30001 Illegal input parameter: sample node tree ' +
         'must be present and a list')
 
-
+#
 def test_create_sample_fail_bad_metadata(sample_port):
     _create_sample_fail_bad_metadata(
         sample_port, {'stringlentest': {}},
@@ -1284,8 +1229,8 @@ def _get_sample_fail(url, token, params, expected):
     assert ret.json()['error']['message'] == expected
 
 
-def test_get_and_replace_acls(sample_port, kafka):
-    _clear_kafka_messages(kafka)
+def test_get_and_replace_acls(sample_port, kafka_port):
+    _clear_kafka_messages(kafka_port)
     url = f'http://localhost:{sample_port}'
 
     ret = requests.post(url, headers=get_authorized_headers(TOKEN1), json={
@@ -1418,7 +1363,7 @@ def test_get_and_replace_acls(sample_port, kafka):
     })
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
             {'event_type': 'ACL_CHANGE', 'sample_id': id_},
@@ -1775,13 +1720,13 @@ def test_replace_acls_fail_owner_in_another_acl(sample_port):
         'The owner cannot be in any other ACL')
 
 
-def test_update_acls(sample_port, kafka):
-    _update_acls_tst(sample_port, kafka, TOKEN1, False)  # owner
-    _update_acls_tst(sample_port, kafka, TOKEN2, False)  # admin
-    _update_acls_tst(sample_port, kafka, TOKEN5, True)  # as_admin = True
+def test_update_acls(sample_port, kafka_port):
+    _update_acls_tst(sample_port, kafka_port, TOKEN1, False)  # owner
+    _update_acls_tst(sample_port, kafka_port, TOKEN2, False)  # admin
+    _update_acls_tst(sample_port, kafka_port, TOKEN5, True)  # as_admin = True
 
-def _update_acls_tst(sample_port, kafka, token, as_admin):
-    _clear_kafka_messages(kafka)
+def _update_acls_tst(sample_port, kafka_port, token, as_admin):
+    _clear_kafka_messages(kafka_port)
     url = f'http://localhost:{sample_port}'
 
     id_ = _create_generic_sample(url, TOKEN1)
@@ -1812,7 +1757,7 @@ def _update_acls_tst(sample_port, kafka, token, as_admin):
     })
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
             {'event_type': 'ACL_CHANGE', 'sample_id': id_},
@@ -1820,14 +1765,14 @@ def _update_acls_tst(sample_port, kafka, token, as_admin):
         ])
 
 
-def test_update_acls_with_at_least(sample_port, kafka):
-    _update_acls_tst_with_at_least(sample_port, kafka, TOKEN1, False)  # owner
-    _update_acls_tst_with_at_least(sample_port, kafka, TOKEN2, False)  # admin
-    _update_acls_tst_with_at_least(sample_port, kafka, TOKEN5, True)  # as_admin = True
+def test_update_acls_with_at_least(sample_port, kafka_port):
+    _update_acls_tst_with_at_least(sample_port, kafka_port, TOKEN1, False)  # owner
+    _update_acls_tst_with_at_least(sample_port, kafka_port, TOKEN2, False)  # admin
+    _update_acls_tst_with_at_least(sample_port, kafka_port, TOKEN5, True)  # as_admin = True
 
 
-def _update_acls_tst_with_at_least(sample_port, kafka, token, as_admin):
-    _clear_kafka_messages(kafka)
+def _update_acls_tst_with_at_least(sample_port, kafka_port, token, as_admin):
+    _clear_kafka_messages(kafka_port)
     url = f'http://localhost:{sample_port}'
 
     id_ = _create_generic_sample(url, TOKEN1)
@@ -1859,7 +1804,7 @@ def _update_acls_tst_with_at_least(sample_port, kafka, token, as_admin):
     }, print_resp=True)
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id_, 'sample_ver': 1},
             {'event_type': 'ACL_CHANGE', 'sample_id': id_},
@@ -2097,6 +2042,7 @@ def test_update_acls_many_bulk_fail(sample_port):
     msg = f"Sample service error code 50010 No such sample: {sample_bad_id}"
     assert resp.json()['error']['message'] == msg
 
+
 def test_get_metadata_key_static_metadata(sample_port):
     _get_metadata_key_static_metadata(
         sample_port, {'keys': ['foo']}, {'foo': {'a': 'b', 'c': 'd'}})
@@ -2171,6 +2117,7 @@ def _create_sample(url, token, sample, expected_version):
     assert ret.ok is True
     assert ret.json()['result'][0]['version'] == expected_version
     return ret.json()['result'][0]['id']
+
 
 def _sample_factory(name):
     return {
@@ -2268,7 +2215,8 @@ def _create_sample_and_links_for_propagate_links(url, token, user):
     # create links
     lid1 = _create_link(
         url, token, user,
-        {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'})
+        {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/1/1', 'dataid': 'column1'},
+        print_resp=True)
     lid2 = _create_link(
         url, token, user,
         {'id': sid, 'version': 1, 'node': 'root', 'upa': '1/2/1', 'dataid': 'column2'})
@@ -2306,9 +2254,9 @@ def _check_sample_data_links(url, sample_id, version, expected_links, token):
     _check_data_links(links, expected_links)
 
 
-def test_create_and_propagate_data_links(sample_port, workspace, kafka):
+def test_create_and_propagate_data_links(sample_port, workspace, kafka_port):
 
-    _clear_kafka_messages(kafka)
+    _clear_kafka_messages(kafka_port)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -2381,9 +2329,9 @@ def test_create_and_propagate_data_links(sample_port, workspace, kafka):
     _check_sample_data_links(url, sid, 2, expected_new_links, TOKEN3)
 
 
-def test_create_and_propagate_data_links_type_specific(sample_port, workspace, kafka):
+def test_create_and_propagate_data_links_type_specific(sample_port, workspace, kafka_port):
 
-    _clear_kafka_messages(kafka)
+    _clear_kafka_messages(kafka_port)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -2459,11 +2407,11 @@ def test_create_and_propagate_data_links_type_specific(sample_port, workspace, k
     _check_sample_data_links(url, sid, 2, expected_new_links, TOKEN3)
 
 
-def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, kafka):
+def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, kafka_port):
     '''
     Also tests that the 'as_user' key is ignored if 'as_admin' is falsy.
     '''
-    _clear_kafka_messages(kafka)
+    _clear_kafka_messages(kafka_port)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -2617,7 +2565,7 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, ka
     assert ret.json()['result'][0]['links'] == []
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
             {'event_type': 'NEW_SAMPLE', 'sample_id': id2, 'sample_ver': 1},
@@ -2628,11 +2576,11 @@ def test_create_links_and_get_links_from_sample_basic(sample_port, workspace, ka
         ])
 
 
-def test_update_and_get_links_from_sample(sample_port, workspace, kafka):
+def test_update_and_get_links_from_sample(sample_port, workspace, kafka_port):
     '''
     Also tests getting links from a sample using an effective time
     '''
-    _clear_kafka_messages(kafka)
+    _clear_kafka_messages(kafka_port)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -2744,7 +2692,7 @@ def test_update_and_get_links_from_sample(sample_port, workspace, kafka):
         ]}
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
             {'event_type': 'ACL_CHANGE', 'sample_id': id1},
@@ -3087,6 +3035,7 @@ def test_get_links_from_sample_public_read(sample_port, workspace):
                 'expired': None
             }
 
+
 def test_get_links_from_sample_set(sample_port, workspace):
 
     """
@@ -3120,7 +3069,7 @@ def test_get_links_from_sample_set(sample_port, workspace):
         'params': [{
             'sample_ids': [{'id': id_, 'version': 1} for id_ in ids_],
             'as_admin': False,
-            'effective_time': _get_current_epochmillis()
+            'effective_time': get_current_epochmillis()
         }]
     })
     end = time.time()
@@ -3128,9 +3077,10 @@ def test_get_links_from_sample_set(sample_port, workspace):
     # getting 500 sample links should take about 5 seconds (1 second per 100 samples)
     print(f"retrieved data links from {N_SAMPLES} samples in {elapsed} seconds.")
     assert ret.ok
-    # assuming twice the amound of expected time elasped should raise concern
+    # assuming twice the amount of expected time elapsed should raise concern
     assert elapsed < 10
     assert len(ret.json()['result'][0]['links']) == N_SAMPLES
+
 
 def test_create_link_fail(sample_port, workspace):
     url = f'http://localhost:{sample_port}'
@@ -3314,20 +3264,20 @@ def test_get_links_from_sample_set_fail(sample_port):
     _get_links_from_sample_set_fail(
         sample_port, TOKEN4, {
             'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500
+            'effective_time': get_current_epochmillis() - 500
         },
         f'Sample service error code 20000 Unauthorized: User user4 cannot read sample {id_}')
     _get_links_from_sample_set_fail(
         sample_port, None, {
             'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500
+            'effective_time': get_current_epochmillis() - 500
         },
         f'Sample service error code 20000 Unauthorized: Anonymous users cannot read sample {id_}')
     badid = uuid.uuid4()
     _get_links_from_sample_set_fail(
         sample_port, TOKEN3, {
             'sample_ids': [{'id': str(badid), 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500
+            'effective_time': get_current_epochmillis() - 500
         },
         'Sample service error code 50010 No such sample:'
         f" Could not complete search for samples: ['{badid}']")
@@ -3336,7 +3286,7 @@ def test_get_links_from_sample_set_fail(sample_port):
     _get_links_from_sample_set_fail(
         sample_port, TOKEN4, {
             'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500,
+            'effective_time': get_current_epochmillis() - 500,
             'as_admin': 1,
         },
         'Sample service error code 20000 Unauthorized: User user4 does not have the ' +
@@ -3344,7 +3294,7 @@ def test_get_links_from_sample_set_fail(sample_port):
     _get_links_from_sample_set_fail(
         sample_port, None, {
             'sample_ids': [{'id': id_, 'version': 1}],
-            'effective_time': _get_current_epochmillis() - 500,
+            'effective_time': get_current_epochmillis() - 500,
             'as_admin': 1
         },
         'Sample service error code 20000 Unauthorized: Anonymous users ' +
@@ -3363,21 +3313,17 @@ def _get_links_from_sample_set_fail(sample_port, token, params, expected):
     assert ret.json()['error']['message'] == expected
 
 
-def _get_current_epochmillis():
-    return round(datetime.datetime.now(tz=datetime.timezone.utc).timestamp() * 1000)
+def test_expire_data_link(sample_port, workspace, kafka_port):
+    _expire_data_link(sample_port, workspace, None, kafka_port)
 
 
-def test_expire_data_link(sample_port, workspace, kafka):
-    _expire_data_link(sample_port, workspace, None, kafka)
+def test_expire_data_link_with_data_id(sample_port, workspace, kafka_port):
+    _expire_data_link(sample_port, workspace, 'whee', kafka_port)
 
 
-def test_expire_data_link_with_data_id(sample_port, workspace, kafka):
-    _expire_data_link(sample_port, workspace, 'whee', kafka)
-
-
-def _expire_data_link(sample_port, workspace, dataid, kafka):
+def _expire_data_link(sample_port, workspace, dataid, kafka_port):
     ''' also tests that 'as_user' is ignored if 'as_admin' is false '''
-    _clear_kafka_messages(kafka)
+    _clear_kafka_messages(kafka_port)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -3427,7 +3373,7 @@ def _expire_data_link(sample_port, workspace, dataid, kafka):
         'method': 'SampleService.get_data_links_from_data',
         'version': '1.1',
         'id': '42',
-        'params': [{'upa': '1/1/1', 'effective_time': _get_current_epochmillis() - 500}]
+        'params': [{'upa': '1/1/1', 'effective_time': get_current_epochmillis() - 500}]
     })
     # print(ret.text)
     assert ret.ok is True
@@ -3474,7 +3420,7 @@ def _expire_data_link(sample_port, workspace, dataid, kafka):
          }
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
             {'event_type': 'ACL_CHANGE', 'sample_id': id1},
@@ -3484,16 +3430,16 @@ def _expire_data_link(sample_port, workspace, dataid, kafka):
         ])
 
 
-def test_expire_data_link_as_admin(sample_port, workspace, kafka):
-    _expire_data_link_as_admin(sample_port, workspace, None, USER2, kafka)
+def test_expire_data_link_as_admin(sample_port, workspace, kafka_port):
+    _expire_data_link_as_admin(sample_port, workspace, None, USER2, kafka_port)
 
 
-def test_expire_data_link_as_admin_impersonate_user(sample_port, workspace, kafka):
-    _expire_data_link_as_admin(sample_port, workspace, USER4, USER4, kafka)
+def test_expire_data_link_as_admin_impersonate_user(sample_port, workspace, kafka_port):
+    _expire_data_link_as_admin(sample_port, workspace, USER4, USER4, kafka_port)
 
 
-def _expire_data_link_as_admin(sample_port, workspace, user, expected_user, kafka):
-    _clear_kafka_messages(kafka)
+def _expire_data_link_as_admin(sample_port, workspace, user, expected_user, kafka_port):
+    _clear_kafka_messages(kafka_port)
 
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -3540,7 +3486,7 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user, kafk
         'method': 'SampleService.get_data_links_from_data',
         'version': '1.1',
         'id': '42',
-        'params': [{'upa': '1/1/1', 'effective_time': _get_current_epochmillis() - 500}]
+        'params': [{'upa': '1/1/1', 'effective_time': get_current_epochmillis() - 500}]
     })
     # print(ret.text)
     assert ret.ok is True
@@ -3568,14 +3514,14 @@ def _expire_data_link_as_admin(sample_port, workspace, user, expected_user, kafk
          }
 
     _check_kafka_messages(
-        kafka,
+        kafka_port,
         [
             {'event_type': 'NEW_SAMPLE', 'sample_id': id1, 'sample_ver': 1},
             {'event_type': 'NEW_LINK', 'link_id': lid},
             {'event_type': 'EXPIRED_LINK', 'link_id': lid},
         ])
 
-
+#
 def test_expire_data_link_fail(sample_port, workspace):
     url = f'http://localhost:{sample_port}'
     wsurl = f'http://localhost:{workspace.port}'
@@ -4872,24 +4818,24 @@ def _kafka_notifier_init_fail(servers, topic, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_kafka_notifier_new_sample(sample_port, kafka):
+def test_kafka_notifier_new_sample(sample_port, kafka_port):
     topic = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-' + 186 * 'a'
-    kn = KafkaNotifier(f'localhost:{kafka.port}', topic)
+    kn = KafkaNotifier(f'localhost:{kafka_port}', topic)
     try:
         id_ = uuid.uuid4()
 
         kn.notify_new_sample_version(id_, 6)
 
         _check_kafka_messages(
-            kafka,
+            kafka_port,
             [{'event_type': 'NEW_SAMPLE', 'sample_id': str(id_), 'sample_ver': 6}],
             topic)
     finally:
         kn.close()
 
 
-def test_kafka_notifier_notify_new_sample_version_fail(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+def test_kafka_notifier_notify_new_sample_version_fail(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'mytopic')
 
     _kafka_notifier_notify_new_sample_version_fail(kn, None, 1, ValueError(
         'sample_id cannot be a value that evaluates to false'))
@@ -4909,23 +4855,23 @@ def _kafka_notifier_notify_new_sample_version_fail(notifier, sample, version, ex
     assert_exception_correct(got.value, expected)
 
 
-def test_kafka_notifier_acl_change(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'topictopic')
+def test_kafka_notifier_acl_change(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'topictopic')
     try:
         id_ = uuid.uuid4()
 
         kn.notify_sample_acl_change(id_)
 
         _check_kafka_messages(
-            kafka,
+            kafka_port,
             [{'event_type': 'ACL_CHANGE', 'sample_id': str(id_)}],
             'topictopic')
     finally:
         kn.close()
 
 
-def test_kafka_notifier_notify_acl_change_fail(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+def test_kafka_notifier_notify_acl_change_fail(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'mytopic')
 
     _kafka_notifier_notify_acl_change_fail(kn, None, ValueError(
         'sample_id cannot be a value that evaluates to false'))
@@ -4941,23 +4887,23 @@ def _kafka_notifier_notify_acl_change_fail(notifier, sample, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_kafka_notifier_new_link(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'topictopic')
+def test_kafka_notifier_new_link(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'topictopic')
     try:
         id_ = uuid.uuid4()
 
         kn.notify_new_link(id_)
 
         _check_kafka_messages(
-            kafka,
+            kafka_port,
             [{'event_type': 'NEW_LINK', 'link_id': str(id_)}],
             'topictopic')
     finally:
         kn.close()
 
 
-def test_kafka_notifier_new_link_fail(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+def test_kafka_notifier_new_link_fail(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'mytopic')
 
     _kafka_notifier_new_link_fail(kn, None, ValueError(
         'link_id cannot be a value that evaluates to false'))
@@ -4973,23 +4919,23 @@ def _kafka_notifier_new_link_fail(notifier, sample, expected):
     assert_exception_correct(got.value, expected)
 
 
-def test_kafka_notifier_expired_link(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'topictopic')
+def test_kafka_notifier_expired_link(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'topictopic')
     try:
         id_ = uuid.uuid4()
 
         kn.notify_expired_link(id_)
 
         _check_kafka_messages(
-            kafka,
+            kafka_port,
             [{'event_type': 'EXPIRED_LINK', 'link_id': str(id_)}],
             'topictopic')
     finally:
         kn.close()
 
 
-def test_kafka_notifier_expired_link_fail(sample_port, kafka):
-    kn = KafkaNotifier(f'localhost:{kafka.port}', 'mytopic')
+def test_kafka_notifier_expired_link_fail(sample_port, kafka_port):
+    kn = KafkaNotifier(f'localhost:{kafka_port}', 'mytopic')
 
     _kafka_notifier_expired_link_fail(kn, None, ValueError(
         'link_id cannot be a value that evaluates to false'))
@@ -5028,7 +4974,6 @@ def _validate_sample_as_admin(sample_port, as_user, get_token, expected_user):
             }]
         }]
     })
-    # print(ret.text)
     assert ret.ok is True
     ret_json = ret.json()['result'][0]
     assert 'mysample' not in ret_json['errors']

@@ -1,17 +1,16 @@
-import os
-import requests
-import socket
-from contextlib import closing
-from pathlib import Path
 import configparser
-from logging import Formatter
-from typing import List
-from logging import LogRecord
+import datetime
+import os
+import socket
 import time
+from contextlib import closing
+from logging import Formatter
+from logging import LogRecord
+from pathlib import Path
+from typing import List
 
-ARANGO_EXE = 'test.arango.exe'
-ARANGO_JS = 'test.arango.js'
-KAFKA_BIN_DIR = 'test.kafka.bin.dir'
+import requests
+
 MONGO_EXE = 'test.mongo.exe'
 MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
 JARS_DIR = 'test.jars.dir'
@@ -23,18 +22,6 @@ TEST_CONFIG_FILE_SECTION = 'sampleservicetest'
 TEST_FILE_LOC_ENV_KEY = 'SAMPLESERV_TEST_FILE'
 
 _CONFIG = None
-
-
-def get_arango_exe() -> Path:
-    return Path(os.path.abspath(_get_test_property(ARANGO_EXE)))
-
-
-def get_arango_js() -> Path:
-    return Path(os.path.abspath(_get_test_property(ARANGO_JS)))
-
-
-def get_kafka_bin_dir() -> Path:
-    return Path(os.path.abspath(_get_test_property(KAFKA_BIN_DIR)))
 
 
 def get_mongo_exe() -> Path:
@@ -92,6 +79,10 @@ def find_free_port() -> int:
 def assert_exception_correct(got: Exception, expected: Exception):
     assert got.args == expected.args
     assert type(got) == type(expected)
+
+
+def get_current_epochmillis():
+    return round(datetime.datetime.now(tz=datetime.timezone.utc).timestamp() * 1000)
 
 
 def assert_ms_epoch_close_to_now(time_):

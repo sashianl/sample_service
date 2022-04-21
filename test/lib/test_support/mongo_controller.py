@@ -8,10 +8,10 @@ Production use is not recommended.
 # may want to make this a pip package at some point
 
 from pathlib import Path
-from core.test_utils import TestException
+from test_support.test_utils import TestException
 import os
 import tempfile
-from core import test_utils
+from test_support import test_utils
 import subprocess
 import time
 import shutil

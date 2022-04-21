@@ -43,7 +43,7 @@ from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.user import UserID
 from SampleService.core.workspace import DataUnitID, UPA
 
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 
 
 def test_get_user_from_object():

@@ -3,7 +3,8 @@ import time
 
 import arango
 
-ARANGO_HOST = "http://arangodb:8529"
+# TODO: this needs to be in a configuration
+ARANGO_HOST = "http://localhost:8529"
 TEST_DB_NAME = "test_db"
 TEST_COL_SAMPLE = "samples_sample"
 TEST_COL_VERSION = "samples_version"

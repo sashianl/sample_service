@@ -6,18 +6,6 @@
 # e.g. [path to parent folder]/jars/lib/jars
 test.jars.dir=/path/to/jars/dir
 
-# path to the ArangoDB executable (arangod, *not* arangodb) to use for the tests.
-# In the downloaded tarball it is at /usr/sbin/arangod.
-test.arango.exe=/path/to/arangoddbexecutable
-
-# path to the ArangoDB javascript startup directory to use for the tests.
-# This is the same path as provided to --javascript.startup-directory for the arangod executable.
-# In the downloaded tarball it is at /usr/share/arangodb3/js/.
-test.arango.js=/path/to/arangodjs
-
-# path to the Kafka binary directory (in ./bin in the tarball root directory.)
-test.kafka.bin.dir=/path/to/kafka/tarball/bin
-
 # path to the MongoDB executable to use for the tests.
 test.mongo.exe=/path/to/mongodexecutable
 

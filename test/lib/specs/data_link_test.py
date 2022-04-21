@@ -3,7 +3,7 @@ import uuid
 
 from pytest import raises
 
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import SampleNodeAddress, SampleAddress
 from SampleService.core.user import UserID

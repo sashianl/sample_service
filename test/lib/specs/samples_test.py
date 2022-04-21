@@ -25,7 +25,7 @@ from SampleService.core.user_lookup import KBaseUserLookup
 from SampleService.core.validator.metadata_validator import MetadataValidatorSet
 from SampleService.core import user_lookup
 from SampleService.core.workspace import WS, UPA, DataUnitID, WorkspaceAccessType
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 
 
 def u(user):

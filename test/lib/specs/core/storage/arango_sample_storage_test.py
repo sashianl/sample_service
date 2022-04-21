@@ -3,9 +3,12 @@ import uuid
 import time
 
 from pytest import raises, fixture
-from core import test_utils
-from core.test_utils import assert_exception_correct
-from arango_controller import ArangoController
+from test_support import test_utils
+from test_support.common import dt
+from test_support.constants import TEST_COL_SAMPLE, TEST_DB_NAME, TEST_COL_NODES, TEST_COL_SCHEMA, TEST_COL_DATA_LINK, \
+    TEST_COL_WS_OBJ_VER, TEST_COL_NODE_EDGE, TEST_COL_VER_EDGE, TEST_COL_VERSION, TEST_PWD, TEST_USER, TEST_COL_EDGE
+from test_support.test_utils import assert_exception_correct
+# from arango_controller import ArangoController
 from SampleService.core.acls import SampleACL, SampleACLDelta
 from SampleService.core.data_link import DataLink
 from SampleService.core.sample import (
@@ -28,72 +31,6 @@ from SampleService.core.user import UserID
 from SampleService.core.workspace import UPA, DataUnitID
 
 TEST_NODE = SampleNode('foo')
-
-TEST_DB_NAME = 'test_sample_service'
-TEST_COL_SAMPLE = 'samples'
-TEST_COL_VERSION = 'versions'
-TEST_COL_VER_EDGE = 'ver_to_sample'
-TEST_COL_NODES = 'nodes'
-TEST_COL_NODE_EDGE = 'node_edges'
-TEST_COL_WS_OBJ_VER = 'ws_obj_ver'
-TEST_COL_DATA_LINK = 'data_link'
-TEST_COL_SCHEMA = 'schema'
-TEST_USER = 'user1'
-TEST_PWD = 'password1'
-
-
-@fixture(scope='module')
-def arango():
-    arangoexe = test_utils.get_arango_exe()
-    arangojs = test_utils.get_arango_js()
-    tempdir = test_utils.get_temp_dir()
-    arango = ArangoController(arangoexe, arangojs, tempdir)
-    create_test_db(arango)
-    print('running arango on port {} in dir {}'.format(arango.port, arango.temp_dir))
-    yield arango
-    del_temp = test_utils.get_delete_temp_files()
-    print('shutting down arango, delete_temp_files={}'.format(del_temp))
-    arango.destroy(del_temp)
-
-
-def create_test_db(arango):
-    systemdb = arango.client.db(verify=True)  # default access to _system db
-    systemdb.create_database(TEST_DB_NAME, [{'username': TEST_USER, 'password': TEST_PWD}])
-    return arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
-
-
-@fixture
-def samplestorage(arango):
-    return samplestorage_method(arango)
-
-
-def clear_db_and_recreate(arango):
-    arango.clear_database(TEST_DB_NAME, drop_indexes=True)
-    db = create_test_db(arango)
-    db.create_collection(TEST_COL_SAMPLE)
-    db.create_collection(TEST_COL_VERSION)
-    db.create_collection(TEST_COL_VER_EDGE, edge=True)
-    db.create_collection(TEST_COL_NODES)
-    db.create_collection(TEST_COL_NODE_EDGE, edge=True)
-    db.create_collection(TEST_COL_WS_OBJ_VER)
-    db.create_collection(TEST_COL_DATA_LINK, edge=True)
-    db.create_collection(TEST_COL_SCHEMA)
-    return db
-
-
-def samplestorage_method(arango):
-    clear_db_and_recreate(arango)
-    return ArangoSampleStorage(
-        arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD),
-        TEST_COL_SAMPLE,
-        TEST_COL_VERSION,
-        TEST_COL_VER_EDGE,
-        TEST_COL_NODES,
-        TEST_COL_NODE_EDGE,
-        TEST_COL_WS_OBJ_VER,
-        TEST_COL_DATA_LINK,
-        TEST_COL_SCHEMA)
-
 
 def nw():
     return datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
@@ -126,10 +63,8 @@ def test_startup_and_check_config_doc(samplestorage):
     assert ss.get_sample(id_) == SavedSample(id_, UserID('u'), [n], dt(1), 'foo', version=1)
 
 
-def test_startup_with_extra_config_doc(arango):
-    db = clear_db_and_recreate(arango)
-
-    scol = db.collection('schema')
+def test_startup_with_extra_config_doc(sample_service_db):
+    scol = sample_service_db.collection(TEST_COL_SCHEMA)
     scol.insert_many([{'_key': 'schema', 'schemaver': 1, 'inupdate': False},
                       {'schema': 'schema', 'schemaver': 2, 'inupdate': False}])
 
@@ -142,14 +77,13 @@ def test_startup_with_extra_config_doc(arango):
     dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
+    _fail_startup(sample_service_db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'Multiple config objects found ' +
         'in the database. This should not happen, something is very wrong.'))
 
 
-def test_startup_with_bad_schema_version(arango):
-    db = clear_db_and_recreate(arango)
-    col = db.collection(TEST_COL_SCHEMA)
+def test_startup_with_bad_schema_version(sample_service_db):
+    col = sample_service_db.collection(TEST_COL_SCHEMA)
     col.insert({'_key': 'schema', 'schemaver': 4, 'inupdate': False})
 
     s = TEST_COL_SAMPLE
@@ -161,13 +95,12 @@ def test_startup_with_bad_schema_version(arango):
     dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
+    _fail_startup(sample_service_db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'Incompatible database schema. Server is v1, DB is v4'))
 
 
-def test_startup_in_update(arango):
-    db = clear_db_and_recreate(arango)
-    col = db.collection(TEST_COL_SCHEMA)
+def test_startup_in_update(sample_service_db):
+    col = sample_service_db.collection(TEST_COL_SCHEMA)
     col.insert({'_key': 'schema', 'schemaver': 1, 'inupdate': True})
 
     s = TEST_COL_SAMPLE
@@ -179,7 +112,7 @@ def test_startup_in_update(arango):
     dl = TEST_COL_DATA_LINK
     sc = TEST_COL_SCHEMA
 
-    _fail_startup(db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
+    _fail_startup(sample_service_db, s, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
         'The database is in the middle of an update from v1 of the schema. Aborting startup.'))
 
 
@@ -432,9 +365,9 @@ def test_startup_with_no_version_in_sample_doc(samplestorage):
     assert len(list(samplestorage._col_node_edge.find({'uuidver': uuidver1}))) == 4
 
 
-def test_fail_startup_bad_args(arango):
-    samplestorage_method(arango)
-    db = arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
+def test_fail_startup_bad_args(arango_client, samplestorage):
+    # samplestorage_method(arango)
+    db = arango_client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
 
     s = TEST_COL_SAMPLE
     v = TEST_COL_VERSION
@@ -467,10 +400,11 @@ def test_fail_startup_bad_args(arango):
                   ValueError('now cannot be a value that evaluates to false'))
 
 
-def test_fail_startup_incorrect_collection_type(arango):
-    samplestorage_method(arango)
-    db = arango.client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
-    db.create_collection('sampleedge', edge=True)
+def test_fail_startup_incorrect_collection_type(arango_client, samplestorage):
+    # samplestorage_method(arango_client)
+    db = arango_client.db(TEST_DB_NAME, TEST_USER, TEST_PWD)
+    # test_edge_collection = 'test_edge'
+    db.create_collection(TEST_COL_EDGE, edge=True)
 
     s = TEST_COL_SAMPLE
     v = TEST_COL_VERSION
@@ -484,22 +418,22 @@ def test_fail_startup_incorrect_collection_type(arango):
     def nw():
         datetime.datetime.fromtimestamp(1, tz=datetime.timezone.utc)
 
-    _fail_startup(db, 'sampleedge', v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
-        'sample collection sampleedge is not a vertex collection'))
+    _fail_startup(db, TEST_COL_EDGE, v, ve, n, ne, ws, dl, sc, nw, StorageInitError(
+        f'sample collection {TEST_COL_EDGE} is not a vertex collection'))
     _fail_startup(db, s, ve, ve, n, ne, ws, dl, sc, nw, StorageInitError(
-        'version collection ver_to_sample is not a vertex collection'))
+        f'version collection {TEST_COL_VER_EDGE} is not a vertex collection'))
     _fail_startup(db, s, v, v, n, ne, ws, dl, sc, nw, StorageInitError(
-        'version edge collection versions is not an edge collection'))
+        f'version edge collection {TEST_COL_VERSION} is not an edge collection'))
     _fail_startup(db, s, v, ve, ne, ne, ws, dl, sc, nw, StorageInitError(
-        'node collection node_edges is not a vertex collection'))
+        f'node collection {TEST_COL_NODE_EDGE} is not a vertex collection'))
     _fail_startup(db, s, v, ve, n, n, ws, dl, sc, nw, StorageInitError(
-        'node edge collection nodes is not an edge collection'))
+        f'node edge collection {TEST_COL_NODES} is not an edge collection'))
     _fail_startup(db, s, v, ve, n, ne, dl, dl, sc, nw, StorageInitError(
-        'workspace object version shadow collection data_link is not a vertex collection'))
+        f'workspace object version shadow collection {TEST_COL_DATA_LINK} is not a vertex collection'))
     _fail_startup(db, s, v, ve, n, ne, ws, ws, sc, nw, StorageInitError(
-        'data link collection ws_obj_ver is not an edge collection'))
+        f'data link collection {TEST_COL_WS_OBJ_VER} is not an edge collection'))
     _fail_startup(db, s, v, ve, n, ne, ws, dl, ne, nw, StorageInitError(
-        'schema collection node_edges is not a vertex collection'))
+        f'schema collection {TEST_COL_NODE_EDGE} is not a vertex collection'))
 
 
 def _fail_startup(
@@ -531,20 +465,21 @@ def _fail_startup(
 
 
 def test_indexes_created(samplestorage):
-    # Shoudn't reach into the internals but only testing
+    # Shouldn't reach into the internals but only testing
     # Purpose here is to make tests fail if collections are added so devs are reminded to
     # set up any necessary indexes and add index tests
     cols = sorted([x['name'] for x in samplestorage._db.collections()
                    if not x['name'].startswith('_')])
-    assert cols == [
-        'data_link',
-        'node_edges',
-        'nodes',
-        'samples',
-        'schema',
-        'ver_to_sample',
-        'versions',
-        'ws_obj_ver']
+    assert cols == sorted([
+        TEST_COL_SAMPLE,
+        TEST_COL_VERSION,
+        TEST_COL_VER_EDGE,
+        TEST_COL_NODES,
+        TEST_COL_NODE_EDGE,
+        TEST_COL_DATA_LINK,
+        TEST_COL_WS_OBJ_VER,
+        TEST_COL_SCHEMA
+    ])
 
     indexes = samplestorage._col_sample.indexes()
     assert len(indexes) == 1
@@ -700,6 +635,7 @@ def test_save_and_get_sample(samplestorage):
     assert samplestorage.get_sample_acls(id_) == SampleACL(
         UserID('auser'), dt(8), public_read=False)
 
+
 def test_save_and_get_samples(samplestorage):
     n1 = SampleNode('root')
     n2 = SampleNode(
@@ -732,6 +668,7 @@ def test_save_and_get_samples(samplestorage):
         SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar', 1),
         SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz', 1)
     ]
+
 
 def test_save_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
@@ -814,7 +751,7 @@ def test_get_sample_with_non_updated_node_doc(samplestorage):
         assert v['ver'] == 1
 
 
-def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
+def test_get_sample_with_missing_source_metadata_key(samplestorage, arango_client):
     """
     Backwards compatibility test. Checks that a missing smeta key in the sample node returns an
     empty source metadata list.
@@ -831,7 +768,7 @@ def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
         dt(7),
         'foo')) is True
 
-    arango.client.db(TEST_DB_NAME).aql.execute(
+    arango_client.db(TEST_DB_NAME).aql.execute(
         """
         FOR n in @@col
             FILTER n.name == @name
@@ -841,7 +778,7 @@ def test_get_sample_with_missing_source_metadata_key(samplestorage, arango):
         bind_vars={'@col': TEST_COL_NODES, 'name': 'mynode'}
     )
 
-    cur = arango.client.db(TEST_DB_NAME).aql.execute(
+    cur = arango_client.db(TEST_DB_NAME).aql.execute(
         """
         FOR n in @@col
             FILTER n.name == @name
@@ -1109,7 +1046,7 @@ def test_sample_version_update(samplestorage):
     assert nodes == {('baz', 1), ('bat', 2)}
 
 
-def test_get_sample_acls_with_missing_public_read_key(samplestorage, arango):
+def test_get_sample_acls_with_missing_public_read_key(samplestorage, arango_client):
     """
     Backwards compatibility test. Checks that a missing pubread key in the ACLs is registered as
     false, and that then changing pubread to True works normally.
@@ -1118,7 +1055,7 @@ def test_get_sample_acls_with_missing_public_read_key(samplestorage, arango):
     assert samplestorage.save_sample(
         SavedSample(id1, UserID('user'), [SampleNode('mynode')], dt(1), 'foo')) is True
 
-    arango.client.db(TEST_DB_NAME).aql.execute(
+    arango_client.db(TEST_DB_NAME).aql.execute(
         """
         FOR s in @@col
             FILTER s.id == @id
@@ -1128,7 +1065,7 @@ def test_get_sample_acls_with_missing_public_read_key(samplestorage, arango):
         bind_vars={'@col': TEST_COL_SAMPLE, 'id': str(id1)}
     )
 
-    cur = arango.client.db(TEST_DB_NAME).aql.execute(
+    cur = arango_client.db(TEST_DB_NAME).aql.execute(
         """
         FOR s in @@col
             FILTER s.id == @id
@@ -1231,7 +1168,7 @@ def test_replace_sample_acls_fail_owner_changed(samplestorage):
             UPDATE s WITH {acls: MERGE(s.acls, @acls)} IN @@col
             RETURN s
         ''',
-        bind_vars={'@col': 'samples', 'acls': {'owner': 'user2'}})
+        bind_vars={'@col': TEST_COL_SAMPLE, 'acls': {'owner': 'user2'}})
 
     with raises(Exception) as got:
         samplestorage.replace_sample_acls(
@@ -1715,8 +1652,8 @@ def test_create_and_get_data_link(samplestorage):
     link1 = samplestorage._col_data_link.get('5_89_32')
     assert link1 == {
         '_key': '5_89_32',
-        '_id': 'data_link/5_89_32',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc2['_id'],
         '_rev': link1['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',
@@ -1737,8 +1674,8 @@ def test_create_and_get_data_link(samplestorage):
     link2 = samplestorage._col_data_link.get('42_42_42_bc7324de86d54718dd0dc29c55c6d53a')
     assert link2 == {
         '_key': '42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
-        '_id': 'data_link/42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
-        '_from': 'ws_obj_ver/42:42:42',
+        '_id': f'{TEST_COL_DATA_LINK}/42_42_42_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/42:42:42',
         '_to': nodedoc1['_id'],
         '_rev': link2['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde2',
@@ -1759,8 +1696,8 @@ def test_create_and_get_data_link(samplestorage):
     link3 = samplestorage._col_data_link.get('5_89_32_3735ce9bbe59e7ec245da484772f9524')
     assert link3 == {
         '_key': '5_89_32_3735ce9bbe59e7ec245da484772f9524',
-        '_id': 'data_link/5_89_32_3735ce9bbe59e7ec245da484772f9524',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_3735ce9bbe59e7ec245da484772f9524',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc3['_id'],
         '_rev': link3['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde3',
@@ -1781,8 +1718,8 @@ def test_create_and_get_data_link(samplestorage):
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
     assert link4 == {
         '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc1['_id'],
         '_rev': link4['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde4',
@@ -1883,8 +1820,8 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
     link1 = samplestorage._col_data_link.get('5_89_32')
     assert link1 == {
         '_key': '5_89_32',
-        '_id': 'data_link/5_89_32',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc1['_id'],
         '_rev': link1['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',
@@ -1905,8 +1842,8 @@ def test_creaate_data_link_with_update_no_extant_link(samplestorage):
     link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
     assert link2 == {
         '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc2['_id'],
         '_rev': link2['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde2',
@@ -2003,8 +1940,8 @@ def test_create_data_link_with_update_noop(samplestorage):
     link1 = samplestorage._col_data_link.get('5_89_32')
     assert link1 == {
         '_key': '5_89_32',
-        '_id': 'data_link/5_89_32',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc1['_id'],
         '_rev': link1['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',
@@ -2025,8 +1962,8 @@ def test_create_data_link_with_update_noop(samplestorage):
     link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
     assert link2 == {
         '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc2['_id'],
         '_rev': link2['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde2',
@@ -2120,8 +2057,8 @@ def test_create_data_link_with_update(samplestorage):
     link1 = samplestorage._col_data_link.get('5_89_32_500.0')
     assert link1 == {
         '_key': '5_89_32_500.0',
-        '_id': 'data_link/5_89_32_500.0',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_500.0',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc1['_id'],
         '_rev': link1['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',
@@ -2142,8 +2079,8 @@ def test_create_data_link_with_update(samplestorage):
     link2 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0')
     assert link2 == {
         '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0',
-        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_bc7324de86d54718dd0dc29c55c6d53a_550.0',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc2['_id'],
         '_rev': link2['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde2',
@@ -2164,8 +2101,8 @@ def test_create_data_link_with_update(samplestorage):
     link3 = samplestorage._col_data_link.get('5_89_32')
     assert link3 == {
         '_key': '5_89_32',
-        '_id': 'data_link/5_89_32',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc2['_id'],
         '_rev': link3['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde3',
@@ -2186,8 +2123,8 @@ def test_create_data_link_with_update(samplestorage):
     link4 = samplestorage._col_data_link.get('5_89_32_bc7324de86d54718dd0dc29c55c6d53a')
     assert link4 == {
         '_key': '5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_id': 'data_link/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
-        '_from': 'ws_obj_ver/5:89:32',
+        '_id': f'{TEST_COL_DATA_LINK}/5_89_32_bc7324de86d54718dd0dc29c55c6d53a',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/5:89:32',
         '_to': nodedoc3['_id'],
         '_rev': link4['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde4',
@@ -2936,8 +2873,8 @@ def _expire_and_get_data_link_via_duid(samplestorage, expired, dataid, expectedm
     link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}-100.0')
     assert link == {
         '_key': f'1_1_1_{expectedmd5}-100.0',
-        '_id': f'data_link/1_1_1_{expectedmd5}-100.0',
-        '_from': 'ws_obj_ver/1:1:1',
+        '_id': f'{TEST_COL_DATA_LINK}/1_1_1_{expectedmd5}-100.0',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/1:1:1',
         '_to': nodedoc1['_id'],
         '_rev': link['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',
@@ -3007,8 +2944,8 @@ def _expire_and_get_data_link_via_id(samplestorage, expired, dataid, expectedmd5
     link = samplestorage._col_data_link.get(f'1_1_1_{expectedmd5}5.0')
     assert link == {
         '_key': f'1_1_1_{expectedmd5}5.0',
-        '_id': f'data_link/1_1_1_{expectedmd5}5.0',
-        '_from': 'ws_obj_ver/1:1:1',
+        '_id': f'{TEST_COL_DATA_LINK}/1_1_1_{expectedmd5}5.0',
+        '_from': f'{TEST_COL_WS_OBJ_VER}/1:1:1',
         '_to': nodedoc1['_id'],
         '_rev': link['_rev'],  # no need to test this
         'id': '12345678-90ab-cdef-1234-567890abcde1',

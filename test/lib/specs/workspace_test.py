@@ -4,7 +4,7 @@ from unittest.mock import create_autospec
 from installed_clients.WorkspaceClient import Workspace
 from installed_clients.baseclient import ServerError
 from SampleService.core.workspace import WS, WorkspaceAccessType, UPA, DataUnitID
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 from SampleService.core.errors import UnauthorizedError
 from SampleService.core.errors import IllegalParameterError
 from SampleService.core.errors import NoSuchWorkspaceDataError

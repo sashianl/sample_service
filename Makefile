@@ -10,10 +10,11 @@ WORK_DIR = /kb/module/work/tmp
 MAKEFILE_DIR:=$(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 
 # Override TEST_SPEC when running make test-sdkless to run different tests
-TEST_SPEC := $(TEST_DIR)  
+TEST_SPEC := $(TEST_DIR)/lib/specs
 
-PYPATH=$(MAKEFILE_DIR)/$(LIB_DIR):$(MAKEFILE_DIR)/$(TEST_DIR)
+PYPATH=$(MAKEFILE_DIR)/$(LIB_DIR):$(MAKEFILE_DIR)/$(TEST_DIR)/lib
 TSTFL=$(MAKEFILE_DIR)/$(TEST_DIR)/$(TEST_CONFIG_FILE)
+TEST_PYPATH=$(MAKEFILE_DIR)/$(LIB_DIR):$(MAKEFILE_DIR)/$(TEST_DIR)/lib
 
 .PHONY: test
 
@@ -39,15 +40,19 @@ compile:
 		--html \
 
 test:
-	echo Use test-sdkless
+	make -s host-start-test-services && \
+	ARANGO_URL=http://localhost:8529 make -s wait-for-arango && \
+	make -s test-sdkless && \
+	make -s host-stop-test-services
+
 
 test-sdkless:
 	# TODO flake8 and bandit
 	# TODO check tests run with kb-sdk test - will need to install mongo and update config
-	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy \
-		--namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core \
-		$(TEST_DIR)
-	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest \
+	#MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy \
+#		--namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core \
+#		$(TEST_DIR)
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pipenv run pytest \
 		--verbose \
 		--cov $(LIB_DIR)/$(SERVICE_CAPS) \
 		--cov-config=$(TEST_DIR)/coveragerc \
@@ -68,10 +73,17 @@ host-stop-dev-server:
 # Managing test containers
 
 host-start-test-services:
-	sh scripts/start-test-services.sh
+	sh scripts/start-test-services.sh &>test/test-services.log &
 
 host-stop-test-services:
 	sh scripts/stop-test-services.sh
 
 setup-test-dependencies:
-	sh scripts/install-test-dependencies.sh
+	sh scripts/setup-test-dependencies.sh
+
+# Wait for ...
+
+wait-for-arango:
+	@echo "Waiting for ArangoDB to be available"
+	@[ "${ARANGO_URL}" ] || (echo "! Environment variable ARANGO_URL must be set"; exit 1)
+	PYTHONPATH=$(TEST_PYPATH) pipenv run python -c "import sys; from test_support.wait_for import wait_for_arangodb; wait_for_arangodb('$(ARANGO_URL)', 60, 1) or sys.exit(1)"

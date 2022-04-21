@@ -2,25 +2,14 @@
 # arango and auth instances
 
 import os
-import shutil
 import tempfile
 import yaml
 from pytest import raises, fixture
 from jsonschema.exceptions import ValidationError
 
-from core import test_utils
-from core.test_utils import assert_exception_correct
+from test_support.test_utils import assert_exception_correct
 from SampleService.core.config import get_validators, split_value
 from SampleService.core.errors import IllegalParameterError
-
-
-@fixture(scope='module')
-def temp_dir():
-    tempdir = test_utils.get_temp_dir()
-    yield tempdir
-
-    if test_utils.get_delete_temp_files():
-        shutil.rmtree(test_utils.get_temp_dir())
 
 
 def _write_validator_config(cfg, temp_dir):
@@ -54,21 +43,21 @@ def _split_value_fail(d, k, expected):
 def test_config_get_validators(temp_dir):
     cfg = {
         'validators': {
-            'key1': {'validators': [{'module': 'core.config_test_vals',
+            'key1': {'validators': [{'module': 'test_support.config_test_vals',
                                      'callable_builder': 'val1'
                                      }],
                      'key_metadata': {'a': 'b', 'c': 1.56}
                      },
-            'key2': {'validators': [{'module': 'core.config_test_vals',
+            'key2': {'validators': [{'module': 'test_support.config_test_vals',
                                      'callable_builder': 'val2',
                                      'parameters': {'max-len': 7, 'foo': 'bar'}
                                      },
-                                    {'module': 'core.config_test_vals',
+                                    {'module': 'test_support.config_test_vals',
                                      'callable_builder': 'val2',
                                      'parameters': {'max-len': 5, 'foo': 'bar'},
                                      }],
                      },
-            'key3': {'validators': [{'module': 'core.config_test_vals',
+            'key3': {'validators': [{'module': 'test_support.config_test_vals',
                                      'callable_builder': 'val1',
                                      'parameters': {'foo': 'bat'}
                                      }],
@@ -76,22 +65,22 @@ def test_config_get_validators(temp_dir):
                      }
         },
         'prefix_validators': {
-            'key4': {'validators': [{'module': 'core.config_test_vals',
+            'key4': {'validators': [{'module': 'test_support.config_test_vals',
                                      'callable_builder': 'pval1',
                                      }],
                      },
             # check key3 doesn't interfere with above key3
-            'key3': {'validators': [{'module': 'core.config_test_vals',
+            'key3': {'validators': [{'module': 'test_support.config_test_vals',
                                      'callable_builder': 'pval2',
                                      'parameters': {'max-len': 7, 'foo': 'bar'},
                                      },
-                                    {'module': 'core.config_test_vals',
+                                    {'module': 'test_support.config_test_vals',
                                      'callable_builder': 'pval2',
                                      'parameters': {'max-len': 5, 'foo': 'bar'}
                                      }],
                      'key_metadata': {'h': True, 'i': 1000}
                      },
-            'key5': {'validators': [{'module': 'core.config_test_vals',
+            'key5': {'validators': [{'module': 'test_support.config_test_vals',
                                      'callable_builder': 'pval1',
                                      'parameters': {'foo': 'bat'}
                                      }],
@@ -260,18 +249,18 @@ def test_config_get_validators_fail_no_module(temp_dir):
 
 def test_config_get_validators_fail_no_function(temp_dir):
     _config_get_validators_fail(
-        {'validators': {'x': {'validators': [{'module': 'core.config_test_vals',
+        {'validators': {'x': {'validators': [{'module': 'test_support.config_test_vals',
                                               'callable_builder': 'foo'}]}}},
         temp_dir,
         ValueError("Metadata validator callable build #0 failed for key x: " +
-                   "module 'core.config_test_vals' has no attribute 'foo'"))
+                   "module 'test_support.config_test_vals' has no attribute 'foo'"))
 
 
 def test_config_get_validators_fail_function_exception(temp_dir):
     _config_get_validators_fail(
-        {'validators': {'x': {'validators': [{'module': 'core.config_test_vals',
+        {'validators': {'x': {'validators': [{'module': 'test_support.config_test_vals',
                                               'callable_builder': 'val1'},
-                                             {'module': 'core.config_test_vals',
+                                             {'module': 'test_support.config_test_vals',
                                               'callable_builder': 'fail_val'}]}}},
         temp_dir,
         ValueError("Metadata validator callable build #1 failed for key x: " +
@@ -280,11 +269,11 @@ def test_config_get_validators_fail_function_exception(temp_dir):
 
 def test_config_get_prefix_validators_fail_function_exception(temp_dir):
     _config_get_validators_fail(
-        {'prefix_validators': {'p': {'validators': [{'module': 'core.config_test_vals',
+        {'prefix_validators': {'p': {'validators': [{'module': 'test_support.config_test_vals',
                                                      'callable_builder': 'val1'},
-                                                    {'module': 'core.config_test_vals',
+                                                    {'module': 'test_support.config_test_vals',
                                                      'callable_builder': 'val1'},
-                                                    {'module': 'core.config_test_vals',
+                                                    {'module': 'test_support.config_test_vals',
                                                      'callable_builder': 'fail_prefix_val'}
                                                     ]}}},
         temp_dir,
