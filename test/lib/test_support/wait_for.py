@@ -2,6 +2,7 @@ import json
 from time import sleep, time
 
 import requests
+from pymongo import MongoClient
 
 
 def wait_for_arangodb(url, tries=30, interval=1, verbose=False):
@@ -34,6 +35,60 @@ def wait_for_arangodb(url, tries=30, interval=1, verbose=False):
         except Exception as ex:
             last_result = ex
             print("😬 Error fetching ArangoDB server mode, continuing")
+            if verbose:
+                print(f"😬 Error is: {str(ex)}")
+        try_count += 1
+        sleep(interval)
+    elapsed = time() - start_at
+
+    if isinstance(last_result, Exception):
+        print("❌ Final attempt failed due to an error")
+        print(f"❌ Error is: {str(last_result)}")
+    else:
+        print("❌ Final attempt failed due to invalid server mode")
+        print(f"❌ mode: {last_result.get('mode')}, error: {last_result.get('error')}")
+
+    print(
+        (
+            "🛑  Attempts to wait for ArangoDB exhausted after "
+            f"{format_elapsed(elapsed)} seconds ({tries} tries)"
+        )
+    )
+
+def wait_for_mongodb(host, tries=30, interval=1, verbose=False):
+    if tries < 1:
+        print(f"🛑  Sorry, 'tries' must be greater than 0; {tries} was provided")
+        return False
+
+    if interval <= 0:
+        print(f"🛑  Sorry, 'interval' must be greater than 0; {interval} was provided")
+        return False
+
+    print(f"🕰  Waiting for MongoDB to be available at {host}")
+    last_result = None
+    start_at = time()
+    try_count = 0
+    client = MongoClient(host=[host],
+                         socketTimeoutMS=500,
+                         connectTimeoutMS=500,
+                         serverSelectionTimeoutMS=500)
+
+    while try_count < tries:
+        print(f"🍀 Attempt {try_count}")
+        try:
+            server_info = client.server_info()
+            if server_info.get("version"):
+                elapsed = time() - start_at
+                print(
+                    f"💖 MongoDB successfully detected after {format_elapsed(elapsed)}s"
+                )
+                return True
+            else:
+                print("😬 MongoDB mode not yet ready")
+                last_result = server_info
+        except Exception as ex:
+            last_result = ex
+            print("😬 Error fetching MongoDB server status, continuing")
             if verbose:
                 print(f"😬 Error is: {str(ex)}")
         try_count += 1

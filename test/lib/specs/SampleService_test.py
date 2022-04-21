@@ -36,7 +36,6 @@ from test_support.auth_controller import AuthController
 from test_support.constants import TEST_COL_SCHEMA, TEST_COL_WS_OBJ_VER, TEST_COL_DATA_LINK, TEST_COL_NODE_EDGE, \
     TEST_COL_NODES, TEST_COL_VER_EDGE, TEST_COL_VERSION, TEST_COL_SAMPLE, TEST_PWD, TEST_USER
 from test_support.constants import TEST_DB_NAME
-from test_support.mongo_controller import MongoController
 from test_support.test_assertions import (
     assert_ms_epoch_close_to_now,
     assert_exception_correct,
@@ -168,23 +167,7 @@ def create_deploy_cfg(auth_port, arango_port, workspace_port, kafka_port):
 
 
 @fixture(scope='module')
-def mongo():
-    mongoexe = test_utils.get_mongo_exe()
-    tempdir = test_utils.get_temp_dir()
-    wt = test_utils.get_use_wired_tiger()
-    mongo = MongoController(mongoexe, tempdir, wt)
-    wttext = ' with WiredTiger' if wt else ''
-    print(f'running mongo {mongo.db_version}{wttext} on port {mongo.port} in dir {mongo.temp_dir}')
-
-    yield mongo
-
-    del_temp = test_utils.get_delete_temp_files()
-    print(f'shutting down mongo, delete_temp_files={del_temp}')
-    mongo.destroy(del_temp)
-
-
-@fixture(scope='module')
-def auth(mongo):
+def auth(mongo_port):
     global TOKEN_SERVICE
     global TOKEN_WS_FULL_ADMIN
     global TOKEN_WS_READ_ADMIN
@@ -195,7 +178,7 @@ def auth(mongo):
     global TOKEN5
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
-    auth = AuthController(jd, f'localhost:{mongo.port}', _AUTH_DB, tempdir)
+    auth = AuthController(jd, f'localhost:{mongo_port}', _AUTH_DB, tempdir)
     print(f'Started KBase Auth2 {auth.version} on port {auth.port} ' +
           f'in dir {auth.temp_dir} in {auth.startup_count}s')
     url = f'http://localhost:{auth.port}'
@@ -249,12 +232,12 @@ def auth(mongo):
 
 
 @fixture(scope='module')
-def workspace(auth, mongo):
+def workspace(auth, mongo_port):
     jd = test_utils.get_jars_dir()
     tempdir = test_utils.get_temp_dir()
     ws = WorkspaceController(
         jd,
-        mongo,
+        mongo_port,
         _WS_DB,
         _WS_TYPE_DB,
         f'http://localhost:{auth.port}/testmode',

@@ -42,6 +42,7 @@ compile:
 test:
 	make -s host-start-test-services && \
 	ARANGO_URL=http://localhost:8529 make -s wait-for-arango && \
+	MONGO_HOST=localhost:27017 make -s wait-for-mongo && \
 	make -s test-sdkless && \
 	make -s host-stop-test-services
 
@@ -87,3 +88,9 @@ wait-for-arango:
 	@echo "Waiting for ArangoDB to be available"
 	@[ "${ARANGO_URL}" ] || (echo "! Environment variable ARANGO_URL must be set"; exit 1)
 	PYTHONPATH=$(TEST_PYPATH) pipenv run python -c "import sys; from test_support.wait_for import wait_for_arangodb; wait_for_arangodb('$(ARANGO_URL)', 60, 1) or sys.exit(1)"
+
+
+wait-for-mongo:
+	@echo "Waiting for MongoDB to be available"
+	@[ "${MONGO_HOST}" ] || (echo "! Environment variable MONGO_HOST must be set"; exit 1)
+	PYTHONPATH=$(TEST_PYPATH) pipenv run python -c "import sys; from test_support.wait_for import wait_for_mongodb; wait_for_mongodb('$(MONGO_HOST)', 60, 1) or sys.exit(1)"

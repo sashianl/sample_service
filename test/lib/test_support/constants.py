@@ -51,6 +51,9 @@ KAFKA_PORT = 9092
 # TODO: needs to be in a configuration
 KAFKA_HOST = "localhost:9092"
 
+# MongoDB
+MONGO_PORT=27017
+
 
 # Test data - move to test data file
 

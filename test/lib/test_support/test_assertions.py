@@ -2,8 +2,6 @@ import time
 
 import requests
 
-MONGO_EXE = 'test.mongo.exe'
-MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
 JARS_DIR = 'test.jars.dir'
 TEST_TEMP_DIR = 'test.temp.dir'
 KEEP_TEMP_DIR = 'test.temp.dir.keep'

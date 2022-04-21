@@ -20,7 +20,7 @@ from test_support.constants import (
     ARANGODB_URL,
     ARANGODB_PORT,
     KAFKA_HOST,
-    KAFKA_PORT, TEST_COL_EDGE,
+    KAFKA_PORT, TEST_COL_EDGE, MONGO_PORT,
 )
 from test_support.constants import TEST_DB_NAME
 
@@ -163,6 +163,11 @@ def kafka_host():
 @fixture(scope="session")
 def kafka_port():
     yield KAFKA_PORT
+
+
+@fixture(scope="session")
+def mongo_port():
+    yield MONGO_PORT
 
 
 @fixture(scope="session")

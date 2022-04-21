@@ -10,6 +10,7 @@ import subprocess as _subprocess
 import tempfile as _tempfile
 import time as _time
 from pathlib import Path as _Path
+from pymongo import MongoClient;
 
 import requests as _requests
 
@@ -19,7 +20,6 @@ from installed_clients.baseclient import ServerError as _ServerError
 
 from test_support import test_utils as _test_utils
 from test_support.test_utils import TestException as _TestException
-from test_support.mongo_controller import MongoController as _MongoController
 
 _WS_CLASS = 'us.kbase.workspace.WorkspaceServer'
 _JARS_FILE = _Path(__file__).resolve().parent.parent.parent.joinpath('bin/wsjars')
@@ -43,7 +43,7 @@ class WorkspaceController:
     def __init__(
             self,
             jars_dir: _Path,
-            mongo_controller: _MongoController,
+            mongo_port:int,
             mongo_db: str,
             mongo_type_db: str,
             auth_url: str,
@@ -53,7 +53,7 @@ class WorkspaceController:
 
         :param jars_dir: The path to the lib/jars dir of the KBase Jars repo
             (https://github.com/kbase/jars), e.g /path_to_repo/lib/jars.
-        :param mongo_controller: A MongoDB controller.
+        :param mongo_port: The port on which the mongodb server is running (localhost is assumed)
         :param mongo_db: The database in which to store Workspace data.
         :param mongo_type_db: The database in which to store Workspace type specifications.
         :param auth_url: The root url of an instance of the KBase auth service.
@@ -63,8 +63,8 @@ class WorkspaceController:
         if not jars_dir or not _os.access(jars_dir, _os.X_OK):
             raise _TestException('jars_dir {} does not exist or is not executable.'
                                  .format(jars_dir))
-        if not mongo_controller:
-            raise _TestException('mongo_controller must be provided')
+        if not mongo_port:
+            raise _TestException('mongo_port must be provided')
         if not mongo_db:
             raise _TestException('mongo_db must be provided')
         if not mongo_type_db:
@@ -74,7 +74,7 @@ class WorkspaceController:
         if not root_temp_dir:
             raise _TestException('root_temp_dir is None')
 
-        self._mongo = mongo_controller
+        self.mongo_client = MongoClient([f'localhost:{mongo_port}'])
         self._db = mongo_db
         jars_dir = jars_dir.resolve()
         class_path = self._get_class_path(jars_dir)
@@ -90,7 +90,7 @@ class WorkspaceController:
         configfile = self._create_deploy_cfg(
             self.temp_dir,
             ws_temp_dir,
-            f'localhost:{self._mongo.port}',
+            f'localhost:{mongo_port}',
             mongo_db,
             mongo_type_db,
             auth_url)
@@ -166,7 +166,12 @@ class WorkspaceController:
         Remove all data, but not indexes, from the database. Do not remove any installed types.
         '''
         print('workspace controller: clear_db')
-        self._mongo.clear_database(self._db)
+        db = self.mongo_client[self._db]
+        for name in db.list_collection_names():
+            if not name.startswith('system.'):
+                # don't drop collection since that drops indexes
+                db.get_collection(name).delete_many({})
+
 
     def destroy(self, delete_temp_files: bool = True, dump_logs_to_stdout: bool = True):
         '''

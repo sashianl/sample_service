@@ -11,8 +11,6 @@ from typing import List
 
 from SampleService.core.user import UserID
 
-MONGO_EXE = 'test.mongo.exe'
-MONGO_USE_WIRED_TIGER = 'test.mongo.wired_tiger'
 JARS_DIR = 'test.jars.dir'
 TEST_TEMP_DIR = 'test.temp.dir'
 KEEP_TEMP_DIR = 'test.temp.dir.keep'
@@ -22,14 +20,6 @@ TEST_CONFIG_FILE_SECTION = 'sampleservicetest'
 TEST_FILE_LOC_ENV_KEY = 'SAMPLESERV_TEST_FILE'
 
 _CONFIG = None
-
-
-def get_mongo_exe() -> Path:
-    return Path(os.path.abspath(_get_test_property(MONGO_EXE)))
-
-
-def get_use_wired_tiger() -> bool:
-    return _get_test_property(MONGO_USE_WIRED_TIGER) == 'true'
 
 
 def get_jars_dir() -> Path:
