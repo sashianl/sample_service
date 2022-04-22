@@ -608,10 +608,6 @@ def test_consistency_checker_run(samplestorage):
     time.sleep(1)
 
 
-def dt(timestamp):
-    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
-
-
 def test_save_and_get_sample(samplestorage):
     n1 = SampleNode('root')
     n2 = SampleNode(

@@ -39,7 +39,7 @@ compile:
 		--out . \
 		--html \
 
-test:
+test: host-test-types
 	make -s host-start-test-services && \
 	ARANGO_URL=http://localhost:8529 make -s wait-for-arango && \
 	MONGO_HOST=localhost:27017 make -s wait-for-mongo && \
@@ -50,15 +50,15 @@ test:
 test-sdkless:
 	# TODO flake8 and bandit
 	# TODO check tests run with kb-sdk test - will need to install mongo and update config
-	#MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy \
-#		--namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core \
-#		$(TEST_DIR)
 	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pipenv run pytest \
 		--verbose \
 		--cov $(LIB_DIR)/$(SERVICE_CAPS) \
 		--cov-config=$(TEST_DIR)/coveragerc \
 		$(TEST_SPEC)
 # to print test output immediately: --capture=tee-sys
+
+host-test-types:
+	MYPYPATH="${LIB_DIR}" pipenv run python -m mypy --namespace-packages "${LIB_DIR}/SampleService/core" "${TEST_DIR}/lib"
 
 clean:
 	rm -rfv $(LBIN_DIR)

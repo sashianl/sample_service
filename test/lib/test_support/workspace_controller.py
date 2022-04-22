@@ -74,7 +74,7 @@ class WorkspaceController:
         if not root_temp_dir:
             raise _TestException('root_temp_dir is None')
 
-        self.mongo_client = MongoClient([f'localhost:{mongo_port}'])
+        self.mongo_client: MongoClient = MongoClient([f'localhost:{mongo_port}'])
         self._db = mongo_db
         jars_dir = jars_dir.resolve()
         class_path = self._get_class_path(jars_dir)
