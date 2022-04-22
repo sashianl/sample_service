@@ -1,5 +1,6 @@
 # Development
 __pycache__
+.vscode
 deploy.cfg
 lib/SampleService/SampleServiceImpl.py.bak*
 test/test.cfg.bak
