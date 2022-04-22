@@ -5,6 +5,8 @@ deploy.cfg
 lib/SampleService/SampleServiceImpl.py.bak*
 test/test.cfg.bak
 /_temp
+.mypy_cache
+.pytest_cache
 
 # Testing
 test/test.cfg
