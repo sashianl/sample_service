@@ -687,7 +687,7 @@ class ArangoSampleStorage:
                     FILTER sv.id IN ids
                     RETURN sv
             )
-            // Aggregate and select the latest version available.
+            // Select the specified version of each sample.
             LET partials = (
                 FOR sv IN svs
                     FILTER sv.ver == verlookup[sv.id]
@@ -698,56 +698,61 @@ class ArangoSampleStorage:
                         version_record: sv
                     }
             )
-            // Collect nodes linked to the latest version and include
-            // them for the output.
+            // For each sample, traverse and collect node trees.
+            LET node_trees = (
+                FOR startVertex IN @@nodes
+                    FILTER startVertex.id IN ids
+                    FOR v IN ANY startVertex @@nodes_edge
+                        FILTER v.index >= 0
+                        SORT v.index
+                        COLLECT nid = v.id INTO ns
+                        RETURN {[nid]: UNIQUE(ns[*].v)}
+            )
+            // Include node trees in samples.
             FOR partial in partials
                 FOR node in @@nodes
                     FILTER node.uuidver == partial.verdoc
-                    RETURN MERGE(partial, { "nodes": [node] })
+                        AND node.parent == NULL
+                    RETURN MERGE(partial, {
+                        "node_tree": MERGE(node_trees)[node.id] OR [node]
+                    })
         '''
-        # convert UUID to strings for DB
+        # Convert UUID to strings.
         for id_ in ids_:
             id_['id'] = str(id_['id'])
 
         aql_bind = {
             'ids': ids_,
             '@nodes': self._col_nodes.name,
+            '@nodes_edge': self._col_node_edge.name,
             '@version': self._col_version.name
         }
-        samples = []
-        # convert doc structure back into SavedSample
+        # Convert arango doc structure into SavedSample.
+        results = {}
         for doc in self._db.aql.execute(aql, bind_vars=aql_bind):
-            nodes = self._docs_to_nodes(doc['nodes'])
+            node_tree = [
+                _SampleNode(
+                    node[_FLD_NODE_NAME],
+                    _SubSampleType[node[_FLD_NODE_TYPE]],
+                    node[_FLD_NODE_PARENT],
+                    self._list_to_meta(node[_FLD_NODE_CONTROLLED_METADATA]),
+                    self._list_to_meta(node[_FLD_NODE_UNCONTROLLED_METADATA]),
+                    self._list_to_source_meta(node.get(_FLD_NODE_SOURCE_METADATA, [])),
+                )
+                for node in doc['node_tree']
+            ]
             verdoc = doc['version_record']
             dt = self._timestamp_to_datetime(
                 self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
             )
-            samples.append(SavedSample(
-                UUID(doc[_FLD_ID]),
+            docid = doc[_FLD_ID]
+            results[docid] = SavedSample(
+                UUID(docid),
                 UserID(verdoc[_FLD_USER]),
-                nodes, dt, verdoc[_FLD_NAME], doc['version']
-            ))
-        return samples
-
-    def _docs_to_nodes(self, nodedocs: List[_Dict[str, _Any]]) -> List[_SampleNode]:
-        index_to_node = {}
-        for n in nodedocs:
-            if n[_FLD_VER] == _VAL_NO_VER:
-                # since it's assumed the version id came from the sample doc, the implication
-                # is that the db or server lost connection before the version could be updated
-                # and the reaper hasn't caught it yet, so we go ahead and fix it.
-                # self._update_version_and_node_docs_with_find(id_, ver, version)
-                pass
-            index_to_node[n[_FLD_NODE_INDEX]] = _SampleNode(
-                n[_FLD_NODE_NAME],
-                _SubSampleType[n[_FLD_NODE_TYPE]],
-                n[_FLD_NODE_PARENT],
-                self._list_to_meta(n[_FLD_NODE_CONTROLLED_METADATA]),
-                self._list_to_meta(n[_FLD_NODE_UNCONTROLLED_METADATA]),
-                # allow for compatatibility with old samples without a source meta field
-                self._list_to_source_meta(n.get(_FLD_NODE_SOURCE_METADATA, [])),
-                )
-        return [index_to_node[i] for i in range(len(index_to_node))]
+                node_tree, dt, verdoc[_FLD_NAME], doc['version']
+            )
+        # Return samples in the order they were requested.
+        return [results[id_['id']] for id_ in ids_]
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, dict, int]:

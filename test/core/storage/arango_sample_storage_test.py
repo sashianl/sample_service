@@ -1,6 +1,6 @@
 import datetime
-import uuid
 import time
+import uuid
 
 from pytest import raises, fixture
 from core import test_utils
@@ -723,15 +723,18 @@ def test_save_and_get_samples(samplestorage):
     assert samplestorage.save_sample(
         SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz')) is True
 
-    assert samplestorage.get_samples([
-        {"id": id1_, "version": 1},
-        {"id": id2_, "version": 1},
-        {"id": id3_, "version": 1}
-    ]) == [
+    samples_expected = [
         SavedSample(id1_, UserID('auser'), [n1, n2, n3, n4], dt(8), 'foo', 1),
         SavedSample(id2_, UserID('auser'), [n1, n2, n3], dt(8), 'bar', 1),
         SavedSample(id3_, UserID('auser'), [n1, n2, n4], dt(8), 'baz', 1)
     ]
+    # get_samples returns results in the order they are specified
+    samples_queried = samplestorage.get_samples([
+        {"id": id1_, "version": 1},
+        {"id": id2_, "version": 1},
+        {"id": id3_, "version": 1}
+    ])
+    assert samples_queried == samples_expected
 
 def test_save_sample_fail_bad_input(samplestorage):
     with raises(Exception) as got:
@@ -1351,7 +1354,6 @@ def _update_sample_acls_noop(samplestorage, at_least):
         dt(103))
 
     res = samplestorage.get_sample_acls(id_)
-    print(res)
     assert res == SampleACL(
         UserID('user'),
         dt(56),
