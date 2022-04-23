@@ -16,6 +16,8 @@ test/test_temp/
 test/bin/jars
 test/bin/mongo
 test/test-services.log
+htmlcov/
+cov_profile.lcov
 
 # IDE
 .vscode

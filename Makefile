@@ -79,8 +79,16 @@ host-start-test-services:
 host-stop-test-services:
 	sh scripts/stop-test-services.sh
 
-setup-test-dependencies:
-	sh scripts/setup-test-dependencies.sh
+test-setup:
+	sh scripts/test-setup.sh
+
+coverage-reports:
+	@echo "Creating html coverage report"
+	coverage html
+	@echo "Converting coverage to lcov"
+	# TODO: the below should work, and would simplify things if it did,
+	# but at last try it did not.
+	coverage lcov --data-file .coverage -o cov_profile.lcov
 
 # Wait for ...
 
