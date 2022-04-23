@@ -63,7 +63,7 @@ jobs:
           echo "BUILD_DATE=${{ env.BUILD_DATE }}"
 
       - name: Install test dependencies and config
-        run: make setup-test-dependencies
+        run: make test-setup
 
       # Run tests
       - name: Run all tests
