@@ -69,10 +69,10 @@ jobs:
       - name: Run all tests
         run: make test
 
-#      - name: Send to Codecov
-#        uses: codecov/codecov-action@v2
-#        with:
-#          files: ./cov_profile.lcov
+      - name: Send to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./cov_profile.lcov
 
       #
       # Create friendly image tags
