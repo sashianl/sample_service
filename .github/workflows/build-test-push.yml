@@ -6,9 +6,11 @@ on:
       - 'feature-*'
       - 'fix-*'
       - master
+      - develop
   pull_request:
     branches:
       - master
+      - develop
   release:
     branches:
       - master
@@ -81,7 +83,7 @@ jobs:
       # - any activity in PR against "main" - name "pull_request-#""
       # - release created - name "release", tag "release-v#.#.#""
       #
-      - name: Create friendly tag for push to a triggering branch (main, feature-*, fix-*)
+      - name: Create friendly tag for push to a triggering branch (main, develop, feature-*, fix-*)
         if: github.event_name == 'push'
         run: echo IMAGE_TAG_NAME=${{ env.CI_REF_NAME_SLUG }} >> $GITHUB_ENV
 
