@@ -1,9 +1,8 @@
 # Sample Service  
 
-[![tests](https://github.com/kbase/sample_service/actions/workflows/non_sdk_test.yml/badge.svg)](https://github.com/kbase/sample_service/actions/workflows/non_sdk_test.yml)
-[![Coverage Status](https://coveralls.io/repos/github/kbase/sample_service/badge.svg?branch=master)](https://coveralls.io/github/kbase/sample_service?branch=master)
+![Build and Test Status](https://github.com/eapearson/sample_service/actions/workflows/build-test-push.yml/badge.svg)
+[![Code Coverage at CodeCov](https://codecov.io/gh/eapearson/sample_service/branch/feature-SAM-232/graph/badge.svg?token=R9J4VB00EZ)](https://codecov.io/gh/kbase/sample_service)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/kbase/sample_service.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kbase/sample_service/context:python)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
 The Sample Service is a KBase "core service" which supports storage and retrieval of experimental sample metadata. It supports validation, access control, versioning, and linking of samples to KBase data objects. 
 
