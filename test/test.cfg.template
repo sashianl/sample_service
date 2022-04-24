@@ -1,0 +1,13 @@
+# To run tests, copy this file to test.cfg and set the values below appropriately.
+
+[sampleservicetest]
+
+# path to the KBase jars (https://github.com/kbase/jars) directory,
+# e.g. [path to parent folder]/jars/lib/jars
+test.jars.dir={{ env['JARS_DIR'] }}
+
+# path to a temporary directory to use for tests.
+test.temp.dir={{ env['TEMP_DIR'] }}
+
+# true to keep the temporary directory contents after running tests. 
+test.temp.dir.keep=false

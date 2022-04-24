@@ -68,15 +68,7 @@ install_jars()
 install_test_config()
 {
   log "Installing test config..."
-  cd test
-  cp test.cfg.example test.cfg
-  # TODO: This is a rather limited manner of processing the config template; a more generic
-  # method which can utilize environment variables directly, e.g. dockerize, would be better
-  sed -I ".bak" "s#^test.jars.dir=.*#test.jars.dir=$JARS_PATH#" test.cfg
-  sed -I ".bak" "s#^test.temp.dir=.*#test.temp.dir=$PWD/temp_test_dir#" test.cfg
-  sed -I ".bak" "s#^test.mongo.exe.*#test.mongo.exe=$MONGO_PATH#" test.cfg
-  sed -I ".bak" "s#^test.mongo.wired_tiger.*#test.mongo.wired_tiger=true#" test.cfg
-  cd ..
+  TEMP_DIR="$PWD/temp_test_dir" JARS_DIR="$JARS_DIR" pipenv run python lib/cli/compile-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
   logn "done."
 }
 
@@ -98,7 +90,7 @@ ensure_host_dependencies
 prepare_bin_dir
 
 install_jars
-export JARS_PATH=$RETVAL
+export JARS_DIR=$RETVAL
 
 cleanup_bin_dir
 
