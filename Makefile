@@ -44,7 +44,8 @@ test: host-test-types
 	ARANGO_URL=http://localhost:8529 make -s wait-for-arango && \
 	MONGO_HOST=localhost:27017 make -s wait-for-mongo && \
 	make -s test-sdkless && \
-	make -s host-stop-test-services
+	make -s host-stop-test-services && \
+	make -s coverage-reports
 
 
 test-sdkless:
@@ -84,11 +85,11 @@ test-setup:
 
 coverage-reports:
 	@echo "Creating html coverage report"
-	coverage html
+	pipenv run coverage html
 	@echo "Converting coverage to lcov"
 	# TODO: the below should work, and would simplify things if it did,
 	# but at last try it did not.
-	coverage lcov --data-file .coverage -o cov_profile.lcov
+	pipenv run coverage lcov --data-file .coverage -o cov_profile.lcov
 
 # Wait for ...
 
