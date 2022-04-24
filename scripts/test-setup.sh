@@ -87,6 +87,8 @@ install_python_dependencies()
 
 ensure_host_dependencies
 
+install_python_dependencies
+
 prepare_bin_dir
 
 install_jars
@@ -95,5 +97,3 @@ export JARS_DIR=$RETVAL
 cleanup_bin_dir
 
 install_test_config
-
-install_python_dependencies
