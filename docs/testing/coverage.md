@@ -20,4 +20,4 @@ We use the free "CodeCov" service to provide access to coverage reports generate
 
 The top level `README.md` file contains a CodeCov "badge" indicating the current coverage percentage for the master branch.
 
-For analysis of coverage in the develop or any other branch, 
+For a summary of coverage in the "develop" or any other branch, please see the GitHub action step "Coverage summary". For a detailed report of non-master branches, you will need to run the tests locally and look in `htmlcov`.

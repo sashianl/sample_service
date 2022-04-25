@@ -72,7 +72,7 @@ jobs:
         run: make test
 
       # Display a coverage report for inspection in the workflow logs
-      - name: Produce simple coverage summary report
+      - name: Coverage summary
         run: make coverage-summary
 
       - name: Send to Codecov
