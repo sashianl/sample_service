@@ -55,6 +55,7 @@ def wait_for_arangodb(url, tries=30, interval=1, verbose=False):
         )
     )
 
+
 def wait_for_mongodb(host, tries=30, interval=1, verbose=False):
     if tries < 1:
         print(f"🛑  Sorry, 'tries' must be greater than 0; {tries} was provided")
