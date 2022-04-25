@@ -1,0 +1,63 @@
+@startuml testing-system-c4
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+'!include sample-service-relations.puml
+
+title Integration Testing
+
+
+System_Boundary(docker, "Docker") {
+    ContainerDb(arangoDb, "Arango DB", "database")
+    ContainerQueue(kafka, "Kafka", "event streaming")
+    Container(zookeeper, "Zookeeper", "configuration ")
+    Container(mongo, "Mongo", "database")
+}
+
+' Relations within docker
+Rel(kafka, zookeeper, "calls", "net")
+
+System_Boundary(host, "Host", "Developer host machine") {
+    Container(make, "Make", "Runs test tasks")
+    Container(coverageData, "Coverage Data", "html, lcov")
+    Container(coverageReports, "Coverage Reports", "html, lcov")
+    Container(source, "Source Code", "python source code in lib")
+    Container(testCode, "Test Code", "python code for testing source code")
+    Container(sampleService, "Sample Service", "The Sample Service")
+    Container(testScript, "Test Script", "Runs tests")
+    Container(workspace, "KBase Workspace")
+    Container(auth, "KBase Auth")
+}
+
+' Relations within host
+Rel(sampleService, source, "uses")
+
+Rel(testCode, workspace, "manages")
+Rel(testCode, auth, "manages")
+Rel(testCode, kafka, "manages")
+Rel(testCode, arangoDb, "manages")
+
+' Relations for calls
+Rel(sampleService, arangoDb, "calls", "net")
+Rel(sampleService, kafka, "calls", "net")
+Rel(sampleService, workspace, "calls", "net, JSON-RPC 1.1")
+Rel(sampleService, auth, "calls", "net, REST")
+Rel(workspace, mongo, "calls")
+
+Person(developer, "Developer")
+
+Rel(developer, make, "Run Test Command")
+Rel(developer, coverageReports, "views")
+
+' Relations for calls
+Rel(testScript, testCode, "runs")
+Rel(testCode, sampleService, "calls", "direct, Python")
+Rel(make, testScript, "test")
+Rel(testScript, docker, "controls", "docker compose")
+
+Rel(testScript, coverageReports, "generates")
+Rel(testCode, coverageData, "generates")
+Rel(coverageReports, coverageData, "uses")
+Rel(testScript, source, "tests")
+
+SHOW_FLOATING_LEGEND()
+
+@enduml

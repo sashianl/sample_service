@@ -40,11 +40,11 @@ compile:
 		--html \
 
 test: host-test-types
-	make -s host-start-test-services && \
+	make -s start-test-services && \
 	ARANGO_URL=http://localhost:8529 make -s wait-for-arango && \
 	MONGO_HOST=localhost:27017 make -s wait-for-mongo && \
 	make -s test-sdkless && \
-	make -s host-stop-test-services && \
+	make -s stop-test-services && \
 	make -s coverage-reports
 
 
@@ -74,10 +74,10 @@ host-stop-dev-server:
 
 # Managing test containers
 
-host-start-test-services:
+start-test-services:
 	sh scripts/start-test-services.sh &>test/test-services.log &
 
-host-stop-test-services:
+stop-test-services:
 	sh scripts/stop-test-services.sh
 
 test-setup:
