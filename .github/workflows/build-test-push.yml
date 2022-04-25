@@ -85,7 +85,7 @@ jobs:
       # Cases we handle:
       # - push to "main" - name "main"
       # - any activity in PR against "main" - name "pull_request-#""
-      # - release created - name "release", tag "release-v#.#.#""
+      # - release created - name "release", tag "v#.#.#""
       #
       - name: Create friendly tag for push to a triggering branch (main, develop, feature-*, fix-*)
         if: github.event_name == 'push'
