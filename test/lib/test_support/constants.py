@@ -1,19 +1,5 @@
 # Database configuration
 
-# Old Test Config
-# TEST_DB_NAME = 'test_db'
-# TEST_COL_SAMPLE = 'samples_sample'
-# TEST_COL_VERSION = 'samples_version'
-# TEST_COL_VER_EDGE = 'samples_ver_edge'
-# TEST_COL_NODES = 'samples_nodes'
-# TEST_COL_NODE_EDGE = 'samples_nodes_edge'
-# TEST_COL_WS_OBJ_VER = 'ws_object_version'
-# TEST_COL_DATA_LINK = 'samples_data_link'
-# TEST_COL_SCHEMA = 'samples_schema'
-# TEST_USER = 'test'
-# TEST_PWD = 'test123'
-
-# Um, why not use the actual config?
 TEST_DB_NAME = "test_sample_service_db"
 TEST_USER = "test"
 TEST_PWD = "test123"
@@ -52,10 +38,11 @@ KAFKA_PORT = 9092
 KAFKA_HOST = "localhost:9092"
 
 # MongoDB
-MONGO_PORT=27017
+MONGO_PORT = 27017
 
 
-# Test data - move to test data file
+# Test data
+# TODO: move to test data file
 
 USER_WS_READ_ADMIN = "wsreadadmin"
 TOKEN_WS_READ_ADMIN = "WSREADADMINTOKENXXXXXXXXXXXXXXXX"

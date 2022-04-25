@@ -76,19 +76,6 @@ def create_collections(db):
     return db
 
 
-# def remove_all_files(directory):
-#     shutil.rmtree(directory)
-#     # for filename in os.listdir(directory):
-#     #     file_path = os.path.join(directory, filename)
-#     #     try:
-#     #         if os.path.isfile(file_path) or os.path.islink(file_path):
-#     #             os.unlink(file_path)
-#     #         elif os.path.isdir(file_path):
-#     #             shutil.rmtree(file_path)
-#     #     except Exception as e:
-#     #         print("Failed to delete %s. Reason: %s" % (file_path, e))
-
-
 # TODO: Weird -- the ArangoSampleStorage class is just used for the
 # side effects of the constructor.
 def samplestorage_client(arango_client):
@@ -131,29 +118,6 @@ def temp_dir():
     if test_utils.get_delete_temp_files():
         shutil.rmtree(temporary_directory)
 
-#
-# @fixture(scope="function")
-# def ensure_clean_temp_dir(temp_dir):
-#     shutil.rmtree(temp_dir, ignore_errors=False)
-#     os.mkdir(temp_dir)
-#     yield temp_dir
-
-# @fixture(scope="session")
-# def temp_dir():
-#     """
-#     A session fixture, returns a temporary directory, as defined in the testing configuration
-#     (see test_utils.py).
-#     Upon testing session startup, ensures that it does not initially exist.
-#     Upon testing session teardown ensures that it is removed.
-#     """
-#     tempdir = test_utils.get_temp_dir()
-#     print('[temp_dir]', test_utils.get_temp_dir())
-#     shutil.rmtree(test_utils.get_temp_dir(), ignore_errors=False)
-#     yield tempdir
-#
-#     if test_utils.get_delete_temp_files():
-#         shutil.rmtree(test_utils.get_temp_dir())
-
 
 @fixture(scope="session")
 def kafka_host():
@@ -181,26 +145,9 @@ def arango_port():
     yield ARANGODB_PORT
 
 
-
-# @fixture(scope="session")
-# def workspace_url():
-#     yield f"{MOCK_SERVICES_URL}/services/ws"
-#
-#
-# @fixture(scope="session")
-# def auth_url():
-#     yield f"{MOCK_SERVICES_URL}/services/auth"
-
-
 @fixture(scope="session")
 def testing_db(arango_client):
     yield create_test_db(arango_client)
-
-
-# @fixture(scope="function")
-# def sample_service(testing_db):
-#     db = reset_collections(testing_db)
-#     yield {"url": SAMPLE_SERVICE_URL, "db": db}
 
 
 @fixture(scope="function")
