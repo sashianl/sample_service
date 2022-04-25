@@ -38,14 +38,7 @@ ensure_host_dependencies()
 prepare_bin_dir()
 {
   rm -rf test/bin/jars
-  rm -rf test/bin/mongo
-  mkdir -p test/bin/temp
   rm -f test/test.cfg
-}
-
-cleanup_bin_dir()
-{
-  rm -rf test/bin/temp
 }
 
 # MongoDB
@@ -67,7 +60,7 @@ install_jars()
 install_test_config()
 {
   log "Installing test config..."
-  TEMP_DIR="$PWD/temp_test_dir" JARS_DIR="$JARS_DIR" pipenv run python lib/cli/compile-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
+  TEMP_DIR="$PWD/temp_test_dir" JARS_DIR="$JARS_DIR" pipenv run python test/lib/test_support/compile-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
   logn "done."
 }
 
@@ -92,7 +85,5 @@ prepare_bin_dir
 
 install_jars
 export JARS_DIR=$RETVAL
-
-cleanup_bin_dir
 
 install_test_config
