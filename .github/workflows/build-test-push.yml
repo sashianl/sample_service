@@ -71,6 +71,10 @@ jobs:
       - name: Run all tests
         run: make test
 
+      # Display a coverage report for inspection in the workflow logs
+      - name: Produce simple coverage summary report
+        run: make coverage-summary
+
       - name: Send to Codecov
         uses: codecov/codecov-action@v2
         with:

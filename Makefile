@@ -91,6 +91,11 @@ coverage-reports:
 	# but at last try it did not.
 	pipenv run coverage lcov --data-file .coverage -o cov_profile.lcov
 
+coverage-summary:
+	@echo "Coverage summary:"
+	pipenv run coverage report
+
+
 # Wait for ...
 
 wait-for-arango:
