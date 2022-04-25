@@ -39,7 +39,7 @@ compile:
 		--out . \
 		--html \
 
-test: host-test-types
+test: test-types
 	make -s start-test-services && \
 	ARANGO_URL=http://localhost:8529 make -s wait-for-arango && \
 	MONGO_HOST=localhost:27017 make -s wait-for-mongo && \
@@ -58,7 +58,7 @@ test-sdkless:
 		$(TEST_SPEC)
 # to print test output immediately: --capture=tee-sys
 
-host-test-types:
+test-types:
 	MYPYPATH="${LIB_DIR}" pipenv run python -m mypy --namespace-packages "${LIB_DIR}/SampleService/core" "${TEST_DIR}/lib"
 
 clean:
@@ -75,13 +75,13 @@ host-stop-dev-server:
 # Managing test containers
 
 start-test-services:
-	sh scripts/start-test-services.sh &>test/test-services.log &
+	sh test/scripts/start-test-services.sh &>test/test-services.log &
 
 stop-test-services:
-	sh scripts/stop-test-services.sh
+	sh test/scripts/stop-test-services.sh
 
 test-setup:
-	sh scripts/test-setup.sh
+	sh test/scripts/test-setup.sh
 
 coverage-reports:
 	@echo "Creating html coverage report"
