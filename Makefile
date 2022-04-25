@@ -20,7 +20,7 @@ TEST_PYPATH=$(MAKEFILE_DIR)/$(LIB_DIR):$(MAKEFILE_DIR)/$(TEST_DIR)/lib
 
 default: compile
 
-all: compile build build-startup-script build-executable-script build-test-script
+all: compile
 
 compile:
 # Don't compile server automatically, overwrites fixes to error handling
@@ -56,6 +56,7 @@ test-sdkless:
 		--cov $(LIB_DIR)/$(SERVICE_CAPS) \
 		--cov-config=$(TEST_DIR)/coveragerc \
 		$(TEST_SPEC)
+
 # to print test output immediately: --capture=tee-sys
 
 test-types:
@@ -94,7 +95,6 @@ coverage-reports:
 coverage-summary:
 	@echo "Coverage summary:"
 	pipenv run coverage report
-
 
 # Wait for ...
 
