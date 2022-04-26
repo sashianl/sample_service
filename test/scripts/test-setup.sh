@@ -173,7 +173,7 @@ install_test_config()
 {
   log "Installing test config..."
   export TEMP_DIR="$PWD/temp_test_dir"
-  pipenv run python test/scripts/compile-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
+  pipenv run python test/scripts/render-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
   logn "done."
 }
 

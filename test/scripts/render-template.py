@@ -28,7 +28,7 @@ def main():
 
 def usage(message):
     print(message)
-    print("compile-template.py input-file output-file")
+    print("render-template.py input-file output-file")
 
 
 if __name__ == "__main__":
