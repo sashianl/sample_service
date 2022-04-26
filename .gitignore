@@ -20,6 +20,8 @@ test/bin/kafka
 test/bin/temp
 htmlcov/
 cov_profile.lcov
+temp_test_dir
+mongo.log
 
 # IDE
 .vscode
