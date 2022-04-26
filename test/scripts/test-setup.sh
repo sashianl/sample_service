@@ -31,7 +31,6 @@ ensure_host_dependencies()
 {
   ensure_dependency wget
   ensure_dependency java
-  ensure_dependency docker
   ensure_dependency python 3.7
   ensure_dependency pipenv
 }
