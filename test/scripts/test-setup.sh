@@ -79,8 +79,6 @@ cleanup_bin_dir()
 
 # MongoDB
 
-export RETVAL=""
-
 install_jars()
 {
   log "Installing jars..."
