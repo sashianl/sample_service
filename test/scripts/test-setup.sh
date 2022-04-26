@@ -79,8 +79,6 @@ install_mongo()
   # TODO: this only works for macosx currently; this will be
   # replaced with a mongodb container shortly.
 
-  echo "HERE $MONGODB_VER, $MONGODB_VER_UNPACKED"
-
   wget --quiet https://fastdl.mongodb.org/osx/$MONGODB_VER.tgz
 
   tar xvfz $MONGODB_VER.tgz
@@ -96,7 +94,7 @@ install_mongo()
 
 install_arango()
 {
-  log "Installing mongo..."
+  log "Installing arango..."
   cd test/bin/temp
 
   export ARANGO_ARCHIVE="arangodb3-macos-$ARANGODB_VER.tar.gz"
