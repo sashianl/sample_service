@@ -1,7 +1,32 @@
 set -e
 
 # Utilities
-source "${PWD}/scripts/service-versions.sh"
+
+ensure_os()
+{
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "macos"
+  elif [[ "$OSTYPE" == "linux-gnu"*  ]]; then
+    echo "linux"
+  else
+    echo "Not a supported OS: ${OSTYPE}"
+    exit 1
+  fi
+}
+
+# Not OS-specific
+ARANGODB_VER="3.5.1"
+ARANGODB_V="35"
+KAFKA_VER="2.8.1"
+SCALA_VER="2.12"
+
+if [[ "$(ensure_os)" == "macos" ]]; then
+  MONGODB_VER=mongodb-osx-ssl-x86_64-3.6.23
+  MONGODB_VER_UNPACKED=mongodb-osx-x86_64-3.6.23
+else
+  MONGODB_VER=mongodb-linux-x86_64-3.6.23
+  MONGODB_VER_UNPACKED=mongodb-linux-x86_64-3.6.23
+fi
 
 log()
 {
@@ -12,6 +37,8 @@ logn()
 {
    printf '%s\n' "$1"
 }
+
+
 
 ensure_dependency()
 {
@@ -78,7 +105,14 @@ install_mongo()
   # TODO: this only works for macosx currently; this will be
   # replaced with a mongodb container shortly.
 
-  wget --quiet https://fastdl.mongodb.org/osx/$MONGODB_VER.tgz
+  os=$(ensure_os)
+  if [[ $os == "macos" ]]; then
+    path_element="osx"
+  else
+    path_element="linux"
+  fi
+
+  wget --quiet https://fastdl.mongodb.org/${path_element}/$MONGODB_VER.tgz
 
   tar xvfz $MONGODB_VER.tgz
   mv $MONGODB_VER_UNPACKED mongo
@@ -96,12 +130,20 @@ install_arango()
   log "Installing arango..."
   cd test/bin/temp
 
-  export ARANGO_ARCHIVE="arangodb3-macos-$ARANGODB_VER.tar.gz"
-  curl -O https://download.arangodb.com/arangodb$ARANGODB_V/Community/MacOSX/$ARANGO_ARCHIVE
-  tar -xf $ARANGO_ARCHIVE
+  os=$(ensure_os)
+
+  if [[ $os == "macos" ]]; then
+    path_element="MacOSX"
+  else
+    path_element="Linux"
+  fi
+
+  export ARANGO_ARCHIVE="arangodb3-${os}-$ARANGODB_VER.tar.gz"
+  curl -O "https://download.arangodb.com/arangodb$ARANGODB_V/Community/${path_element}/$ARANGO_ARCHIVE"
+  tar -xf "$ARANGO_ARCHIVE"
   mv "arangodb3-$ARANGODB_VER" arangodb
   mv arangodb ..
-  rm $ARANGO_ARCHIVE
+  rm "$ARANGO_ARCHIVE"
   cd ../../..
 
   export ARANGO_EXE=${PWD}/test/bin/arangodb/usr/sbin/arangod
@@ -149,6 +191,9 @@ install_python_dependencies()
 }
 
 # MAIN
+
+os=$(ensure_os)
+logn "Supported OS detected: $os"
 
 ensure_host_dependencies
 

@@ -63,9 +63,6 @@ host-stop-dev-server:
 test-setup:
 	bash test/scripts/test-setup.sh
 
-test-setup-linux:
-	bash test/scripts/test-setup-linux.sh
-
 coverage-reports:
 	@echo "Creating html coverage report"
 	pipenv run coverage html
