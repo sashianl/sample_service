@@ -43,8 +43,8 @@ test: test-sdkless coverage-reports
 test-sdkless:
 	# TODO flake8 and bandit
 	# TODO check tests run with kb-sdk test - will need to install mongo and update config
-	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
-	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_SPEC)
+	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) pipenv run mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pipenv run pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_SPEC)
 	# to print test output immediately: --capture=tee-sys
 
 clean:

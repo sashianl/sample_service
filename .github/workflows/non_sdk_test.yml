@@ -36,8 +36,8 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          pipenv run make test
+          make test
 
       - name: Coverage Summary
         run: |
-          pipenv run make coverage-summary
+          make coverage-summary
