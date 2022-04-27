@@ -39,8 +39,8 @@ The workflow is based on "ubuntu-latest". It proceeds to:
 The image will be named `kbase/sample_service:TAG`, where `TAG` is one of:
 
 - the branch name `develop`, `master`, `fix-X`, or `feature-X` when the trigger is a push-to-branch (more on fix and feature branches below)
-- `pull_request-#` for a pull request against master or develop, where `#` is the pull request number,
-- `release-v#.#.#` when the trigger is a release, where `v#.#.#` is the release tag, e.g. `v1.2.3`.
+- `pr-#` for a pull request against master or develop, where `#` is the pull request number,
+- `v#.#.#` when the trigger is a release, where `v#.#.#` is the release tag, e.g. `v1.2.3`.
 
 The image may be addressed at `ghcr.io/kbase/sample_service:TAG`, for example
 
