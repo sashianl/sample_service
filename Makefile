@@ -38,15 +38,14 @@ compile:
 		--out . \
 		--html \
 
-test:
-	echo Use test-sdkless
+test: test-sdkless coverage-reports
 
 test-sdkless:
-# TODO flake8 and bandit
-# TODO check tests run with kb-sdk test - will need to install mongo and update config
-	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
-	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_SPEC)
-# to print test output immediately: --capture=tee-sys
+	# TODO flake8 and bandit
+	# TODO check tests run with kb-sdk test - will need to install mongo and update config
+	MYPYPATH=$(MAKEFILE_DIR)/$(LIB_DIR) pipenv run mypy --namespace-packages $(LIB_DIR)/$(SERVICE_CAPS)/core $(TEST_DIR)
+	PYTHONPATH=$(PYPATH) SAMPLESERV_TEST_FILE=$(TSTFL) pipenv run pytest --verbose --cov $(LIB_DIR)/$(SERVICE_CAPS) --cov-config=$(TEST_DIR)/coveragerc $(TEST_SPEC)
+	# to print test output immediately: --capture=tee-sys
 
 clean:
 	rm -rfv $(LBIN_DIR)
@@ -58,3 +57,18 @@ host-start-dev-server:
 
 host-stop-dev-server:
 	source scripts/dev-server-env.sh && sh scripts/stop-dev-server.sh
+
+# Test support
+
+test-setup:
+	bash test/scripts/test-setup.sh
+
+coverage-reports:
+	@echo "Creating html coverage report"
+	pipenv run coverage html
+	@echo "Converting coverage to lcov"
+	pipenv run coverage lcov --data-file .coverage -o cov_profile.lcov
+
+coverage-summary:
+	@echo "Coverage summary:"
+	pipenv run coverage report
