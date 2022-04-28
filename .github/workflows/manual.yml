@@ -5,9 +5,9 @@ on:
 jobs:
   test:
     uses: ./.github/workflows/test.yml
-  build_push:
+  build-push:
     needs: test
-    uses: ./.github/workflows/build-push-image.yml
+    uses: ./.github/workflows/build-push.yml
     with:
       tag: ${{ github.ref_name }}
     secrets:

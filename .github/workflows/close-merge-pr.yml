@@ -10,10 +10,10 @@ jobs:
   test:
     if: ${{ github.event.pull_request.merged }}
     uses: ./.github/workflows/test.yml
-  build_push:
+  build-push:
     if: ${{ github.event.pull_request.merged }}
     needs: test
-    uses: ./.github/workflows/build-push-image.yml
+    uses: ./.github/workflows/build-push.yml
     with:
       tag: ${{ github.ref_name }}
     secrets:
