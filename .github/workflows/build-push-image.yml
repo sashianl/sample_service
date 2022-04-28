@@ -15,8 +15,8 @@ jobs:
   build-push-image:
     runs-on: ubuntu-latest
     steps:
-      - - name: Check out GitHub Repo
-          uses: actions/checkout@v2
+      - name: Check out GitHub Repo
+        uses: actions/checkout@v2
 
       - name: Get current date
         id: date
