@@ -60,7 +60,7 @@ install_jars()
 install_test_config()
 {
   log "Installing test config..."
-  TEMP_DIR="$PWD/temp_test_dir" JARS_DIR="$JARS_DIR" pipenv run python test/lib/test_support/compile-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
+  TEMP_DIR="$PWD/temp_test_dir" JARS_DIR="$JARS_DIR" pipenv run python test/scripts/compile-template.py "$PWD/test/test.cfg.template"  "$PWD/test/test.cfg"
   logn "done."
 }
 
