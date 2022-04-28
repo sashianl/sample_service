@@ -17,7 +17,7 @@ on:
     types: [ published ]
   workflow_dispatch:
 jobs:
-  pre_job:
+  detect_duplicate:
     # continue-on-error: true # Uncomment once integration is finished
     runs-on: ubuntu-latest
     # Map a step output to a job output
@@ -32,8 +32,8 @@ jobs:
           skip_after_successful_duplicate: 'true'
           do_not_skip: '["pull_request", "workflow_dispatch"]'
   build_test_push:
-    needs: pre_job
-    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    needs: detect_duplicate
+    if: ${{ needs.detect_duplicate.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out GitHub Repo
