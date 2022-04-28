@@ -10,7 +10,7 @@ on:
       ghcr_username:
         required: true
       ghcr_token:
-        required:true
+        required: true
 jobs:
   build-push-image:
     runs-on: ubuntu-latest
