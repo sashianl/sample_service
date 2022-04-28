@@ -1,5 +1,5 @@
 ---
-name: Test a Pull Request
+name: PR - Test
 on:
   pull_request:
     branches:

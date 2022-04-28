@@ -1,5 +1,5 @@
 ---
-name: Test, Build & Push Image with Manual Trigger
+name: Manual - Test, Build & Push Image
 on:
  workflow_dispatch:
 jobs:
