@@ -1,0 +1,15 @@
+---
+name: Manual - Test, Build & Push Image
+on:
+ workflow_dispatch:
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+  build-push:
+    needs: test
+    uses: ./.github/workflows/build-push.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_token: ${{ secrets.GHCR_TOKEN }}
