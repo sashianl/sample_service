@@ -670,23 +670,89 @@ class ArangoSampleStorage:
         '''
         ids_: list of dictionaries containing "id" and "version" field.
         '''
-        docs, verdocs, versions = self._get_many_sample_and_version_doc(ids_)
-        samples = []
-        for id_tup in ids_:
-            id_ = str(id_tup['id'])
-            verdoc = verdocs[id_]
-            nodes = self._get_nodes(UUID(id_), UUID(verdoc[_FLD_NODE_UUID_VER]), versions[id_])
-            doc = docs[id_]
-            version = versions[id_]
+        aql = '''
+            // Extract the ids from the input.
+            LET ids = (
+                FOR idver IN @ids
+                RETURN idver.id
+            )
+            // Create a lookup table by id to select desired versions.
+            LET verlookup = MERGE(
+                FOR idver in @ids
+                RETURN {[idver.id]: idver.version}
+            )
+            // Filter first to optimize aggregation.
+            LET svs = (
+                FOR sv IN @@version
+                    FILTER sv.id IN ids
+                    RETURN sv
+            )
+            // Select the specified version of each sample.
+            LET partials = (
+                FOR sv IN svs
+                    FILTER sv.ver == verlookup[sv.id]
+                    RETURN {
+                        id: sv.id,
+                        version: sv.ver,
+                        verdoc: sv.uuidver,
+                        version_record: sv
+                    }
+            )
+            // For each sample, traverse and collect node trees.
+            LET node_trees = (
+                FOR startVertex IN @@nodes
+                    FILTER startVertex.id IN ids
+                    FOR v IN ANY startVertex @@nodes_edge
+                        FILTER v.index >= 0
+                        SORT v.index
+                        COLLECT nid = v.id INTO ns
+                        RETURN {[nid]: UNIQUE(ns[*].v)}
+            )
+            // Include node trees in samples.
+            FOR partial in partials
+                FOR node in @@nodes
+                    FILTER node.uuidver == partial.verdoc
+                        AND node.parent == NULL
+                    RETURN MERGE(partial, {
+                        "node_tree": MERGE(node_trees)[node.id] OR [node]
+                    })
+        '''
+        # Convert UUID to strings.
+        for id_ in ids_:
+            id_['id'] = str(id_['id'])
+
+        aql_bind = {
+            'ids': ids_,
+            '@nodes': self._col_nodes.name,
+            '@nodes_edge': self._col_node_edge.name,
+            '@version': self._col_version.name
+        }
+        # Convert arango doc structure into SavedSample.
+        results = {}
+        for doc in self._db.aql.execute(aql, bind_vars=aql_bind):
+            node_tree = [
+                _SampleNode(
+                    node[_FLD_NODE_NAME],
+                    _SubSampleType[node[_FLD_NODE_TYPE]],
+                    node[_FLD_NODE_PARENT],
+                    self._list_to_meta(node[_FLD_NODE_CONTROLLED_METADATA]),
+                    self._list_to_meta(node[_FLD_NODE_UNCONTROLLED_METADATA]),
+                    self._list_to_source_meta(node.get(_FLD_NODE_SOURCE_METADATA, [])),
+                )
+                for node in doc['node_tree']
+            ]
+            verdoc = doc['version_record']
             dt = self._timestamp_to_datetime(
                 self._timestamp_milliseconds_to_seconds(verdoc[_FLD_SAVE_TIME])
             )
-            samples.append(SavedSample(
-                UUID(doc[_FLD_ID]),
+            docid = doc[_FLD_ID]
+            results[docid] = SavedSample(
+                UUID(docid),
                 UserID(verdoc[_FLD_USER]),
-                nodes, dt, verdoc[_FLD_NAME], version
-            ))
-        return samples
+                node_tree, dt, verdoc[_FLD_NAME], doc['version']
+            )
+        # Return samples in the order they were requested.
+        return [results[id_['id']] for id_ in ids_]
 
     def _get_sample_and_version_doc(
             self, id_: UUID, version: Optional[int] = None) -> Tuple[dict, dict, int]:

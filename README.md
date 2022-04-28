@@ -10,6 +10,7 @@ The Sample Service is a KBase "core service" which supports storage and retrieva
 
 - [Security](#security)
 - [Background](#background)
+- [Contributing](#Contributing)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Documentation](#documentation)
@@ -45,7 +46,42 @@ See the following resources for additional information regarding the design of t
 For additional information, including specific usage scenarios, please visit the [KBase Documentation Site](https://docs.kbase.us) and search for "sample".
 
 ![Docs Site](./docs/images/kbase-docs-site.png)
-  
+
+## Contributing
+
+### When is `develop` merged into `master`?
+
+The `develop` branch is merged to `master` in anticipation of a new release.
+This merge should rename the `Unreleased` section of `RELEASE_NOTES.md` to the
+version of the release. Ideally, that merge results in a tag and release from
+`master`.
+
+### When should `RELEASE_NOTES.md` be updated?
+
+Release notes should be updated in any Pull Request (PR) to the `develop`
+branch in the `Unreleased` section. These updated notes are the author's
+responsibility. If this PR is the first after a release, the author should add
+the `Unreleased` section to the `RELEASE_NOTES.md`.
+
+When `develop` is merged into `master` the `RELEASE_NOTES.md` should also be
+updated, updating the `Unreleased` header to reflect the version released.
+
+### What if `develop` and `master` diverge?
+
+This should be a rare occurence. Bring it up during the stand up. The usual
+solution in this case is to merge `master` into `develop` in some way. Say you
+have PR for a branch named `feature`.
+
+1. Merge `master` into `feature`.
+2. Merge `develop` into `feature`.
+3. Merge `feature` into `develop` via the PR.
+
+### What if the PR is too big or complex?
+ 
+If you think your PR is too big then you should raise this concern in the daily
+standup as early as possible. There may be various outcomes depending on what
+the team decides.
+
 ## Installation
 
 The sample service may be run either locally for development or in a supported runtime environment, e.g. in a KBase environment.

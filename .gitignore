@@ -18,6 +18,8 @@ test/bin/mongo
 test/test-services.log
 htmlcov/
 cov_profile.lcov
+temp_test_dir
+mongo.log
 
 # IDE
 .vscode

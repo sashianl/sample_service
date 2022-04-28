@@ -3,6 +3,8 @@
 ## Unreleased
 
 * organize documentation under a single `docs` directory; add some additional documentation and placeholders  [SAM-209]
+* improve test config generate, automate installation of service deps for local testing, update python deps, improve coverage reporting in GHA [SAM-236]
+* Improve performance of the `get_samples` method.
 
 ## 0.2.4
 * Changes GitHub actions: creates images from releases off master, adds test running on develop branch
