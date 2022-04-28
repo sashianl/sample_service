@@ -1,0 +1,25 @@
+---
+name: Test, Build Image, Push Image for Pull Requests
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+  tagit:
+    outputs:
+      tag: ${{ steps.step1.output.tag }}
+    steps:
+      - id: step1
+        run: echo "::set-output name==tag::${{github.event.pull_request.number}}"
+  build_push:
+    needs: tagit
+    uses: ./.github/workflows/build-push-image.yml
+    with:
+      tag: ${{ needs.tagit.output.tag }}
+    secrets:
+      ghcr_username: ${{ secrets.GHCR_USERNAME }}
+      ghcr_token: ${{ secrets.GHCR_TOKEN }}
+
