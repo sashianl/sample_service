@@ -1,5 +1,5 @@
 ---
-name: Test, Build Image, Push Image for a Release to Master
+name: Test, Build & Push Image for a Release to Master
 on:
   release:
     branches:

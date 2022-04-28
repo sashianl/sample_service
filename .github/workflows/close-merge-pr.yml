@@ -1,5 +1,5 @@
 ---
-name: Test, Build Image, Push Image for closed, merged PRs
+name: Test, Build & Push Image for closed, merged PRs
 on:
   pull_request:
     branches:

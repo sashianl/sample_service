@@ -1,10 +1,15 @@
 ---
-name: Test, Build Image, Push Image for Pull Requests
+name: Test a Pull Request
 on:
   pull_request:
     branches:
       - master
       - develop
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
 jobs:
   test:
     uses: ./.github/workflows/test.yml
