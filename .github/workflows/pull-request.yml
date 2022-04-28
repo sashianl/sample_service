@@ -6,10 +6,10 @@ on:
       - master
       - develop
 jobs:
-#  test:
-#    uses: ./.github/workflows/test.yml
+  #  test:
+  #    uses: ./.github/workflows/test.yml
   build_push:
-    needs: test
+    #    needs: test
     uses: ./.github/workflows/build-push-image.yml
     with:
       tag: 'pr-${{github.event.pull_request.number}}'
