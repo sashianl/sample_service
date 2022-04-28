@@ -1,5 +1,5 @@
 ---
-name: Test, Build Image, Push Image
+name: Build & Push Image to GHCR
 on:
   workflow_call:
     inputs:
