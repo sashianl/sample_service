@@ -1,18 +1,21 @@
 ---
-name: Test, Build Image, Push Image for Pull Requests
+name: Test, Build Image, Push Image for closed, merged PRs
 on:
   pull_request:
     branches:
       - master
       - develop
+    types: [closed]
 jobs:
   test:
+    if: ${{ github.event.pull_request.merged }}
     uses: ./.github/workflows/test.yml
   build_push:
+    if: ${{ github.event.pull_request.merged }}
     needs: test
     uses: ./.github/workflows/build-push-image.yml
     with:
-      tag: 'pr-${{github.event.pull_request.number}}'
+      tag: ${{ github.ref_name }}
     secrets:
       ghcr_username: ${{ secrets.GHCR_USERNAME }}
       ghcr_token: ${{ secrets.GHCR_TOKEN }}

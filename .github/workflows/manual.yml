@@ -1,10 +1,7 @@
 ---
-name: Test, Build Image, Push Image for Pull Requests
+name: Test, Build Image, Push Image - Manual Trigger
 on:
-  pull_request:
-    branches:
-      - master
-      - develop
+ workflow_dispatch:
 jobs:
   test:
     uses: ./.github/workflows/test.yml
@@ -12,7 +9,7 @@ jobs:
     needs: test
     uses: ./.github/workflows/build-push-image.yml
     with:
-      tag: 'pr-${{github.event.pull_request.number}}'
+      tag: ${{ github.ref_name }}
     secrets:
       ghcr_username: ${{ secrets.GHCR_USERNAME }}
       ghcr_token: ${{ secrets.GHCR_TOKEN }}
