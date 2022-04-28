@@ -31,7 +31,7 @@ If there are any mistakes in these steps (or GH makes changes to the interface),
       8. Value: paste your username (the account that owns the fork)
 
 
-## Pull Request (to develop branch)
+## Pull Request workflow (to develop branch)
 
 For a PR to develop, we expect tests to run, without building an image.
 
@@ -76,7 +76,7 @@ For a PR to develop, we expect tests to run, without building an image.
     ![pr workflow completed job](./images/job-finished.png)
 
 
-## Merge PR (to develop branch)
+## Merge PR workflow (to develop branch)
 
 After merging a PR against develop, we expect tests to run and for an image to be built and pushed. 
 
@@ -90,75 +90,157 @@ After merging a PR against develop, we expect tests to run and for an image to b
 
 5. Click the **Actions** tab
 
-6. You should see the workflow running, with the branch "develop" showing.
+6. You should see the workflow running
 
-7. It takes about 7 minutes to run the tests and the build
+7. If you click on the workflow, you'll be taken to the workflow details page. There you should see that there are two jobs "tests/run-tests" and "build-push/build-push-image". Initially the test job is running:
 
-8. When the action is finished, you should find the image stored in GHCR:
-   1. Go to the fork repo home page
-   2. On the right-hand side click "Packages"
-   3. Under the Visibility: dropdown, select Private
+    ![pr close and merge tests running](./images/workflow-test-job-running.png)
+
+    After a few minutes, the build-push job will run:
+
+    ![pr close and merge build-push running](./images/workflow-build-push-job-running.png)
+
+    Finally, both jobs will be completed:
+
+    ![pr close and merge finished](./images/workflow-jobs-finished.png)
+
+8. It takes about 7 minutes to run the tests and the build
+
+9. When the action is finished, you should find the image stored in GHCR:
+   1. Go to the forked repo home page
+   2. On the right-hand side click **Packages**
+   3. Under the **Visibility:** dropdown, select **Private**
       1. Since this is a fork, the packages are considered "private"
       2. You should see "sample_service" listed under the packages
-   4. Under "recent tagged image versions" you should see the most recent image is tagged `develop`
+   4. Under **Recent tagged image versions** you should see that the most recent image is tagged `develop`
 
-## Merging PR (to master) Develop to Master
 
-1. From the forked repo home page, select the "develop" branch
+## Pull Request workflow (from develop to master branch) 
 
-2. You can either use the **Compare & pull request** button or the **Contribute** dropdown, and then the **Open pull request** button.
+For a PR from develop to master, we expect tests to run, without building an image.
 
-3. under "base repository" select your fork (it defaults to the upstream repo)
+1. switch to the **develop** branch in the GitHub ui for your fork
 
-4. under "base:" select the "master" branch
+2. Click the **Contribute** dropdown, then click the **Open Pull Request** button.
+    
+    ![disabled button](./images/enabled-button.png)
 
-5. Click the "Create pull request" button
+5. The **base repository** will default to the upstream kbase repo
 
-6. Examine the Actions tab
+    ![base repository kbase](./images/base-repository-kbase.png)
 
-7. As in the PR to develop example above, inspect the Actions tab to verify that the workflow is running, and afterwards the "Packages" page to ensure that the image ws pushed to GHCR. You should see an image tagged as a pull request.
+6. Switch the base repository to the fork
 
-8. Next merge this PR to master to trigger the "push to master" workflow.
+    ![base repository fork](./images/base-repository-fork.png)
 
-9. It takes about 7 minutes to run the tests and the build, which you can monitor in the Actions tab; the workflow run will be labeled `master`.
+7. Finally, switch the branch to develop
+
+    ![base repository master](./images/base-repository-master.png)
+
+8. Create the test PR by clicking the **Create pull request** button
+
+9. Visit the Actions tab
+
+10. You should find that there is one action running, which will be labeled with the PR title
+
+11. If you click on the workflow, you'll be taken to the workflow details page. There you should see that there is one job running, labeled "test/run-tests":
+
+    ![pr workflow running job](./images/job-running.png)
+
+12. Note that only the testing workflow is running.
+
+13. When the workflow is finished successfully, the job status indicator will turn green:
+
+    ![pr workflow completed job](./images/job-finished.png)
+
+
+## Merge PR (to master branch) workflow
+
+After merging a PR against master, we expect tests to run and for an image to be built and pushed. 
+
+1. From the forked repo home page, select the **Pull requests** tab
+
+2. Click the title of the PR
+
+3. Click the **Merge pull request** button
+
+4. Click the **Confirm merge** button
+
+5. Click the **Actions** tab
+
+6. You should see the workflow running
+
+7. If you click on the workflow, you'll be taken to the workflow details page. There you should see that there are two jobs "tests/run-tests" and "build-push/build-push-image". Initially the test job is running:
+
+    ![pr close and merge tests running](./images/workflow-test-job-running.png)
+
+    After a few minutes, the build-push job will run:
+
+    ![pr close and merge build-push running](./images/workflow-build-push-job-running.png)
+
+    Finally, both jobs will be completed:
+
+    ![pr close and merge finished](./images/workflow-jobs-finished.png)
+
+8. It takes about 7 minutes to run the tests and the build
+
+9. When the action is finished, you should find the image stored in GHCR:
+   1. Go to the forked repo home page
+   2. On the right-hand side click **Packages**
+   3. Under the **Visibility:** dropdown, select **Private**
+      1. Since this is a fork, the packages are considered "private"
+      2. You should see "sample_service" listed under the packages
+   4. Under **Recent tagged image versions** you should see that the most recent image is tagged `master`
+
+## Release workflow
+
+1. From the forked repo home page, select the **master** branch
+
+2. On the right-hand side of the page click **Releases**
+
+3. From the Releases page click the button **Draft a new release**
+
+4. Click the dropdown **Choose a tag**
+
+5. In the **Find or create a new tag** input area enter "v1.2.3" or some other example release tag, and press the **Enter/Return** key (or click the **+ Create new tag:** button)
+
+6. In the **Release title** input area enter anything, e.g. "Release version 1.2.3"; content is arbitrary.
+
+7. Click the green **Publish release** button
+
+8. Check the Actions tab, there should be a workflow run labeled "Release version 1.2.3" (or whatever you titled it)
+
+9. If you click on the workflow, you'll be taken to the workflow details page. There you should see that there are two jobs "tests/run-tests" and "build-push/build-push-image". Initially the test job is running:
+
+    ![pr close and merge tests running](./images/workflow-test-job-running.png)
+
+    After a few minutes, the build-push job will run:
+
+    ![pr close and merge build-push running](./images/workflow-build-push-job-running.png)
+
+    Finally, both jobs will be completed:
+
+    ![pr close and merge finished](./images/workflow-jobs-finished.png)
 
 10. When the action is finished, you should find the image stored in GHCR:
     1. Go to the fork repo home page
-    2. On the right hand side click "Packages"
+    2. On the right-hand side click "Packages"
     3. Under the Visibility: dropdown, select Private
        1. Since this is a fork, the packages are considered "private"
        2. You should see "sample_service" listed under the packages
-    4. Under "recent tagged image versions" you should see the most recent image is tagged `master`
+    4. Under "recent tagged image versions" you should see the most recent image is tagged `v1.2.3` (or whateve you tagged the release)
 
-## Exercise a Release
-
-1. From the forked repo home page, select the "develop" branch
-2. On the right hand side of the page click "Releases"
-3. From the "Releases" page click the button "Create a new release"
-4. Click the dropdown "Choose a tag"
-5. In "Find or create a new tag" enter "v1.2.3" or some other example release tag, and press the Enter/Return key
-6. In "Release title" enter "Release version 1.2.3"; content is arbitrary.
-7. Click the green "Publish release" button
-8. Check the Actions tab, there should be a workflow run labeled "Release version 1.2.3"
-9. Again, wait for the workflow run to finish
-10. When the action is finished, you should find the image stored in GHCR:
-    1. Go to the fork repo home page
-    2. On the right hand side click "Packages"
-    3. Under the Visibility: dropdown, select Private
-       1. Since this is a fork, the packages are considered "private"
-       2. You should see "sample_service" listed under the packages
-    4. Under "recent tagged image versions" you should see the most recent image is tagged `v1.2.3`
-
-## Test manual workflow run
+## Manual workflow run
 
 1. In your local repo, create a branch and push it to the fork
    1. The branch can be named anything, in this example it is "feature-SAM-238"
+   2. You can of course use existing branches develop or master
    
-2. Visit the fork at github
+2. Visit the forked repo
 
-3. Visit the Actions tab
+3. Visit the **Actions** tab
 
-4. Select the workflow named "Manual - Test, Build & Push Image"
+4. Select the workflow named **Manual - Test, Build & Push Image**
 
 5. To the right you should see a blue box with a "Run workflow" dropdown:
     ![Workflow Dispatch panel](./images/workflow-dispatch.png)
@@ -170,13 +252,26 @@ After merging a PR against develop, we expect tests to run and for an image to b
 
 8. You should find that there is one action running, whose name is the branch name
 
+    ![manual action running](./images/manual-action-running.png)
+
+10. If you click on the workflow, you'll be taken to the workflow details page. There you should see that there are two jobs "tests/run-tests" and "build-push/build-push-image". Initially the test job is running:
+
+     ![pr close and merge tests running](./images/workflow-test-job-running.png)
+
+     After a few minutes, the build-push job will run:
+
+     ![pr close and merge build-push running](./images/workflow-build-push-job-running.png)
+
+     Finally, both jobs will be completed:
+
+     ![pr close and merge finished](./images/workflow-jobs-finished.png)
    
-9. When the action is finished, you should find the image stored in GHCR:
-   1. Go to the fork repo home page
-   2. On the right hand side click "Packages"
-   3. Under the Visibility: dropdown, select Private
-      1. Since this is a fork, the packages are considered "private"
-      2. You should see "sample_service" listed under the packages
-   4. Under "recent tagged image versions" you should see a tag that is the same as the branch name
+11. When the action is finished, you should find the image stored in GHCR:
+    1. Go to the fork repo home page
+    2. On the right-hand side click **Packages**
+    3. Under the **Visibility:** dropdown, select **Private**
+       1. Since this is a fork, the packages are considered "private"
+       2. You should see "sample_service" listed under the packages
+    4. Under **Recent tagged image versions** you should see a tag that is the same as the branch name
 
 
