@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.5
+
 * organize documentation under a single `docs` directory; add some additional documentation and placeholders  [SAM-209]
 * improve test config generate, automate installation of service deps for local testing, update python deps, improve coverage reporting in GHA [SAM-236]
 * Improve performance of the `get_samples` method.

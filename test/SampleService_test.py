@@ -47,7 +47,7 @@ from kafka_controller import KafkaController
 # TODO should really test a start up for the case where the metadata validation config is not
 # supplied, but that's almost never going to be the case and the code is trivial, so YAGNI
 
-VER = '0.2.1'
+VER = '0.2.5'
 
 _AUTH_DB = 'test_auth_db'
 _WS_DB = 'test_ws_db'
